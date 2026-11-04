@@ -317,19 +317,28 @@ For backward compatibility, a `warmupRounds` value inside `SlimData__Configurati
 
 ## Raft command protocol
 
-SlimData writes and accepts only the `SLDC/1` Raft command envelope. Legacy payloads, including key/value command ID `2` and queue command ID `14`, are skipped without mutating the state; they are never converted or rewritten. Every node exposes its protocol and assembly version on the internal SlimData port:
+SlimData advertises the `SLDC/5` cluster command contract, which includes
+Raft-backed WebSocket registration and owner leases. The underlying binary
+`SLDC/1` envelope remains unchanged. Legacy payloads, including key/value command
+ID `2` and queue command ID `14`, are skipped without mutating the state; they are
+never converted or rewritten. Every node exposes its protocol and assembly
+version on the internal SlimData port:
 
 Before a mutation is appended to Raft, every SlimData command is serialized into a bounded immutable payload. Its declared length and `SLDC/1` envelope are validated, then the same byte block is written to the leader WAL and replicated to followers.
 
 ```text
 GET /SlimData/protocol
-X-SlimData-Command-Protocol: SLDC/1
+X-SlimData-Command-Protocol: SLDC/5
 X-SlimData-Assembly-Version: <version>
 ```
 
 A node with a missing or incompatible protocol is rejected during membership changes. The assembly version, including the Git commit SHA, is diagnostic only: different builds may coexist during a rolling update as long as both advertise the same command protocol. A temporarily unreachable follower does not make a leader incompatible while the Raft quorum and lease remain valid. A follower still returns `503` from `/ready` and refuses SlimData operations when its leader advertises an incompatible protocol.
 
-Any release that changes the Raft wire format must also change `SlimDataCommandProtocol.Current` (for example from `SLDC/1` to `SLDC/2`). Such a release requires a coordinated cluster upgrade; releases retaining `SLDC/1` support normal one-pod-at-a-time Kubernetes updates.
+Any release that changes the replicated command/result contract must also change
+`SlimDataCommandProtocol.Current`. Upgrading from `SLDC/4` to `SLDC/5` requires a
+coordinated stop and upgrade of all members; mixed contracts are not ready.
+Existing snapshots and producer receipts remain readable. Releases retaining
+`SLDC/5` support normal one-pod-at-a-time Kubernetes updates.
 
 Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
 

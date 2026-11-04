@@ -70,6 +70,56 @@ class TourScriptTests(unittest.TestCase):
                     self.assertEqual(result.stdout, "")
                     self.assertIn("Missing required tool: " + missing, result.stderr)
 
+    def test_durable_polling_requires_own_failure_and_both_acknowledgements(self):
+        if not shutil.which("jq"):
+            self.skipTest("jq is not installed")
+        mocks = '''TOUR_ID=tour-own
+request() {
+  calls=$((calls + 1))
+  case "$2" in GET) ;; *) echo "Unexpected mutation" >&2; return 99 ;; esac
+  if [[ $calls == 1 ]]; then
+    printf '%s' '{"Items":[{"Id":"foreign","Request":{"Path":"/tour/dlq/tour-foreign"}}],"NextCursor":"next"}' > "$TOUR_TMP/body"
+  else
+    printf '%s' '{"Items":[{"Id":"own","Request":{"Path":"tour/dlq/tour-own"},"LastHttpStatus":422,"FailureReason":"NonRetryableResponse"}]}' > "$TOUR_TMP/body"
+  fi
+}
+calls=0
+sleep() { :; }
+trap '[[ $calls == 2 && $DLQ_ID == own ]] || exit 98' EXIT
+'''
+        result = self.state_probe("smoke-tour.sh", mocks, "find_failure")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        mocks = '''SEQUENCE=7
+MESSAGE_ID=message_7
+calls=0
+request() {
+  calls=$((calls + 1))
+  [[ $calls -le 3 ]] || return 99
+  local second=0
+  [[ $calls -lt 3 ]] || second=7
+  printf '{"Items":[{"Function":"fibonacci1","Active":true,"AcknowledgedThrough":7},{"Function":"fibonacci2","Active":true,"AcknowledgedThrough":%s}]}' "$second" > "$TOUR_TMP/body"
+}
+sleep() { :; }
+trap '[[ $calls == 3 ]] || exit 98' EXIT
+'''
+        result = self.state_probe("smoke-tour.sh", mocks, "wait_acknowledgements")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_durable_marker_does_not_accept_a_previous_execution(self):
+        mocks = '''REPLAY_ID=new-execution
+TOUR_ID=tour-own
+calls=0
+request() {
+  calls=$((calls + 1))
+  [[ $calls -le 2 ]] || return 99
+  if [[ $calls == 1 ]]; then printf old-execution; else printf new-execution; fi > "$TOUR_TMP/body"
+}
+sleep() { :; }
+trap '[[ $calls == 2 ]] || exit 98' EXIT
+'''
+        result = self.state_probe("smoke-tour.sh", mocks, "wait_marker")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def state_probe(self, script, mocks, function="read_state"):
         content = (self.repository / "demo" / script).read_text(encoding="utf-8")
         start = content.index(function + "() {")

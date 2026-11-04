@@ -1,12 +1,34 @@
 # How SlimFaas Works
 
+[Durable Streams](streams.md) persist definitions, subscriptions, message bodies,
+attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
+path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the
+same shared state. SLDC/5 fences the additive WebSocket directory batch contract; stored
+producer receipts from earlier formats remain readable. Stream payloads use
+generated MemoryPack writers directly to avoid Native AOT generic virtual
+formatter dispatch, without changing the wire format. API payloads use
+source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/4 and SLDC/5
+clusters are deliberately not ready.
+
+WebSocket registrations use a Raft-backed connection directory with node leases
+and incarnation fencing. Configuration reservations are cluster-wide; only
+activated, live-owner registrations appear as virtual replicas. Sync and async
+ingress relay directly to the owning node, while event fan-out groups targets by
+owner and preserves best effort. Stream reservations remain owner-local.
+Internal proofs bind sender membership, owner incarnation, operation and payload;
+credentials stay in private state, outside Data APIs and workload environments.
+The synchronous relay uses a dedicated duplex HTTP transport: response-duration
+metric wrappers cannot wrap upgraded WebSocket streams. Async and event relays
+keep the standard instrumented HTTP client.
+See [client routing and failure semantics](clients.md#multi-node-routing-and-failure-semantics).
+
 SlimFaas sits between callers and their applications. It routes HTTP requests, wakes idle workloads, queues asynchronous work, dispatches jobs and coordinates state through SlimData.
 
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.
 
 ## Durable terminal failures
 
-Opt-in [Dead Letter Queues](dead-letter-queues.md) share SlimData's ordered Raft
+Opt-in [Dead Letter Queues](async-functions.md#dead-letter-queues) share SlimData's ordered Raft
 mutation pipeline. Terminal callbacks, dequeue-time exhaustion, and maintenance
 timeouts atomically replace an executable request with retained metadata/payload
 references. Replay atomically creates a fresh active element and a 24-hour
@@ -39,8 +61,10 @@ See the [dependency update guidelines](../CONTRIBUTING.md#dependency-updates) fo
 ## Native build toolchain
 
 Source builds require .NET SDK `10.0.403` or a newer .NET 10 SDK, as selected
-by `global.json`. This minimum includes the Native AOT compiler fix shipped in
-.NET `10.0.12` for Apple's linker assertion, `too many large addends`, which can
+by `global.json`. This selects the Native AOT compiler and runtime `10.0.14`,
+including the [Brotli security fix](https://github.com/advisories/GHSA-p3jp-9v83-76w9).
+It also retains the compiler fix shipped in .NET `10.0.12` for Apple's linker
+assertion, `too many large addends`, which can
 affect SlimFaas's generated Kubernetes client code on macOS. Upgrade the SDK
 before publishing a native macOS build; no custom linker setting is required.
 The fix is documented in the [upstream .NET runtime backport](https://github.com/dotnet/runtime/pull/132171).
@@ -59,10 +83,17 @@ flowchart LR
     Caller[Caller or Bruno] --> Gateway[SlimFaas HTTP API]
     UI[Live dashboard] -->|SSE and wake requests| Gateway
     Gateway -->|Sync and events| Functions[Ready function replicas]
-    Gateway -->|Async and jobs| Data[(SlimData)]
+    Gateway -->|Durable async, jobs and Stream appends| Data[(SlimData Raft)]
+    Data -->|Committed| Gateway
+    Gateway -->|202 durable acceptance| Caller
     Data --> Workers[Dispatch workers]
     Workers --> Functions
     Workers --> Jobs[Job executions]
+    Workers -->|Terminal async failure, opt-in| DLQ[(Function DLQ)]
+    DLQ -->|Atomic replay as fresh queue execution| Data
+    Data --> Streams[Stream dispatchers]
+    Streams -->|Independent per-function delivery| Functions
+    Functions -->|Stream ACK or callback| Data
     Scale[Scaling workers] --> Orchestrator[Orchestrator]
     Orchestrator --> Functions
     Orchestrator --> Jobs
@@ -166,7 +197,7 @@ sequenceDiagram
     end
 ```
 
-`202` acknowledges durable enqueueing, not execution or a stored function result. Handlers can be retried after failure or incomplete delivery; make side effects idempotent. Retry delays, HTTP timeouts and retryable statuses are configured per function. See [Functions](functions.md).
+`202` acknowledges durable enqueueing, not execution or a stored function result. Handlers can be retried after failure or incomplete delivery; make side effects idempotent. Retry delays, HTTP timeouts and retryable statuses are configured per function. Terminal failures can be atomically retained in an opt-in DLQ and replayed as a fresh queue execution after repair. See [Async Functions](async-functions.md#architecture-and-lifecycle).
 
 Committed mutations signal workers immediately; periodic polling remains a recovery fallback. Dispatch uses a lightweight queue snapshot of counts, running IDs and reservations rather than copying every payload. Completion mailboxes group durable callbacks, release response resources promptly and perform offloaded-body cleanup separately. Results completed after leadership loss are discarded locally so the current leader controls callback and retry decisions.
 
@@ -191,6 +222,32 @@ sequenceDiagram
 ```
 
 HTTP events fan out to ready replicas, including multiple replicas of the same function. They do not durably queue for sleeping functions or wake them. The handler logs per-target failures; `204` does not guarantee every subscriber succeeded. With no allowed configured subscriber, it returns `404`. Connected WebSocket subscribers receive events through their transport. See [Events](events.md).
+
+## Durable Streams
+
+```mermaid
+flowchart LR
+    Publisher -->|Append| API[SlimFaas API]
+    API -->|Commit| Log[(Retained SlimData Raft Stream)]
+    API -->|202 with message ID after commit| Publisher
+    Log -->|Independent subscription| A[HTTP function A]
+    Log -->|Independent subscription| B[WebSocket function B]
+    A -->|ACK or callback| PA[(A progress)]
+    B -->|ACK or callback| PB[(B progress)]
+    PA --> Log
+    PB --> Log
+```
+
+Publishers do not wait for consumers. One function's disconnected client,
+callback wait or retry does not gate another function's progress. Each function
+shares consumption state across its replicas; a message goes to one replica per
+attempt, not every replica. HTTP delivery is leader-owned and WebSocket delivery
+is owner-local, with reservations and ACKs persisted through Raft.
+
+ACK advances consumption without deleting history. Retention remains bounded by
+age and count, so idempotent consumers must account for possible retention gaps.
+Terminal Stream failures remain in Stream progress and are not automatically
+copied into async-function DLQs. See the [Stream architecture and sequence](streams.md#architecture).
 
 ## Jobs and schedules
 
@@ -264,7 +321,7 @@ File content is disk-backed; metadata is cluster-consistent. A receiving node an
 
 SlimData uses Raft through DotNext. Nodes retain applied state in memory and persist commands in a write-ahead log. A healthy quorum is needed for replicated writes; local snapshots of status and metadata do not by themselves establish that every peer is caught up.
 
-SlimData uses DotNext 6.11.0. This retains upstream fixes for a full replication
+SlimData uses DotNext 6.11.1. This retains upstream fixes for a full replication
 queue silently losing a member response and for rejecting an election candidate
 whose log is shorter but whose last term is newer. These are stabilization fixes;
 they do not establish the cause of a particular operational incident. The
@@ -279,7 +336,7 @@ before upgrading existing state. Do not infer safe rollback from a forward-upgra
 
 ### SlimData recovery
 
-DotNext 6.11.0 chooses the synchronization path internally. SlimFaas supplies
+DotNext 6.11.1 chooses the synchronization path internally. SlimFaas supplies
 `warmupRounds` (100 by default): a restarted member first attempts WAL
 backtracking and can fall back to DotNext snapshot recovery when the gap is
 larger than the configured search window. There is no public API in this
@@ -317,14 +374,14 @@ restarts a node or changes its persisted state.
 ### SlimData WAL and snapshots
 
 Both the SlimFaas host and standalone SlimData restore the latest snapshot before
-resolving Raft services or starting hosted services. DotNext 6.11.0 requires this
+resolving Raft services or starting hosted services. DotNext 6.11.1 requires this
 ordering before constructing the write-ahead log when a snapshot exists. Empty
 databases follow the same startup sequence. Restoration failures stop startup; WAL application must not race snapshot loading.
-DotNext 6.11.0 also rejects WAL construction if restoration was omitted, including
+DotNext 6.11.1 also rejects WAL construction if restoration was omitted, including
 through the dependency-injection registrations. A regression test exercises this
 guard with a compacted legacy WAL; new hosts must preserve the startup sequence.
 
-DotNext 6.11.0 writes a checkpoint on every WAL commit to preserve consistency.
+DotNext 6.11.1 writes a checkpoint on every WAL commit to preserve consistency.
 Its former `FlushInterval` and `FlushOnCommit` settings are deprecated and have no
 effect; SlimFaas does not set either option. This upstream durability change
 applies to both memory-management strategies and can affect write throughput.

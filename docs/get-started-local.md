@@ -7,6 +7,14 @@ Run three SlimFaas nodes, four HTTP functions and jobs directly on your computer
 
 Both paths open the same dashboard and lead into the [Guided Tour](guided-tour.md). Docker and Kubernetes are not required.
 
+The tour includes [DLQ repair and durable Streams exercises](guided-tour.md#repair-and-replay-a-dead-letter)
+by default, with no additional manifests or activation flags. Use a current
+checkout or bundle. It also includes the [independent persistent WebSocket job](guided-tour.md#10-run-an-independent-websocket-job)
+for sync, async and Streams; each tour creates a new worker and leaves it running.
+Two workers can remain active before explicit manual cleanup is required.
+This trusted local demo exposes Data, Streams and DLQ management
+publicly, including body inspection, replay and deletion.
+
 ## Run from a release bundle
 
 The bundle includes SlimFaas and the sample applications, ready to execute.

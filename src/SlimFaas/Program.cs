@@ -28,6 +28,7 @@ using SlimFaas.Logs;
 using SlimFaas.Middleware;
 using SlimFaas.Options;
 using SlimFaas.Security;
+using SlimFaas.Streams;
 using SlimFaas.WebSocket;
 using SlimFaas.Workers;
 
@@ -100,9 +101,12 @@ serviceCollectionStarter.AddOptions<SlimFaasOptions>()
     .Bind(configurationRoot.GetSection(SlimFaasOptions.SectionName))
     .Validate(options => options.DeadLetterQueue is not null &&
         Enum.IsDefined(options.DeadLetterQueue.DefaultVisibility), "Invalid DeadLetterQueue visibility.")
+    .Validate(options => options.Streams is not null &&
+        Enum.IsDefined(options.Streams.DefaultVisibility), "Invalid Streams visibility.")
     .ValidateOnStart();
 serviceCollectionStarter.AddSingleton<INamespaceProvider, NamespaceProvider>();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
+serviceCollectionStarter.AddSingleton<StreamDemandStore>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
 serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
 serviceCollectionStarter.AddSingleton<FunctionStatusCache>();
@@ -280,6 +284,9 @@ serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
 serviceCollectionSlimFaas.AddSingleton<DeadLetterService>();
+serviceCollectionSlimFaas.AddSingleton<IStreamService, StreamService>();
+serviceCollectionSlimFaas.AddSingleton(sp => serviceProviderStarter.GetRequiredService<StreamDemandStore>());
+serviceCollectionSlimFaas.AddHostedService<StreamDispatcher>();
 serviceCollectionSlimFaas.AddSingleton<IDeadLetterService>(sp => sp.GetRequiredService<DeadLetterService>());
 serviceCollectionSlimFaas.AddHostedService(sp => sp.GetRequiredService<DeadLetterService>());
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
@@ -351,8 +358,21 @@ if (slimFaasOptions.EnableFront)
 
 // --- WebSocket virtual clients ---
 serviceCollectionSlimFaas.AddSingleton<WebSocketConnectionRegistry>();
+serviceCollectionSlimFaas.AddSingleton<WebSocketClusterDirectory>();
+serviceCollectionSlimFaas.AddSingleton<IWebSocketClusterDirectory>(sp => sp.GetRequiredService<WebSocketClusterDirectory>());
+serviceCollectionSlimFaas.AddHostedService(sp => sp.GetRequiredService<WebSocketClusterDirectory>());
 serviceCollectionSlimFaas.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepository>();
-serviceCollectionSlimFaas.AddSingleton<IWebSocketSendClient, WebSocketSendClient>();
+serviceCollectionSlimFaas.AddSingleton<WebSocketSendClient>();
+serviceCollectionSlimFaas.AddSingleton<IWebSocketSendClient, ClusterWebSocketSendClient>();
+serviceCollectionSlimFaas.AddSingleton<WebSocketPeerAuthorization>();
+serviceCollectionSlimFaas.AddHttpClient(ClusterWebSocketSendClient.HttpClientName)
+    .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() =>
+    {
+        var handler = InternalHttpClientHandler.Create(slimFaasOptions.AllowUnsecureSsl);
+        handler.AllowAutoRedirect = false;
+        return handler;
+    });
 serviceCollectionSlimFaas.AddHostedService<WebSocketQueuesWorker>();
 
 builder.Services
@@ -666,11 +686,13 @@ app.UseStaticFiles();
 
 // --- WebSocket endpoint (port dédié uniquement) ---
 app.MapWebSocketEndpoints();
+app.MapWebSocketPeerEndpoints();
 
 app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();
 app.MapDataFileRoutes();
 app.MapDeadLetterEndpoints();
+app.MapStreamEndpoints();
 app.MapDebugRoutes();
 app.MapScalingEndpoints();
 

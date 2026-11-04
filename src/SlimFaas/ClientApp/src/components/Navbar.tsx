@@ -1,6 +1,6 @@
 import Icon from './Icon';
-export default function Navbar({ live = false, deadLetters = false, deadLettersEnabled = false }: { live?: boolean; deadLetters?: boolean; deadLettersEnabled?: boolean }) {
-  const overview = !live && !deadLetters;
+export default function Navbar({ live = false, deadLetters = false, deadLettersEnabled = false, streams = false, streamsEnabled = false }: { live?: boolean; deadLetters?: boolean; deadLettersEnabled?: boolean; streams?: boolean; streamsEnabled?: boolean }) {
+  const overview = !live && !deadLetters && !streams;
   return <header className="navbar">
     <a href="#main" onClick={event => { event.preventDefault(); document.getElementById('main')?.focus(); }} className="navbar__skip">Skip to content</a>
     <a className="navbar__brand" href="#/overview"><img className="navbar__logo" src="/slimfaas.svg" width="36" height="36" alt="" /><span>SlimFaas</span><span className="navbar__label">Dashboard</span></a>
@@ -8,6 +8,7 @@ export default function Navbar({ live = false, deadLetters = false, deadLettersE
       <a className={`navbar__link ${overview ? 'navbar__link--active' : ''}`} href="#/overview" aria-current={overview ? 'page' : undefined}><Icon name="grid" />Overview</a>
       <a className={`navbar__link ${live ? 'navbar__link--active' : ''}`} href="#/live/traffic" aria-current={live ? 'page' : undefined}><Icon name="activity" />Live Stream</a>
       {deadLettersEnabled && <a className={`navbar__link ${deadLetters ? 'navbar__link--active' : ''}`} href="#/dead-letters" aria-current={deadLetters ? 'page' : undefined}>Dead Letter Queues</a>}
+      {streamsEnabled && <a className={`navbar__link ${streams ? 'navbar__link--active' : ''}`} href="#/streams" aria-current={streams ? 'page' : undefined}>Streams</a>}
     </nav>
     <a className="navbar__docs" href="https://slimfaas.dev/user-interface" target="_blank" rel="noreferrer">Documentation <Icon name="arrow" /></a>
   </header>;

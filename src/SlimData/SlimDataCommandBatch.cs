@@ -15,7 +15,9 @@ public enum SlimDataBatchOperationKind : byte
     ListLeftPush = 5,
     ListRightPop = 6,
     ListCallback = 7,
-    DeadLetter = 8
+    DeadLetter = 8,
+    Stream = 9,
+    WebSocketDirectory = 10
 }
 
 [MemoryPackable]
@@ -53,6 +55,8 @@ public partial class SlimDataBatchOperationResult
     public KeyValueCommandResult? KeyValueResult { get; set; }
     public QueueData[]? QueueItems { get; set; }
     public DeadLetterMutationResult? DeadLetterResult { get; set; }
+    public DurableStreamMutationResult? StreamResult { get; set; }
+    public WebSocketDirectoryResult? WebSocketDirectoryResult { get; set; }
 }
 
 [MemoryPackable]
@@ -186,6 +190,20 @@ internal static class SlimDataCommandBatchValidator
                 break;
 
             case SlimDataBatchOperationKind.DeleteKeyValue:
+                break;
+            case SlimDataBatchOperationKind.WebSocketDirectory:
+                var directoryMutation = MemoryPackSerializer.Deserialize<WebSocketDirectoryMutation>(operation.Value)
+                    ?? throw new InvalidDataException("Missing WebSocket directory mutation.");
+                WebSocketDirectoryStore.Validate(directoryMutation);
+                if (operation.Key != WebSocketDirectoryStore.Key)
+                    throw new InvalidDataException("Invalid WebSocket directory mutation key.");
+                break;
+            case SlimDataBatchOperationKind.Stream:
+                var streamMutation = MemoryPackSerializer.Deserialize<DurableStreamMutation>(operation.Value)
+                    ?? throw new InvalidDataException("Missing Stream mutation.");
+                DurableStreamStore.Validate(streamMutation);
+                if (operation.Key != DurableStreamStore.DefinitionPrefix + streamMutation.Stream)
+                    throw new InvalidDataException("Invalid Stream mutation key.");
                 break;
             case SlimDataBatchOperationKind.DeadLetter:
                 var mutation = MemoryPackSerializer.Deserialize<DeadLetterMutation>(operation.Value)

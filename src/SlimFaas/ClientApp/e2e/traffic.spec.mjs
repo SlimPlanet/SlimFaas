@@ -1,6 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
-import { buildTopology, observedQueues } from '../src/lib/topology.ts';
+import { buildTopology, isJobQueueName, jobQueues, observedFunctions, observedQueues } from '../src/lib/topology.ts';
 import { startNative } from './native.mjs';
 import { observeCanvas } from './canvas-observer.mjs';
 
@@ -31,8 +31,13 @@ async function viewer(browser, url) {
 }
 function geometry(state, event, events = []) {
   const usedQueues = new Set(events.filter(e => e.Type === 'enqueue' || e.Type === 'dequeue').map(e => e.Target));
-  const model = buildTopology(state.Functions, state.Jobs, state.Queues.filter(q => q.Length > 0 || usedQueues.has(q.Name)),
-    state.SlimFaasNodes, [], observedQueues(state.Queues, events));
+  const queues = [...state.Queues, ...jobQueues(state.Jobs)];
+  const deadLetters = state.DeadLetters ?? [];
+  const withDeadLetters = new Set(deadLetters.map(summary => summary.Function));
+  const model = buildTopology(state.Functions, state.Jobs,
+    queues.filter(q => isJobQueueName(q.Name) || q.Length > 0 || usedQueues.has(q.Name) || withDeadLetters.has(q.Name)),
+    state.SlimFaasNodes, observedFunctions(state.Functions, events), observedQueues(queues, events),
+    deadLetters, state.Streams ?? []);
   const point = id => {
     const node = model.byId.get(id);
     expect(node, id).toBeTruthy();

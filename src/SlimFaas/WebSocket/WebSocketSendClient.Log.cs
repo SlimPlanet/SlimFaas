@@ -3,6 +3,10 @@ namespace SlimFaas.WebSocket
 {
     internal static partial class WebSocketSendClientLog
     {
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Synchronous WebSocket cleanup failed for {FunctionName}.")]
+        internal static partial void LogWebSocketSyncCleanupFailed(this ILogger logger, Exception exception, string functionName);
+        [LoggerMessage(Level = LogLevel.Warning, Message = "WebSocket event targets unavailable for {FunctionName}: {Count}")]
+        internal static partial void LogWebSocketEventTargetsUnavailable(this ILogger logger, string functionName, int count);
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "No WebSocket client available for function {FunctionName}")]
         internal static partial void LogNoWebSocketClientAvailableForFunction(this global::Microsoft.Extensions.Logging.ILogger logger, string functionName);
 

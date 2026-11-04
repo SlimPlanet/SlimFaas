@@ -6,8 +6,23 @@
 
 # slimfaas-client
 
+Durable Streams use `subscribe_streams=[SubscribeStreamConfig("orders")]` and
+`client.on_stream_message(handler)`. A `StreamMessage` includes `stream_name`,
+`message_id`, attempt `element_id` and the original request. Return final status
+or `202`, then complete through `send_callback`. Registration requires
+`streams-v1`; reconnect preserves progress.
+See [Streams examples](../../../docs/streams.md#websocket-functions).
+
 Python client to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
+
+The client retains active handler tasks until they finish, including while they
+await application work. Completed tasks are released automatically.
+
+One outbound connection to any SlimFaas node is sufficient: sync, async and event
+ingress on other nodes relays to its owner; Streams consume on the connected node.
+Configuration must match across clients sharing a name. SDK wire messages are
+unchanged. See [multi-node routing and failures](../../../docs/clients.md#multi-node-routing-and-failure-semantics).
 
 [![PyPI](https://img.shields.io/pypi/v/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)

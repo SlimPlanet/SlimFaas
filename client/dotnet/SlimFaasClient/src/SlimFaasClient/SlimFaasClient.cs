@@ -90,6 +90,8 @@ public sealed class SlimFaasClient : IAsyncDisposable
     /// appelez alors <see cref="SendCallbackAsync"/> manuellement.
     /// </summary>
     public Func<SlimFaasAsyncRequest, Task<int>>? OnAsyncRequest { get; set; }
+    /// <summary>Returns final status, or 202 followed by SendCallbackAsync for deferred completion.</summary>
+    public Func<SlimFaasStreamMessage, Task<int>>? OnStreamMessage { get; set; }
 
     /// <summary>
     /// Callback appelé pour chaque évènement publish/subscribe reçu.
@@ -279,6 +281,10 @@ public sealed class SlimFaasClient : IAsyncDisposable
             Configuration = new RegisterConfigDto
             {
                 DependsOn = _config.DependsOn,
+                SubscribeStreams = _config.SubscribeStreams.Select(item => new SubscribeEventConfigDto
+                    { Name = item.Name, Visibility = item.Visibility?.ToString() }).ToList(),
+                StreamMaxAgeSeconds = _config.StreamMaxAgeSeconds,
+                StreamMaxLength = _config.StreamMaxLength,
                 SubscribeEvents = _config.SubscribeEvents
                     .Select(e => new SubscribeEventConfigDto
                     {
@@ -333,6 +339,8 @@ public sealed class SlimFaasClient : IAsyncDisposable
             }
 
             _connectionId = resp.ConnectionId;
+            if (_config.SubscribeStreams.Count > 0 && !resp.Capabilities.Contains("streams-v1", StringComparer.Ordinal))
+                throw new SlimFaasRegistrationException("This server does not support durable Streams.");
             _logger.LogRegisteredSuccessfullyConnectionId(_connectionId);
             return;
         }
@@ -474,6 +482,20 @@ public sealed class SlimFaasClient : IAsyncDisposable
                 if (!envelope.Payload.HasValue) break;
                 var reqDto = envelope.Payload.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncRequestDto);
                 if (reqDto == null) break;
+                if (reqDto.StreamName is not null)
+                {
+                    if (reqDto.MessageId is null)
+                        throw new InvalidDataException("Stream delivery is missing its message identity.");
+                    var message = new SlimFaasStreamMessage
+                    {
+                        StreamName = reqDto.StreamName, MessageId = reqDto.MessageId, ElementId = reqDto.ElementId,
+                        Method = reqDto.Method, Path = reqDto.Path, Query = reqDto.Query, Headers = reqDto.Headers,
+                        Body = reqDto.Body is null ? null : Convert.FromBase64String(reqDto.Body),
+                        IsLastTry = reqDto.IsLastTry, TryNumber = reqDto.TryNumber
+                    };
+                    _ = Task.Run(() => DispatchStreamAsync(ws, message, ct), ct);
+                    break;
+                }
                 var req = MapRequest(reqDto);
                 // Dispatch dans une tâche séparée pour ne pas bloquer la lecture
                 _ = Task.Run(() => DispatchAsyncRequestAsync(ws, req, ct), ct);
@@ -522,6 +544,19 @@ public sealed class SlimFaasClient : IAsyncDisposable
         {
             await SendCallbackInternalAsync(ws, req.ElementId, statusCode, ct).ConfigureAwait(false);
         }
+    }
+
+    private async Task DispatchStreamAsync(ClientWebSocket ws, SlimFaasStreamMessage request, CancellationToken ct)
+    {
+        int status = 500;
+        if (OnStreamMessage is null)
+            _logger.LogReceivedAsyncRequestForButNoHandler(request.ElementId);
+        else
+        {
+            try { status = await OnStreamMessage(request).ConfigureAwait(false); }
+            catch (Exception exception) { _logger.LogAsyncRequestHandlerThrewAnExceptionFor(exception, request.ElementId); }
+        }
+        await SendCallbackInternalAsync(ws, request.ElementId, status, ct).ConfigureAwait(false);
     }
 
     private async Task DispatchPublishEventAsync(SlimFaasPublishEvent evt, CancellationToken ct)
@@ -745,4 +780,3 @@ public sealed class SlimFaasClient : IAsyncDisposable
             Body = dto.Body != null ? Convert.FromBase64String(dto.Body) : null,
         };
 }
-

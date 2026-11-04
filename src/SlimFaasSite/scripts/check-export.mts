@@ -34,6 +34,12 @@ for (const [route, $] of pages) {
     if ($('a[href*="/mcp"]').length) throw new Error(`MCP link remains on ${route}`);
 }
 const sitemap = await readFile(path.join(out, 'sitemap.xml'), 'utf8');
+if (sitemap.includes('/dead-letter-queues')) throw new Error('Legacy DLQ URL remains canonical in sitemap');
+const legacy = load(await readFile(path.join(out, 'dead-letter-queues.html'), 'utf8'));
+if (legacy('link[rel="canonical"]').attr('href') !== 'https://slimfaas.dev/async-functions' ||
+    !legacy('a[href="/async-functions#dead-letter-queues"]').length) {
+    throw new Error('Legacy DLQ export must provide canonical metadata and a working fallback link');
+}
 if (sitemap.includes('/mcp')) throw new Error('MCP remains in sitemap');
 if ((await readdir(out)).includes('mcp.html')) throw new Error('Stale MCP page remains in export');
 const index = JSON.parse(await readFile(path.join(out, 'search-index.json'), 'utf8')) as { url: string }[];

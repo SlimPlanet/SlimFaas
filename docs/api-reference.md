@@ -1,5 +1,12 @@
 # SlimFaas API Reference
 
+See [Durable Streams](streams.md#observe-without-consuming) for the `/data/streams`
+catalog, passive history/body/subscription routes, explicit reservation/ACK,
+deletion guards and `/publish-stream/{stream}/{path}` append alias.
+All publication forms return `202 {"Stream":"...","MessageId":"..."}` with
+`Location` after durable commit, without waiting for recipients or ACKs.
+This replaces the previous `201` publication status, with unchanged receipt fields.
+
 This inventory describes the routes registered by the SlimFaas runtime in this checkout. Use the [Guided Tour](guided-tour.md) for executable cURL examples and the [Bruno collection](https://slimfaas.dev/downloads/slimfaas-demo.zip) for ordered requests with assertions.
 
 ## Addresses and response conventions
@@ -50,7 +57,7 @@ An async worker sends `SlimFaas-Element-Id` to the function. If the function ret
 
 ## Dead Letter Queues
 
-The [DLQ API inventory](dead-letter-queues.md#management-api) documents catalog,
+The [DLQ API inventory](async-functions.md#management-api) documents catalog,
 summary, filtered cursor pages, message details/body, replay, deletion, and
 access-controlled metrics under `/data/dead-letters`. Capture is opt-in per
 function. Management is independently Private by default; enabling a public

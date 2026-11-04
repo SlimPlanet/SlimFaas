@@ -1,0 +1,80 @@
+meta {
+  name: Create a new independent persistent WebSocket job
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/job/fibonacci-ws
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+script:pre-request {
+  const base = bru.getEnvVar("baseUrl");
+  const response = await bru.sendRequest({ method: "GET", url: base + "/status-jobs" });
+  if (response.status !== 200) throw new Error("Cannot inspect WebSocket job capacity");
+  const configuration = response.data.find(item => item.Name === "fibonacci-ws");
+  if (!configuration || (configuration.DependsOn || []).length !== 0) throw new Error("Use the current demo's independent fibonacci-ws configuration");
+  const occupied = configuration.RunningJobs.filter(item => item.Status === "Running").length + configuration.QueueLength;
+  if (occupied >= configuration.NumberParallelJob) {
+    throw new Error("fibonacci-ws capacity is full. Manually delete a previous persistent job before another tour: " + JSON.stringify(configuration.RunningJobs));
+  }
+  const name = "ws-tour-" + Date.now() + "-" + Math.floor(Math.random() * 1000000);
+  bru.setVar("wsFunction", name);
+  bru.setVar("wsStream", name + "-events");
+}
+
+body:json {
+  {"Args":["--ws-mode","--function-name","{{wsFunction}}","--subscribe-stream","Public:{{wsStream}}","--subscribe","Public:{{wsStream}}","--registration-key","{{wsFunction}}-ready"],"DependsOn":[],"BackoffLimit":0}
+}
+
+script:post-response {
+  if (res.getStatus() === 202) {
+    bru.setVar("wsJobId", res.getBody().Id);
+    console.log("RETAINED WebSocket job=" + res.getBody().Id + " function=" + bru.getVar("wsFunction") + " stream=" + bru.getVar("wsStream"));
+    console.log("Manual cleanup: DELETE " + bru.getEnvVar("baseUrl") + "/job/fibonacci-ws/" + res.getBody().Id + ", then DELETE /data/streams/" + bru.getVar("wsStream"));
+  }
+}
+
+tests {
+  test("The new job registers a ready function and active Stream subscription", async function () {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody().Id).to.be.a("string").and.not.empty;
+    const base = bru.getEnvVar("baseUrl"), name = bru.getVar("wsFunction");
+    const deadline = Date.now() + 180000;
+    let ready = false;
+    do {
+      const registration = await bru.sendRequest({ method: "GET", url: base + "/data/sets/" + name + "-ready" }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+      if (registration.status !== 200) { await bru.sleep(500); continue; }
+      const proof = typeof registration.data === "string" ? JSON.parse(registration.data) : registration.data;
+      expect(proof.function).to.equal(name);
+      expect(proof.connections).to.be.greaterThan(0);
+      expect(proof.connectionIds.length).to.equal(proof.connections);
+      const functions = await bru.sendRequest({ method: "GET", url: base + "/status-functions" });
+      expect(functions.status).to.equal(200);
+      if (functions.data.some(item => item.Name === name && item.NumberReady > 0)) {
+        const subscriptions = await bru.sendRequest({ method: "GET", url: base + "/data/streams/" + bru.getVar("wsStream") + "/functions" }).catch(error => {
+          if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+          throw error;
+        });
+        ready = subscriptions.status === 200 && subscriptions.data.Items.some(item => item.Function === name && item.Active);
+        if (ready) break;
+      }
+      await bru.sleep(500);
+    } while (Date.now() < deadline);
+    expect(ready, "Registration deadline exceeded; inspect retained job " + bru.getVar("wsJobId") + " and /status-jobs").to.equal(true);
+  });
+}
+
+docs {
+  Each invocation creates a NEW persistent job, function identity and Stream. Never reuse an older worker.
+  It has no DependsOn and stays connected until manually deleted. Capacity is two jobs in the base demos.
+}

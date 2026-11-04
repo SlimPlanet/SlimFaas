@@ -1,0 +1,16 @@
+@baseUrl = http://127.0.0.1:30020
+
+### Durable acceptance: 202 with Stream, MessageId and Location; does not wait for ACK
+POST {{baseUrl}}/publish-stream/orders/compute
+Content-Type: application/json
+
+{"iterations":1}
+
+### Passive catalog
+GET {{baseUrl}}/data/streams?prefix=ord&limit=100
+
+### Retained history; does not execute functions
+GET {{baseUrl}}/data/streams/orders/messages?limit=100
+
+### Independent progress
+GET {{baseUrl}}/data/streams/orders/functions

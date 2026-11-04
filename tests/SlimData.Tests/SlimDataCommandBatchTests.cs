@@ -166,6 +166,36 @@ public sealed class SlimDataCommandBatchTests
     }
 
     [Fact]
+    public async Task Directory_batch_roundtrip_and_cached_receipt_preserve_activation_on_three_replicas()
+    {
+        long now = DateTime.UtcNow.Ticks;
+        string incarnation = Guid.NewGuid().ToString("N"), id = Guid.NewGuid().ToString("N");
+        var operations = new[] { WebSocketDirectoryAction.StartNode, WebSocketDirectoryAction.Reserve, WebSocketDirectoryAction.Activate }
+            .Select(action =>
+            {
+                var operation = Operation(SlimDataBatchOperationKind.WebSocketDirectory, action.ToString(), WebSocketDirectoryStore.Key);
+                operation.Value = WebSocketDirectoryStore.SerializeMutation(new()
+                {
+                    Action = action, Node = "owner", Incarnation = incarnation, NowTicks = now, ConnectionId = id,
+                    Function = "worker", Configuration = "{}", Fingerprint = new string('A', 64),
+                    RelaySecret = Convert.ToBase64String(new byte[32])
+                });
+                return operation;
+            }).ToArray();
+        var request = NewRequest(operations);
+        foreach (var state in new[] { NewState(), NewState(), NewState() })
+        {
+            var first = await ApplyAsync(state, request);
+            Assert.All(first.Results, result => Assert.Equal(200, result.WebSocketDirectoryResult!.Status));
+            Assert.Equal(id, Assert.Single(WebSocketDirectoryStore.Connections(state.CapturePayload(), now)).Id);
+            var duplicate = await ApplyAsync(state, request);
+            Assert.True(duplicate.Duplicate);
+            Assert.All(duplicate.Results, result => Assert.Equal(200, result.WebSocketDirectoryResult!.Status));
+            Assert.Single(WebSocketDirectoryStore.Connections(state.CapturePayload(), now));
+        }
+    }
+
+    [Fact]
     public async Task Identical_composite_command_produces_identical_state_on_three_replicas()
     {
         var request = NewRequest(

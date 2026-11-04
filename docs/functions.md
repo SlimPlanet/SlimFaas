@@ -1,7 +1,9 @@
-# SlimFaas Functions (Sync & Async)
+# SlimFaas Functions
 
-SlimFaas offers **two main ways** to invoke functions: **synchronous** and **asynchronous** HTTP calls.
-Below is an overview of each.
+SlimFaas supports synchronous and asynchronous HTTP calls. This page covers
+synchronous invocation and shared function configuration. See
+[Asynchronous Functions](async-functions.md) for durable queues, retries,
+callbacks and Dead Letter Queues.
 
 ---
 
@@ -25,32 +27,10 @@ sequenceDiagram
     Gateway-->>Caller: Stream the response
 ```
 
-An asynchronous call separates durable acceptance from execution. A worker dispatches eligible work within the function's concurrency limits. Failed attempts can be retried; handlers must tolerate duplicate delivery.
-
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant Gateway as SlimFaas
-    participant Queue as Durable queue
-    participant Worker
-    participant Function
-    Caller->>Gateway: /async-function/name/path
-    Gateway->>Queue: Enqueue and commit
-    Queue-->>Gateway: Durable acceptance
-    Gateway-->>Caller: 202 Accepted
-    Worker->>Queue: Claim eligible work
-    Worker->>Function: Dispatch when ready and capacity is available
-    alt Handler completes during the HTTP call
-        Function-->>Worker: Completion status
-        Worker->>Queue: Complete or schedule a retry
-    else Handler returns 202 for deferred completion
-        Function-->>Worker: 202, work continues
-        Function->>Gateway: Callback with the real element ID
-        Gateway->>Queue: Complete or retry the outstanding item
-    end
-```
-
-Watch both paths in the [Guided Tour](guided-tour.md#4-queue-work-retry-and-complete-callbacks), then [scale out with an async burst](guided-tour.md#scale-from-n-to-m-with-an-async-backlog).
+An asynchronous call separates durable acceptance from execution. See the
+[async architecture](async-functions.md#architecture-and-lifecycle), follow the
+[Guided Tour](guided-tour.md#4-queue-work-retry-and-complete-callbacks), then
+[scale out with an async burst](guided-tour.md#scale-from-n-to-m-with-an-async-backlog).
 
 ## 1. Synchronous Functions
 
@@ -68,42 +48,10 @@ If your function has scaled to zero, SlimFaas automatically **wakes it up** and 
 
 ## 2. Asynchronous Functions
 
-Asynchronous calls return HTTP 202 after durable acceptance, while SlimFaas queues the request and processes it in the background.
-
-`202 Accepted` is returned only after the queue mutation is durably committed.
-FIFO order, retries, and callback behavior are unchanged. For request bodies
-larger than 1 MiB, SlimFaas durably commits and validates the offload metadata
-before it enqueues the message that refers to that body.
-
-- **Route**:
-  `GET/POST/PUT/... http://<slimfaas>/async-function/<functionName>/<path>`
-
-- **Example**:
-  GET http://localhost:30021/async-function/fibonacci1/hello/guillaume → 202 (Accepted), handled in background
-  Asynchronous mode also supports:
-
-- **Limiting parallel requests** via annotations (e.g., `SlimFaas/NumberParallelRequest`).
-- **Retry pattern** on timeouts or specific HTTP status codes.
-- **[Dead Letter Queues](dead-letter-queues.md)**, disabled by default, retain terminal HTTP and WebSocket failures for inspection and manual replay. Final nonretryable errors are failures, not successes; 202 still waits for completion.
-
-Queue mutations wake the HTTP and WebSocket dispatch workers immediately after
-their durable commit. `Workers:QueuesDelayMilliseconds` is therefore a maximum
-fallback interval for a lost signal, a leadership transition, or a retry that
-becomes eligible; it is no longer the normal queue polling latency. The local
-SlimData wait for queue-critical mutations is controlled by
-`SlimData:QueueLowLatencyEnabled` (default `true`) and
-`SlimData:QueueMutationMaxWaitMilliseconds` (default `5`, range 0–225).
-
-Bodies stored through the internal offload path are prepared concurrently with
-a bounded parallelism, then dispatched in their original FIFO order. After a
-non-retryable result has been durably committed to the queue, SlimFaas removes
-its local file through a dedicated cleanup mailbox. This cleanup never blocks
-dispatch of the next message and broadcasts a best-effort delete signal for
-remote copies. Older or temporarily unavailable replicas fall back to the
-existing convergent orphan cleaner. Raft metadata deletion stays outside the
-dispatch mailbox and is grouped by the cleaner, so cleanup mutations cannot
-delay every new queue write. A retryable status keeps every artifact available
-for the next attempt.
+Calls to `/async-function/{functionName}/{path}` return **202 Accepted after
+durable enqueueing**, not after execution. The dedicated
+[Asynchronous Functions](async-functions.md) page explains concurrency, retries,
+deferred callbacks, and [DLQ capture and replay](async-functions.md#dead-letter-queues).
 
 ---
 
@@ -332,152 +280,4 @@ metadata:
 
 ## 10. Asynchronous Function Execution: Control Callback Mode
 
-SlimFaas  supports **asynchronous function execution**, allowing a function pod to take control of when the final result is returned.
-This pattern is well suited for long-running tasks, external system calls, or workflows that cannot complete immediately.
-
-### How It Works
-
-1. The client (or another service) sends a request to SlimFaas:
-   ```http
-   POST /async-function/<function-name>/<path>
-   ```
-
-2. SlimFaas forwards the request to the function pod and attaches multiple headers:
-   ```http
-   SlimFaas-Element-Id: <generated-id>
-   Slimfaas-Last-Try: true|false
-   SlimFaas-Try-Number: <attempt-number>
-   ```
-
-   These headers provide important context to the function:
-   - **`SlimFaas-Element-Id`**: Unique identifier for this execution instance
-   - **`Slimfaas-Last-Try`**: Boolean (lowercase string) indicating if this is the final retry attempt (`"true"` or `"false"`)
-   - **`SlimFaas-Try-Number`**: Zero-based attempt number (e.g., `"0"` for first attempt, `"1"` for first retry, etc.)
-
-3. If the function wants to run control the callback, it must explicitly:
-    - **Return `HTTP 202 Accepted`** instead of a final result.
-    - Take responsibility for sending a **callback** when the result is ready.
-
-   Returning **202** is the key trigger that enables callback mode.
-
-4. When the function completes its work:
-    - On success:
-      ```http
-      POST /async-function-callback/<function-name>/<SlimFaas-Element-Id>/success
-      ```
-
-    - On failure:
-      ```http
-      POST /async-function-callback/<function-name>/<SlimFaas-Element-Id>/error
-      ```
-
-5. If the timeout configured in SlimFaas expires before any callback is received, the execution is marked as **failed**.
-
-### Sequence Example
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant SlimFaas
-    participant Function as Function Pod (e.g., Fibonacci)
-
-    Client->>SlimFaas: POST /async-function/fibonacci
-    SlimFaas->>Function: POST /fibonacci (with SlimFaas-Element-Id)
-    Function-->>SlimFaas: HTTP 202 Accepted (async mode enabled)
-    Note over Function: Function is now responsible for callback
-
-    alt Success
-        Function->>SlimFaas: POST /async-function-callback/fibonacci/<id>/success
-        SlimFaas-->>Client: Final success response or notification
-    else Error
-        Function->>SlimFaas: POST /async-function-callback/fibonacci/<id>/error
-        SlimFaas-->>Client: Error response or notification
-    end
-
-    SlimFaas-->>Client: Timeout if no callback received
-```
-
-### Key Points
-
-| Element                          | Description |
-|----------------------------------|-------------|
-| **Returning HTTP 202**           | This explicitly activates asynchronous callback mode |
-| **SlimFaas-Element-Id header**   | Allows the function to reference the execution instance in its callback |
-| **Slimfaas-Last-Try header**     | Indicates if this is the final retry attempt (`"true"` or `"false"`) |
-| **SlimFaas-Try-Number header**   | Shows the current attempt number (starts at `"0"`) |
-| **Function controls completion** | The function decides when to send success/error notification |
-| **Timeout handling**             | If no callback is received within the configured timeout, SlimFaas marks the execution as failed |
-
-### HTTP Headers Sent to Functions
-
-SlimFaas automatically injects the following headers when forwarding requests to your function pods:
-
-#### SlimFaas-Element-Id
-- **Type**: String (UUID)
-- **Purpose**: Unique identifier for this specific execution instance
-- **Usage**: Required when sending callbacks to SlimFaas
-- **Example**: `SlimFaas-Element-Id: 550e8400-e29b-41d4-a716-446655440000`
-
-#### Slimfaas-Last-Try
-- **Type**: String (`"true"` or `"false"`)
-- **Purpose**: Indicates whether this is the final retry attempt
-- **Usage**: Helps functions adjust their behavior on the last attempt (e.g., send alerts, use fallback logic)
-- **Example**:
-  - First attempt: `Slimfaas-Last-Try: false`
-  - After all retries exhausted: `Slimfaas-Last-Try: true`
-
-#### SlimFaas-Try-Number
-- **Type**: String (numeric)
-- **Purpose**: Zero-based counter of the current attempt
-- **Usage**: Track how many times the request has been retried
-- **Examples**:
-  - First attempt: `SlimFaas-Try-Number: 0`
-  - First retry: `SlimFaas-Try-Number: 1`
-  - Second retry: `SlimFaas-Try-Number: 2`
-
-**Example in Function Code (C#)**:
-```csharp
-app.MapPost("/process", (HttpContext context) =>
-{
-    var elementId = context.Request.Headers["SlimFaas-Element-Id"].FirstOrDefault();
-    var isLastTry = context.Request.Headers["Slimfaas-Last-Try"].FirstOrDefault() == "true";
-    var tryNumber = int.Parse(context.Request.Headers["SlimFaas-Try-Number"].FirstOrDefault() ?? "0");
-
-    if (isLastTry)
-    {
-        // Last attempt - maybe send an alert or use fallback logic
-        logger.LogWarning("Final retry attempt {TryNumber} for {ElementId}", tryNumber, elementId);
-    }
-
-    // Process the request...
-
-    return Results.Accepted();  // Enable callback mode
-});
-```
-
-**Example in Function Code (Node.js)**:
-```javascript
-app.post('/process', (req, res) => {
-    const elementId = req.headers['slimfaas-element-id'];
-    const isLastTry = req.headers['slimfaas-last-try'] === 'true';
-    const tryNumber = parseInt(req.headers['slimfaas-try-number'] || '0');
-
-    if (isLastTry) {
-        // Last attempt - adjust behavior accordingly
-        console.warn(`Final retry attempt ${tryNumber} for ${elementId}`);
-    }
-
-    // Process the request...
-
-    res.status(202).send();  // Enable callback mode
-});
-```
-
-### When to Use
-
-Choose this mode when your function:
-- Performs long-running or deferred processing
-- Depends on external systems (queues, schedulers, batching, GPU workloads, etc.)
-- Should not block the client during execution
-
----
+See [deferred completion callbacks](async-functions.md#deferred-completion-callbacks) for execution headers, timeout handling, and HTTP/WebSocket completion. A callback never sends a later response on the original caller connection.

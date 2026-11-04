@@ -1,0 +1,32 @@
+meta {
+  name: Wait for two active subscribers
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/data/streams/orders/functions
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  bru.setVar("streamTourId", "tour-stream-" + Date.now() + "-" + Math.floor(Math.random() * 1000000));
+}
+
+tests {
+  test("Both subscriptions exist before any publication", async function () {
+    let response = { status: res.getStatus(), data: res.getBody() };
+    const deadline = Date.now() + 180000;
+    const active = r => r.status === 200 && ["fibonacci1", "fibonacci2"].every(name =>
+      r.data.Items.some(item => item.Function === name && item.Active));
+    while (!active(response) && [200, 404].includes(response.status) && Date.now() < deadline) {
+      await bru.sleep(500);
+      response = await bru.sendRequest({ method: "GET", url: req.getUrl() }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+    }
+    expect(active(response), "Both orders subscribers must be active; use current demo images").to.equal(true);
+  });
+}

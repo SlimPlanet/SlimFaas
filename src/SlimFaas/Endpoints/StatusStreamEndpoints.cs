@@ -97,7 +97,8 @@ public static class StatusStreamEndpoints
         try
         {
             // Send initial full state
-            await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeActivity, includeDeadLetters, ct), ct);
+            await context.Response.WriteAsync(await SlimFaas.Streams.StreamObservation.ProjectAsync(context,
+                await snapshotCache.GetStateFrameAsync(includeActivity, includeDeadLetters, ct), ct), ct);
             await context.Response.Body.FlushAsync(ct);
 
             // Then send periodic full state + activity events.
@@ -128,7 +129,8 @@ public static class StatusStreamEndpoints
                             break;
                         }
 
-                        await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(false, includeDeadLetters, ct), ct);
+                        await context.Response.WriteAsync(await SlimFaas.Streams.StreamObservation.ProjectAsync(context,
+                            await snapshotCache.GetStateFrameAsync(false, includeDeadLetters, ct), ct), ct);
                         stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
                     }
 
@@ -143,7 +145,8 @@ public static class StatusStreamEndpoints
                 }
 
                 // Send full state periodically
-                await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(false, includeDeadLetters, ct), ct);
+                await context.Response.WriteAsync(await SlimFaas.Streams.StreamObservation.ProjectAsync(context,
+                    await snapshotCache.GetStateFrameAsync(false, includeDeadLetters, ct), ct), ct);
                 await context.Response.Body.FlushAsync(ct);
                 stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
             }
@@ -171,7 +174,8 @@ public static class StatusStreamEndpoints
 
         while (writtenEvents < maxEventsPerWake && reader.TryRead(out var firstEvent))
         {
-            if (!includeDeadLetters && firstEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal))
+            if ((!includeDeadLetters && firstEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal)) ||
+                !SlimFaas.Streams.StreamObservation.Visible(context, firstEvent))
             {
                 writtenEvents++;
                 continue;
@@ -181,7 +185,8 @@ public static class StatusStreamEndpoints
                    && writtenEvents + batch.Count < maxEventsPerWake
                    && reader.TryRead(out var nextEvent))
             {
-                if (!includeDeadLetters && nextEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal))
+                if ((!includeDeadLetters && nextEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal)) ||
+                    !SlimFaas.Streams.StreamObservation.Visible(context, nextEvent))
                 {
                     writtenEvents++;
                     continue;
