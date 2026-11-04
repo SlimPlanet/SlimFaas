@@ -91,3 +91,24 @@ jobs:
           retention-days: 7
   documentation:
     uses: ./.github/workflows/SiteBuild.yml
+  websocket-clients:
+    name: WebSocket SDK configuration contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Test .NET client
+        run: dotnet test client/dotnet/SlimFaasClient/tests/SlimFaasClient.Tests/SlimFaasClient.Tests.csproj
+      - name: Test Python client
+        working-directory: client/python/slimfaas-client
+        env:
+          PYTHONPATH: src
+        run: |
+          uv sync --frozen --extra dev --no-build --no-install-project
+          uv run --no-sync --no-build python -m pytest

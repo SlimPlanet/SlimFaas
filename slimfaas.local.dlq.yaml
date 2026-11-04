@@ -1,0 +1,7 @@
+# Opt-in HTTP DLQ exercise; use with slimfaas.local.yaml.
+# UI/access are independent runtime environment settings, not function visibility.
+functions:
+  fibonacci1:
+    annotations:
+      SlimFaas/Configuration: >
+        {"DefaultAsync":{"HttpTimeout":30,"TimeoutRetries":[1],"HttpStatusRetries":[500,502,503,504],"DeadLetterQueue":{"Enabled":true,"MaxAgeSeconds":604800,"MaxLength":10000}}}

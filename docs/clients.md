@@ -39,6 +39,14 @@ sequenceDiagram
 
 Multiple connected clients with the same function name must use identical configuration. SlimFaas routes work to connected clients; starting more external worker processes remains your responsibility. See the examples below for event subscriptions and disconnect behavior.
 
+The existing JSON `Configuration` (.NET) / `configuration` (Python) string is
+validated and applied by the runtime. Set
+`{"DefaultAsync":{"DeadLetterQueue":{"Enabled":true}}}` to opt into durable
+terminal-failure capture. Retry settings, deferred callbacks, offloaded bodies,
+and replay use the normal async pipeline, with fresh execution IDs. See
+[Dead Letter Queues](dead-letter-queues.md#websocket-clients) for examples and
+the independent private-by-default management policy.
+
 ## 1. Connection Endpoint
 
 Clients connect to SlimFaas with WebSocket:

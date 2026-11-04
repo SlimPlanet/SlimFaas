@@ -7,8 +7,10 @@ import TrafficCanvas from './TrafficCanvas';
 import Pagination from './Pagination';
 import InstanceLogs from './InstanceLogs';
 import TrafficDetails from './TrafficDetails';
+import { deadLetterLink, type DeadLetterSummary } from '../lib/deadLetters';
 
 interface Props {
+  deadLetters?: DeadLetterSummary[];
   functions: FunctionStatusDetailed[]; jobs: JobConfigurationStatus[]; queues: QueueInfo[];
   activity: NetworkActivityEvent[]; queuesWithActivity: Set<string>;
   slimFaasReplicas: number; slimFaasNodes: SlimFaasNodeInfo[];
@@ -30,6 +32,7 @@ export default function NetworkMap(props: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const section = useRef<HTMLElement>(null);
   const [eventType, setEventType] = useState('all');
+  const [functionFilter, setFunctionFilter] = useState('');
   const [isolate, setIsolate] = useState(false);
   const [speed, setSpeed] = useState<Speed>(() => {
     try { const saved = localStorage.getItem('slimfaas.traffic.speed'); return saved && Object.keys(SPEEDS).includes(saved) ? saved as Speed : 'Fast'; }
@@ -50,13 +53,15 @@ export default function NetworkMap(props: Props) {
   if (JSON.stringify(nextObservedQueues) !== JSON.stringify(observedQueuesRef.current)) observedQueuesRef.current = nextObservedQueues;
   const unknownQueues = observedQueuesRef.current;
   const topology = useMemo(() => buildTopology(input.functions, input.jobs,
-    queues.filter(q => q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues),
-  [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues]);
+    queues.filter(q => q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters),
+  [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters]);
   const node = selected ? topology.byId.get(selected) : null;
   const nodes = useMemo(() => filterNodes(topology, search), [topology, search]);
   const nodePage = paginate(nodes, page);
-  const activity = useMemo(() => input.activity.filter(e => matchesTraffic(topology, e, eventType, selected, isolate)),
-    [input.activity, eventType, topology, selected, isolate]);
+  const activity = useMemo(() => input.activity.filter(e => matchesTraffic(topology, e, eventType, selected, isolate) &&
+    (!functionFilter || e.QueueName === functionFilter || e.Source === functionFilter || e.Target === functionFilter)),
+    [input.activity, eventType, topology, selected, isolate, functionFilter]);
+  const selectedDeadLetters = input.deadLetters?.find(item => item.Function === node?.label || `dlq:${item.Function}` === node?.label);
   const journal = paginate([...activity].reverse(), journalPage);
   const observed = input.activity.filter(e => e.ReceivedAt !== undefined && e.ReceivedAt > now - 1000).length;
 
@@ -81,7 +86,12 @@ export default function NetworkMap(props: Props) {
       <label className="field">Event type
         <select className="field__input" value={eventType} onChange={e => { setEventType(e.target.value); setJournalPage(0); }}>
           <option value="all">All events</option>
-          {['request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end'].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+          {['request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end', 'dead_lettered', 'dead_letter_requeued', 'dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted'].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+        </select>
+      </label>
+      <label className="field">Function
+        <select className="field__input" value={functionFilter} onChange={event => { setFunctionFilter(event.target.value); setJournalPage(0); }}>
+          <option value="">All functions</option>{[...new Set([...input.functions.map(item => item.Name), ...(input.deadLetters ?? []).map(item => item.Function)])].sort().map(name => <option key={name}>{name}</option>)}
         </select>
       </label>
       <label className="field">Animation speed
@@ -108,12 +118,13 @@ export default function NetworkMap(props: Props) {
       isolate={isolate}
       onIsolate={value => { setIsolate(value); setJournalPage(0); }} onClose={() => setDetailsOpen(false)} onClear={clearSelection}
       fallbackFocus={() => section.current?.querySelector('canvas') ?? null}
+      deadLetters={selectedDeadLetters ? <p className="traffic__note">DLQ: {selectedDeadLetters.Count} retained. <a href={deadLetterLink(selectedDeadLetters.Function)}>Open dead letters</a> · snapshot {selectedDeadLetters.CapturedAt} · revision {selectedDeadLetters.Revision}</p> : undefined}
       logs={logTarget ? <InstanceLogs key={selected} target={logTarget} fill /> : undefined} />}
     <div className="section-heading"><h2 className="section-heading__title">{showJournal ? 'Event journal' : 'Actors'}</h2><button className="button button--quiet" type="button" onClick={() => setShowJournal(!showJournal)}>{showJournal ? 'Show actors' : `Event journal (${activity.length.toLocaleString()})`}</button></div>
     {showJournal ? <>
       <p className="traffic__note">Up to 5,000 received events. Pause to inspect a stable view. Select an actor to follow its connections.</p>
       <div className="table-wrap"><table className="table"><thead className="table__head"><tr><th className="table__th">Time</th><th className="table__th">Event</th><th className="table__th">Path</th><th className="table__th">Node</th></tr></thead>
-        <tbody>{journal.items.map(e => <tr className="table__row" key={e.Id}><td className="table__td table__td--mono">{new Date(e.TimestampMs).toLocaleTimeString()}</td><td className="table__td">{e.Type.replace(/_/g, ' ')}</td><td className="table__td table__td--path">{eventPath(topology, e).map(id => topology.byId.get(id)?.label ?? id).join(' → ')}</td><td className="table__td">{e.NodeId}</td></tr>)}</tbody></table></div>
+        <tbody>{journal.items.map(e => <tr className="table__row" key={e.Id}><td className="table__td table__td--mono">{new Date(e.TimestampMs).toLocaleTimeString()}</td><td className="table__td">{e.DeadLetterId && e.QueueName ? <a href={deadLetterLink(e.QueueName, e.DeadLetterId)}>{e.Type.replace(/_/g, ' ')} · {e.DeadLetterId}</a> : e.Type.replace(/_/g, ' ')}</td><td className="table__td table__td--path">{eventPath(topology, e).map(id => topology.byId.get(id)?.label ?? id).join(' → ')}</td><td className="table__td">{e.NodeId}</td></tr>)}</tbody></table></div>
       {activity.length === 0 && <p className="empty-state">Waiting for matching traffic.</p>}
       <Pagination page={journal.page} pages={journal.pages} total={activity.length} onPage={setJournalPage} />
     </> : <>

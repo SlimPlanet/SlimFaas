@@ -85,7 +85,7 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 Deployment: functionName,
                 Namespace: "websocket-virtual",
                 Pods: pods,
-                Configuration: new SlimFaasConfiguration(),
+                Configuration: config.ParsedConfiguration,
                 Replicas: pods.Count,
                 ReplicasAtStart: pods.Count,
                 ReplicasMin: 0,
@@ -109,4 +109,3 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
         return result;
     }
 }
-

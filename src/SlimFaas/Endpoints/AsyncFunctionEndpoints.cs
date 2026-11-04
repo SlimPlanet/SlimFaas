@@ -101,6 +101,9 @@ public static class AsyncFunctionEndpoints
         }
 
         var defaultAsync = function.Configuration.DefaultAsync;
+        var deadLetters = context.RequestServices.GetService<SlimFaas.DeadLetters.DeadLetterService>();
+        if (deadLetters is not null)
+            await deadLetters.ConfigureAsync(function);
 
         string queueElementId = Guid.NewGuid().ToString();
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
@@ -174,6 +177,8 @@ public static class AsyncFunctionEndpoints
         [FromServices] ISlimFaasQueue slimFaasQueue)
     {
         DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
+        function ??= context.RequestServices.GetService<IWebSocketFunctionRepository>()?.GetVirtualDeployments()
+            .FirstOrDefault(item => item.Deployment == functionName);
         if (function == null)
         {
             return Results.NotFound();
@@ -192,6 +197,24 @@ public static class AsyncFunctionEndpoints
         }
 
         int statusCode = string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) ? 200 : 500;
+        if (!string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(status, "error", StringComparison.OrdinalIgnoreCase))
+            return Results.BadRequest("Status must be success or error.");
+
+        var deadLetters = context.RequestServices.GetService<SlimFaas.DeadLetters.DeadLetterService>();
+        if (deadLetters is not null)
+        {
+            await deadLetters.ConfigureAsync(function);
+            if (deadLetters.IsManaged(function.Deployment))
+            {
+                await deadLetters.MutateAsync(new()
+                {
+                    Action = DeadLetterAction.Complete, Function = function.Deployment,
+                    ElementId = elementId, HttpStatus = statusCode, Source = "Callback"
+                });
+                return Results.Ok();
+            }
+        }
 
         var items = new ListQueueItemStatus
         {

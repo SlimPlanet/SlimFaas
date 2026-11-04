@@ -3,8 +3,9 @@ import type { FunctionStatusDetailed, JobConfigurationStatus } from '../types.ts
 import { paginate } from '../lib/live.ts';
 import Pagination from './Pagination';
 import DetailPanel from './DetailPanel';
+import { deadLetterLink, type DeadLetterSummary } from '../lib/deadLetters';
 
-export default function WorkloadDetails({ workload, onClose }: { workload: FunctionStatusDetailed | JobConfigurationStatus; onClose: () => void }) {
+export default function WorkloadDetails({ workload, onClose, deadLetters }: { workload: FunctionStatusDetailed | JobConfigurationStatus; onClose: () => void; deadLetters?: DeadLetterSummary }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const isFunction = 'Pods' in workload;
@@ -13,6 +14,7 @@ export default function WorkloadDetails({ workload, onClose }: { workload: Funct
   const paged = paginate(filtered, page);
   return <DetailPanel title={workload.Name} eyebrow={isFunction ? 'Function' : 'Job configuration'} onClose={onClose}>
       {isFunction && <a className="overview-actions__link" href={`#/live/scaling?function=${encodeURIComponent(workload.Name)}`}>Inspect scaling and open playground →</a>}
+      {deadLetters && <p className="notice">DLQ: {deadLetters.Count} retained. <a href={deadLetterLink(deadLetters.Function)}>Open dead letters</a></p>}
       <h3 className="detail-panel__heading">{isFunction ? 'Replicas' : 'Executions'}</h3>
       <label className="field">Find an instance<input className="field__input" type="search" placeholder="Name, identity or status…" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} /></label>
       <div className="table-wrap"><table className="table"><thead className="table__head"><tr><th className="table__th">Name</th><th className="table__th">Status</th><th className="table__th">{isFunction ? 'Identifier' : 'Element'}</th></tr></thead><tbody>{paged.items.map(instance => <tr key={instance.Name} className="table__row"><td className="table__td table__td--mono">{instance.Name}</td><td className="table__td">{instance.Status}</td><td className="table__td table__td--mono">{'Identity' in instance ? instance.Identity : instance.ElementId}</td></tr>)}</tbody></table></div>

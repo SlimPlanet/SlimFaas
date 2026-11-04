@@ -46,7 +46,16 @@ See [synchronous calls](guided-tour.md#3-call-functions-synchronously) and [asyn
 
 The wildcard represents the application's path; it is not a literal part of the URL. The registered HTTP methods do not guarantee that the downstream application supports them. For example, the demo exposes GET `/hello/{name}` and POST `/fibonacci`; calling an unsupported application method can return `405`.
 
-An async worker sends `SlimFaas-Element-Id` to the function. If the function returns `202`, it must later call the completion route with that ID. `success` (case-insensitive) maps to successful completion; other nonempty status strings map to failure. Use the documented `success` or `error` values. The callback does not publish a queryable result resource. See [Functions](functions.md) for headers, retry configuration and idempotency.
+An async worker sends `SlimFaas-Element-Id` to the function. If the function returns `202`, it must later call the completion route with that ID. `success` (case-insensitive) maps to successful completion and `error` to failure; other values return `400`. The callback does not publish a queryable result resource. See [Functions](functions.md) for headers, retry configuration and idempotency.
+
+## Dead Letter Queues
+
+The [DLQ API inventory](dead-letter-queues.md#management-api) documents catalog,
+summary, filtered cursor pages, message details/body, replay, deletion, and
+access-controlled metrics under `/data/dead-letters`. Capture is opt-in per
+function. Management is independently Private by default; enabling a public
+function or the Data dashboard does not expose it. Replay returns 202 only after
+durable insertion and retains an idempotency receipt for 24 hours.
 
 ## Events
 

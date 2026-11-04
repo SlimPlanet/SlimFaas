@@ -55,15 +55,18 @@ public class WebSocketSendClient : IWebSocketSendClient
     private readonly WebSocketConnectionRegistry _registry;
     private readonly ILogger<WebSocketSendClient> _logger;
     private readonly NetworkActivityTracker _activityTracker;
+    private readonly SlimFaas.DeadLetters.DeadLetterService? _deadLetters;
 
     public WebSocketSendClient(
         WebSocketConnectionRegistry registry,
         ILogger<WebSocketSendClient> logger,
-        NetworkActivityTracker activityTracker)
+        NetworkActivityTracker activityTracker,
+        SlimFaas.DeadLetters.DeadLetterService? deadLetters = null)
     {
         _registry = registry;
         _logger = logger;
         _activityTracker = activityTracker;
+        _deadLetters = deadLetters;
     }
 
     public async Task<int> SendAsync(
@@ -87,6 +90,18 @@ public class WebSocketSendClient : IWebSocketSendClient
 
         try
         {
+            if (!string.IsNullOrEmpty(customRequest.OffloadedFileId))
+            {
+                if (_deadLetters is null)
+                    throw new InvalidOperationException("The async payload reader is unavailable.");
+                await using var body = await _deadLetters.OpenBodyAsync(
+                    new SlimData.DeadLetterEntry { Value = MemoryPack.MemoryPackSerializer.Serialize(customRequest) }, ct);
+                if (body is null)
+                    throw new IOException("The offloaded async payload is unavailable.");
+                using var buffer = new MemoryStream();
+                await body.CopyToAsync(buffer, ct);
+                customRequest = customRequest with { Body = buffer.ToArray() };
+            }
             var payload = new AsyncRequestPayload
             {
                 ElementId = elementId,
@@ -115,7 +130,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             _logger.LogAsyncRequestSentViaWebSocketToElementId(functionName, connection.ConnectionId, elementId);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(300));
+            cts.CancelAfter(TimeSpan.FromSeconds(_registry.GetConfiguration(functionName)?.ParsedConfiguration.DefaultAsync.HttpTimeout ?? 120));
             return await tcs.Task.WaitAsync(cts.Token);
         }
         catch (OperationCanceledException)

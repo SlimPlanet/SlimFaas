@@ -100,8 +100,12 @@ public static class FunctionMetadataParser
         SlimFaasDefaultConfiguration? configuration)
     {
         configuration ??= new SlimFaasDefaultConfiguration();
+        DeadLetterQueueConfiguration deadLetters = configuration.DeadLetterQueue ?? new();
+        if (deadLetters.MaxAgeSeconds <= 0 || deadLetters.MaxLength <= 0)
+            throw new FormatException("DeadLetterQueue.MaxAgeSeconds and MaxLength must be positive integers.");
         return configuration with
         {
+            DeadLetterQueue = deadLetters,
             TimeoutRetries = configuration.TimeoutRetries ?? [2, 4, 8],
             HttpStatusRetries = configuration.HttpStatusRetries ?? [500, 502, 503]
         };

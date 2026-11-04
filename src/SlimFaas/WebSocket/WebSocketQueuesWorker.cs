@@ -33,7 +33,8 @@ public class WebSocketQueuesWorker(
     ILogger<WebSocketQueuesWorker> logger,
     IMasterService masterService,
     IOptions<WorkersOptions> workersOptions,
-    SlimDataQueueSignal? queueSignal = null)
+    SlimDataQueueSignal? queueSignal = null,
+    SlimFaas.DeadLetters.DeadLetterService? deadLetters = null)
     : BackgroundService
 {
     private readonly int _maximumIdleWaitMilliseconds = workersOptions.Value.QueuesDelayMilliseconds;
@@ -125,7 +126,8 @@ public class WebSocketQueuesWorker(
         int maximumParallelism = Math.Min(
             deployment.NumberParallelRequest,
             connectionCount * deployment.NumberParallelRequestPerPod);
-        int availableSlots = Math.Max(0, maximumParallelism - active.Count);
+        int inFlight = deadLetters?.IsManaged(functionName) == true ? Math.Max(active.Count, queueState.Running) : active.Count;
+        int availableSlots = Math.Max(0, maximumParallelism - inFlight);
         UpdateLastCallIfWorkRemains(
             deployment.Replicas,
             lastCallCounters,
@@ -146,6 +148,11 @@ public class WebSocketQueuesWorker(
             return;
         foreach (QueueData item in items)
         {
+            if (deadLetters?.IsManaged(functionName) == true)
+                await deadLetters.MutateAsync(new()
+                {
+                    Action = DeadLetterAction.AwaitingCallback, Function = functionName, ElementId = item.Id
+                }).ConfigureAwait(false);
             CustomRequest customRequest;
             try
             {
@@ -212,12 +219,26 @@ public class WebSocketQueuesWorker(
     {
         long generation = Volatile.Read(ref _trackingGeneration);
         var callbacks = new Dictionary<string, List<QueueItemStatus>>(StringComparer.Ordinal);
-        while (_completedRequests.TryDequeue(out CompletedWebSocketRequest completed))
+        while (_completedRequests.TryPeek(out CompletedWebSocketRequest completed))
         {
+            if (completed.Request.Generation == Volatile.Read(ref _trackingGeneration) &&
+                deadLetters?.IsManaged(completed.Request.FunctionName) == true)
+            {
+                await deadLetters.MutateAsync(new()
+                {
+                    Action = completed.StatusCode == 202 ? DeadLetterAction.AwaitingCallback : DeadLetterAction.Complete,
+                    Function = completed.Request.FunctionName, ElementId = completed.Request.Id,
+                    HttpStatus = completed.StatusCode,
+                    Source = completed.StatusCode == 504 ? "CallbackTimeout" : "Callback"
+                }).ConfigureAwait(false);
+            }
+            _completedRequests.TryDequeue(out _);
             TrackedWebSocketRequest request = completed.Request;
             if (processingRequests.TryGetValue(request.FunctionName, out var active))
                 active.Remove(request.Id);
             if (request.Generation != generation)
+                continue;
+            if (deadLetters?.IsManaged(request.FunctionName) == true)
                 continue;
             historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
             if (completed.Error is not null)

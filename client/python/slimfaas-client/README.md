@@ -36,6 +36,28 @@ uv pip install -e .
 
 ## Quick start
 
+Opt into durable async failures using the existing configuration string:
+
+```python
+import json
+from slimfaas_client import SlimFaasClientConfig
+
+config = SlimFaasClientConfig(
+    function_name="billing",
+    configuration=json.dumps({"DefaultAsync": {
+        "HttpTimeout": 120,
+        "DeadLetterQueue": {"Enabled": True, "MaxAgeSeconds": 604800, "MaxLength": 10000},
+    }}),
+)
+```
+
+The runtime validates this JSON; all clients sharing the name must match.
+Return the actual final status from the async handler, or 202 followed by an
+explicit completion callback for deferred work. Replay gets a fresh execution
+ID and current retries; handlers must tolerate duplicate delivery. DLQ management
+is private independently of function visibility. See the
+[DLQ guide](../../../docs/dead-letter-queues.md).
+
 ```python
 import asyncio
 from slimfaas_client import (

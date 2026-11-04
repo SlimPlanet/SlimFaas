@@ -45,6 +45,9 @@ export async function startNative(output, scenario = 'cold') {
       'SlimFaas/Function': 'true', 'SlimFaas/ReplicasMin': String(replicas),
       'SlimFaas/ReplicasAtStart': String(replicas || 1), 'SlimFaas/TimeoutSecondBeforeSetReplicasMin': '120',
       ...(subscription ? { 'SlimFaas/SubscribeEvents': 'Public:fibo-public' } : {}),
+      ...(scenario === 'dlq' ? { 'SlimFaas/Configuration': JSON.stringify({ DefaultAsync: {
+        HttpTimeout: 30, TimeoutRetries: [], DeadLetterQueue: { Enabled: true },
+      } }) } : {}),
     },
     health: { path: '/health', periodSeconds: 1, timeoutSeconds: 2, startupTimeoutSeconds: 120 },
   });
@@ -59,12 +62,16 @@ export async function startNative(output, scenario = 'cold') {
   await writeFile(manifest, yaml({ schemaVersion: 1, name: 'traffic-e2e',
     cluster: { nodes: 3, entrypointPort: base, nodeHttpPortBase: base + 1, raftPortBase: base + 100, nodeLogLevel: 'Warning' },
     processPorts: { from: base + 200, to: base + 299 }, state: { mode: 'ephemeral', directory: resolve(directory, 'state') },
-    functions: { fibonacci1: workload(scenario.startsWith('async') ? 1 : 0, scenario === 'cold', false, scenario === 'async-callback'),
+    functions: { fibonacci1: scenario === 'dlq'
+      ? { ...workload(1, false), command: [process.execPath, fileURLToPath(new URL('./dlq-function.mjs', import.meta.url))] }
+      : workload(scenario.startsWith('async') ? 1 : 0, scenario === 'cold', false, scenario === 'async-callback'),
       fibonacci4: workload(2, false, true), ...(scenario === 'recursive' ? { fibonacci3: workload(2, false) } : {}) },
   }));
   const log = createWriteStream(output);
   const processHandle = spawn(runtime, ['local', 'up', '-f', manifest], {
-    cwd: root, env: { ...process.env, SlimFaas__EnableFront: 'true', SlimFaas__StatusStream__RecentActivityLimit: '5000' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: root, env: { ...process.env, SlimFaas__EnableFront: 'true', SlimFaas__StatusStream__RecentActivityLimit: '5000',
+      ...(scenario === 'dlq' ? { SlimFaas__DeadLetterQueue__EnableFront: 'true', SlimFaas__DeadLetterQueue__DefaultVisibility: 'Public' } : {}) },
+    detached: true, stdio: ['ignore', 'pipe', 'pipe'],
   });
   processHandle.stdout.pipe(log, { end: false }); processHandle.stderr.pipe(log, { end: false });
   let startupError;

@@ -26,6 +26,8 @@ public sealed record QueueDispatchState(
 
 public interface IDatabaseService
 {
+    Task<DeadLetterMutationResult> ExecuteDeadLetterAsync(DeadLetterMutation mutation) =>
+        throw new NotSupportedException("This database does not support durable dead letters.");
     Task DeleteAsync(string key);
     Task<byte[]?> GetAsync(string key);
     Task<KeyValueCommandResult> SetAsync(

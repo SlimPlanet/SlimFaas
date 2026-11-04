@@ -52,6 +52,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - **[Scaling diagnostics and playground](docs/user-interface.md#scaling-diagnostics-and-playground)** to explain live decisions and preview changes without modifying production.
 - temporary **Data Files** endpoints to ingest and stage binaries (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 - temporary **Data Sets** endpoints (`/data/sets`) to store small, Redis-like KV payloads (cache, JSON state, flags) with optional TTL — replicated through the cluster via a robust consensus layer.
+- opt-in **[Dead Letter Queues](docs/dead-letter-queues.md)** to retain terminal async failures, inspect original payloads, and requeue safely through private-by-default APIs and an optional dashboard page.
 
 
 ---

@@ -18,6 +18,7 @@ using SlimData.Expiration;
 using SlimFaas;
 using SlimFaas.Configuration;
 using SlimFaas.Database;
+using SlimFaas.DeadLetters;
 using SlimFaas.Endpoints;
 using SlimFaas.Extensions;
 using SlimFaas.Jobs;
@@ -96,7 +97,10 @@ bool slimDataAllowColdStart =
 
 ServiceCollection serviceCollectionStarter = new();
 serviceCollectionStarter.AddOptions<SlimFaasOptions>()
-    .Bind(configurationRoot.GetSection(SlimFaasOptions.SectionName));
+    .Bind(configurationRoot.GetSection(SlimFaasOptions.SectionName))
+    .Validate(options => options.DeadLetterQueue is not null &&
+        Enum.IsDefined(options.DeadLetterQueue.DefaultVisibility), "Invalid DeadLetterQueue visibility.")
+    .ValidateOnStart();
 serviceCollectionStarter.AddSingleton<INamespaceProvider, NamespaceProvider>();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
@@ -275,6 +279,9 @@ serviceCollectionSlimFaas.AddSingleton<IScalerProvider>(sp =>
 serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
+serviceCollectionSlimFaas.AddSingleton<DeadLetterService>();
+serviceCollectionSlimFaas.AddSingleton<IDeadLetterService>(sp => sp.GetRequiredService<DeadLetterService>());
+serviceCollectionSlimFaas.AddHostedService(sp => sp.GetRequiredService<DeadLetterService>());
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService>(sp =>
@@ -663,6 +670,7 @@ app.MapWebSocketEndpoints();
 app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();
 app.MapDataFileRoutes();
+app.MapDeadLetterEndpoints();
 app.MapDebugRoutes();
 app.MapScalingEndpoints();
 
