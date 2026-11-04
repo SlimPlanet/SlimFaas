@@ -49,8 +49,27 @@ The upstream API receives this JSON body, without the MCP `body` wrapper:
 {"question":"What is SlimFaas?"}
 ```
 
+Path and query parameters are separate tool arguments next to `body`. For `PUT /pets/{id}`, the arguments `{"id":42,"body":{"name":"Milo"}}` call `PUT /pets/42` with the body `{"name":"Milo"}`. A Swagger 2.0 `in: body` parameter keeps its own name as the argument, such as `pet`, and its value is sent as the body in the same way.
+
+## Path and query parameters
+
+Path and query argument values are percent-encoded. A path value always stays inside its segment of the operation's URL: for `GET /pets/{id}/toys`, `{"id":"a b/c?d"}` calls `GET /pets/a%20b%2Fc%3Fd/toys`, and `{"id":"../admin"}` calls `GET /pets/..%2Fadmin/toys`.
+
+Strings are sent without their JSON quotes. Numbers and booleans are sent as written in JSON, so `{"id":true}` calls `GET /pets/true/toys`; earlier versions sent `True` and `False` in paths. A `null` path value leaves its placeholder empty.
+
+When a path segment renders as exactly `.` or `..`, SlimFaasMcp does not call the API and returns a `400` tool result such as `{"error":"Path segment {id} cannot render as a dot segment (. or ..)"}`. URL handling would otherwise resolve such a segment and leave the operation's path. A dot inside a larger segment is sent unchanged: for `/pets/prefix-{id}/toys`, `{"id":".."}` calls `/pets/prefix-../toys`.
+
 ## Upgrading existing callers
 
 Earlier versions advertised the sole property's schema as the `body` argument for JSON objects with one property. After upgrading, refresh the discovered tool schemas with `tools/list` and update affected callers from `{"body":"What is SlimFaas?"}` to `{"body":{"question":"What is SlimFaas?"}}`. Update custom `mcp_prompt` schema overrides that describe these object bodies as scalars.
 
 Scalar JSON request bodies and multipart form field mapping retain their existing behavior.
+
+## Header parameters
+
+An OpenAPI `in: header` parameter is a tool argument named like the header, and its value is sent as that request header. For `GET /pets` with an `X-Tenant-Id` header parameter, the arguments `{"X-Tenant-Id":"acme"}` send `X-Tenant-Id: acme`. Values follow the OpenAPI `simple` style for headers: strings are sent as-is, numbers and booleans as written (`10`, `true`), arrays as comma-separated values (`[1,2]` sends `1,2`), and objects as key and value pairs (`{"role":"admin","id":5}` sends `role,admin,id,5`, or `role=admin,id=5` when the parameter sets `explode: true`). A parameter described with `content: application/json` instead of `schema` is sent as compact JSON. A `null` argument sends no header.
+
+- As the OpenAPI specification requires, header parameters named `Accept`, `Content-Type` or `Authorization` are ignored.
+- A header that SlimFaasMcp already forwards, such as `Authorization`, `Dpop` or a header mapped from `_meta` with `McpMetaHeaderMapping`, takes precedence over a tool argument with the same name.
+- A value containing CR, LF or NUL characters is rejected with an error result, and the API is not called.
+- A content header such as `Content-Language` needs a request body. On a request without one, such as a `GET`, the argument is rejected with an error result, and the API is not called.

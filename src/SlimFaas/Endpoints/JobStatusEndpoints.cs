@@ -105,7 +105,7 @@ public static class JobStatusEndpoints
             // waiting for a retry. SlimJobsWorker reads the queue under the lower-case name.
             long queueLength = jobQueue is null
                 ? 0
-                : await jobQueue.CountAsync(name.ToLowerInvariant(), s_queueCountTypes);
+                : await jobQueue.CountAsync(JobService.QueueName(name), s_queueCountTypes);
 
             result.Add(new JobConfigurationStatus(
                 Name: name,

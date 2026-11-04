@@ -94,7 +94,7 @@ public class SlimJobsWorker(
             var configurations = jobConfiguration.Configuration.Configurations;
             foreach (var data in configurations)
             {
-                jobsDictionary.Add(data.Key.ToLowerInvariant(), new List<Job>());
+                jobsDictionary.Add(JobService.QueueName(data.Key), new List<Job>());
             }
 
             foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey, StringComparison.Ordinal)))

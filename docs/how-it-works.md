@@ -46,6 +46,8 @@ uses the same dedicated access policy rather than the public metric registry.
 
 Dockerfiles pin the .NET 10 SDK to `10.0.403` and .NET runtime images to `10.0.14`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.2` for standalone Alpine images). Frontend build stages use Node.js `24.21.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.5` on Alpine 3.24.
 
+SDK `10.0.403` supplies Native AOT compiler `10.0.14`, which fixes [GHSA-p3jp-9v83-76w9](https://github.com/advisories/GHSA-p3jp-9v83-76w9). Older container SDK pins can fail restore with `NU1903` even when the host SDK is current; update the SDK image instead of disabling NuGet audit.
+
 The SlimFaas and MCP dashboards install dependencies with `npm ci`; the React demo uses pnpm with a frozen lockfile. Updating a dependency therefore requires its corresponding lockfile to be committed. Generated frontend assets and local test/demo artifacts are excluded from the Docker context. The MCP final image explicitly copies the freshly built dashboard into `wwwroot`, including on the first publish from a clean checkout. All .NET container builds use the repository root as their build context so central package versions, analyzers and AOT checks apply consistently:
 
 ```bash
