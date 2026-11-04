@@ -29,7 +29,7 @@ private payloads implicitly.
 
 ### Run the demo from a Git clone
 
-With the .NET 10 SDK (`10.0.401` or later), Node.js 24 or later, and npm installed, clone the repository and
+With the .NET 10 SDK (`10.0.403` or later), Node.js 24 or later, and npm installed, clone the repository and
 start the demo directly from its root:
 
 ```bash
