@@ -4,6 +4,19 @@ SlimFaas includes a reproducible native-local benchmark for the warm synchronous
 proxy path, asynchronous enqueue and delivery, and scale-to-zero followed by
 PromQL scale-out.
 
+## Compare two SlimFaas versions
+
+To measure an optimization objectively (same machine, same session, same driver, only
+the SlimFaas binary changes), or to compare two releases, use the cross-version harness
+described in [performance-benchmarks-cross-version.md](performance-benchmarks-cross-version.md):
+
+```bash
+benchmarks/compare-versions.sh --baseline v0.79.2 --profile standard
+```
+
+It runs the micro-benchmarks and this end-to-end matrix against both refs and writes the
+before/after comparisons under `artifacts/perf-compare/`.
+
 ## Run the benchmark
 
 The quick profile is intended for a smoke test and takes a few minutes:
