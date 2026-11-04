@@ -5,7 +5,9 @@ Tests unitaires pour slimfaas-client.
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
+import weakref
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -51,6 +53,44 @@ def make_envelope(msg_type: int, payload: dict | None, correlation_id: str = "co
 # ---------------------------------------------------------------------------
 
 class TestAsyncRequest:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stream", [False, True])
+    @pytest.mark.parametrize("failure", [False, True])
+    async def test_pending_dispatch_is_retained_until_handler_and_callback_complete(self, stream, failure):
+        client = SlimFaasClient("ws://fake", make_config())
+        ws = MockWebSocket([])
+        started = asyncio.Event()
+        waiting = None
+
+        async def handler(request):
+            nonlocal waiting
+            future = asyncio.get_running_loop().create_future()
+            waiting = weakref.ref(future)
+            started.set()
+            await future
+            if failure:
+                raise RuntimeError("Application handler failed")
+            return 200
+
+        if stream:
+            client.on_stream_message(handler)
+        else:
+            client.on_async_request(handler)
+        payload = {"elementId": "pending", "method": "POST", "path": "/work"}
+        if stream:
+            payload.update(streamName="orders", messageId="generation_1")
+        await client._handle_message(ws, make_envelope(MessageType.ASYNC_REQUEST, payload))
+        await asyncio.wait_for(started.wait(), timeout=5)
+        gc.collect()
+        assert waiting() is not None
+        assert len(client._dispatch_tasks) == 1
+        assert ws.sent == []
+        task = next(iter(client._dispatch_tasks))
+        waiting().set_result(None)
+        await asyncio.wait_for(task, timeout=5)
+        assert client._dispatch_tasks == set()
+        assert json.loads(ws.sent[0])["payload"] == {"elementId": "pending", "statusCode": 500 if failure else 200}
+
     def test_stream_registration_contract(self):
         config = make_config(subscribe_streams=[SubscribeStreamConfig("orders", FunctionVisibility.PUBLIC)])
         payload = config.to_register_payload()["configuration"]

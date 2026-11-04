@@ -8,7 +8,7 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Coroutine, Optional
 
 import websockets
 from websockets.asyncio.client import ClientConnection
@@ -99,6 +99,7 @@ class SlimFaasClient:
         self._ws: Optional[ClientConnection] = None
         self._running = False
         self._stop_event = asyncio.Event()
+        self._dispatch_tasks: set[asyncio.Task[None]] = set()
 
         # Pending sync request body streams: correlationId -> SyncBodyStream
         self._pending_sync_bodies: dict[str, SyncBodyStream] = {}
@@ -295,17 +296,17 @@ class SlimFaasClient:
                 return
             if payload.get("streamName") is not None:
                 message = StreamMessage.from_payload(payload)
-                asyncio.create_task(self._dispatch_stream_message(ws, message))
+                self._start_dispatch(self._dispatch_stream_message(ws, message))
                 return
             req = AsyncRequest.from_payload(payload)
-            asyncio.create_task(self._dispatch_async_request(ws, req))
+            self._start_dispatch(self._dispatch_async_request(ws, req))
 
         elif msg_type == MessageType.PUBLISH_EVENT:
             if payload is None:
                 logger.warning("PublishEvent without payload")
                 return
             evt = PublishEvent.from_payload(payload)
-            asyncio.create_task(self._dispatch_publish_event(evt))
+            self._start_dispatch(self._dispatch_publish_event(evt))
 
         elif msg_type == MessageType.PONG:
             logger.debug("Pong received")
@@ -316,6 +317,13 @@ class SlimFaasClient:
 
         else:
             logger.debug("Unhandled message type: %s", msg_type)
+
+    def _start_dispatch(self, coroutine: Coroutine[Any, Any, None]) -> None:
+        # The event loop only holds weak references to tasks. Keep handlers alive
+        # while they await application work, then release completed tasks.
+        task = asyncio.create_task(coroutine)
+        self._dispatch_tasks.add(task)
+        task.add_done_callback(self._dispatch_tasks.discard)
 
     async def _dispatch_async_request(self, ws: ClientConnection, req: AsyncRequest) -> None:
         if self._async_request_handler is None:
@@ -423,7 +431,7 @@ class SlimFaasClient:
                 body=body_stream,
                 response=response_writer,
             )
-            asyncio.create_task(self._dispatch_sync_request(ws, req))
+            self._start_dispatch(self._dispatch_sync_request(ws, req))
 
         elif msg_type == MessageType.SYNC_REQUEST_CHUNK:
             stream = self._pending_sync_bodies.get(correlation_id)

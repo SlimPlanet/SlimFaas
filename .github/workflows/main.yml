@@ -77,6 +77,18 @@ jobs:
           Remove-Item -Path .\coverage\lcov-report -Recurse -Force
         working-directory: ./src/SlimFaasPlanetSaver
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Test Python client with coverage
+        shell: powershell
+        run: |
+          uv sync --project client/python/slimfaas-client --frozen --extra dev --no-build --no-install-project
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run --project client/python/slimfaas-client --no-sync --no-build python .bin/test-python-client.py --coverage python-client-coverage.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Test peer polling benchmark with coverage
         run: python .bin/test-status-stream-benchmark.py --coverage status-stream-coverage.xml
 
@@ -86,7 +98,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="status-stream-coverage.xml,python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
           dotnet tool install --global dotnet-coverage
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
@@ -111,6 +123,9 @@ jobs:
 
       - name: Test Podman Compose helper
         run: python .bin/test-podman-compose-helper.py
+
+      - name: Test Python coverage reporting
+        run: python .bin/test-python-client-coverage.py
 
       - name: Test Fibonacci container health probe
         run: python .bin/test-fibonacci-healthcheck.py

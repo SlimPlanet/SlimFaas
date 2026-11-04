@@ -6,6 +6,10 @@ registration, deferred callbacks, visibility, and reconnect semantics.
 
 SlimFaas clients let a process register itself as a **virtual function** through WebSocket instead of exposing an HTTP server.
 
+The Python client keeps strong references to active request, Stream and event
+handler tasks until they finish, then releases them. Awaiting application work
+inside a handler therefore does not leave its task vulnerable to garbage collection.
+
 This is useful for jobs, agents, desktop services, local workers, or any process that must receive SlimFaas requests without being deployed as a Kubernetes `Deployment`.
 
 Try the [independent persistent WebSocket job in the Guided Tour](guided-tour.md#10-run-an-independent-websocket-job).

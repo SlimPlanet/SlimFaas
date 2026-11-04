@@ -16,6 +16,9 @@ See [Streams examples](../../../docs/streams.md#websocket-functions).
 Python client to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
 
+The client retains active handler tasks until they finish, including while they
+await application work. Completed tasks are released automatically.
+
 One outbound connection to any SlimFaas node is sufficient: sync, async and event
 ingress on other nodes relays to its owner; Streams consume on the connected node.
 Configuration must match across clients sharing a name. SDK wire messages are
