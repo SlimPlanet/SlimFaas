@@ -188,6 +188,35 @@ request 202 POST /async-function/fibonacci1/computeWithCallback -H 'Content-Type
 wait_queue_nonempty
 wait_queue_empty
 echo 'PASS Deferred callback released the queue'
+request 200 GET /data/dead-letters
+# Refuse reused IDs instead of accidentally succeeding with a previous ready flag.
+request 404 GET "/data/sets/$TOUR_ID-dlq-ready"
+request 404 GET "/data/sets/$TOUR_ID-dlq-completed"
+request 202 POST "/async-function/fibonacci1/tour/dlq/$TOUR_ID" -H 'Content-Type: application/json' --data "{\"orderId\":\"$TOUR_ID\"}"
+find_failure
+echo "PASS Captured controlled 422: $DLQ_ID ($TOUR_ID)"
+request 200 GET "/data/dead-letters/fibonacci1/messages/$DLQ_ID/body"
+jq -e --arg id "$TOUR_ID" '.orderId == $id' "$TOUR_TMP/body" >/dev/null
+dependency_created=1
+request 200 POST "/data/sets/$TOUR_ID-dlq-ready?ttl=600000" -H 'Content-Type: text/plain' --data-binary ready
+deadline=$((SECONDS + 10))
+while true; do
+  request 200,404 GET "/data/sets/$TOUR_ID-dlq-ready"
+  [[ $(cat "$TOUR_TMP/body") != ready ]] || break
+  [[ $SECONDS -lt $deadline ]] || { echo 'Repair visibility deadline exceeded' >&2; exit 1; }
+  sleep 0.2
+done
+request 202 POST "/data/dead-letters/fibonacci1/messages/$DLQ_ID/requeue"
+REPLAY_ID=$(jq -er --arg id "$DLQ_ID" 'select(.DeadLetterId == $id and .ElementId != .OriginalElementId) | .ElementId' "$TOUR_TMP/body")
+wait_marker
+deadline=$((SECONDS + 10))
+while true; do
+  request 200,404 GET "/data/dead-letters/fibonacci1/messages/$DLQ_ID"
+  [[ "$HTTP_STATUS" != 404 ]] || break
+  [[ $SECONDS -lt $deadline ]] || { echo 'Replayed entry still visible' >&2; exit 1; }
+  sleep 0.2
+done
+echo "PASS Replayed original body as fresh successful execution $REPLAY_ID"
 request 204 POST /wake-function/fibonacci3
 request 204 POST /wake-function/fibonacci4
 request 200 GET /function/fibonacci3/hello/subscriber
@@ -278,38 +307,9 @@ hash_id=''
 request 204 DELETE "/data/files/$file_id"
 request 404 GET "/data/files/$file_id"
 file_id=''
-request 200 GET /data/dead-letters
 wait_subscribers
-# Refuse reused IDs instead of accidentally succeeding with a previous ready flag.
-request 404 GET "/data/sets/$TOUR_ID-dlq-ready"
-request 404 GET "/data/sets/$TOUR_ID-dlq-completed"
-request 202 POST "/async-function/fibonacci1/tour/dlq/$TOUR_ID" -H 'Content-Type: application/json' --data "{\"orderId\":\"$TOUR_ID\"}"
-find_failure
-echo "PASS Captured controlled 422: $DLQ_ID ($TOUR_ID)"
-request 200 GET "/data/dead-letters/fibonacci1/messages/$DLQ_ID/body"
-jq -e --arg id "$TOUR_ID" '.orderId == $id' "$TOUR_TMP/body" >/dev/null
-dependency_created=1
-request 200 POST "/data/sets/$TOUR_ID-dlq-ready?ttl=600000" -H 'Content-Type: text/plain' --data-binary ready
-deadline=$((SECONDS + 10))
-while true; do
-  request 200,404 GET "/data/sets/$TOUR_ID-dlq-ready"
-  [[ $(cat "$TOUR_TMP/body") != ready ]] || break
-  [[ $SECONDS -lt $deadline ]] || { echo 'Repair visibility deadline exceeded' >&2; exit 1; }
-  sleep 0.2
-done
-request 202 POST "/data/dead-letters/fibonacci1/messages/$DLQ_ID/requeue"
-REPLAY_ID=$(jq -er --arg id "$DLQ_ID" 'select(.DeadLetterId == $id and .ElementId != .OriginalElementId) | .ElementId' "$TOUR_TMP/body")
-wait_marker
-deadline=$((SECONDS + 10))
-while true; do
-  request 200,404 GET "/data/dead-letters/fibonacci1/messages/$DLQ_ID"
-  [[ "$HTTP_STATUS" != 404 ]] || break
-  [[ $SECONDS -lt $deadline ]] || { echo 'Replayed entry still visible' >&2; exit 1; }
-  sleep 0.2
-done
-echo "PASS Replayed original body as fresh successful execution $REPLAY_ID"
 # Ordinary HTTP subscribers process the message, not a manual read/reserve/ack API.
-request 201 POST /publish-stream/orders/compute -H 'Content-Type: application/json' --data "{\"orderId\":\"$TOUR_ID\",\"amount\":42}"
+request 202 POST /publish-stream/orders/compute -H 'Content-Type: application/json' --data "{\"orderId\":\"$TOUR_ID\",\"amount\":42}"
 MESSAGE_ID=$(jq -er '.MessageId | select(test("^[a-f0-9]+_[0-9]{20}$"))' "$TOUR_TMP/body")
 SEQUENCE=$(jq -nr --arg id "$MESSAGE_ID" '$id|split("_")|last|tonumber')
 wait_acknowledgements
@@ -375,7 +375,7 @@ while true; do
   [[ $SECONDS -lt $deadline ]] || { echo "Async callback did not drain $ws_function after processing $WS_ASYNC_ELEMENT" >&2; exit 1; }
 done
 echo "PASS WebSocket async processing and callback completed: $WS_ASYNC_ELEMENT"
-request 201 POST "/publish-stream/$ws_stream/tour/ws/$ws_function/stream" -H 'Content-Type: application/json' \
+request 202 POST "/publish-stream/$ws_stream/tour/ws/$ws_function/stream" -H 'Content-Type: application/json' \
   --data "{\"input\":10,\"nonce\":\"$ws_function-stream\"}"
 WS_MESSAGE_ID=$(jq -er '.MessageId | select(test("^[a-f0-9]+_[0-9]{20}$"))' "$TOUR_TMP/body")
 WS_SEQUENCE=$(jq -nr --arg id "$WS_MESSAGE_ID" '$id|split("_")|last|tonumber')

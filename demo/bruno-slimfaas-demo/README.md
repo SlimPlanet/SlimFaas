@@ -6,19 +6,23 @@ Open this directory as a collection, select Local, Kubernetes or Compose, then r
 bru run Tour -r --env Local
 ```
 
-**Tour / 09 Durable messaging** runs by default with the rest of the tour.
+**Tour / 03 Async** includes DLQ repair and runs by default with the rest of the tour.
 The standard demo already includes DLQ capture and both Stream subscribers.
 To run only that folder:
 
 ```bash
-bru run "Tour/09 Durable messaging" -r --env Local --bail
+bru run "Tour/03 Async" -r --env Local --bail
+bru run "Tour/09 Streams" -r --env Local --bail
 ```
 
 Use Compose or Kubernetes instead of Local for those deployments. Run in sequence,
 not parallel, with scripts enabled. Each run creates a fresh `durableId`, locates
 only its own retained 422 across metadata pages, repairs its shared dependency,
-requeues once and verifies the new execution ID. Both HTTP consumers must ACK the
-returned Stream message ID. Cleanup removes only two run-scoped keys; `orders`
+requeues once and verifies the new execution ID. The Async folder has no Stream
+prerequisite. **Tour / 09 Streams** initializes its own `streamTourId`, waits for
+both subscriptions, publishes once and returns a **202** receipt without waiting
+for consumers. A separate request checks both independent ACKs, followed by a
+retained-body read. Cleanup removes only two DLQ run-scoped keys; `orders`
 history stays until retention. If a run fails, stop and inspect before rerunning
 individual mutations. Old images or missing demo configuration are errors,
 not skipped exercises. Public DLQ management exposes retained bodies, replay

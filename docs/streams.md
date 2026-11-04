@@ -5,14 +5,67 @@ Streams are bounded, ordered event logs replicated by SlimData/Raft. Unlike
 async queue, each subscribed **function** consumes independently. Replicas of one
 function share its consumption state; one replica receives each attempt.
 
-Try the [Guided Tour's two-consumer demonstration](guided-tour.md#10-follow-durable-stream-fan-out)
+Try the [Guided Tour's two-consumer demonstration](guided-tour.md#9-follow-durable-stream-fan-out)
 in native local mode, a precompiled bundle, Compose or Kubernetes. It waits for
 both subscriptions, checks both independent ACK positions and reads the exact
 retained publication afterwards. The standard tour also demonstrates DLQ repair.
-It also includes an [independent persistent WebSocket job](guided-tour.md#11-run-an-independent-websocket-job)
+It also includes an [independent persistent WebSocket job](guided-tour.md#10-run-an-independent-websocket-job)
 that processes synchronous, asynchronous, event and Stream messages through one
 outbound connection. Publication can arrive on any node; WebSocket consumption
 remains owner-local with shared Raft reservations.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    P[Publisher] -->|POST publication| API[SlimFaas API]
+    API -->|Append and commit| Log[(SlimData Raft retained log)]
+    Log -->|Committed message ID| API
+    API -->|202 with Stream and MessageId| P
+    Log --> HTTP[Leader HTTP dispatcher]
+    Log --> WS[WebSocket owner dispatcher]
+    HTTP --> A[Function A, one ready replica per attempt]
+    WS --> B[Function B, connected WebSocket client]
+    A -->|Final status or callback| PA[(Function A progress)]
+    B -->|Final status or callback| PB[(Function B progress)]
+    PA --> Log
+    PB --> Log
+    Reader[History reader] -->|Passive reads, no ACK| Log
+```
+
+```mermaid
+sequenceDiagram
+    participant P as Publisher
+    participant S as SlimFaas
+    participant D as SlimData Raft
+    participant W as Background dispatchers
+    participant A as Function A
+    participant B as Function B
+    P->>S: POST /publish-stream/orders/compute
+    S->>D: Append payload and commit
+    D-->>S: Committed MessageId
+    S-->>P: 202 with Stream, MessageId and Location
+    Note over P,B: Publication never waits for recipient readiness, processing or ACK
+    par Function A progress
+        W->>D: Reserve A attempt
+        W->>A: Deliver when ready and capacity is available
+        A-->>W: Final 2xx except 202
+        W->>D: Commit A ACK
+    and Function B progress
+        W->>D: Reserve B attempt
+        W->>B: Deliver when connected and capacity is available
+        B-->>W: 202, deferred completion
+        B->>S: Callback with execution element ID
+        S->>D: Commit B ACK independently
+    end
+    Note over D: ACKs advance progress, history remains until retention
+```
+
+Each subscribed **function** has independent durable progress; replicas of that
+function share its consumption state. An unavailable or slow consumer does not
+hold the publisher's connection or prevent another function from progressing.
+HTTP dispatch is leader-owned; WebSocket-owning nodes reserve from the same
+replicated state. Completion order may differ from append order.
 
 ## Visibility and dashboard defaults
 
@@ -78,7 +131,7 @@ Stream lifecycle and delivery events.
 
 ![Live Traffic event journal showing Stream appends](images/dashboard/traffic-stream-journal.png)
 
-The [independent WebSocket job exercise](guided-tour.md#11-run-an-independent-websocket-job)
+The [independent WebSocket job exercise](guided-tour.md#10-run-an-independent-websocket-job)
 also demonstrates Stream delivery through the official SDK while the worker
 remains running. Its dedicated history shows retained messages and that virtual
 function's acknowledged progress. Accepted ACK/callback-wait events remain
@@ -129,10 +182,27 @@ curl -i -X POST http://localhost:5000/publish-stream/orders/compute \
 
 Like publish/subscribe, the publisher chooses the application path. This example
 delivers `POST /compute` with the original query, headers and body. Root append
-`POST /data/streams/orders` delivers `POST /`. The `201` append receipt contains
+`POST /data/streams/orders` delivers `POST /`. The `202` append receipt contains
 `Stream` and `MessageId`, and a `Location` header; it confirms durable acceptance,
 **not** function processing. Unknown Streams are created using Data's default
 visibility and the default retention, subject to caller access.
+
+```http
+HTTP/1.1 202 Accepted
+Location: /data/streams/orders/messages/<messageId>
+Content-Type: application/json
+
+{"Stream":"orders","MessageId":"<messageId>"}
+```
+
+All three publication forms (`/publish-stream/{stream}`,
+`/publish-stream/{stream}/{path}`, and `/data/streams/{stream}`) now return
+**202 instead of 201**. Update clients that assert the exact old status; the
+receipt fields, ID format and `Location` are unchanged. The request still waits
+for body ingestion, validation and durable commit, **never** recipient receipt,
+readiness, processing or acknowledgement. Persistence failures do not produce
+an accepted receipt. This publisher response is distinct from a recipient
+returning `202` to request deferred completion.
 
 The request body limit is 14 MiB. Prefer small messages referencing
 [Data Files](data-files.md); reading a Stream never downloads referenced files,

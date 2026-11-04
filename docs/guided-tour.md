@@ -152,6 +152,88 @@ curl -i "$BASE_URL/function/fibonacci1/error"
 
 Expect `500` from the demo handler. Async errors and an empty `{}` callback payload deliberately trigger failure/retry behavior; those requests are manual so a normal tour run does not leave retrying work behind.
 
+### Repair and replay a dead letter
+
+This exercise uses a deliberately unavailable dependency in a **sample handler**,
+without changing the existing Fibonacci endpoints. A terminal `422` is retained
+in the Dead Letter Queue (DLQ). You repair shared state and replay the **same
+immutable request**, then verify that its fresh execution actually completed.
+
+> **Trusted demo only:** Public DLQ access exposes retained request bodies and
+> permits replay and deletion. Use an isolated local demo or disposable cluster,
+> never production. The base demo configurations enable DLQ capture for
+> `fibonacci1`, Public management access and both `orders` subscriptions.
+> Production DLQ visibility defaults are unchanged. Use runtime **and sample
+> images/bundles containing these features**, built from the same checkout;
+> older releases or an unrelated `latest` image may not contain the handler.
+
+Start the ordinary [local](get-started-local.md),
+[Compose](get-started-docker-compose.md) or
+[Kubernetes](get-started-kubernetes.md) demo. No additional feature manifests,
+environment switches or sample-handler activation are required. The Fibonacci
+application is a demonstration workload and always includes the repair handler.
+
+#### Run the repeatable demonstration
+
+Keep **Live Stream → Traffic** open before running the demo. In a second terminal:
+
+```bash
+export BASE_URL=http://127.0.0.1:30020
+# Compose / Kubernetes port-forward: export BASE_URL=http://127.0.0.1:30021
+bash demo/smoke-tour.sh
+```
+
+The existing smoke tour includes DLQ repair, Stream fan-out and an independent
+persistent WebSocket job automatically.
+A missing handler, wrong image, inaccessible DLQ or missing consumer is a failure,
+not a successful skip.
+Run it again to verify repeatability; each invocation gets a fresh `TOUR_ID`
+and a new WebSocket worker. Two workers can remain running; explicitly delete
+one before a third run, as described in section 10.
+Only bounded **reads** are retried, never submissions, repairs, requeues or appends.
+The DLQ exercise is independent of Stream subscriptions; follow the separate
+[Streams chapter](#9-follow-durable-stream-fan-out) for durable fan-out.
+
+**Bruno:** run **Tour** in order; **03 Async** is included by default.
+Run just that folder, or run its requests individually to
+pause and inspect the UI between operations:
+
+```bash
+cd demo/bruno-slimfaas-demo
+bru run "Tour/03 Async" -r --env Local --bail
+cd ../..
+```
+
+Use `Compose` or `Kubernetes` for those deployments.
+Do not run dependent requests in parallel.
+
+#### Follow the DLQ lifecycle
+
+1. **Submit** one JSON order to
+   `POST /async-function/fibonacci1/tour/dlq/{TOUR_ID}`. The gateway returns
+   `202 Accepted`; that is not application success. With no
+   `{TOUR_ID}-dlq-ready` Data Set, the sample returns **422** without retrying it.
+2. **Inspect** **Dead Letters → fibonacci1**. Find the entry whose request path
+   ends with your run ID, not the first global entry. Open its metadata and body:
+   expect `NonRetryableResponse`, status `422`, and the original JSON `orderId`.
+   The automation follows bounded metadata pages to identify only that entry.
+3. **Repair** the dependency by writing plain text `ready` to
+   `POST /data/sets/{TOUR_ID}-dlq-ready?ttl=600000`. This flag is shared through
+   SlimData across replicas, not a process-local fail-once counter.
+4. **Replay once** with `POST /data/dead-letters/fibonacci1/messages/{Id}/requeue`,
+   or the selected entry's replay action. Its `202` receipt contains a fresh
+   `ElementId`. Replaying before repairing would create another failure.
+5. **Verify success**, not merely an empty DLQ: read
+   `GET /data/sets/{TOUR_ID}-dlq-completed` and require that its text equals the
+   replay receipt's **new** `ElementId`. The handler writes this marker before
+   returning success. The original retained failure must disappear.
+
+The script and Bruno assert the original body, new execution ID and successful
+marker. They remove only this run's ready/completion keys, both of which also
+expire after **ten minutes**. On a failed run, inspect its captured IDs and logs
+before cleanup; never purge an entire function's DLQ to reset a tutorial.
+See [DLQ semantics and access controls](async-functions.md#dead-letter-queues).
+
 ### Scale from N to M with an async backlog
 
 **Objective:** start with **N = 1 ready replica**, enqueue enough work to exceed its processing capacity, observe **M > N ready replicas**, and watch the queue drain before capacity shrinks again. This demonstrates metric-driven scale-out after wake-up.
@@ -401,97 +483,25 @@ curl -N --max-time 5 "$BASE_URL/status-functions-stream"
 
 Expect `text/event-stream` with `state` events and live `activity` or `activity_batch` events while requests run. The deliberate five-second cutoff makes cURL exit with code `28`; this is expected for this command, not a failed server response. The browser reconnects automatically.
 
-## 9. Repair and replay a dead letter
+## 9. Follow durable Stream fan-out
 
-This exercise uses a deliberately unavailable dependency in a **sample handler**,
-without changing the existing Fibonacci endpoints. A terminal `422` is retained
-in the Dead Letter Queue (DLQ). You repair shared state and replay the **same
-immutable request**, then verify that its fresh execution actually completed.
-
-> **Trusted demo only:** Public DLQ access exposes retained request bodies and
-> permits replay and deletion. Use an isolated local demo or disposable cluster,
-> never production. The base demo configurations enable DLQ capture for
-> `fibonacci1`, Public management access and both `orders` subscriptions.
-> Production DLQ visibility defaults are unchanged. Use runtime **and sample
-> images/bundles containing these features**, built from the same checkout;
-> older releases or an unrelated `latest` image may not contain the handler.
-
-Start the ordinary [local](get-started-local.md),
-[Compose](get-started-docker-compose.md) or
-[Kubernetes](get-started-kubernetes.md) demo. No additional feature manifests,
-environment switches or sample-handler activation are required. The Fibonacci
-application is a demonstration workload and always includes the repair handler.
-
-### Run the repeatable demonstration
-
-Keep **Live Stream → Traffic** open before running the demo. In a second terminal:
-
-```bash
-export BASE_URL=http://127.0.0.1:30020
-# Compose / Kubernetes port-forward: export BASE_URL=http://127.0.0.1:30021
-bash demo/smoke-tour.sh
-```
-
-The existing smoke tour includes DLQ repair, Stream fan-out and an independent
-persistent WebSocket job automatically.
-A missing handler, wrong image, inaccessible DLQ or missing consumer is a failure,
-not a successful skip.
-Run it again to verify repeatability; each invocation gets a fresh `TOUR_ID`
-and a new WebSocket worker. Two workers can remain running; explicitly delete
-one before a third run, as described in section 11.
-Only bounded **reads** are retried, never submissions, repairs, requeues or appends.
-
-**Bruno:** run **Tour** in order; **09 Durable messaging** is included by default.
-Run just that folder, or run its requests individually to
-pause and inspect the UI between operations:
+The base demo subscribes **fibonacci1** and **fibonacci2** to the Public
+`orders` Stream with identical retention. Use **Bruno: Tour / 09 Streams**, independently of the Async/DLQ exercise.
+The shell smoke tour includes the same checks. Run:
 
 ```bash
 cd demo/bruno-slimfaas-demo
-bru run "Tour/09 Durable messaging" -r --env Local --bail
+bru run "Tour/09 Streams" -r --env Local --bail
 cd ../..
 ```
 
-Use `Compose` or `Kubernetes` for those deployments.
-Do not run dependent requests in parallel.
-
-### Follow the DLQ lifecycle
-
-1. **Submit** one JSON order to
-   `POST /async-function/fibonacci1/tour/dlq/{TOUR_ID}`. The gateway returns
-   `202 Accepted`; that is not application success. With no
-   `{TOUR_ID}-dlq-ready` Data Set, the sample returns **422** without retrying it.
-2. **Inspect** **Dead Letters → fibonacci1**. Find the entry whose request path
-   ends with your run ID, not the first global entry. Open its metadata and body:
-   expect `NonRetryableResponse`, status `422`, and the original JSON `orderId`.
-   The automation follows bounded metadata pages to identify only that entry.
-3. **Repair** the dependency by writing plain text `ready` to
-   `POST /data/sets/{TOUR_ID}-dlq-ready?ttl=600000`. This flag is shared through
-   SlimData across replicas, not a process-local fail-once counter.
-4. **Replay once** with `POST /data/dead-letters/fibonacci1/messages/{Id}/requeue`,
-   or the selected entry's replay action. Its `202` receipt contains a fresh
-   `ElementId`. Replaying before repairing would create another failure.
-5. **Verify success**, not merely an empty DLQ: read
-   `GET /data/sets/{TOUR_ID}-dlq-completed` and require that its text equals the
-   replay receipt's **new** `ElementId`. The handler writes this marker before
-   returning success. The original retained failure must disappear.
-
-The script and Bruno assert the original body, new execution ID and successful
-marker. They remove only this run's ready/completion keys, both of which also
-expire after **ten minutes**. On a failed run, inspect its captured IDs and logs
-before cleanup; never purge an entire function's DLQ to reset a tutorial.
-See [DLQ semantics and access controls](dead-letter-queues.md).
-
-## 10. Follow durable Stream fan-out
-
-The base demo subscribes **fibonacci1** and **fibonacci2** to the Public
-`orders` Stream with identical retention. The script's second half and Bruno
-requests 08–09 demonstrate the following:
+The steps demonstrate the following:
 
 1. **Wait for both active subscriptions** in
    `GET /data/streams/orders/functions` before publishing. A new subscription
    starts at the committed tail, so creating it afterwards cannot prove fan-out.
 2. **Publish once** to `POST /publish-stream/orders/compute` with a small JSON
-   order containing this run's ID. A `201` response and `MessageId` prove durable
+   order containing this run's ID. A `202` response and `MessageId` prove durable
    append, **not consumer success**.
 3. **Observe both consumers independently**. For the returned message's sequence
    (the numeric suffix after `_`), require **each** function's
@@ -517,7 +527,13 @@ screens. Cleanup deliberately preserves the shared `orders` Stream, its
 subscriptions, and other runs' messages. ACK does **not** delete retained history;
 the demo's 24-hour/100,000-message retention policy eventually removes it.
 The [Streams reference](streams.md) explains retention gaps, retries and callbacks.
-## 11. Run an independent WebSocket job
+
+Publication and ACK observation are separate Bruno requests: the publication
+returns the receipt without waiting for either function. Continue with
+[the WebSocket job](#10-run-an-independent-websocket-job) to use the same
+Stream contract over an outbound consumer connection.
+
+## 10. Run an independent WebSocket job
 
 The base native, bundled, Compose and Kubernetes demos include **fibonacci-ws**,
 using the existing FibonacciBatch executable's `--ws-mode`. It has **no DependsOn**:

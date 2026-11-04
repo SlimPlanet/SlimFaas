@@ -49,7 +49,7 @@ The dashboard follows the same visual language as slimfaas.dev: primary blue, li
 - **Live Stream → Traffic** opens the zoomable live canvas and its searchable actor list or event journal.
 - **Live Stream → Data** lists set keys and file metadata, with expiry and file sizes.
 - **Live Stream → Scaling** explains each function’s scaling decisions and offers a read-only playground.
-- **Dead Letter Queues** provides catalog, filters, failure details, explicit 64 KiB inert body previews/downloads, and confirmed replay/deletion. Traffic combines each function's asynchronous queue and DLQ in one box with separate counters. Both surfaces require `SlimFaas:EnableFront=true`, `SlimFaas:DeadLetterQueue:EnableFront=true` (default false), and dedicated DLQ authorization. See [DLQ configuration and visibility](dead-letter-queues.md#visibility-and-dashboard-defaults).
+- **Dead Letter Queues** provides catalog, filters, failure details, explicit 64 KiB inert body previews/downloads, and confirmed replay/deletion. Traffic combines each function's asynchronous queue and DLQ in one box with separate counters. Both surfaces require `SlimFaas:EnableFront=true`, `SlimFaas:DeadLetterQueue:EnableFront=true` (default false), and dedicated DLQ authorization. See [DLQ configuration and visibility](async-functions.md#visibility-and-dashboard-defaults).
 - **Streams** provides retained history, subscriber progress and bounded body previews. It requires global front enablement, `SlimFaas:Streams:EnableFront=true` (default false) and dedicated management access. `SlimFaas:Streams:DefaultVisibility` defaults to Private independently of each Stream's visibility. Disabled or restricted callers see no Stream navigation/live actors/events; direct routes explain the reason. See [Stream configuration](streams.md#visibility-and-dashboard-defaults).
 
 The views have stable links: `/#/overview`, `/#/live/traffic`, `/#/live/data` and `/#/live/scaling`. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
@@ -114,7 +114,7 @@ Known empty job queues remain visible with a zero count, and queued executions
 animate from SlimFaas into the queue and then to the actual job execution.
 Function queues (including their associated DLQ) and Streams remain on the right. This is a layout change,
 not a change to queue dispatch or dependency behavior. Try the
-[persistent WebSocket job exercise](guided-tour.md#11-run-an-independent-websocket-job).
+[persistent WebSocket job exercise](guided-tour.md#10-run-an-independent-websocket-job).
 
 Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the overview. Keyboard users can focus the canvas and use arrow keys, `+`, `-` and Home. The searchable actor table provides another way to select every instance. Selection focuses the map and highlights its connections while retaining other traffic. Enable **Isolate selection** to filter the map and journal to that actor. Active event-type and isolation filters are displayed above the map; **Clear filters** restores the global view.
 

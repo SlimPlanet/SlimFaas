@@ -8,7 +8,7 @@ SlimFaas clients let a process register itself as a **virtual function** through
 
 This is useful for jobs, agents, desktop services, local workers, or any process that must receive SlimFaas requests without being deployed as a Kubernetes `Deployment`.
 
-Try the [independent persistent WebSocket job in the Guided Tour](guided-tour.md#11-run-an-independent-websocket-job).
+Try the [independent persistent WebSocket job in the Guided Tour](guided-tour.md#10-run-an-independent-websocket-job).
 It reuses `FibonacciBatch --ws-mode` from the base demos, exercising sync replies,
 async/event processing proofs and exact Stream ACK/history checks through the official
 .NET client. `--subscribe-stream Public:name` is repeatable; the equivalent
@@ -81,7 +81,7 @@ validated and applied by the runtime. Set
 `{"DefaultAsync":{"DeadLetterQueue":{"Enabled":true}}}` to opt into durable
 terminal-failure capture. Retry settings, deferred callbacks, offloaded bodies,
 and replay use the normal async pipeline, with fresh execution IDs. See
-[Dead Letter Queues](dead-letter-queues.md#websocket-clients) for examples and
+[Dead Letter Queues](async-functions.md#websocket-clients) for examples and
 the independent private-by-default management policy.
 
 ## 1. Connection Endpoint

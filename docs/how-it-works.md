@@ -28,7 +28,7 @@ Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard
 
 ## Durable terminal failures
 
-Opt-in [Dead Letter Queues](dead-letter-queues.md) share SlimData's ordered Raft
+Opt-in [Dead Letter Queues](async-functions.md#dead-letter-queues) share SlimData's ordered Raft
 mutation pipeline. Terminal callbacks, dequeue-time exhaustion, and maintenance
 timeouts atomically replace an executable request with retained metadata/payload
 references. Replay atomically creates a fresh active element and a 24-hour
@@ -81,10 +81,17 @@ flowchart LR
     Caller[Caller or Bruno] --> Gateway[SlimFaas HTTP API]
     UI[Live dashboard] -->|SSE and wake requests| Gateway
     Gateway -->|Sync and events| Functions[Ready function replicas]
-    Gateway -->|Async and jobs| Data[(SlimData)]
+    Gateway -->|Durable async, jobs and Stream appends| Data[(SlimData Raft)]
+    Data -->|Committed| Gateway
+    Gateway -->|202 durable acceptance| Caller
     Data --> Workers[Dispatch workers]
     Workers --> Functions
     Workers --> Jobs[Job executions]
+    Workers -->|Terminal async failure, opt-in| DLQ[(Function DLQ)]
+    DLQ -->|Atomic replay as fresh queue execution| Data
+    Data --> Streams[Stream dispatchers]
+    Streams -->|Independent per-function delivery| Functions
+    Functions -->|Stream ACK or callback| Data
     Scale[Scaling workers] --> Orchestrator[Orchestrator]
     Orchestrator --> Functions
     Orchestrator --> Jobs
@@ -188,7 +195,7 @@ sequenceDiagram
     end
 ```
 
-`202` acknowledges durable enqueueing, not execution or a stored function result. Handlers can be retried after failure or incomplete delivery; make side effects idempotent. Retry delays, HTTP timeouts and retryable statuses are configured per function. See [Functions](functions.md).
+`202` acknowledges durable enqueueing, not execution or a stored function result. Handlers can be retried after failure or incomplete delivery; make side effects idempotent. Retry delays, HTTP timeouts and retryable statuses are configured per function. Terminal failures can be atomically retained in an opt-in DLQ and replayed as a fresh queue execution after repair. See [Async Functions](async-functions.md#architecture-and-lifecycle).
 
 Committed mutations signal workers immediately; periodic polling remains a recovery fallback. Dispatch uses a lightweight queue snapshot of counts, running IDs and reservations rather than copying every payload. Completion mailboxes group durable callbacks, release response resources promptly and perform offloaded-body cleanup separately. Results completed after leadership loss are discarded locally so the current leader controls callback and retry decisions.
 
@@ -213,6 +220,32 @@ sequenceDiagram
 ```
 
 HTTP events fan out to ready replicas, including multiple replicas of the same function. They do not durably queue for sleeping functions or wake them. The handler logs per-target failures; `204` does not guarantee every subscriber succeeded. With no allowed configured subscriber, it returns `404`. Connected WebSocket subscribers receive events through their transport. See [Events](events.md).
+
+## Durable Streams
+
+```mermaid
+flowchart LR
+    Publisher -->|Append| API[SlimFaas API]
+    API -->|Commit| Log[(Retained SlimData Raft Stream)]
+    API -->|202 with message ID after commit| Publisher
+    Log -->|Independent subscription| A[HTTP function A]
+    Log -->|Independent subscription| B[WebSocket function B]
+    A -->|ACK or callback| PA[(A progress)]
+    B -->|ACK or callback| PB[(B progress)]
+    PA --> Log
+    PB --> Log
+```
+
+Publishers do not wait for consumers. One function's disconnected client,
+callback wait or retry does not gate another function's progress. Each function
+shares consumption state across its replicas; a message goes to one replica per
+attempt, not every replica. HTTP delivery is leader-owned and WebSocket delivery
+is owner-local, with reservations and ACKs persisted through Raft.
+
+ACK advances consumption without deleting history. Retention remains bounded by
+age and count, so idempotent consumers must account for possible retention gaps.
+Terminal Stream failures remain in Stream progress and are not automatically
+copied into async-function DLQs. See the [Stream architecture and sequence](streams.md#architecture).
 
 ## Jobs and schedules
 

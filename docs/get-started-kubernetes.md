@@ -16,10 +16,10 @@ cd SlimFaas
 
 All commands below run from the repository root. Check the selected context before applying the demo.
 
-The base manifests include [DLQ repair and durable Streams](guided-tour.md#9-repair-and-replay-a-dead-letter):
+The base manifests include [DLQ repair and durable Streams](guided-tour.md#repair-and-replay-a-dead-letter):
 `fibonacci1` captures terminal failures, both first functions subscribe to `orders`,
 and DLQ/Stream management is Public. The base job configuration also includes the
-[independent persistent WebSocket worker](guided-tour.md#11-run-an-independent-websocket-job),
+[independent persistent WebSocket worker](guided-tour.md#10-run-an-independent-websocket-job),
 using the in-cluster HTTP/WebSocket service addresses with no DependsOn.
 Every tour creates a new worker; explicitly delete a previous job before a third run.
 Use a disposable cluster or isolated trusted namespace,

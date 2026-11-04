@@ -130,7 +130,7 @@ test('Streams retain history, deliver independently, render inert bodies, and re
         const publications = [];
         for (let i = 0; i < 2; i++) {
           const response = await request.post(`${cluster.url}/publish-stream/${stream}/compute`, { data: { iterations: 1 } });
-          expect(response.status()).toBe(201); publications.push((await response.json()).MessageId);
+          expect(response.status()).toBe(202); publications.push((await response.json()).MessageId);
         }
         const deliveries = () => [first, second].flatMap(connection => connection.messages
           .filter(message => message.type === 2).map(message => ({ connection, payload: message.payload })));
@@ -158,7 +158,7 @@ test('Streams retain history, deliver independently, render inert bodies, and re
         for (const socket of sockets) socket.close();
       }
     });
-    expect(appended.status()).toBe(201);
+    expect(appended.status()).toBe(202);
     const id = (await appended.json()).MessageId;
     await expect.poll(async () => (await rows()).filter(row => row.Active && row.Function !== name).every(row => row.Lag === 0),
       { timeout: 120_000 }).toBe(true);
@@ -174,7 +174,7 @@ test('Streams retain history, deliver independently, render inert bodies, and re
     const first = await connect(cluster.url);
     const generation = (await rows()).find(row => row.Function === name).Generation;
     const publish = await request.post(`${cluster.url}/publish-stream/orders/compute`, { data: { iterations: 1 } });
-    expect(publish.status()).toBe(201);
+    expect(publish.status()).toBe(202);
     await expect.poll(() => first.messages.filter(message => message.type === 2).length).toBe(1);
     const delivery = first.messages.find(message => message.type === 2).payload;
     expect(delivery.streamName).toBe('orders');
@@ -186,7 +186,9 @@ test('Streams retain history, deliver independently, render inert bodies, and re
     first.socket.close();
     await expect.poll(() => first.socket.readyState).toBe(WebSocket.CLOSED);
     const offline = await request.post(`${cluster.peerUrl}/publish-stream/orders/compute`, { data: { iterations: 1 } });
-    expect(offline.status()).toBe(201);
+    expect(offline.status()).toBe(202);
+    const disconnected = (await rows()).find(row => row.Function === name);
+    expect(disconnected.Lag).toBe(1);
     const second = await connect(cluster.peerUrl);
     await expect.poll(() => second.messages.filter(message => message.type === 2).length).toBe(1);
     const resumed = second.messages.find(message => message.type === 2).payload;

@@ -7,7 +7,7 @@ import { load } from 'cheerio';
 import html from 'remark-html';
 import { renderMarkdownWithHighlight } from '../src/lib/markdown.ts';
 import { searchDocumentation } from '../src/lib/search.ts';
-import { DOCUMENTATION_CATALOG, DOCUMENTATION_ORDER } from '../src/lib/documentation-catalog.ts';
+import { DOCUMENTATION_CATALOG, DOCUMENTATION_ORDER, legacyDeadLetterTarget } from '../src/lib/documentation-catalog.ts';
 import { createZip } from './zip.mts';
 
 test('headings have unique stable anchors and links stay on the current site', async () => {
@@ -24,6 +24,50 @@ test('Mermaid source remains readable and escaped before client rendering', asyn
     assert.match(result.contentHtml, /data-source=/);
     assert.equal(load(result.contentHtml)('img').length, 0);
     assert.equal((result.contentHtml.match(/class="doc-diagram"/g) ?? []).length, 1);
+});
+
+test('messaging sequence diagrams use valid Mermaid syntax', async () => {
+    const mermaid = (await import('mermaid')).default;
+    for (const name of ['async-functions', 'streams', 'how-it-works']) {
+        const source = await readFile(path.resolve(`../../docs/${name}.md`), 'utf8');
+        for (const match of source.matchAll(/```mermaid\r?\n(sequenceDiagram[\s\S]*?)```/g)) {
+            assert.ok(await mermaid.parse(match[1]), `Invalid sequence diagram in ${name}`);
+        }
+    }
+});
+
+test('legacy DLQ links target the canonical async page and preserve known fragments', async () => {
+    assert.equal(legacyDeadLetterTarget(''), '/async-functions#dead-letter-queues');
+    assert.equal(legacyDeadLetterTarget('#unknown'), '/async-functions#dead-letter-queues');
+    const source = await readFile(path.resolve('../../docs/async-functions.md'), 'utf8');
+    const raw = await remark().use(html).process(source);
+    const canonical = load((await renderMarkdownWithHighlight(String(raw), 'docs/async-functions.md')).contentHtml);
+    for (const fragment of ['enable-capture', 'visibility-and-dashboard-defaults', 'illustrated-example',
+        'management-api', 'replay-and-recovery-guarantees', 'websocket-clients',
+        'observability-and-upgrades', 'native-local-exercise']) {
+        assert.equal(legacyDeadLetterTarget('#' + fragment), '/async-functions#' + fragment);
+        assert.equal(canonical('[id="' + fragment + '"]').length, 1);
+    }
+    const links = await remark().use(html).process('[DLQ](dead-letter-queues.md)\n[API](dead-letter-queues.md#management-api)');
+    const rendered = await renderMarkdownWithHighlight(String(links), 'docs/clients.md');
+    assert.match(rendered.contentHtml, /href="\/async-functions#dead-letter-queues"/);
+    assert.match(rendered.contentHtml, /href="\/async-functions#management-api"/);
+    assert.ok(DOCUMENTATION_ORDER.includes('async-functions'));
+    assert.ok(!Object.values(DOCUMENTATION_CATALOG).some(page => page.route === '/dead-letter-queues'));
+});
+
+test('the Stream tour is independent of DLQ repair and publication does not poll consumers', async () => {
+    const folder = path.resolve('../../demo/bruno-slimfaas-demo/Tour/09 Streams');
+    const files = (await readdir(folder)).filter(file => file.endsWith('.bru'));
+    const contents = await Promise.all(files.map(file => readFile(path.join(folder, file), 'utf8')));
+    assert.ok(contents.every(content => !content.includes('/data/dead-letters') && !content.includes('{{durableId}}')));
+    const publish = await readFile(path.join(folder, '02 Publish once.bru'), 'utf8');
+    assert.match(publish, /to\.equal\(202\)/);
+    assert.doesNotMatch(publish, /bru\.sendRequest|bru\.sleep/);
+    assert.match(await readFile(path.join(folder, '03 Observe both ACKs.bru'), 'utf8'), /AcknowledgedThrough >= sequence/);
+    const failure = await readFile(path.resolve('../../demo/bruno-slimfaas-demo/Tour/03 Async/03 Submit controlled failure.bru'), 'utf8');
+    assert.match(failure, /bru\.setVar\("durableId"/);
+    assert.doesNotMatch(failure, /\/data\/streams/);
 });
 
 test('search matches all terms and prioritizes titles without interpreting regex syntax', () => {

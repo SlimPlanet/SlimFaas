@@ -30,7 +30,7 @@ In the dashboard, **Jobs Overview** shows configurations, queued and running wor
 The map places only job queues left of SlimFaas: **job ← job:queue ← SlimFaas**,
 including known empty queues. The existing demo's independent `fibonacci-ws`
 configuration runs a persistent WebSocket worker with no dependencies. Each
-[WebSocket job tour](guided-tour.md#11-run-an-independent-websocket-job) creates
+[WebSocket job tour](guided-tour.md#10-run-an-independent-websocket-job) creates
 a fresh execution/identity/Stream and verifies sync, async and Stream processing.
 The two-job limit includes these running workers; they require explicit deletion
 before further runs. `TtlSecondsAfterFinished` applies only after a job finishes,

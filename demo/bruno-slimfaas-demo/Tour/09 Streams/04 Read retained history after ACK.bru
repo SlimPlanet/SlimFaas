@@ -1,7 +1,7 @@
 meta {
   name: ACK preserves retained history
   type: http
-  seq: 9
+  seq: 4
 }
 
 get {
@@ -22,7 +22,7 @@ tests {
       });
     }
     expect(response.status).to.equal(200);
-    expect(response.data.orderId).to.equal(bru.getVar("durableId"));
+    expect(response.data.orderId).to.equal(bru.getVar("streamTourId"));
     expect(response.data.amount).to.equal(42);
   });
 }

@@ -20,7 +20,7 @@ body:json {
 
 tests {
   test("The worker processes and acknowledges the exact retained publication", async function () {
-    expect(res.getStatus()).to.equal(201);
+    expect(res.getStatus()).to.equal(202);
     const message = res.getBody().MessageId;
     expect(message).to.match(/^[a-f0-9]+_[0-9]{20}$/);
     bru.setVar("wsMessageId", message);
@@ -47,6 +47,6 @@ tests {
       }
       await bru.sleep(500);
     } while (Date.now() < deadline);
-    expect(complete, "201 alone is not worker processing/ACK success").to.equal(true);
+    expect(complete, "202 alone is not worker processing/ACK success").to.equal(true);
   });
 }

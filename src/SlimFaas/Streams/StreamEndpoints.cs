@@ -118,7 +118,7 @@ public static class StreamEndpoints
         if (result.Status >= 400) return Error(result.Status, result.Error!);
         context.Response.Headers.Location = $"/data/streams/{Uri.EscapeDataString(stream)}/messages/{result.MessageId}";
         return TypedResults.Json(new StreamAppendReceipt(stream, result.MessageId!),
-            StreamJsonContext.Default.StreamAppendReceipt, statusCode: 201);
+            StreamJsonContext.Default.StreamAppendReceipt, statusCode: StatusCodes.Status202Accepted);
     }
 
     private static async Task<IResult> Catalog(HttpContext context, IStreamService service, CancellationToken cancellationToken)

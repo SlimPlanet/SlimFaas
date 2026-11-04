@@ -21,7 +21,7 @@ The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yam
 demo.
 
 The base demo includes DLQ capture for `fibonacci1` and two `orders` Stream
-subscriptions. Follow the [DLQ exercise](dead-letter-queues.md#native-local-exercise)
+subscriptions. Follow the [DLQ exercise](async-functions.md#native-local-exercise)
 or the complete [Guided Tour](guided-tour.md).
 
 Native local mode enables the DLQ dashboard and Public DLQ management by default,

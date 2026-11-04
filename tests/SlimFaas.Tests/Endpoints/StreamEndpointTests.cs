@@ -34,12 +34,14 @@ public sealed class StreamEndpointTests
         internal SlimDataPayload? ObservationOverride { get; set; }
         internal NetworkActivityTracker Activity { get; } = new();
         internal int BarrierReads { get; private set; }
+        internal Func<DurableStreamMutation, Task<DurableStreamMutationResult>>? PersistMutation { get; set; }
         internal Fixture(bool trusted, FunctionVisibility management = FunctionVisibility.Public, bool front = true)
         {
             var database = new Mock<IDatabaseService>();
             database.Setup(item => item.GetAsync(It.IsAny<string>())).Callback(() => BarrierReads++).ReturnsAsync((byte[]?)null);
             database.Setup(item => item.ExecuteStreamAsync(It.IsAny<DurableStreamMutation>()))
-                .ReturnsAsync((DurableStreamMutation mutation) => DurableStreamStore.Apply(mutation, State));
+                .Returns((DurableStreamMutation mutation) => PersistMutation?.Invoke(mutation) ??
+                    Task.FromResult(DurableStreamStore.Apply(mutation, State)));
             var supplier = new Mock<ISupplier<SlimDataPayload>>();
             supplier.Setup(item => item.Invoke()).Returns(() => ObservationOverride ?? new SlimDataPayload
                 { KeyValues = State.KeyValues, Hashsets = State.Hashsets, Queues = State.Queues });
@@ -86,6 +88,7 @@ public sealed class StreamEndpointTests
     }
 
     [Theory]
+    [InlineData("/publish-stream/orders")]
     [InlineData("/publish-stream/orders/compute")]
     [InlineData("/data/streams/orders")]
     public async Task Private_management_and_disabled_ui_do_not_disable_public_publication(string route)
@@ -95,7 +98,80 @@ public sealed class StreamEndpointTests
         using var host = await fixture.Start();
         using var response = await host.GetTestClient().PostAsync("http://localhost:5000" + route,
             new StringContent("""{"input":10}""", Encoding.UTF8, "application/json"));
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/publish-stream/orders")]
+    [InlineData("/publish-stream/orders/compute")]
+    [InlineData("/data/streams/orders")]
+    public async Task Publication_waits_for_durable_append_but_not_subscriber_delivery(string route)
+    {
+        var fixture = new Fixture(true);
+        await fixture.Configure("orders");
+        await fixture.Service.MutateAsync(new()
+        {
+            Action = DurableStreamAction.Subscribe, Stream = "orders", Function = "offline"
+        }, CancellationToken.None);
+        var entered = new TaskCompletionSource<DurableStreamMutation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var committed = new TaskCompletionSource<DurableStreamMutationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.PersistMutation = mutation =>
+        {
+            entered.SetResult(mutation);
+            return committed.Task;
+        };
+        using var host = await fixture.Start();
+        using var client = host.GetTestClient();
+        using var body = new StringContent("""{"orderId":"42"}""", Encoding.UTF8, "application/json");
+        var publishing = client.PostAsync("http://localhost:5000" + route, body);
+        var append = await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(DurableStreamAction.Append, append.Action);
+        Assert.False(publishing.IsCompleted);
+        committed.SetResult(DurableStreamStore.Apply(append, fixture.State));
+        using var response = await publishing.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        using var receipt = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("orders", receipt.RootElement.GetProperty("Stream").GetString());
+        string id = receipt.RootElement.GetProperty("MessageId").GetString()!;
+        Assert.Equal($"/data/streams/orders/messages/{id}", response.Headers.Location?.OriginalString);
+        using var retained = await client.GetAsync("http://localhost:5000" + response.Headers.Location);
+        Assert.Equal(HttpStatusCode.OK, retained.StatusCode);
+        using var subscriptions = JsonDocument.Parse(await client.GetStringAsync("http://localhost:5000/data/streams/orders/functions"));
+        var offline = Assert.Single(subscriptions.RootElement.GetProperty("Items").EnumerateArray());
+        Assert.Equal(0, offline.GetProperty("AcknowledgedThrough").GetInt64());
+        Assert.Equal(1, offline.GetProperty("Lag").GetInt64());
+    }
+
+    [Theory]
+    [InlineData("/publish-stream/orders")]
+    [InlineData("/publish-stream/orders/compute")]
+    [InlineData("/data/streams/orders")]
+    public async Task First_publication_creates_stream_and_returns_accepted_receipt(string route)
+    {
+        var fixture = new Fixture(true);
+        using var host = await fixture.Start();
+        using var response = await host.GetTestClient().PostAsync("http://localhost:5000" + route,
+            new StringContent("first"));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.NotNull(response.Headers.Location);
+        using var retained = await host.GetTestClient().GetAsync("http://localhost:5000" + response.Headers.Location);
+        Assert.Equal(HttpStatusCode.OK, retained.StatusCode);
+    }
+
+    [Fact]
+    public async Task Failed_persistence_does_not_return_an_accepted_receipt()
+    {
+        var fixture = new Fixture(true);
+        await fixture.Configure("orders");
+        fixture.PersistMutation = _ => Task.FromException<DurableStreamMutationResult>(
+            new InvalidOperationException("Persistence unavailable"));
+        using var host = await fixture.Start();
+        using var body = new StringContent("not committed");
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            host.GetTestClient().PostAsync("http://localhost:5000/publish-stream/orders", body));
+        Assert.Equal("Persistence unavailable", exception.Message);
+        var payload = await fixture.Service.ReadAsync(CancellationToken.None);
+        Assert.Empty(DurableStreamStore.Messages(payload, DurableStreamStore.Definition(payload, "orders")!, 0, 100));
     }
 
     [Theory]
@@ -276,7 +352,7 @@ public sealed class StreamEndpointTests
         using var host = await fixture.Start(); var client = host.GetTestClient();
         using var body = new StringContent("<script>untrusted</script>", Encoding.UTF8, "text/html");
         using var appended = await client.PostAsync("http://localhost:5000/publish-stream/orders/compute?x=1", body);
-        Assert.Equal(HttpStatusCode.Created, appended.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, appended.StatusCode);
         using var receipt = JsonDocument.Parse(await appended.Content.ReadAsStringAsync());
         string id = receipt.RootElement.GetProperty("MessageId").GetString()!;
         var before = (fixture.State.KeyValues, fixture.State.Hashsets, fixture.State.Queues);

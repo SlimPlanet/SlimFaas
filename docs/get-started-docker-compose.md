@@ -66,10 +66,10 @@ Expect `200 READY`, the function list and a greeting. Retry readiness while the 
 
 Continue to the [Guided Tour](guided-tour.md). Select **Compose** in Bruno.
 
-The [DLQ repair and durable Streams exercises](guided-tour.md#9-repair-and-replay-a-dead-letter)
+The [DLQ repair and durable Streams exercises](guided-tour.md#repair-and-replay-a-dead-letter)
 run by default, without additional Compose files or activation flags.
 The same built FibonacciBatch image also powers the dependency-free
-[persistent WebSocket job](guided-tour.md#11-run-an-independent-websocket-job).
+[persistent WebSocket job](guided-tour.md#10-run-an-independent-websocket-job).
 Every tour creates a new worker; manually delete a previous job before a third run.
 It uses Compose's internal network without an extra host WebSocket port.
 This trusted demo exposes Data, Streams and DLQ management publicly, including body
