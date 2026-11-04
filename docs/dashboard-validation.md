@@ -303,6 +303,13 @@ The mixed memory-lab smoke completed 3,740 operations without failures over ten 
 
 Playwright runs the production dashboard served by three real native SlimFaas nodes and real Fibonacci processes. Tests use a temporary manifest and state directory, with no scheduled jobs or unrelated functions. They send each POST exactly once and poll only readiness or observations.
 
+The native fixture waits for `/ready` on all three peers before returning, and stops
+its processes if startup fails. The Streams scenario explicitly enables Public
+management and its dashboard in this isolated fixture; production defaults stay
+Private/UI-off. Traffic geometry assertions include the persistent job queues,
+observed actors, authorized DLQ counters and Streams used by the live topology,
+so their expected routes match the production canvas layout.
+
 The cold-start test holds Fibonacci startup behind a test-owned HTTP gate until both the receiving node's browser and a peer browser have drawn the wait on SlimFaas. It then verifies all four physical hops, their order, and the different reply color. The publication test checks one incoming diamond followed by exactly one delivery to each of two ready replicas. Canvas drawing calls and real SSE frames are observed without replacing the renderer or mocking responses.
 
 Three additional scenarios observe both the receiving node and a peer. The recursive
