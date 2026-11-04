@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.87.0
+
+- [1f5c5c5c](https://github.com/SlimPlanet/SlimFaas/commit/1f5c5c5c0cade6415ee41addd57a7f9ec4fc6488) - feat: durable Streams with HTTP and WebSocket consumers (#491) (release), 2026-11-04 by *Guillaume Chervet*
+- [dbc5c5ef](https://github.com/SlimPlanet/SlimFaas/commit/dbc5c5ef2c502c3fff482c550a11a1b05b84d1de) - feat: durable dead letter queues with private-by-default APIs and dashboards (#484), 2026-11-04 by *Guillaume Chervet*
+
+
+## 0.86.3
+
+
+
+## 0.86.4
+
+
+
 ## v0.86.4
 
 - [7f81422b](https://github.com/SlimPlanet/SlimFaas/commit/7f81422b5572d6bfc42313a29677a09ca8851486) - fix(Jobs): queue Default jobs under the name the jobs worker reads (#494) (#495) (release), 2026-11-02 by *Asish*
@@ -263,13 +277,3 @@
 - [8a7fb497](https://github.com/SlimPlanet/SlimFaas/commit/8a7fb49773b8481d5bb6843d44875a510fe38909) - chore: update .NET and client dependencies (release) (#330), 2026-09-02 by *Guillaume Chervet*
 
 
-## 0.82.3
-
-
-
-## v0.82.3
-
-- [aae3e8d8](https://github.com/SlimPlanet/SlimFaas/commit/aae3e8d88599914304aed584063a83257b2930b6) - fix(slimdata): make key-value reads linearizable (#329) (release), 2026-09-02 by *Guillaume Chervet*
-
-
-## 0.82.2
