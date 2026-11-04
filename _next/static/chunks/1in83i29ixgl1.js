@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,11469,(t,o,s)=>{let _="/streams";(window.__NEXT_P=window.__NEXT_P||[]).push([_,()=>t.r(64219)]),o.hot&&o.hot.dispose(function(){window.__NEXT_P.push([_])})},64219,t=>{"use strict";let o=t.i(57825).f;t.s(["__N_SSG",0,!0,"default",0,o])}]);

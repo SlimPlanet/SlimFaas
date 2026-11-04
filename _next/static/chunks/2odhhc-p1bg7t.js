@@ -1,1 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,85584,(t,e,o)=>{let _="/dead-letter-queues";(window.__NEXT_P=window.__NEXT_P||[]).push([_,()=>t.r(86423)]),e.hot&&e.hot.dispose(function(){window.__NEXT_P.push([_])})},86423,t=>{"use strict";let e=t.i(57825).f;t.s(["__N_SSG",0,!0,"default",0,e])}]);

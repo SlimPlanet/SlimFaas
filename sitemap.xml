@@ -9,10 +9,11 @@
   <url><loc>https://slimfaas.dev/api-reference</loc></url>
   <url><loc>https://slimfaas.dev/local-mode</loc></url>
   <url><loc>https://slimfaas.dev/functions</loc></url>
-  <url><loc>https://slimfaas.dev/dead-letter-queues</loc></url>
+  <url><loc>https://slimfaas.dev/async-functions</loc></url>
   <url><loc>https://slimfaas.dev/user-interface</loc></url>
   <url><loc>https://slimfaas.dev/clients</loc></url>
   <url><loc>https://slimfaas.dev/events</loc></url>
+  <url><loc>https://slimfaas.dev/streams</loc></url>
   <url><loc>https://slimfaas.dev/jobs</loc></url>
   <url><loc>https://slimfaas.dev/opentelemetry</loc></url>
   <url><loc>https://slimfaas.dev/benchmarking</loc></url>
