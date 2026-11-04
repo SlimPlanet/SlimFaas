@@ -99,21 +99,22 @@ export async function startNative(output, scenario = 'cold') {
     },
   };
   try {
-    // Starting the supervisor does not mean its HTTP peers are listening yet.
-    // Poll reads only, and include every peer used by the browser scenarios.
+    // The gateway discovers ready peers on its own probe loop. Recursive calls
+    // use it, so peer readiness alone cannot establish that the fixture is ready.
+    // Poll reads only, including the gateway and every browser-facing peer.
     const deadline = Date.now() + 90_000;
-    await Promise.all([1, 2, 3].map(async offset => {
+    await Promise.all([0, 1, 2, 3].map(async offset => {
       const url = `http://127.0.0.1:${base + offset}/ready`;
       while (Date.now() < deadline) {
         cluster.check();
         try {
           const response = await fetch(url, { signal: AbortSignal.timeout(2_000) });
-          await response.body?.cancel();
-          if (response.ok) return;
+          const body = await response.text();
+          if (response.ok && body === 'READY') return;
         } catch { /* Connection failures are expected before the peer listens. */ }
         await delay(100);
       }
-      throw new Error(`Native peer did not become ready: ${url}. See ${output}`);
+      throw new Error(`Native endpoint did not become ready: ${url}. See ${output}`);
     }));
     return cluster;
   } catch (error) {
