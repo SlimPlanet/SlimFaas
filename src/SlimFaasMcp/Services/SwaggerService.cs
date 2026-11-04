@@ -104,15 +104,19 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
                 // --- full schema if present (preserves anyOf/oneOf/allOf) -------------
                 JsonElement? schemaEl = null;
+                var isJsonContent = false;
 
                 if (param.TryGetProperty("schema", out var sch))
                     schemaEl = sch;
                 else if (param.TryGetProperty("content", out var cnt) && cnt.ValueKind == JsonValueKind.Object)
                 {
                     // OpenAPI autorise content/application/json pour query params
-                    if (cnt.TryGetProperty("application/json", out var cj) &&
-                        cj.TryGetProperty("schema", out var sch2))
-                        schemaEl = sch2;
+                    if (cnt.TryGetProperty("application/json", out var cj))
+                    {
+                        isJsonContent = true;
+                        if (cj.TryGetProperty("schema", out var sch2))
+                            schemaEl = sch2;
+                    }
                 }
 
                 // --- enum (to enrich the description, optional) -------------------
@@ -138,6 +142,8 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     Required    = param.TryGetProperty("required", out var req) && TryParseBool(req, out var required) && required,
                     Description = descr,
                     SchemaType  = schemaType,
+                    Explode     = param.TryGetProperty("explode", out var explodeEl) && TryParseBool(explodeEl, out var explode) && explode,
+                    IsJsonContent = isJsonContent,
                     // ✅ Here: we store the expanded schema; anyOf/oneOf/allOf are preserved
                     Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(ExpandAndSanitize(expander, se)!,param) : null
                 });

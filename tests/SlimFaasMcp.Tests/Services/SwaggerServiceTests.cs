@@ -146,4 +146,33 @@ paths:
         Assert.Equal("string", question["type"]!.GetValue<string>());
         Assert.Equal("The user's question", question["description"]!.GetValue<string>());
     }
+
+    [Fact]
+    public void ParseEndpoints_Keeps_Header_Parameter_Serialization()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/pets": { "get": {
+                "parameters": [
+                  { "name": "X-Ids", "in": "header", "schema": { "type": "array", "items": { "type": "integer" } } },
+                  { "name": "X-Filter", "in": "header", "explode": true, "schema": { "type": "object" } },
+                  { "name": "X-Json", "in": "header", "content": { "application/json": { "schema": { "type": "object" } } } }
+                ]
+              } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        var ids = parameters.Single(p => p.Name == "X-Ids");
+        Assert.Equal("array", ids.SchemaType);
+        Assert.False(ids.Explode);
+        Assert.False(ids.IsJsonContent);
+        Assert.True(parameters.Single(p => p.Name == "X-Filter").Explode);
+        var json = parameters.Single(p => p.Name == "X-Json");
+        Assert.True(json.IsJsonContent);
+        Assert.Equal("object", json.SchemaType);
+    }
 }
