@@ -17,6 +17,11 @@ internal sealed record AsyncResourceUsage(
     double? CpuSeconds,
     double? RaftEntries);
 
+internal sealed record ProcessResourceUsage(
+    double CpuSeconds,
+    double CpuMillisecondsPerRequest,
+    double PeakWorkingSetBytes);
+
 internal sealed record LatencyCaseData(
     LatencyRunResult Result,
     IReadOnlyList<RequestSample> Samples);
@@ -39,7 +44,8 @@ internal sealed record LatencyRunResult(
     int AsyncMissing = 0,
     int AsyncDuplicates = 0,
     AsyncResourceUsage? AsyncResources = null,
-    string LoadShape = "steady");
+    string LoadShape = "steady",
+    ProcessResourceUsage? Resources = null);
 
 internal sealed record LatencyAggregateResult(
     string Mode,

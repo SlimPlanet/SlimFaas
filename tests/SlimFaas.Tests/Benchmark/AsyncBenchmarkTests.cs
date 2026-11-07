@@ -87,6 +87,27 @@ public sealed class AsyncBenchmarkTests
         Assert.True(comparison.AsyncCriteria.ResourceGuardrailsPassed);
     }
 
+    [Theory]
+    [InlineData("metric 12.5", 12.5)]
+    [InlineData("metric 0", 0)]
+    [InlineData("metric_extra 999\nmetric 1e2", 100)]
+    public void Required_process_metrics_accept_exact_finite_values(string metrics, double expected)
+    {
+        Assert.Equal(expected, BenchmarkRunner.ReadRequiredMetric(metrics, "metric"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("metric_extra 12.5")]
+    [InlineData("metric{node=\"one\"} 12.5")]
+    [InlineData("metric not-a-number")]
+    [InlineData("metric NaN")]
+    [InlineData("metric Infinity")]
+    public void Required_process_metrics_fail_explicitly_when_missing_or_invalid(string metrics)
+    {
+        Assert.Throws<InvalidOperationException>(() => BenchmarkRunner.ReadRequiredMetric(metrics, "metric"));
+    }
+
     [Fact]
     public void Async_comparison_fails_on_missing_or_duplicate_delivery()
     {
