@@ -122,6 +122,9 @@ export interface NetworkActivityEvent {
   SourcePod: string | null;  // pod name, opaque address token or full SlimFaas job run name
   TargetPod: string | null;  // pod name or opaque address token of the downstream replica
   CorrelationId?: string | null; // Preceding activity id; completions reference their corresponding start.
+  DataKind?: string | null;
+  DataOperation?: string | null;
+  DataStatusCode?: number | null;
   StreamName?: string | null;
   StreamFunction?: string | null;
   StreamMessageId?: string | null;
@@ -138,7 +141,12 @@ export interface SlimFaasNodeInfo {
   Status: string;  // "Running", "Starting", "Pending"
 }
 
+export interface DataSummary {
+  Sets: number; Files: number; SetBytes: number; FileBytes: number; UnknownFileSizes: number;
+}
+
 export interface StatusStreamPayload {
+  DataSummary?: DataSummary | null;
   Streams?: import('./lib/streams').StreamSummary[];
   StreamSubscriptions?: import('./lib/streams').StreamFunction[];
   StreamsAvailable?: boolean;

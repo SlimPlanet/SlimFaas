@@ -109,12 +109,13 @@ Activity IDs are opaque and unique across process restarts. Peer activity uses a
 
 When `SlimFaas:EnableFront` is enabled, Traffic draws a canvas map of external callers, managed jobs, SlimFaas nodes, queues and functions. The overview groups replicas and executions by workload. Zooming reveals individual instances with no fixed instance-count cap. Groups reserve space for their instances; offscreen points are omitted from drawing.
 
-Only **job queues** appear left of SlimFaas: **job ← job:queue ← SlimFaas**.
-Known empty job queues remain visible with a zero count, and queued executions
-animate from SlimFaas into the queue and then to the actual job execution.
-Function queues (including their associated DLQ) and Streams remain on the right. This is a layout change,
-not a change to queue dispatch or dependency behavior. Try the
-[persistent WebSocket job exercise](guided-tour.md#10-run-an-independent-websocket-job).
+External callers sit above SlimFaas. Jobs remain on the left and functions on the right.
+Each compact queue sits next to its destination, vertically centered: **job ← job queue ← SlimFaas → function queue → function**.
+Known empty job queues remain visible; observed function queues and retained DLQs keep their existing visibility.
+**Set** and **Files** sit below SlimFaas, with compact Streams arranged further below.
+Queues, Streams and logical stores are smaller than workload boxes, whose replicas keep their reserved space.
+
+![Compact queues beside workloads and Data stores beneath SlimFaas](images/dashboard/traffic-data-topology.png)
 
 Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the overview. Keyboard users can focus the canvas and use arrow keys, `+`, `-` and Home. The searchable actor table provides another way to select every instance. Selection focuses the map and highlights its connections while retaining other traffic. Enable **Isolate selection** to filter the map and journal to that actor. Active event-type and isolation filters are displayed above the map; **Clear filters** restores the global view.
 
@@ -122,7 +123,7 @@ The journal retains at most 5,000 received events. **Pause** freezes the current
 
 **Animation speed** offers **Fast (450 ms)**, **Normal (800 ms)** and **Slow (1,400 ms)** for each hop between two actors and remembers the choice in this browser. Fast is the default. This duration is a visual convention, not measured function latency. New arrivals use the browser's monotonic receipt clock, so an older server timestamp does not hide a live event. Returning from Pause, reconnecting or restoring a background tab does not replay stale animations.
 
-Requests use blue circles, publications purple diamonds, queue messages amber squares and replies grey outlined circles. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
+Requests use blue circles, publications purple diamonds, queue messages amber squares, replies grey outlined circles and Data access turquoise rounded markers. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
 
 An asynchronous function queue and its authorized DLQ share **one box**, with
 independent **Async** (queued) and **DLQ** (retained) counters, including zero.
@@ -134,6 +135,44 @@ a network hop between two queues. Job queues remain separate, even when a job
 and function have the same name. DLQ counters require DLQ dashboard access.
 
 ![One asynchronous queue box with separate Async and DLQ counters](images/dashboard/traffic-async-dlq.png)
+
+### Data API traffic and store counters
+
+Authorized `/data/sets` and `/data/files` calls produce a turquoise journey from the exact
+function replica or job execution to the handling SlimFaas node, followed by a logical hop
+to Set or Files. The second hop waits for the first animation to finish. There is no animated
+Data reply. Reads, lists, writes, deletes and numeric Set operations are included; this
+pedagogical store hop does not represent Raft replication or measured storage latency.
+A function caller first seen in Data activity retains an observed replica while its
+inventory snapshot is pending; its ready/requested capacity remains unknown. Generated
+job executions remain attached to their job configuration. Unknown callers use External.
+Existing signed local gateways identify native processes.
+
+The journal retains correlated `data_request` and `data_access` records, with additive
+`DataKind`, `DataOperation` and `DataStatusCode` fields. Failed handler calls retain their
+status without an animated successful store access. Capacity/unavailability exceptions
+use the same HTTP status as the public response (413, 429 or 503); accepted route casing
+and trailing slashes retain canonical operation names. Selection, isolation and event filters
+include these records. Sampling or a missing parent can omit a journey; playback never
+invents a missing leg.
+
+Each store shows its unexpired item count and logical value volume. Set sizes are the
+stored value lengths; Files uses file metadata lengths. TTL records, internal offloaded
+request bodies and replica copies are excluded. An unknown file size is counted separately
+and the displayed volume is a lower bound. Empty stores show zero, while unavailable
+metadata stays unknown. Counters come from the shared inventory cache, refreshed at the
+configured state interval; they are not inferred from sampled traffic.
+
+The Traffic SSE `state` frame includes optional `DataSummary` metadata (`Sets`, `Files`,
+`SetBytes`, `FileBytes`, `UnknownFileSizes`, `ExpiringSoon`). Summaries and Data activities
+follow the same policy as `/status-data-stream`: public data, an internal caller, or
+`SlimFaas__ExposeDataMetadata=true` while the front is enabled. The last option grants
+metadata visibility only. Restricted clients receive neither Data activity nor a summary,
+including through initial history and activity batches. If metadata access is revoked,
+the browser cancels active and queued Data hops and discards buffered Data receipts;
+restoring access does not replay them. Values, file contents, filenames
+and data IDs are never added to activity records. Status-only (`?activity=false`) views do
+not request the inventory summary or start another subscription.
 
 ### Ordered request and publication paths
 

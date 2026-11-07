@@ -11,30 +11,20 @@ internal static class SlimDataCapacityErrorHandler
         {
             await next(context).ConfigureAwait(false);
         }
-        catch (BatchItemTooLargeException) when (!context.Response.HasStarted)
+        catch (Exception exception) when (!context.Response.HasStarted && StatusCodeFor(exception) is int status)
         {
             context.Response.Clear();
-            context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-        }
-        catch (BatchQueueFullException) when (!context.Response.HasStarted)
-        {
-            SetTooManyRequests(context);
-        }
-        catch (FileTransferCapacityExceededException) when (!context.Response.HasStarted)
-        {
-            SetTooManyRequests(context);
-        }
-        catch (SlimDataUnavailableException) when (!context.Response.HasStarted)
-        {
-            context.Response.Clear();
-            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.StatusCode = status;
+            if (status == StatusCodes.Status429TooManyRequests)
+                context.Response.Headers.RetryAfter = "1";
         }
     }
 
-    private static void SetTooManyRequests(HttpContext context)
+    internal static int? StatusCodeFor(Exception exception) => exception switch
     {
-        context.Response.Clear();
-        context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        context.Response.Headers.RetryAfter = "1";
-    }
+        BatchItemTooLargeException => StatusCodes.Status413PayloadTooLarge,
+        BatchQueueFullException or FileTransferCapacityExceededException => StatusCodes.Status429TooManyRequests,
+        SlimDataUnavailableException => StatusCodes.Status503ServiceUnavailable,
+        _ => null
+    };
 }

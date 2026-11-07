@@ -583,3 +583,12 @@ See [external sources and migration](autoscaling.md#external-metrics-and-opt-in-
 The dashboard reads a separate bounded in-memory diagnostic journal. The journal has no role in making scaling decisions and is reset across leadership changes. Simulations use request-local metric and health copies plus copied autoscaler histories; compilation caches for edited queries are also request-local. They share the calculators without invoking production writes or the side effects of the existing PromQL debug endpoint.
 
 Followers resolve the leader from configured Raft membership and reuse the configured application-port resolution for HTTP relays. State frames are briefly cached per function and leader, with a maximum of eight cache entries per node. Internal endpoints require the front, allowed ports and a direct connection from a recognized SlimFaas member IP; browser-supplied upstream addresses are not accepted. See [the UI guide](user-interface.md#scaling-diagnostics-and-playground).
+
+### Multi-platform runtime image compilation
+
+The root Dockerfile builds its static dashboard on `BUILDPLATFORM`. Its managed
+`linux-musl-arm64` publication also uses the build host SDK, avoiding an emulated
+Roslyn/trimmer process; the requested RID still selects ARM64 runtime assets. The
+`linux-musl-x64` Native AOT publication keeps an x64 SDK and linker, including when
+the Docker build host is ARM64. Final base images continue to use `TARGETPLATFORM`.
+See Microsoft's [multi-platform container guidance](https://devblogs.microsoft.com/dotnet/improving-multiplatform-container-support/).

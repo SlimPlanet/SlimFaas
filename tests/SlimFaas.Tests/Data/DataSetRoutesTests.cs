@@ -61,6 +61,9 @@ public sealed class DataSetRoutesTests
                     .ConfigureServices(services =>
                     {
                         services.AddRouting();
+                        services.AddSingleton<SlimFaas.Endpoints.NetworkActivityTracker>();
+                        services.AddSingleton(new Mock<SlimFaas.Jobs.IJobService>().Object);
+                        services.AddSingleton<IReplicasService, SlimFaas.Tests.Endpoints.MemoryReplicasService>();
                         services.AddSingleton(db);
                         services.AddSingleton(state.Object);
                         services.AddSingleton(accessPolicy.Object);
@@ -113,6 +116,27 @@ public sealed class DataSetRoutesTests
             .PostAsync("/data/sets/youhou?ttl=20000", content);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        db.VerifyAll();
+    }
+
+    [Theory]
+    [InlineData("/data/sets/youhou/", "write")]
+    [InlineData("/data/sets/youhou/incr/", "incr")]
+    [InlineData("/DATA/SETS/youhou/INCR/", "incr")]
+    public async Task AcceptedRouteVariantsKeepCanonicalActivityOperation(string path, string operation)
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        if (operation == "write")
+            db.Setup(item => item.SetAsync("data:set:youhou", It.IsAny<byte[]>(), (long?)null)).ReturnsAsync(Applied());
+        else
+            db.Setup(item => item.SetAsync("data:set:youhou", null, null, KeyValueOperation.IncrementInteger, 1, 0m))
+                .ReturnsAsync(AppliedInteger(1));
+        using var host = await BuildHostAsync(db.Object);
+        using var content = new StringContent("1");
+        using var response = await host.GetTestClient().PostAsync(path, content);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var activity = host.Services.GetRequiredService<SlimFaas.Endpoints.NetworkActivityTracker>().GetRecent();
+        Assert.Equal(operation, activity.Last().DataOperation);
         db.VerifyAll();
     }
 

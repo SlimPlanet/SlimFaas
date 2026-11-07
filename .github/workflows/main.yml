@@ -417,7 +417,7 @@ jobs:
           - os: macos-latest
             rid: osx-x64
             zip: SlimFaasMcp-osx-x64.zip
-          - os: macos-14
+          - os: macos-15
             rid: osx-arm64
             zip: SlimFaasMcp-osx-arm64.zip
     runs-on: ${{ matrix.os }}
@@ -487,7 +487,7 @@ jobs:
           - os: macos-15-intel
             rid: osx-x64
             zip: SlimFaas-osx-x64.zip
-          - os: macos-14
+          - os: macos-15
             rid: osx-arm64
             zip: SlimFaas-osx-arm64.zip
     runs-on: ${{ matrix.os }}
