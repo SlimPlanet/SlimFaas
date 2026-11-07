@@ -34,7 +34,16 @@ export function observedFunctions(functions: FunctionStatusDetailed[], events: N
   const known = new Set(functions.map(fn => fn.Name));
   const observed = new Map<string, Set<string>>();
   for (const event of events) {
-    if (event.DataKind || !event.Target || event.Target.startsWith('dlq:') || event.Target.startsWith('stream:') || known.has(event.Target) || isJobQueueEvent(event) || ['slimfaas', 'external'].includes(event.Target)) continue;
+    if (event.DataKind) {
+      // Peer activity can precede the caller's first inventory snapshot.
+      if (event.Source && event.SourcePod && !known.has(event.Source) && !['slimfaas', 'external'].includes(event.Source) &&
+          !event.SourcePod.startsWith(`${event.Source}-slimfaas-job-`)) {
+        const replicas = observed.get(event.Source) ?? new Set<string>();
+        replicas.add(event.SourcePod); observed.set(event.Source, replicas);
+      }
+      continue;
+    }
+    if (!event.Target || event.Target.startsWith('dlq:') || event.Target.startsWith('stream:') || known.has(event.Target) || isJobQueueEvent(event) || ['slimfaas', 'external'].includes(event.Target)) continue;
     const replicas = observed.get(event.Target) ?? new Set<string>();
     if (event.TargetPod) replicas.add(event.TargetPod);
     observed.set(event.Target, replicas);

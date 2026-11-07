@@ -8,6 +8,7 @@ import { drawSymbol } from '../lib/canvasSymbols.ts';
 
 interface Props {
   topology: Topology; events: NetworkActivityEvent[]; visibleEvents: NetworkActivityEvent[];
+  dataAvailable?: boolean;
   activitySession: number; speed: Speed; eventType: string; isolate: boolean; selected: string | null;
   onSelect: (id: string) => void; paused: boolean;
 }
@@ -24,9 +25,9 @@ export default function TrafficCanvas(props: Props) {
   current.current = props;
   useLayoutEffect(() => {
     playback.update(props.events, props.activitySession, props.paused || document.hidden, performance.now(), props.topology,
-      props.speed, props.eventType, props.selected, props.isolate);
+      props.speed, props.eventType, props.selected, props.isolate, props.dataAvailable);
     dirty.current = true;
-  }, [props.events, props.activitySession, props.paused, props.topology, props.speed, props.eventType, props.selected, props.isolate, props.visibleEvents]);
+  }, [props.events, props.activitySession, props.paused, props.topology, props.speed, props.eventType, props.selected, props.isolate, props.visibleEvents, props.dataAvailable]);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -125,7 +126,7 @@ export default function TrafficCanvas(props: Props) {
     };
     const draw = (now: number) => {
       frame = requestAnimationFrame(draw);
-      const { topology: model, events, visibleEvents, activitySession, speed, eventType, isolate, selected, paused } = current.current;
+      const { topology: model, events, visibleEvents, activitySession, speed, eventType, isolate, selected, paused, dataAvailable } = current.current;
       if (model !== previousModel) {
         index = d3.quadtree<MapNode>().x(n => n.x).y(n => n.y).addAll(model.nodes.filter(n => n.parent));
         // The canvas can mount before the first SSE state arrives. Fit that first
@@ -137,7 +138,7 @@ export default function TrafficCanvas(props: Props) {
         previousModel = model; dirty.current = true;
       }
       const hadMarkers = playback.markers.size > 0 || playback.arrivals.size > 0;
-      playback.update(events, activitySession, paused || document.hidden, now, model, speed, eventType, selected, isolate);
+      playback.update(events, activitySession, paused || document.hidden, now, model, speed, eventType, selected, isolate, dataAvailable);
       const animations = [...playback.markers.values()];
       if (hadMarkers && !animations.length) dirty.current = true;
       if (now - lastStatusAt > 250) {
@@ -303,7 +304,7 @@ export default function TrafficCanvas(props: Props) {
     };
     const visibility = () => {
       const p = current.current;
-      playback.update(p.events, p.activitySession, p.paused || document.hidden, performance.now(), p.topology, p.speed, p.eventType, p.selected, p.isolate);
+      playback.update(p.events, p.activitySession, p.paused || document.hidden, performance.now(), p.topology, p.speed, p.eventType, p.selected, p.isolate, p.dataAvailable);
       dirty.current = true;
     };
     document.addEventListener('visibilitychange', visibility);

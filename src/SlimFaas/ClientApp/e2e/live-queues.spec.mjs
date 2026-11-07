@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { makeFixtures } from '../src/lib/fixtures.ts';
-import { buildTopology } from '../src/lib/topology.ts';
+import { buildTopology, observedFunctions } from '../src/lib/topology.ts';
 import { observeCanvas } from './canvas-observer.mjs';
 
 const servers = new Map();
@@ -129,4 +129,47 @@ test('a live WebSocket Stream delivery still moves to its connection when metada
     expect(samples.length).toBeGreaterThan(5);
     expect(Math.max(...samples) - Math.min(...samples)).toBeGreaterThan(0.5);
   }
+});
+
+
+test('Data sources precede inventory and revoking metadata discards active, queued and buffered Data traffic', async ({ page }) => {
+  const data = frame();
+  data.Functions = [];
+  data.DataSummary = { Sets: 1, Files: 0, SetBytes: 4, FileBytes: 0, UnknownFileSizes: 0 };
+  await viewer(page, data);
+  await page.getByRole('combobox', { name: /^Animation speed/ }).selectOption('Slow');
+  const ingress = { Id: 'peer-source', Type: 'data_request', Source: 'new-source', SourcePod: 'replica-before-snapshot',
+    Target: 'slimfaas', TargetPod: null, QueueName: null, NodeId: data.SlimFaasNodes[0].Name, TimestampMs: Date.now(), DataKind: 'sets', DataOperation: 'write' };
+  const access = { ...ingress, Id: 'peer-store', Type: 'data_access', CorrelationId: ingress.Id, DataStatusCode: 200 };
+  send(page, 'activity_batch', [ingress, access]);
+  const sourceRow = page.getByRole('row').filter({ has: page.getByRole('button', { name: 'new-source', exact: true }) });
+  await expect(sourceRow).toContainText('Observed traffic · inventory unknown');
+  await expect.poll(() => page.evaluate(() => window.__traffic.frames.some(frame => frame.markers.some(marker => marker.shape === 'data')))).toBe(true);
+  const topology = buildTopology([], [], [], data.SlimFaasNodes, observedFunctions([], [ingress]));
+  const source = topology.byId.get('observed:new-source/replica-before-snapshot');
+  const first = await page.evaluate(() => window.__traffic.frames.flatMap(frame => frame.markers).find(marker => marker.shape === 'data'));
+  expect(Math.hypot(first.x - source.x, first.y - source.y)).toBeLessThan(30);
+
+  // Publish a receipt and revocation in one SSE delivery, before the client's flush timer.
+  data.DataSummary = null;
+  send(page, 'activity_batch', [{ ...ingress, Id: 'buffered-before-revoke' }]);
+  await state(page, data);
+  const sets = page.getByRole('row').filter({ has: page.getByRole('button', { name: 'Set', exact: true }) });
+  await expect(sets).toContainText('Metadata unavailable');
+  await expect(page.getByRole('button', { name: 'Event journal (0)', exact: true })).toBeVisible();
+  await page.evaluate(() => { window.__dataRevokedAt = performance.now(); });
+  send(page, 'activity_batch', [{ ...ingress, Id: 'late-private' }]);
+  await expect.poll(() => page.evaluate(() => performance.now() - window.__dataRevokedAt > 1700)).toBe(true);
+  expect(await page.evaluate(() => window.__traffic.frames.filter(frame => frame.time >= window.__dataRevokedAt)
+    .some(frame => frame.markers.some(marker => marker.shape === 'data')))).toBe(false);
+
+  data.DataSummary = { Sets: 1, Files: 0, SetBytes: 4, FileBytes: 0, UnknownFileSizes: 0 };
+  await state(page, data);
+  await expect(sets).toContainText('1 items · 4 B');
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await expect(page.getByRole('button', { name: 'Event journal (0)', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.__traffic.frames.at(-1).markers.some(marker => marker.shape === 'data'))).toBe(false);
+  send(page, 'activity_batch', [{ ...ingress, Id: 'fresh-authorized' }]);
+  await expect(page.getByRole('button', { name: 'Event journal (1)', exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__traffic.frames.at(-1).markers.some(marker => marker.shape === 'data'))).toBe(true);
 });

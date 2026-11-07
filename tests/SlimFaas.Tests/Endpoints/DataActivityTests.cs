@@ -8,10 +8,12 @@ using Microsoft.Extensions.Options;
 using Moq;
 using SlimData;
 using SlimData.Commands;
+using SlimData.ClusterFiles;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
+using SlimFaas.Middleware;
 using SlimFaas.Options;
 using SlimFaas.Security;
 
@@ -23,6 +25,9 @@ public sealed class DataActivityTests
     [InlineData("GET", "/data/sets", "sets", "list", 200)]
     [InlineData("GET", "/data/sets/key", "sets", "read", 404)]
     [InlineData("POST", "/data/sets/key", "sets", "write", 200)]
+    [InlineData("POST", "/data/sets/key/", "sets", "write", 200)]
+    [InlineData("POST", "/data/sets/key/incr/", "sets", "incr", 200)]
+    [InlineData("POST", "/DATA/SETS/key/INCR/", "sets", "incr", 200)]
     [InlineData("POST", "/data/sets/key/incr", "sets", "incr", 200)]
     [InlineData("POST", "/data/sets/key/incrby", "sets", "incrby", 409)]
     [InlineData("POST", "/data/sets/key/incrbyfloat", "sets", "incrbyfloat", 200)]
@@ -57,6 +62,34 @@ public sealed class DataActivityTests
         Assert.Equal(2, peer.IngestRemote(events)); Assert.Equal(0, peer.IngestRemote(events));
         var json = JsonSerializer.Serialize(events.ToList(), StatusStreamSerializerContext.Default.ListNetworkActivityEvent);
         Assert.DoesNotContain("/data/", json); Assert.DoesNotContain("key", json);
+    }
+
+    [Theory]
+    [InlineData(0, 503)]
+    [InlineData(1, 413)]
+    [InlineData(2, 429)]
+    [InlineData(3, 429)]
+    public async Task JournalFailureStatusMatchesThePublicCapacityResponse(int failure, int expected)
+    {
+        Exception exception = failure switch
+        {
+            0 => new SlimDataUnavailableException("no quorum"),
+            1 => new BatchItemTooLargeException("write", 2, 1),
+            2 => new BatchQueueFullException("write"),
+            _ => new FileTransferCapacityExceededException("busy")
+        };
+        var tracker = new NetworkActivityTracker();
+        var context = new DefaultHttpContext(); context.Request.Path = "/data/files"; context.Request.Method = "POST";
+        var filter = new DataActivityEndpointFilter(tracker, new Mock<IJobService>().Object,
+            new MemoryReplicasService(), Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()));
+        await SlimDataCapacityErrorHandler.InvokeAsync(context, async _ =>
+        {
+            await filter.InvokeAsync(new DefaultEndpointFilterInvocationContext(context),
+                _ => ValueTask.FromException<object?>(exception));
+        });
+        Assert.Equal(expected, context.Response.StatusCode);
+        Assert.Equal(expected, tracker.GetRecent().Last().DataStatusCode);
+        Assert.Equal(expected == 429 ? "1" : "", context.Response.Headers.RetryAfter.ToString());
     }
 
     [Theory]

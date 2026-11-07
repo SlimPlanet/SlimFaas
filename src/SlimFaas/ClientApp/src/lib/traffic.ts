@@ -47,6 +47,8 @@ export class TrafficPlayback {
   private paused = false;
   private resumeAfter = -Infinity;
   private view = '';
+  private dataAvailable = true;
+  private dataResumeAfter = -Infinity;
 
   private descendants(id: string): Receipt[] {
     return [...(this.children.get(id) ?? [])].flatMap(child => {
@@ -98,11 +100,19 @@ export class TrafficPlayback {
   }
 
   update(events: readonly NetworkActivityEvent[], session: number, paused: boolean, now: number,
-    topology: Topology, speed: Speed, type: string, selected: string | null, isolate: boolean) {
+    topology: Topology, speed: Speed, type: string, selected: string | null, isolate: boolean, dataAvailable = true) {
     if (session !== this.session) {
       this.markers.clear(); this.arrivals.clear(); this.records.clear(); this.children.clear(); this.pending.clear();
-      this.dispatches.clear(); this.previous = null; this.omitted = 0; this.resumeAfter = -Infinity; this.session = session;
+      this.dispatches.clear(); this.previous = null; this.omitted = 0; this.resumeAfter = -Infinity; this.dataResumeAfter = -Infinity; this.session = session;
     }
+    if (!dataAvailable && this.dataAvailable) {
+      for (const [key, marker] of this.markers) if (marker.kind === 'data') this.markers.delete(key);
+      for (const id of this.pending) if (this.records.get(id)?.event.DataKind) {
+        this.records.get(id)!.end = now; this.pending.delete(id);
+      }
+    }
+    if (!dataAvailable) this.dataResumeAfter = Math.max(this.dataResumeAfter, now);
+    this.dataAvailable = dataAvailable;
     const view = `${speed}/${type}/${selected}/${isolate}`;
     if (view !== this.view || paused) {
       this.markers.clear(); this.arrivals.clear();
@@ -136,7 +146,7 @@ export class TrafficPlayback {
           if (!previous) this.dispatches.set(dispatch, { view, shown: paused });
           if (this.dispatches.size > HISTORY_LIMIT) this.dispatches.delete(this.dispatches.keys().next().value!);
         }
-        if (paused || duplicate || (event.ReceivedAt === undefined ? resumed : event.ReceivedAt <= this.resumeAfter)
+        if (paused || duplicate || !!event.DataKind && (!dataAvailable || receipt.received <= this.dataResumeAfter) || (event.ReceivedAt === undefined ? resumed : event.ReceivedAt <= this.resumeAfter)
           || now - receipt.received >= SPEEDS[speed] || !matchesTraffic(topology, event, type, selected, isolate)) receipt.end = duplicate && dispatch ? this.dispatches.get(dispatch)?.end ?? now : now;
         else this.pending.add(event.Id);
         if (this.records.size > HISTORY_LIMIT) {

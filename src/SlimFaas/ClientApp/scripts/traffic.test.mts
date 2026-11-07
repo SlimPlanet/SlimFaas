@@ -28,8 +28,8 @@ test('SSE normalization preserves changing leader roles and handles old or unkno
   }
   assert.equal(normalizeSlimFaasNodes([{ name: 'node', status: 'Starting', role: 'Leader' }])[0].Role, 'Leader');
 });
-function update(playback, events, { now = 100, paused = false, session = 1, speed = 'Fast', type = 'all', selected = null, isolate = false, topology = model } = {}) {
-  playback.update(events, session, paused, now, topology, speed, type, selected, isolate);
+function update(playback, events, { now = 100, paused = false, session = 1, speed = 'Fast', type = 'all', selected = null, isolate = false, topology = model, dataAvailable = true } = {}) {
+  playback.update(events, session, paused, now, topology, speed, type, selected, isolate, dataAvailable);
 }
 test('Stream attempt correlation draws delivery and then ACK, including reverse batches and isolated actors', () => {
   const fn = fixture.functions[0].Name;
@@ -631,4 +631,42 @@ test('the first waking replica does not move the hub or interrupt an ingress ani
   const after = buildTopology([awake], [], [], fixture.slimFaasNodes);
   assert.deepEqual(before.groups.map(group => [group.id, group.x, group.y, group.width, group.height]),
     after.groups.map(group => [group.id, group.x, group.y, group.width, group.height]));
+});
+
+test('Data availability cancels active and queued legs without stopping other traffic or replaying buffered receipts', () => {
+  const ingress = event('private-data', { Type: 'data_request', Source: fixture.functions[0].Name, SourcePod: fixture.functions[0].Pods![0].Name,
+    Target: 'slimfaas', TargetPod: null, QueueName: null, CorrelationId: null, DataKind: 'sets' });
+  const access = { ...ingress, Id: 'private-store', Type: 'data_access', CorrelationId: ingress.Id, DataStatusCode: 200 };
+  const normal = event('normal', { Type: 'request_in', Source: 'external', SourcePod: null, Target: 'slimfaas', QueueName: null, CorrelationId: null });
+  const player = new TrafficPlayback();
+  update(player, [ingress, access, normal], { speed: 'Slow' });
+  assert.equal(player.markers.size, 2);
+  update(player, [normal], { now: 200, speed: 'Slow', dataAvailable: false });
+  assert.ok([...player.markers.values()].every(marker => marker.kind !== 'data'));
+  assert.equal(player.markers.size, 1, 'unrelated traffic keeps its marker');
+  const late = { ...ingress, Id: 'buffered', ReceivedAt: 150 };
+  const history = [ingress, access, normal, late];
+  update(player, history, { now: 250, speed: 'Slow', dataAvailable: false });
+  update(player, history, { now: 240, speed: 'Slow', dataAvailable: false });
+  update(player, history, { now: 300, speed: 'Slow' });
+  update(player, [...history, { ...late, Id: 'late-after-restore', ReceivedAt: 245 }], { now: 350, speed: 'Slow' });
+  assert.ok([...player.markers.values()].every(marker => marker.kind !== 'data'));
+  update(player, history, { now: 1500, speed: 'Slow' });
+  assert.equal(player.markers.size, 0, 'the cancelled store hop never starts');
+  update(player, [...history, { ...ingress, Id: 'fresh', ReceivedAt: 1600 }], { now: 1600, speed: 'Slow' });
+  assert.ok([...player.markers.values()].some(marker => marker.kind === 'data'));
+});
+
+test('a Data source seen before inventory keeps its observed replica and never invents a function for a job execution', () => {
+  const ingress = event('peer-data', { Type: 'data_request', Source: 'new-source', SourcePod: 'replica-before-snapshot', Target: 'slimfaas', TargetPod: null,
+    QueueName: null, CorrelationId: null, DataKind: 'files' });
+  const observed = observedFunctions([], [ingress, { ...ingress, Id: 'second' }]);
+  assert.deepEqual(observed, [{ name: 'new-source', replicas: ['replica-before-snapshot'] }]);
+  const topology = buildTopology([], [], [], fixture.slimFaasNodes, observed);
+  assert.deepEqual(displayPath(topology, ingress, null), ['observed:new-source/replica-before-snapshot', `node:${ingress.NodeId}`]);
+  assert.match(topology.byId.get('function:new-source')!.status, /inventory unknown/);
+  assert.ok(matchesTraffic(topology, ingress, 'all', 'function:new-source', true));
+  assert.deepEqual(observedFunctions([], [{ ...ingress, Source: 'report', SourcePod: 'report-slimfaas-job-run1' },
+    { ...ingress, Source: 'external', SourcePod: 'id_address' }]), []);
+  assert.deepEqual(observedFunctions([{ ...fixture.functions[0], Name: 'new-source' }], [ingress]), []);
 });

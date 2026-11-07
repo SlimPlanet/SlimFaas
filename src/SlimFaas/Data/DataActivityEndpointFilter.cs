@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
+using SlimFaas.Middleware;
 using SlimFaas.Options;
 
 namespace SlimFaas;
@@ -25,6 +26,12 @@ public sealed class DataActivityEndpointFilter(NetworkActivityTracker tracker, I
             status = (result as IStatusCodeHttpResult)?.StatusCode ?? http.Response.StatusCode;
             return result;
         }
+        catch (Exception exception) when (!http.Response.HasStarted &&
+            SlimDataCapacityErrorHandler.StatusCodeFor(exception) is int mappedStatus)
+        {
+            status = mappedStatus;
+            throw;
+        }
         finally
         {
             tracker.Record("data_access", caller.Actor, NetworkActivityTracker.Actors.SlimFaas,
@@ -40,9 +47,12 @@ public sealed class DataActivityEndpointFilter(NetworkActivityTracker tracker, I
             return request.RouteValues.Count == 0 ? "list" : "read";
         if (HttpMethods.IsDelete(request.Method)) return "delete";
         // Numeric operations have an additional literal segment after the set ID.
-        if (request.Path.StartsWithSegments("/data/sets", StringComparison.OrdinalIgnoreCase, out var remaining) &&
-            remaining.Value?.Count(character => character == '/') == 2)
-            return remaining.Value[(remaining.Value.LastIndexOf('/') + 1)..];
+        if (request.Path.StartsWithSegments("/data/sets", StringComparison.OrdinalIgnoreCase, out var remaining))
+        {
+            string path = remaining.Value?.TrimEnd('/') ?? string.Empty;
+            if (path.Count(character => character == '/') == 2)
+                return path[(path.LastIndexOf('/') + 1)..].ToLowerInvariant();
+        }
         return "write";
     }
 }

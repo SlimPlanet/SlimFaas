@@ -413,3 +413,13 @@ The initial multi-platform Docker run also spent over thirty minutes compiling A
 managed code under QEMU. The root Dockerfile now builds its static assets and managed
 ARM publication with the build host SDK; the x64 Native AOT stage retains its target
 x64 toolchain. Published RIDs and final runtime architectures are unchanged.
+
+### Code review follow-up
+
+Four inline review findings have regression coverage: Data callers preceding inventory
+retain their observed replica; metadata revocation cancels active and queued Data hops
+and discards buffered receipts without replay; accepted trailing slashes and route casing
+retain canonical operations; capacity failures retain the public 413/429/503 status in
+the journal. A browser scenario exercises observation before inventory, revocation during
+Slow playback, buffered activity, reauthorization and fresh authorized activity. Other
+traffic keeps its in-flight animation when Data access is revoked.

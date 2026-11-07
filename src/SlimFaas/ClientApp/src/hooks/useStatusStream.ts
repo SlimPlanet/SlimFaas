@@ -249,6 +249,7 @@ export function useStatusStream(includeActivity = true) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectFailures = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataAvailableRef = useRef(false);
   const activityBufferRef = useRef<NetworkActivityEvent[]>([]);
   const activityFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -291,7 +292,9 @@ export function useStatusStream(includeActivity = true) {
   const enqueueActivityBatch = useCallback((events: NetworkActivityEvent[]) => {
     if (events.length === 0) return;
     const receivedAt = performance.now();
-    activityBufferRef.current.push(...events.map(event => ({ ...event, ReceivedAt: receivedAt })));
+    for (const event of events) if (!event.DataKind || dataAvailableRef.current)
+      activityBufferRef.current.push({ ...event, ReceivedAt: receivedAt });
+    if (activityBufferRef.current.length === 0) return;
 
     if (activityBufferRef.current.length >= ACTIVITY_IMMEDIATE_FLUSH_SIZE) {
       flushActivityBuffer();
@@ -312,6 +315,7 @@ export function useStatusStream(includeActivity = true) {
       activityFlushTimerRef.current = null;
     }
     activityBufferRef.current = [];
+    dataAvailableRef.current = false;
 
     const es = new EventSource(`/status-functions-stream${includeActivity ? '' : '?activity=false'}`);
     eventSourceRef.current = es;
@@ -345,7 +349,11 @@ export function useStatusStream(includeActivity = true) {
         setStreamsAccessible(payload.StreamsAccessible === true);
         setStreamsTruncated(payload.StreamsTruncated === true);
         setDataSummary(payload.DataSummary ?? null);
-        if (!payload.DataSummary) setActivity(previous => previous.filter(event => !event.DataKind));
+        dataAvailableRef.current = !!payload.DataSummary;
+        if (!dataAvailableRef.current) {
+          activityBufferRef.current = activityBufferRef.current.filter(event => !event.DataKind);
+          setActivity(previous => previous.filter(event => !event.DataKind));
+        }
         setError(null);
         reconnectFailures.current = 0;
         setLoading(false);

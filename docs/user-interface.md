@@ -143,11 +143,16 @@ function replica or job execution to the handling SlimFaas node, followed by a l
 to Set or Files. The second hop waits for the first animation to finish. There is no animated
 Data reply. Reads, lists, writes, deletes and numeric Set operations are included; this
 pedagogical store hop does not represent Raft replication or measured storage latency.
-Unknown callers use External. Existing signed local gateways identify native processes.
+A function caller first seen in Data activity retains an observed replica while its
+inventory snapshot is pending; its ready/requested capacity remains unknown. Generated
+job executions remain attached to their job configuration. Unknown callers use External.
+Existing signed local gateways identify native processes.
 
 The journal retains correlated `data_request` and `data_access` records, with additive
 `DataKind`, `DataOperation` and `DataStatusCode` fields. Failed handler calls retain their
-status without an animated successful store access. Selection, isolation and event filters
+status without an animated successful store access. Capacity/unavailability exceptions
+use the same HTTP status as the public response (413, 429 or 503); accepted route casing
+and trailing slashes retain canonical operation names. Selection, isolation and event filters
 include these records. Sampling or a missing parent can omit a journey; playback never
 invents a missing leg.
 
@@ -163,7 +168,9 @@ The Traffic SSE `state` frame includes optional `DataSummary` metadata (`Sets`, 
 follow the same policy as `/status-data-stream`: public data, an internal caller, or
 `SlimFaas__ExposeDataMetadata=true` while the front is enabled. The last option grants
 metadata visibility only. Restricted clients receive neither Data activity nor a summary,
-including through initial history and activity batches. Values, file contents, filenames
+including through initial history and activity batches. If metadata access is revoked,
+the browser cancels active and queued Data hops and discards buffered Data receipts;
+restoring access does not replay them. Values, file contents, filenames
 and data IDs are never added to activity records. Status-only (`?activity=false`) views do
 not request the inventory summary or start another subscription.
 
