@@ -78,6 +78,11 @@ Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 await client.RunForeverAsync(cts.Token);
 ```
 
+If the handler throws before the response starts, the client sends a `500`.
+If it throws after the status and headers are sent, the status can no longer
+change, so the client cancels the stream and the caller gets a truncated
+response. See [sync streaming](../../../docs/clients.md#7-synchronous-http-over-websocket).
+
 ## Full configuration
 
 For durable async failures, use the existing configuration JSON (no new wire

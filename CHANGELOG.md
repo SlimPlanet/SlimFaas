@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.87.1
+
+- [bd26db5d](https://github.com/SlimPlanet/SlimFaas/commit/bd26db5d417e7fef82e2148d38eb317d650a0149) - fix(clients): cancel the sync stream when the handler fails after starting the response (#492) (#493) (release), 2026-11-07 by *Asish*
+
+
+## 0.87.0
+
+
+
 ## v0.87.0
 
 - [1f5c5c5c](https://github.com/SlimPlanet/SlimFaas/commit/1f5c5c5c0cade6415ee41addd57a7f9ec4fc6488) - feat: durable Streams with HTTP and WebSocket consumers (#491) (release), 2026-11-04 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.82.5
 
 - [48b7fc86](https://github.com/SlimPlanet/SlimFaas/commit/48b7fc869de28f2ac6e23d208371bb000f5dc39f) - docs: add guided onboarding, feature diagrams and standalone local demos (#334) (release), 2026-09-08 by *Guillaume Chervet*
-
-
-## 0.82.4
-
-
-
-## v0.82.4
-
-- [8a7fb497](https://github.com/SlimPlanet/SlimFaas/commit/8a7fb49773b8481d5bb6843d44875a510fe38909) - chore: update .NET and client dependencies (release) (#330), 2026-09-02 by *Guillaume Chervet*
 
 

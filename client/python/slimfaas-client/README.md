@@ -170,6 +170,11 @@ async def handle_sync(req: SyncRequest) -> None:
 client.on_sync_request(handle_sync)
 ```
 
+If the handler raises before the response starts, the client sends a `500`.
+If it raises after the status and headers are sent, the status can no longer
+change, so the client cancels the stream and the caller gets a truncated
+response. See [sync streaming](../../../docs/clients.md#7-synchronous-http-over-websocket).
+
 ## Long-running requests (status 202)
 
 Return `202` to acknowledge the request without completing it yet,
