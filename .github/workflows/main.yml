@@ -61,7 +61,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -151,7 +151,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -648,7 +648,7 @@ jobs:
           check-latest: true
           registry-url: https://registry.npmjs.org
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -689,7 +689,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
