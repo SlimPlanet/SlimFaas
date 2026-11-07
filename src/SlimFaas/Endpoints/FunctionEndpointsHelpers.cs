@@ -12,6 +12,7 @@ using SlimFaas.Local;
 using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas;
+using ZLinq;
 
 namespace SlimFaas.Endpoints;
 
@@ -83,12 +84,17 @@ public static class FunctionEndpointsHelpers
 
         foreach (string candidate in candidates)
         {
-            foreach (Kubernetes.Job job in jobs.Where(job => job.Status == JobStatus.Running))
+            foreach (Kubernetes.Job job in jobs.AsValueEnumerable().Where(static job => job.Status == JobStatus.Running))
             {
-                bool matchesJobIp = job.Ips
-                    .Where(ip => !string.IsNullOrWhiteSpace(ip))
-                    .Select(NormalizeNetworkAddress)
-                    .Any(ip => string.Equals(ip, candidate, StringComparison.OrdinalIgnoreCase));
+                bool matchesJobIp = false;
+                foreach (string ip in job.Ips.AsValueEnumerable().Where(static ip => !string.IsNullOrWhiteSpace(ip)))
+                {
+                    if (string.Equals(NormalizeNetworkAddress(ip), candidate, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchesJobIp = true;
+                        break;
+                    }
+                }
                 if (!matchesJobIp)
                 {
                     continue;
@@ -309,8 +315,9 @@ public static class FunctionEndpointsHelpers
         // ILogger<T> is a singleton cached by the DI container, unlike
         // ILoggerFactory.CreateLogger(string) which takes a lock on every call.
         var logger = context.RequestServices.GetRequiredService<ILogger<FunctionEndpointsHelpersLog>>();
-        List<CustomHeader> customHeaders = contextRequest.Headers
-            .Select(headers => new CustomHeader(headers.Key, headers.Value.ToArray())).ToList();
+        var customHeaders = new List<CustomHeader>(contextRequest.Headers.Count);
+        foreach (var header in contextRequest.Headers.AsValueEnumerable())
+            customHeaders.Add(new CustomHeader(header.Key, header.Value.ToArray()));
 
         string requestMethod = contextRequest.Method;
         byte[]? requestBodyBytes = null;
@@ -517,7 +524,7 @@ public static class FunctionEndpointsHelpers
     {
         int numberReady = f.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);
 
-        var pods = f.Pods.Select(p =>
+        var pods = f.Pods.AsValueEnumerable().Select(static p =>
         {
             string status;
             if (p.Ready is true)

@@ -129,4 +129,68 @@ public sealed class WebSocketPeerAuthorizationTests
         Assert.Equal("application/octet-stream", Assert.Single(headers["Content-Type"]));
         Assert.Equal(2, headers["Set-Cookie"].Length);
     }
+
+    [Fact]
+    public void Header_filter_preserves_value_arrays_and_case_insensitive_connection_tokens()
+    {
+        string[] values = ["first=1", "second=2"];
+        var headers = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["cOnNeCtIoN"] = [" X-Hop, ,", "x-other-hop, KEEP-ALIVE"],
+            ["x-hop"] = ["hidden"], ["X-Other-Hop"] = ["hidden"], ["Keep-Alive"] = ["hidden"],
+            ["Set-Cookie"] = values
+        };
+        var filtered = WebSocketPeerHeaders.Filter(headers);
+        Assert.Single(filtered);
+        Assert.Same(values, filtered["set-cookie"]);
+        Assert.Equal(5, headers.Count);
+        Assert.Empty(WebSocketPeerHeaders.Filter(new Dictionary<string, string[]>()));
+    }
+
+    [Fact]
+    public void Virtual_snapshot_cache_reuses_hits_and_refreshes_replaced_directory_snapshots()
+    {
+        var (_, _, _, directory) = Setup();
+        var registry = new WebSocketConnectionRegistry(NullLogger<WebSocketConnectionRegistry>.Instance);
+        var repository = new WebSocketFunctionRepository(registry, directory.Object);
+        var original = repository.GetVirtualDeployments();
+        Assert.Same(original, repository.GetVirtualDeployments());
+        var connection = Assert.Single(directory.Object.Connections);
+        directory.SetupGet(service => service.Connections).Returns(
+        [
+            new WebSocketDirectoryConnection
+            {
+                Id = "replacement-connection", Node = connection.Node, Incarnation = connection.Incarnation,
+                Function = connection.Function, Fingerprint = connection.Fingerprint,
+                Configuration = connection.Configuration, Ready = true
+            }
+        ]);
+        var replacement = repository.GetVirtualDeployments();
+        Assert.NotSame(original, replacement);
+        Assert.Equal("replacement-connection", Assert.Single(Assert.Single(replacement).Pods).Ip);
+        Assert.Same(replacement, repository.GetVirtualDeployments());
+    }
+
+    [Fact]
+    public void Virtual_projection_preserves_pod_event_and_path_order_and_visibility_overrides()
+    {
+        var configuration = new WebSocketFunctionConfiguration
+        {
+            DefaultVisibility = "pRiVaTe", DefaultTrust = "uNtRuStEd",
+            SubscribeEvents = [new() { Name = "inherited" }, new() { Name = "overridden", Visibility = "Public" }],
+            PathsStartWithVisibility = [new() { Path = "/z", Visibility = "Public" }, new() { Path = "/a", Visibility = "Private" }]
+        };
+        var deployment = WebSocketFunctionRepository.CreateDeployment("virtual", configuration,
+            ["first-connection", "second-connection"]);
+        Assert.Equal(["first-connection", "second-connection"], deployment.Pods.Select(pod => pod.Ip));
+        Assert.Equal(2, deployment.Replicas);
+        Assert.Equal(FunctionVisibility.Private, deployment.Visibility);
+        Assert.Equal(FunctionTrust.Untrusted, deployment.Trust);
+        Assert.NotNull(deployment.SubscribeEvents);
+        Assert.Equal(["inherited", "overridden"], deployment.SubscribeEvents.Select(item => item.Name));
+        Assert.Equal([FunctionVisibility.Private, FunctionVisibility.Public], deployment.SubscribeEvents.Select(item => item.Visibility));
+        Assert.NotNull(deployment.PathsStartWithVisibility);
+        Assert.Equal(["/z", "/a"], deployment.PathsStartWithVisibility.Select(item => item.Path));
+        Assert.Same(configuration.ParsedConfiguration, deployment.Configuration);
+    }
 }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using SlimFaas.Kubernetes;
+using ZLinq;
 
 namespace SlimFaas.Local;
 
@@ -34,7 +35,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
         get
         {
             lock (_nodes)
-                return _nodes.Where(node => node.Ready).Select(HttpPort).ToList();
+                return _nodes.AsValueEnumerable().Where(static node => node.Ready).Select(HttpPort).ToList();
         }
     }
 
@@ -50,7 +51,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
     {
         lock (_nodes)
         {
-            return _nodes.Select(node => new PodInformation(
+            return _nodes.AsValueEnumerable().Select(node => new PodInformation(
                 Name: $"slimfaas-{node.Index}",
                 Started: node.Process is { HasExited: false },
                 Ready: node.Ready,

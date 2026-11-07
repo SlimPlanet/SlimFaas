@@ -8,6 +8,7 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
+using ZLinq;
 
 namespace SlimFaas.Streams;
 
@@ -38,9 +39,13 @@ public sealed class StreamService(IDatabaseService database, ISupplier<SlimDataP
         return allowed;
     }
 
-    public DeploymentInformation? Function(string name) =>
-        replicas.Deployments.Functions.Concat(virtualFunctions.GetVirtualDeployments())
-            .FirstOrDefault(function => function.Deployment == name);
+    public DeploymentInformation? Function(string name)
+    {
+        var functions = replicas.Deployments.Functions;
+        var virtualDeployments = virtualFunctions.GetVirtualDeployments();
+        return DeploymentsInformations.FindFunction(functions, name) ??
+            DeploymentsInformations.FindFunction(virtualDeployments, name);
+    }
 
     public async Task<SlimDataPayload> ReadAsync(CancellationToken cancellationToken)
     {
@@ -55,9 +60,10 @@ public sealed class StreamService(IDatabaseService database, ISupplier<SlimDataP
         if (access.IsInternalRequest(context)) return true;
         if (Function(function) is { } definition) return access.CanAccessFunction(context, definition, "");
         var payload = state.Invoke();
-        var subscriptions = DurableStreamStore.Definitions(payload).SelectMany(stream =>
-            DurableStreamStore.Subscriptions(payload, stream.Name)).Where(subscription => subscription.Function == function).ToArray();
-        var active = subscriptions.Where(subscription => subscription.Active).ToArray();
+        var subscriptions = DurableStreamStore.Definitions(payload).AsValueEnumerable().SelectMany(stream =>
+            DurableStreamStore.Subscriptions(payload, stream.Name).AsValueEnumerable())
+            .Where(subscription => subscription.Function == function).ToArray();
+        var active = subscriptions.AsValueEnumerable().Where(static subscription => subscription.Active).ToArray();
         return subscriptions.Length > 0 && (active.Length > 0 ? active : subscriptions)
             .All(subscription => subscription.FunctionVisibility == "Public");
     }
@@ -125,8 +131,8 @@ public sealed class StreamService(IDatabaseService database, ISupplier<SlimDataP
     public IReadOnlyList<StreamSummary> Summaries(HttpContext context, SlimDataPayload payload)
     {
         var now = DateTimeOffset.UtcNow;
-        return DurableStreamStore.Definitions(payload).Where(definition => CanAccess(context, definition))
-            .OrderBy(definition => definition.Name, StringComparer.Ordinal).Select(definition =>
+        return DurableStreamStore.Definitions(payload).AsValueEnumerable().Where(definition => CanAccess(context, definition))
+            .OrderBy(static definition => definition.Name, StringComparer.Ordinal).Select(definition =>
             {
                 var earliest = DurableStreamStore.Messages(payload, definition, definition.Earliest - 1, 1).FirstOrDefault();
                 var latest = DurableStreamStore.Messages(payload, definition, definition.Tail - 1, 1).FirstOrDefault();
@@ -144,8 +150,9 @@ public sealed class StreamService(IDatabaseService database, ISupplier<SlimDataP
         if (!CanAccess(context, definition))
             return [];
         return DurableStreamStore.Subscriptions(payload, definition.Name)
+            .AsValueEnumerable()
             .Where(subscription => CanObserveFunction(context, subscription.Function))
-            .OrderBy(subscription => subscription.Function, StringComparer.Ordinal).Select(subscription =>
+            .OrderBy(static subscription => subscription.Function, StringComparer.Ordinal).Select(subscription =>
             {
                 var counters = DurableStreamStore.Counters(payload, definition, subscription);
                 return new StreamFunctionSummary(definition.Name, subscription.Function, subscription.Active,

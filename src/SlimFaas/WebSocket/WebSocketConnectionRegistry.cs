@@ -7,6 +7,8 @@ using SlimFaas.Kubernetes;
 using System.Globalization;
 using SlimFaas.Streams;
 
+using ZLinq;
+
 namespace SlimFaas.WebSocket;
 
 /// <summary>
@@ -235,7 +237,7 @@ public class WebSocketConnectionRegistry
         if (!bag.Any(candidate => candidate.ConnectionId == connection.ConnectionId)) return;
 
         // ConcurrentBag ne supporte pas de suppression directe ; on reconstruit
-        var remaining = bag.Where(c => c.ConnectionId != connection.ConnectionId).ToList();
+        var remaining = bag.AsValueEnumerable().Where(c => c.ConnectionId != connection.ConnectionId).ToList();
         var newBag = new ConcurrentBag<WebSocketClientConnection>(remaining);
         _connections.TryUpdate(connection.FunctionName, newBag, bag);
 
@@ -257,7 +259,7 @@ public class WebSocketConnectionRegistry
     {
         if (_connections.TryGetValue(functionName, out var bag))
         {
-            return bag.Where(c => c.IsAlive && c.Ready).ToList();
+            return bag.AsValueEnumerable().Where(static c => c.IsAlive && c.Ready).ToList();
         }
         return Array.Empty<WebSocketClientConnection>();
     }
@@ -267,9 +269,9 @@ public class WebSocketConnectionRegistry
     /// </summary>
     public IReadOnlyList<string> GetRegisteredFunctionNames()
     {
-        return _connections
-            .Where(kvp => kvp.Value.Any(c => c.IsAlive && c.Ready))
-            .Select(kvp => kvp.Key)
+        return _connections.AsValueEnumerable()
+            .Where(static kvp => kvp.Value.Any(static c => c.IsAlive && c.Ready))
+            .Select(static kvp => kvp.Key)
             .ToList();
     }
 

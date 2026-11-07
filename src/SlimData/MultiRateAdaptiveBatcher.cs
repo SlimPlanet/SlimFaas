@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
+using ZLinq;
+
 namespace SlimData;
 
 public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
@@ -367,7 +369,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
                 try
                 {
                     IReadOnlyList<object> results = await readyKind.Handler(
-                        batch.Select(item => item.Request).ToArray(), cancellationToken).ConfigureAwait(false);
+                        batch.AsValueEnumerable().Select(static item => item.Request).ToArray(), cancellationToken).ConfigureAwait(false);
                     if (results.Count != batch.Count)
                         throw new InvalidOperationException("Batch handler must return as many results as inputs.");
                     for (var index = 0; index < results.Count; index++)

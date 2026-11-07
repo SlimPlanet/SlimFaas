@@ -6,6 +6,8 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Local;
 using SlimFaas.WebSocket;
 
+using ZLinq;
+
 namespace SlimFaas.Endpoints;
 
 public class SyncFunction
@@ -212,8 +214,9 @@ public static class SyncFunctionEndpoints
     {
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
 
-        var headers = context.Request.Headers
-            .ToDictionary(h => h.Key, h => h.Value.ToArray().Where(v => v != null).Select(v => v!).ToArray());
+        var headers = context.Request.Headers.AsValueEnumerable()
+            .ToDictionary(static h => h.Key,
+                static h => h.Value.AsValueEnumerable().Where(static v => v != null).Select(static v => v!).ToArray());
 
         var method = context.Request.Method;
         Stream bodyStream = context.Request.Body;

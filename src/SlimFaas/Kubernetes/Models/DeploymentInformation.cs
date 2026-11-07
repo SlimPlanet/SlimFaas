@@ -11,9 +11,11 @@ public record DeploymentsInformations(
     IEnumerable<PodInformation> Pods,
     Dictionary<string, bool>? LocalProcesses = null)
 {
-    internal DeploymentInformation? FindFunction(string functionName)
+    internal DeploymentInformation? FindFunction(string functionName) => FindFunction(Functions, functionName);
+
+    internal static DeploymentInformation? FindFunction(IEnumerable<DeploymentInformation> source, string functionName)
     {
-        using var enumerator = Functions.AsValueEnumerable().Enumerator;
+        using var enumerator = source.AsValueEnumerable().Enumerator;
         if (enumerator.TryGetSpan(out var functions))
         {
             foreach (DeploymentInformation function in functions)

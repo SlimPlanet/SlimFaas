@@ -28,7 +28,14 @@ Routing and wake-up queries use explicit [ZLinq](https://github.com/Cysharp/ZLin
 value enumeration for function lookup and first-ready-pod port selection.
 Function lookup remains ordinal, case-sensitive and first-match, and reads the
 current deployment snapshot on each call. Arrays and lists avoid query iterator
-allocations; other `IList<T>` implementations remain supported. Predicated
+allocations; other collection implementations remain supported. Materializing
+pipelines also use value enumeration for job caller resolution, HTTP headers,
+status and virtual-replica projections, local topology, metrics/activity workers,
+stream dispatch and SlimData batches. DLQ staging still deep-clones mutable
+queue attempts while sharing immutable payload memory; its wire format is unchanged.
+Value queries stay within synchronous scopes, and task/DTO collections are
+materialized before awaiting. Deferred `IEnumerable<T>` APIs remain deferred.
+Predicated
 counts and readiness checks keep .NET 10 LINQ, whose array/list fast paths
 already avoid iterator allocations. There is no global LINQ replacement.
 See [performance measurements](performance-benchmarks.md#zlinq-routing-queries-issue-121)

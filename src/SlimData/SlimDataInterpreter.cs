@@ -7,6 +7,8 @@ using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
 using SlimData.Commands;
 
+using ZLinq;
+
 namespace SlimData;
 
 internal sealed class SlimDataStateSnapshot(
@@ -1016,7 +1018,7 @@ public static class SlimDataInterpreter
                     {
                         Key = operation.Key,
                         NowTicks = operation.NowTicks,
-                        CallbackElements = operation.CallbackItems
+                        CallbackElements = operation.CallbackItems.AsValueEnumerable()
                             .Select(static item => new CallbackElement(item.Id, item.HttpCode))
                             .ToList()
                     },
@@ -1039,6 +1041,7 @@ public static class SlimDataInterpreter
 
         return queue
             .GetQueueRunningElement(operation.NowTicks)
+            .AsValueEnumerable()
             .Where(item =>
                 !item.RetryQueueElements.IsDefaultOrEmpty &&
                 item.RetryQueueElements[^1].IdTransaction == operation.TransactionId)

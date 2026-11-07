@@ -15,6 +15,7 @@
         <PackageReference Include="DotNext.AspNetCore.Cluster" />
         <PackageReference Include="MemoryPack" />
         <PackageReference Include="Moq" />
+        <PackageReference Include="ZLinq" />
     </ItemGroup>
 
     <ItemGroup>
