@@ -404,3 +404,7 @@ MEMORY_LAB_ENABLE_FRONT=true WARMUP_SECONDS=2 COOLDOWN_SECONDS=1 \
 
 For the open-view variant, connect Traffic to `http://127.0.0.1:30021/#/live/traffic`
 before the measured phase and keep it open until cooldown.
+
+The PR checks also exposed unsupported `macos-14` ARM runner configurations for both
+native products. Their two matrix entries now use `macos-15`, a supported ARM64 label
+in the [GitHub-hosted runners reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
