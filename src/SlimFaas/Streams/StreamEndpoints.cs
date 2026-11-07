@@ -1,3 +1,4 @@
+using ZLinq;
 using System.Buffers;
 using System.Globalization;
 using System.Text;
@@ -107,7 +108,7 @@ public static class StreamEndpoints
             }
         }
         finally { ArrayPool<byte>.Shared.Return(chunk); }
-        var headers = context.Request.Headers.Select(item => new CustomHeader(item.Key, item.Value.ToArray())).ToList();
+        var headers = context.Request.Headers.AsValueEnumerable().Select(static item => new CustomHeader(item.Key, item.Value.ToArray())).ToList();
         var request = new CustomRequest(headers, buffer.ToArray(), "", "/" + (functionPath ?? "").TrimStart('/'),
             "POST", context.Request.QueryString.ToUriComponent());
         var result = await service.MutateAsync(new()
@@ -127,11 +128,11 @@ public static class StreamEndpoints
         if (prefix.Length > 256 || !Paging(context, out int limit) || !Cursor(context, "catalog:" + prefix, out string? after))
             return Error(400, "Invalid pagination.");
         var payload = await service.ReadAsync(cancellationToken);
-        var rows = service.Summaries(context, payload).Where(item => item.Name.StartsWith(prefix, StringComparison.Ordinal) &&
+        var rows = service.Summaries(context, payload).AsValueEnumerable().Where(item => item.Name.StartsWith(prefix, StringComparison.Ordinal) &&
             (after is null || string.CompareOrdinal(item.Name, after) > 0)).Take(limit + 1).ToArray();
-        return TypedResults.Json(new StreamPage<StreamSummary>(rows.Take(limit).ToArray(),
+        return TypedResults.Json(new StreamPage<StreamSummary>(rows.AsValueEnumerable().Take(limit).ToArray(),
             rows.Length > limit ? EncodeCursor("catalog:" + prefix, rows[limit - 1].Name) : null,
-            DateTimeOffset.UtcNow, rows.Select(item => item.Revision).DefaultIfEmpty().Max()),
+            DateTimeOffset.UtcNow, rows.AsValueEnumerable().Select(static item => item.Revision).DefaultIfEmpty().Max()),
             StreamJsonContext.Default.StreamPageStreamSummary);
     }
     private static async Task<IResult> Metadata(string stream, HttpContext context, IStreamService service, CancellationToken cancellationToken)
@@ -162,7 +163,7 @@ public static class StreamEndpoints
         }
         var rows = DurableStreamStore.Messages(payload, definition, sequence, limit + 1).ToArray();
         return TypedResults.Json(new StreamPage<StreamMessageMetadata>(
-            rows.Take(limit).Select(item => ToMetadata(item, definition.Revision)).ToArray(),
+            rows.AsValueEnumerable().Take(limit).Select(item => ToMetadata(item, definition.Revision)).ToArray(),
             rows.Length > limit ? rows[limit - 1].Id : null, DateTimeOffset.UtcNow, definition.Revision),
             StreamJsonContext.Default.StreamPageStreamMessageMetadata);
     }
@@ -196,9 +197,9 @@ public static class StreamEndpoints
         if (definition is null) return TypedResults.NotFound();
         string scope = stream + ":" + definition.Generation;
         if (!Paging(context, out int limit) || !Cursor(context, scope, out string? after)) return Error(400, "Invalid pagination.");
-        var rows = service.Functions(context, payload, definition).Where(item =>
+        var rows = service.Functions(context, payload, definition).AsValueEnumerable().Where(item =>
             after is null || string.CompareOrdinal(item.Function, after) > 0).Take(limit + 1).ToArray();
-        return TypedResults.Json(new StreamPage<StreamFunctionSummary>(rows.Take(limit).ToArray(),
+        return TypedResults.Json(new StreamPage<StreamFunctionSummary>(rows.AsValueEnumerable().Take(limit).ToArray(),
             rows.Length > limit ? EncodeCursor(scope, rows[limit - 1].Function) : null, DateTimeOffset.UtcNow, definition.Revision),
             StreamJsonContext.Default.StreamPageStreamFunctionSummary);
     }

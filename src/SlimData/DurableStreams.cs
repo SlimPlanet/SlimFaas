@@ -175,13 +175,19 @@ public static class DurableStreamStore
     {
         long retained = Math.Max(0, definition.Tail - Math.Max(subscription.StartSequence, definition.Earliest - 1));
         long acknowledged = Hash(payload, AcksKey(definition.Name, subscription.Generation)).Count;
-        var deliveries = Deliveries(payload, definition.Name, subscription.Function)
-            .Where(item => item.SubscriptionGeneration == subscription.Generation &&
-                Message(payload, definition.Name, item.MessageId) is not null).ToArray();
-        long failed = deliveries.Count(item => item.State == "Failed");
+        long pending = 0, waiting = 0, retry = 0, failed = 0;
+        foreach (var delivery in Deliveries(payload, definition.Name, subscription.Function))
+        {
+            if (delivery.SubscriptionGeneration != subscription.Generation ||
+                Message(payload, definition.Name, delivery.MessageId) is null)
+                continue;
+            pending++;
+            if (delivery.State == "Failed") failed++;
+            if (delivery.State == "WaitingForCallback") waiting++;
+            if (delivery.State == "RetryScheduled") retry++;
+        }
         long lag = Math.Max(0, retained - acknowledged);
-        return new(lag, deliveries.Length, deliveries.Count(item => item.State == "WaitingForCallback"),
-            deliveries.Count(item => item.State == "RetryScheduled"), failed, Math.Max(0, lag - failed));
+        return new(lag, pending, waiting, retry, failed, Math.Max(0, lag - failed));
     }
 
     public static int Running(SlimDataPayload payload, string function, string? replica = null) =>

@@ -37,6 +37,15 @@ Value queries stay within synchronous scopes, and task/DTO collections are
 materialized before awaiting. Deferred `IEnumerable<T>` APIs remain deferred.
 Predicated counts and readiness checks keep .NET 10 LINQ, whose array/list fast paths
 already avoid iterator allocations. There is no global LINQ replacement.
+Queue-state selections also use value queries so sparse running/retry/finished
+snapshots allocate storage for their matches instead of a builder sized to the
+whole queue. The filtered value query materializes an owned array and wraps it
+as immutable without another copy; this also avoids growing immutable builders
+for dense selections. The selected elements retain their original identities and payload
+ownership. Stream counters scan pending deliveries once without a temporary
+array; key/value batch projections, queue result projections, batch statistics
+and file-transfer peer selection also use explicit value enumeration. File-tag
+sorting and active Stream counts retain LINQ after comparative measurements.
 See [performance measurements](performance-benchmarks.md#zlinq-routing-queries-issue-121)
 for local-cluster and allocation benchmarks.
 

@@ -1,3 +1,4 @@
+using ZLinq;
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
@@ -531,7 +532,7 @@ public static class Endpoints
             source.Token).ConfigureAwait(false);
 
         bool success = await SafeReplicateAsync(cluster, logEntry, source.Token);
-        var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => success ? b.Identifier : "").ToArray());
+        var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.AsValueEnumerable().Select(b => success ? b.Identifier : "").ToArray());
 
         return listLeftPushBatchResponse;
     }
@@ -712,14 +713,14 @@ public static class Endpoints
         if (requestItems.Length == 0)
             return new KeyValueBatchResponse(Array.Empty<KeyValueCommandResult>());
 
-        var results = Enumerable.Range(0, requestItems.Length)
+        var results = ZLinq.ValueEnumerable.Range(0, requestItems.Length)
             .Select(_ => new KeyValueCommandResult())
             .ToArray();
 
         var context = new KeyValueCommandBatchContext(results);
         var command = new AddKeyValueCommand
         {
-            Items = requestItems
+            Items = requestItems.AsValueEnumerable()
                 .Select(item => new AddKeyValueCommand.BatchItem
                 {
                     Operation = item.Operation,

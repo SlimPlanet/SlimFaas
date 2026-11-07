@@ -1,3 +1,4 @@
+using ZLinq;
 using System.Buffers;
 using System.Collections.Immutable;
 using System.Data;
@@ -124,7 +125,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _persistentState ??= _serviceProvider.GetRequiredService<SlimPersistentState>();
 
     public IReadOnlyList<AdaptiveBatchQueueStatistics> BatchQueueStatistics
-        => _batchPartitions
+        => _batchPartitions.AsValueEnumerable()
             .SelectMany(static partition => partition.Batcher.GetQueueStatistics())
             .ToArray();
 
@@ -588,7 +589,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         if (countTypes.Contains(CountType.WaitingForRetry))
             result.AddRange(value.GetQueueWaitingForRetryElement(nowTicks));
 
-        return result
+        return result.AsValueEnumerable()
             .Select(static item => new QueueData(
                 item.Id,
                 item.Value.ToArray(),

@@ -260,7 +260,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
     }
 
     public IReadOnlyList<AdaptiveBatchQueueStatistics> GetQueueStatistics() =>
-        _kinds.Values.Select(kind => new AdaptiveBatchQueueStatistics(
+        _kinds.Values.AsValueEnumerable().Select(static kind => new AdaptiveBatchQueueStatistics(
             kind.Name,
             Volatile.Read(ref kind.QueueLength),
             Volatile.Read(ref kind.QueueBytes),
