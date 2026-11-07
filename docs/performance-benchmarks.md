@@ -54,6 +54,165 @@ Two benchmark styles are used:
 
 ## Results
 
+### ZLinq routing queries (issue #121)
+
+Measured on 2026-11-07, Windows 11 x64, AMD Ryzen 5 3500U (4 cores / 8 logical
+processors), .NET SDK 10.0.403 / runtime 10.0.14, BenchmarkDotNet 0.15.8.
+Baseline runtime: `b4f7caf0`; commit `430b49ab` contains only the benchmark
+instrumentation and can be used to reproduce the baseline. The candidate adds
+ZLinq 1.6.1 to explicitly selected queries, not as a global LINQ replacement.
+No Docker was used.
+
+#### Scan checklist and selection
+
+Five routing/model/wake-up files were checked. Exact recipe counts:
+
+| Recipe | Hits |
+|---|---:|
+| Culture-sensitive literal IndexOf / StartsWith / EndsWith / Contains | 0 / 0 / 0 / 0 |
+| Substring / blocking Task.Result or Wait / stackalloc / new HttpClient | 0 / 0 / 0 / 0 |
+| Static Dictionary / FrozenDictionary / CurrentCulture comparer | 0 / 0 / 0 |
+| Explicit new List / Dictionary | 6 / 2 |
+| Select / Where / Cast / Take / Aggregate chains | 12 |
+| Sealed instance classes / total instance classes | 1 / 4 |
+
+Existing workload/result containers and public class inheritance were left alone.
+The history synchronization worker has no LINQ query to replace.
+
+- **Moderate: function lookup** avoids the captured predicate and obtains a
+  span through ZLinq when the `IList<T>` is an array or list. Other collection
+  implementations retain value-enumerator traversal and disposal. Endpoint,
+  proxy and wake-up lookups share the same implementation; comparison remains
+  ordinal, case-sensitive and first-match, without caching an old snapshot.
+- **Moderate: first-ready-pod ports** uses explicit value `Where` / `Select`
+  enumeration, preserving a null port list on the first ready pod.
+- **Info: predicated counts and readiness checks** were not migrated. .NET 10
+  LINQ already has array/list fast paths. The attempted status-count substitution
+  kept the same 96 B allocation and was discarded.
+
+#### Routing micro-benchmarks
+
+Same ShortRun in-process harness before and after, with three warmups and three
+measurement iterations. Searches target the last function; each function has
+five ready pods. These call the actual endpoint helper and proxy, not a copied
+implementation. Allocation is managed bytes per operation, not process RAM.
+
+| Operation | Functions | Before mean | After mean | Before allocated | After allocated |
+|---|---:|---:|---:|---:|---:|
+| SearchFunction | 2 | 18.48 ns | 12.72 ns | 24 B | 0 B |
+| SearchFunction | 20 | 91.70 ns | 77.72 ns | 24 B | 0 B |
+| SearchFunction | 200 | 743.88 ns | 720.66 ns | 24 B | 0 B |
+| FirstReadyPodPorts | 2 | 96.88 ns | 23.72 ns | 176 B | 0 B |
+| FirstReadyPodPorts | 20 | 206.54 ns | 88.84 ns | 176 B | 0 B |
+| FirstReadyPodPorts | 200 | 1175.41 ns | 725.56 ns | 176 B | 0 B |
+| StatusReadyCount (unchanged control) | 20 | 52.64 ns | 52.44 ns | 96 B | 96 B |
+
+The first candidate used only value `foreach`, but its 200-function lookup took
+1020.10 ns, versus 743.88 ns before. It was replaced with the span fast path.
+ShortRun confidence intervals are wide; the final 200-function lookup timing is
+not a statistically established speedup. The zero-allocation list/array lookup
+is also enforced by regression tests.
+
+#### Three-node local cluster: end-to-end RAM, CPU and latency
+
+Used `benchmarks/slimfaas.local.benchmark.yaml` and `slimfaas local up`, with fresh
+ephemeral state for each run. These measurements use Release **JIT** runtime
+processes, not Native AOT binaries. Baseline ran 14:24:44-14:33:59 UTC; candidate
+ran 14:52:25-15:01:18 UTC. Each case has three repetitions, 3 s warmup and 10 s
+closed-loop load. Direct/sync order alternates, followed by async delivery/drain.
+
+Rates are arithmetic means of repetitions. Latency, CPU/request and sampled peak
+RAM are medians of per-repetition values. CPU is cumulative process CPU across
+all three runtime nodes divided by successful requests. RAM sums their working
+sets, sampled every 500 ms. Both exclude the supervisor, target and load generator;
+async resource measurement includes delivery and queue drain. Working set is
+neither managed allocation nor private committed memory.
+
+Each cell below is **before -> after**:
+
+| Mode | Bytes | Concurrency | Requests/s | p95 ms | p99 ms | CPU ms/request | Sampled peak RAM MiB |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Sync | 64 | 1 | 575.7 -> 791.2 | 2.375 -> 1.463 | 4.678 -> 1.815 | 2.682 -> 2.078 | 414.2 -> 410.5 |
+| Sync | 64 | 16 | 3334.7 -> 3072.5 | 10.278 -> 14.358 | 14.367 -> 28.929 | 1.165 -> 1.275 | 471.1 -> 477.9 |
+| Sync | 4096 | 1 | 572.9 -> 750.7 | 2.890 -> 1.820 | 4.606 -> 2.246 | 2.366 -> 2.072 | 486.4 -> 487.4 |
+| Sync | 4096 | 16 | 2276.0 -> 2655.8 | 17.106 -> 10.868 | 33.155 -> 15.250 | 1.338 -> 1.260 | 503.3 -> 504.4 |
+| Async | 64 | 1 | 30.7 -> 32.0 | 38.748 -> 34.462 | 58.014 -> 38.355 | 49.030 -> 38.162 | 420.0 -> 402.8 |
+| Async | 64 | 16 | 250.9 -> 359.3 | 148.085 -> 97.355 | 488.607 -> 251.706 | 7.438 -> 7.057 | 484.1 -> 472.2 |
+| Async | 4096 | 1 | 24.1 -> 35.2 | 81.360 -> 34.962 | 144.471 -> 72.861 | 45.803 -> 42.418 | 500.0 -> 488.9 |
+| Async | 4096 | 16 | 106.3 -> 135.1 | 389.212 -> 387.145 | 842.409 -> 823.275 | 20.415 -> 18.371 | 493.4 -> 501.8 |
+
+**Do not infer a general throughput, CPU or RAM improvement.** The 64 B / 16-client
+sync case regressed: throughput -7.9%, p95 +39.7%, p99 +101.4%. Even the unchanged
+direct target's 64 B / 16-client mean rate moved from 18289.3/s to 24389.2/s.
+The shared laptop's run-to-run variation, runtime warmup and evolving queue/worker
+activity confound the end-to-end comparison. The retained changes establish a
+bounded query-allocation gain, not a causal explanation for the macro results.
+
+All 36 cases in each run completed without HTTP errors, missing async deliveries
+or duplicates: 1,338,995 successful requests before and 1,703,004 after.
+The 200-message scale-from-zero burst accepted all messages and reached four
+ready replicas in both runs: first ready / four ready / drained was
+17.701 / 25.162 / 39.213 s before, and 7.278 / 13.695 / 28.664 s after.
+These startup observations are not attributed to ZLinq.
+
+#### Native AOT and license checks
+
+Windows x64 Native AOT publish succeeded for both baseline and candidate.
+Executable sizes were 72,951,808 and 72,966,144 bytes (+14,336 bytes, +0.020%).
+Both produced the same pre-existing MemoryPack.Core IL2104/IL3053 and
+System.Configuration.ConfigurationManager IL2104 summary warnings; ZLinq
+produced no additional trim/AOT warning.
+
+The candidate's native executable also ran the real three-node Fibonacci demo:
+`/status-functions` and `/function/fibonacci1/hello/local` succeeded with
+`Hello local!`. The smoke overlay used ephemeral state and already-built sample
+DLLs and disabled scheduled demo jobs; the routing/replica annotations were kept.
+The focused history test now waits for observed persistence under a bounded
+deadline instead of assuming a 120 ms scheduler window, and always stops its worker.
+The final full .NET suite passed: 1,936 tests (1,498 SlimFaas, 282 SlimData,
+106 MCP, 39 .NET client and 11 Kafka).
+
+ZLinq's NuGet distribution declares MIT and has no transitive dependency for
+net10.0. Its distributed files were inspected (assemblies, XML documentation,
+README and icon; no vendored source/test tree). The PR's FOSSA License Compliance
+status must still pass before merging.
+
+#### Reproducing
+
+Use commit `430b49ab` for the baseline and this change for the candidate, with the
+same host and SDK. Do not benchmark concurrently with builds or other load.
+
+```bash
+dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -p:SkipClientAppBuild=true -- --filter '*RoutingQuery*'
+BENCHMARK_PROFILE=standard BENCHMARK_DURATION_SECONDS=10 BENCHMARK_WARMUP_SECONDS=3 \
+  BENCHMARK_REPETITIONS=3 BENCHMARK_PAYLOAD_BYTES=64,4096 BENCHMARK_CONCURRENCY=1,16 \
+  .bin/slimfaas-local-benchmark.sh
+```
+
+On Windows, use separate terminals: build first, keep `local up` running, then
+run the same driver (Ctrl+C stops the local cluster):
+
+```powershell
+dotnet build src\SlimFaas\SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
+dotnet build benchmarks\SlimFaasBenchmark\SlimFaasBenchmark.csproj -c Release
+dotnet src\SlimFaas\bin\Release\net10.0\SlimFaas.dll local up -f benchmarks\slimfaas.local.benchmark.yaml --clean
+dotnet benchmarks\SlimFaasBenchmark\bin\Release\net10.0\SlimFaasBenchmark.dll run --duration 10 --warmup 3 --repetitions 3 --payload-bytes 64,4096 --concurrency 1,16 --output artifacts\zlinq\manual
+```
+
+The driver's `results.json` includes per-case `Resources` for direct, sync and
+async runs, and `summary.md` includes their CPU/working-set table. Missing or
+invalid required process metrics fail explicitly rather than reporting zero.
+
+| Severity | Count | Top issue |
+|---|---:|---|
+| Critical | 0 | No critical API-pattern hit in the scoped files |
+| Moderate | 2 | Repeated lookup and query iterator allocations |
+| Info | 1 | Count substitutions have no measured allocation benefit |
+
+> AI-assisted pattern analysis can miss issues or suggest unsuitable changes.
+> Verify with benchmarks and human review; these short measurements are not
+> production performance guarantees.
+
 ### DLQ metadata and retained body sizes
 
 Windows x64, .NET SDK 10.0.401, ShortRun in-process. Each operation scans

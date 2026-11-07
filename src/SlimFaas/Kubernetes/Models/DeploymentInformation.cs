@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using ZLinq;
 
 namespace SlimFaas.Kubernetes;
 
@@ -8,7 +9,30 @@ public record DeploymentsInformations(
     IList<DeploymentInformation> Functions,
     SlimFaasDeploymentInformation SlimFaas,
     IEnumerable<PodInformation> Pods,
-    Dictionary<string, bool>? LocalProcesses = null);
+    Dictionary<string, bool>? LocalProcesses = null)
+{
+    internal DeploymentInformation? FindFunction(string functionName)
+    {
+        using var enumerator = Functions.AsValueEnumerable().Enumerator;
+        if (enumerator.TryGetSpan(out var functions))
+        {
+            foreach (DeploymentInformation function in functions)
+            {
+                if (function.Deployment == functionName)
+                    return function;
+            }
+        }
+        else
+        {
+            while (enumerator.TryGetNext(out DeploymentInformation? function))
+            {
+                if (function.Deployment == functionName)
+                    return function;
+            }
+        }
+        return null;
+    }
+}
 
 [JsonSerializable(typeof(DeploymentsInformations))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

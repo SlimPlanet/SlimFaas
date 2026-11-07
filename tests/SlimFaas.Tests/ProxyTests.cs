@@ -470,6 +470,33 @@ namespace SlimFaas.Tests
             Assert.Null(ports);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void GetPorts_PreservesNullPortsOfFirstReadyPod(bool useArray)
+        {
+            PodInformation[] pods =
+            [
+                new("unknown", null, null, "", "my-deployment", [7000]),
+                new("not-ready", true, false, "", "my-deployment", [8000]),
+                new("first-ready", true, true, "", "my-deployment"),
+                new("second-ready", true, true, "", "my-deployment", [9000])
+            ];
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions =
+                    [
+                        new("my-deployment", "default", useArray ? pods : pods.ToList(),
+                            new SlimFaasConfiguration(), 2)
+                    ]
+                }
+            };
+
+            Assert.Null(new Proxy(replicasService, "my-deployment").GetPorts());
+        }
+
         [Fact]
         public void GetPorts_WhenPodsReady_ReturnsPortsOfFirstReadyPod()
         {
