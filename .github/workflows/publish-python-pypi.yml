@@ -53,7 +53,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
 
       # ── Patch version in pyproject.toml ───────────────────────────────────
       - name: Patch version in pyproject.toml
