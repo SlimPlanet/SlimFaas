@@ -54,5 +54,8 @@ namespace SlimFaasClient
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Error, Message = "SyncRequest handler threw an exception for {CorrelationId}")]
         internal static partial void LogSyncRequestHandlerThrewAnExceptionFor(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Exception exception, string correlationId);
 
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "Failed to report the SyncRequest handler failure for {CorrelationId}")]
+        internal static partial void LogFailedToReportSyncRequestHandlerFailureFor(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Exception exception, string correlationId);
+
     }
 }

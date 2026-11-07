@@ -596,12 +596,33 @@ public sealed class SlimFaasClient : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.LogSyncRequestHandlerThrewAnExceptionFor(ex, req.CorrelationId);
-            try
+            await FailSyncResponseAsync(req, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Reports a failed sync handler to SlimFaas. A response that has not started yet
+    /// becomes a 500. Once the status and headers are sent the status can no longer
+    /// change, so the stream is cancelled: SlimFaas then aborts the HTTP response
+    /// instead of waiting for an end of stream that never comes.
+    /// </summary>
+    private async Task FailSyncResponseAsync(SlimFaasSyncRequest req, CancellationToken ct)
+    {
+        try
+        {
+            if (!req.Response.HasStarted)
             {
                 await req.Response.StartAsync(500, ct: ct).ConfigureAwait(false);
                 await req.Response.CompleteAsync(ct).ConfigureAwait(false);
             }
-            catch { /* ignore — response may have been partially sent */ }
+            else if (!req.Response.IsCompleted)
+            {
+                await SendSyncCancelAsync(req.CorrelationId, ct).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogFailedToReportSyncRequestHandlerFailureFor(ex, req.CorrelationId);
         }
     }
 
