@@ -56,6 +56,9 @@ Two benchmark styles are used:
 
 ### ZLinq routing queries (issue #121)
 
+This first round predates the rebase and the expanded pass below. Its figures
+are retained as historical measurements, not relabelled as results on newer main.
+
 Measured on 2026-11-07, Windows 11 x64, AMD Ryzen 5 3500U (4 cores / 8 logical
 processors), .NET SDK 10.0.403 / runtime 10.0.14, BenchmarkDotNet 0.15.8.
 Baseline runtime: `b4f7caf0`; commit `430b49ab` contains only the benchmark
@@ -212,6 +215,163 @@ invalid required process metrics fail explicitly rather than reporting zero.
 > AI-assisted pattern analysis can miss issues or suggest unsuitable changes.
 > Verify with benchmarks and human review; these short measurements are not
 > production performance guarantees.
+
+### Expanded ZLinq pipelines after rebasing (issue #121)
+
+Measured on 2026-11-07 on the same Windows x64 Ryzen 5 3500U host and SDK/runtime
+as the first round, using native local processes only, never Docker.
+The measured baseline is `f9ea9f94` and the measured candidate is `eada0bd3`;
+the baseline already includes the first round's routing optimizations.
+After main's changelog-only `496e8739` update, their rebased equivalents are
+`7e189829` and `b0734be7`. Product, benchmark and test sources were verified
+unchanged by that final rebase. These are new measurements, not reused first-round data.
+
+#### Selection and retained changes
+
+The broader inventory found 505 LINQ operations in 103 runtime/data files.
+This pass changes 24 C# files and adds 68 explicit value-enumeration sites
+(2 -> 70 across the products). SlimData adds an unversioned package reference
+to the existing central ZLinq version.
+
+- Job caller lookup filters running jobs and scans normalized IPs without
+  allocating a captured predicate and query iterators for every job.
+- HTTP headers, detailed statuses, virtual replicas and local topology preserve
+  their order, null/multiple values, comparers and first-match behavior.
+- WebSocket directory cache hits no longer allocate an unused result list.
+  Connection-nominated hop headers remain excluded case-insensitively.
+- Metrics/activity workers, stream projections/dispatch and batch producers use
+  synchronous value queries. Fan-out tasks and mutation snapshots are materialized
+  before awaiting; deferred stream-store APIs remain deferred.
+- DLQ staging projects directly to immutable arrays, deep-clones queue elements
+  and mutable attempts, and shares immutable payload memory. Callback/result
+  projections, retention ordering and the bounded transition window retain their contracts.
+- Additional job, queue, stream and scaling lookups reuse the ordinal shared
+  lookup. Scalar .NET 10 fast paths and order/minimum queries without a demonstrated
+  benefit are not blindly replaced.
+
+#### Actual collection micro-benchmarks
+
+`CollectionPipelineBenchmarks` calls the actual APIs, including forced status-cache
+misses, not copies of their query logic. Both runs use ShortRun in-process,
+three warmups and three measurements. KB means 1024 managed bytes per operation,
+not process RAM. The table contains the complete final collection run, including
+slower observations; timings have wide confidence intervals.
+
+| Operation | Items | Before mean ns | Final mean ns | Before allocated KB | Final allocated KB |
+|---|---:|---:|---:|---:|---:|
+| JobCallerLookup | 20 | 5780.5 | 3549.6 | 5.29 | 2.16 |
+| ProjectRequestHeaders | 20 | 736.9 | 632.7 | 1.23 | 1.16 |
+| ProjectDetailedStatuses | 20 | 6360.7 | 6191.7 | 14.84 | 13.37 |
+| FilterPeerHeaders | 20 | 3072.1 | 2405.3 | 3.23 | 2.98 |
+| ProjectVirtualDeployment | 20 | 1150.4 | 1101.1 | 4.99 | 4.74 |
+| StageManagedQueue | 20 | 2269.2 | 2216.6 | 4.77 | 3.78 |
+| JobCallerLookup | 200 | 66547.5 | 38606.6 | 47.48 | 17.63 |
+| ProjectRequestHeaders | 200 | 7232.3 | 8074.0 | 9.66 | 9.60 |
+| ProjectDetailedStatuses | 200 | 116076.5 | 107156.3 | 145.70 | 131.55 |
+| FilterPeerHeaders | 200 | 29819.3 | 25740.6 | 22.98 | 22.74 |
+| ProjectVirtualDeployment | 200 | 10992.4 | 17814.0 | 44.37 | 44.12 |
+| StageManagedQueue | 200 | 22402.8 | 12759.6 | 45.55 | 36.13 |
+
+The 200-item job scan allocates about **63% less**, and queue staging about
+**21% less**. Their final observed mean times fall about 42% and 43%, respectively,
+but these short timings are not production guarantees. Status projections save
+about 10% of managed allocation. Smaller fixed query savings do not imply
+the DTOs, dictionaries or source enumerators are allocation-free.
+
+An initial header `Select(...).ToList()` value query regressed from 736.9/7232.3 ns
+to 1011/9121 ns for 20/200 headers. It was discarded in favor of a preallocated
+list and direct value enumeration. A focused rerun measured 679.4/4877.7 ns,
+but the complete final run still observed a slower 200-header mean. Similarly,
+the 200-replica projection had a high-variance slower observation (7156.5 ns
+standard deviation). All these observations are retained rather than cherry-picked.
+
+The actual state-machine dequeue benchmark also ran before and after:
+
+| Queue depth | DLQ enabled | Before mean us | Final mean us | Before allocated KB | Final allocated KB |
+|---|---|---:|---:|---:|---:|
+| 50 | false | 11.55 | 12.14 | 4.15 | 4.15 |
+| 50 | true | 117.30 | 126.32 | 41.34 | 39.22 |
+| 500 | false | 54.31 | 55.75 | 10.24 | 10.09 |
+| 500 | true | 395.85 | 359.35 | 314.32 | 293.49 |
+
+These mutating cases use pristine state and only 16 invocations per iteration;
+BenchmarkDotNet warns that iterations are short, so dequeue timings are
+especially noisy. The final routing run still reports zero managed allocation
+for list/array lookup and first-ready-pod ports; the unchanged status-count
+control still allocates 96 B.
+
+#### New three-node local RAM, CPU and latency runs
+
+Baseline: 15:57:23-16:06:19 UTC; candidate: 16:28:02-16:36:58 UTC.
+Both use the same benchmark manifest, fresh ephemeral state, Release JIT runtime,
+36 cases, three repetitions, 3 s warmup and 10 s load per case.
+Rates are means of repetitions; p95/p99, CPU/request and peak RAM are medians
+of per-repetition values. CPU sums all three runtime nodes; RAM sums their
+working sets sampled every 500 ms. Supervisor, target and load generator are
+excluded, and async resource windows include delivery/drain.
+
+Each cell is **rebased baseline -> expanded candidate**:
+
+| Mode | Bytes | Concurrency | Requests/s | p95 ms | p99 ms | CPU ms/request | Sampled peak RAM MiB |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Sync | 64 | 1 | 862.1 -> 859.0 | 1.484 -> 1.514 | 1.866 -> 2.141 | 1.994 -> 1.920 | 410.2 -> 419.1 |
+| Sync | 64 | 16 | 4548.3 -> 4367.8 | 5.395 -> 7.312 | 7.866 -> 10.611 | 0.740 -> 0.790 | 457.4 -> 467.9 |
+| Sync | 4096 | 1 | 805.2 -> 798.4 | 1.560 -> 1.508 | 1.896 -> 1.831 | 1.990 -> 1.773 | 476.2 -> 504.8 |
+| Sync | 4096 | 16 | 3348.8 -> 3252.4 | 5.994 -> 10.299 | 13.581 -> 14.019 | 0.921 -> 1.248 | 517.9 -> 491.0 |
+| Async | 64 | 1 | 30.8 -> 28.0 | 34.852 -> 34.458 | 39.687 -> 45.656 | 44.016 -> 51.346 | 407.4 -> 414.0 |
+| Async | 64 | 16 | 355.9 -> 358.9 | 60.643 -> 81.776 | 409.820 -> 321.600 | 6.779 -> 6.108 | 457.1 -> 468.9 |
+| Async | 4096 | 1 | 27.8 -> 28.7 | 36.468 -> 35.445 | 125.591 -> 50.283 | 53.594 -> 46.039 | 475.9 -> 496.6 |
+| Async | 4096 | 16 | 141.4 -> 156.3 | 140.020 -> 115.557 | 172.139 -> 784.382 | 17.577 -> 16.455 | 492.0 -> 495.8 |
+
+**No general end-to-end throughput, CPU or RAM improvement is claimed.**
+Sync throughput falls in all four rows, and several latency/CPU/RAM observations
+regress. The unchanged direct target also falls from 19559.2 to 14024.0 requests/s
+at 4096 B / 16 clients (-28.3%), illustrating substantial host variance.
+Managed-allocation reductions are the bounded result, not an explanation
+for every macro change.
+
+Both runs completed all 36 cases with zero HTTP failures, missing async deliveries
+or duplicates: **2,005,856** successful requests before and **1,783,251** after.
+Both 200-message scaling bursts reached four ready replicas and drained without
+timeout. First ready / four ready / drained:
+6.482 / 12.695 / 27.065 s before; 5.273 / 12.720 / 29.242 s after.
+Startup timing is not attributed to ZLinq.
+
+Raw results are in `artifacts/zlinq/expanded-before/results.json` and
+`artifacts/zlinq/expanded-after/results.json`; final micro reports are in
+`artifacts/zlinq/expanded-micro-after/results`. These local artifacts are not committed.
+
+#### Native AOT, tests and PR checks
+
+Both measured sources published successfully for Windows x64:
+**72,983,040 -> 73,058,816 bytes** (+75,776 bytes, +0.104%).
+Both retain the same existing MemoryPack.Core IL2104/IL3053 and
+System.Configuration.ConfigurationManager IL2104 summary warnings;
+there is no additional ZLinq trim/AOT warning.
+
+The native candidate ran the real three-node local Fibonacci demo with an
+ephemeral/prebuilt-sample overlay and disabled scheduled jobs. Status and
+`/function/fibonacci1/hello/local` passed (`Hello local!`).
+A POST to an intentionally nonexistent async function path returned 202 and
+retained the expected 404 DLQ outcome, exercising native managed queue staging.
+
+The complete .NET suite passed **1,978 tests**: SlimFaas 1,537, SlimData 285,
+MCP 106, .NET client 39 and Kafka 11. New tests cover clone ownership/body sharing,
+empty/missing queues, header nulls/multiple values, hop-header exclusions,
+virtual snapshot refresh, projection ordering and ordinal duplicate rejection.
+Build/analyzers pass. All commits are signed off; DCO and FOSSA License Compliance
+passed on the expanded runtime head. The final PR head must retain passing checks.
+
+Use the Windows local commands from the preceding section with the new baseline
+and candidate and distinct output directories. Run the collection/queue cases with:
+
+```powershell
+dotnet run -c Release --project benchmarks\SlimFaas.Benchmarks -p:SkipClientAppBuild=true -- --filter '*CollectionPipelineBenchmarks*' '*SlimDataQueueBenchmarks.ListRightPop*'
+```
+
+Do not run builds or other benchmarks concurrently with timed measurements.
+Wide confidence intervals, thermal/runtime warmup and shared-host activity
+limit timing conclusions; verify representative workloads before production rollout.
 
 ### DLQ metadata and retained body sizes
 

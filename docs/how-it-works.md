@@ -35,8 +35,7 @@ stream dispatch and SlimData batches. DLQ staging still deep-clones mutable
 queue attempts while sharing immutable payload memory; its wire format is unchanged.
 Value queries stay within synchronous scopes, and task/DTO collections are
 materialized before awaiting. Deferred `IEnumerable<T>` APIs remain deferred.
-Predicated
-counts and readiness checks keep .NET 10 LINQ, whose array/list fast paths
+Predicated counts and readiness checks keep .NET 10 LINQ, whose array/list fast paths
 already avoid iterator allocations. There is no global LINQ replacement.
 See [performance measurements](performance-benchmarks.md#zlinq-routing-queries-issue-121)
 for local-cluster and allocation benchmarks.
