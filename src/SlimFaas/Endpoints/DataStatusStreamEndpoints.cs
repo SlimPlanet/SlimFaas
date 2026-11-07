@@ -1,13 +1,11 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using SlimFaas.Kubernetes;
 using SlimFaas.Options;
-using SlimFaas.Security;
 
 namespace SlimFaas.Endpoints;
 
 public sealed record DataStatusEntry(string Id, long? ExpiresAtMs, long? SizeBytes);
-public sealed record DataStatusSummary(int Sets, int Files, long FileBytes, int UnknownFileSizes, int ExpiringSoon);
+public sealed record DataStatusSummary(int Sets, int Files, long FileBytes, int UnknownFileSizes, int ExpiringSoon, long SetBytes = 0);
 public sealed record DataStatusPage(string Kind, long ServerTimeMs, IReadOnlyList<DataStatusEntry> Entries,
     string? NextCursor, int TotalCount, DataStatusSummary Summary, int RefreshIntervalMs = 1000);
 
@@ -19,13 +17,10 @@ public static class DataStatusStreamEndpoints
             .AddEndpointFilter<HostPortEndpointFilter>();
 
     private static async Task HandleStream(HttpContext context, DataStatusSnapshotCache cache,
-        NetworkActivityTracker tracker, IOptions<SlimFaasOptions> options, IOptions<DataOptions> dataOptions,
-        IFunctionAccessPolicy accessPolicy)
+        NetworkActivityTracker tracker, IOptions<SlimFaasOptions> options)
     {
         var settings = options.Value;
-        bool dashboardAccess = settings.EnableFront && settings.ExposeDataMetadata;
-        if (!dashboardAccess && dataOptions.Value.DefaultVisibility != FunctionVisibility.Public &&
-            !accessPolicy.IsInternalRequest(context))
+        if (!DataObservation.CanObserve(context))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;

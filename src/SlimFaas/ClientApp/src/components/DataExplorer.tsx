@@ -28,7 +28,7 @@ export function DataInventory({ page, now, changed }: { page: DataPage; now: num
 }
 
 export default function DataExplorer() {
-  const [kind, setKind] = useState('sets');
+  const [kind, setKind] = useState(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('kind') === 'files' ? 'files' : 'sets');
   const [search, setSearch] = useState('');
   const [prefix, setPrefix] = useState('');
   const [cursors, setCursors] = useState(['']);

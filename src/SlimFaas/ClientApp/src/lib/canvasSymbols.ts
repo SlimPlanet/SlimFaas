@@ -1,5 +1,5 @@
 /** Small canvas-native symbols in the same 24-unit style as the dashboard SVG icons. */
-export function drawSymbol(context: CanvasRenderingContext2D, kind: 'queue' | 'external' | 'power' | 'stream', x: number, y: number, size: number) {
+export function drawSymbol(context: CanvasRenderingContext2D, kind: 'queue' | 'external' | 'power' | 'stream' | 'sets' | 'files', x: number, y: number, size: number) {
   context.save(); context.translate(x, y); context.scale(size / 24, size / 24);
   context.lineWidth = 1.8; context.lineCap = 'round'; context.lineJoin = 'round';
   context.beginPath();
@@ -10,6 +10,12 @@ export function drawSymbol(context: CanvasRenderingContext2D, kind: 'queue' | 'e
     context.arc(9, 6, 3, 0, Math.PI * 2);
     context.moveTo(3, 21); context.lineTo(3, 17); context.bezierCurveTo(3, 10, 15, 10, 15, 17); context.lineTo(15, 21);
     context.moveTo(16, 9); context.lineTo(23, 9); context.moveTo(20, 6); context.lineTo(23, 9); context.lineTo(20, 12);
+  } else if (kind === 'sets') {
+    context.ellipse(12, 5, 9, 3, 0, 0, Math.PI * 2);
+    context.moveTo(3, 5); context.lineTo(3, 19); context.bezierCurveTo(3, 23, 21, 23, 21, 19); context.lineTo(21, 5);
+  } else if (kind === 'files') {
+    context.moveTo(5, 2); context.lineTo(15, 2); context.lineTo(21, 8); context.lineTo(21, 22); context.lineTo(5, 22); context.closePath();
+    context.moveTo(15, 2); context.lineTo(15, 8); context.lineTo(21, 8);
   } else if (kind === 'stream') {
     for (let index = 0; index < 3; index++) {
       const top = 4 + index * 6;

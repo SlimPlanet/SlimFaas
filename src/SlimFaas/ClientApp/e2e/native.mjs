@@ -64,14 +64,20 @@ export async function startNative(output, scenario = 'cold') {
   await writeFile(manifest, yaml({ schemaVersion: 1, name: 'traffic-e2e',
     cluster: { nodes: 3, entrypointPort: base, nodeHttpPortBase: base + 1, raftPortBase: base + 100, nodeLogLevel: 'Warning' },
     processPorts: { from: base + 200, to: base + 299 }, state: { mode: 'ephemeral', directory: resolve(directory, 'state') },
-    functions: { fibonacci1: scenario === 'dlq'
+    functions: { fibonacci1: scenario === 'data'
+      ? { ...workload(1, false), command: [process.execPath, fileURLToPath(new URL('./data-workload.mjs', import.meta.url))] }
+      : scenario === 'dlq'
       ? { ...workload(1, false), command: [process.execPath, fileURLToPath(new URL('./dlq-function.mjs', import.meta.url))] }
       : workload(scenario.startsWith('async') ? 1 : 0, scenario === 'cold', false, scenario === 'async-callback'),
       fibonacci4: workload(2, false, true), ...(scenario === 'recursive' ? { fibonacci3: workload(2, false) } : {}) },
+    ...(scenario === 'data' ? { jobs: { 'data-job': { command: [process.execPath, fileURLToPath(new URL('./data-workload.mjs', import.meta.url)), '--job'],
+      workingDirectory: root, environment: { SlimFaas__BaseUrl: `http://127.0.0.1:${base}`, DATA_TEST_GATE: `http://127.0.0.1:${gate.address().port}/gate` },
+      annotations: { 'SlimFaas/Job': 'true', 'SlimFaas/DefaultVisibility': 'Public', 'SlimFaas/NumberParallelJob': '1' },
+      ttlSecondsAfterFinished: 60, backoffLimit: 0, restartPolicy: 'Never' } } } : {}),
   }));
   const log = createWriteStream(output);
   const processHandle = spawn(runtime, ['local', 'up', '-f', manifest], {
-    cwd: root, env: { ...process.env, SlimFaas__EnableFront: 'true', SlimFaas__StatusStream__RecentActivityLimit: '5000',
+    cwd: root, env: { ...process.env, SlimFaas__EnableFront: 'true', ...(scenario === 'data' ? { SlimFaas__ExposeDataMetadata: 'true' } : {}), SlimFaas__StatusStream__RecentActivityLimit: '5000',
       ...(scenario === 'dlq' ? { SlimFaas__DeadLetterQueue__EnableFront: 'true', SlimFaas__DeadLetterQueue__DefaultVisibility: 'Public' } : {}),
       ...(scenario === 'streams' ? { SlimFaas__Streams__EnableFront: 'true', SlimFaas__Streams__DefaultVisibility: 'Public' } : {}) },
     detached: true, stdio: ['ignore', 'pipe', 'pipe'],

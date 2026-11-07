@@ -27,7 +27,10 @@ public record NetworkActivityEvent(
     string? StreamName = null,
     string? StreamFunction = null,
     string? StreamMessageId = null,
-    string? StreamVisibility = null);
+    string? StreamVisibility = null,
+    string? DataKind = null,
+    string? DataOperation = null,
+    int? DataStatusCode = null);
 
 /// <summary>
 /// Represents the full stream payload sent via SSE.
@@ -53,7 +56,8 @@ public record StatusStreamPayload(
     bool StreamsAvailable = false,
     bool StreamsTruncated = false,
     bool StreamsFrontEnabled = false,
-    bool StreamsAccessible = false);
+    bool StreamsAccessible = false,
+    DataStatusSummary? DataSummary = null);
 
 public record QueueInfo(string Name, long Length);
 
@@ -149,12 +153,15 @@ public sealed class NetworkActivityTracker
                                     ?? Environment.MachineName
                                     ?? Guid.NewGuid().ToString("N")[..8];
 
+    public bool IsEnabled => _enabled;
+
     public bool HasSubscribers => _enabled && !_subscribers.IsEmpty;
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
     public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null, string? correlationId = null,
         string? deadLetterId = null, string? elementId = null, string? originalElementId = null,
-        string? streamName = null, string? streamFunction = null, string? streamMessageId = null, string? streamVisibility = null)
+        string? streamName = null, string? streamFunction = null, string? streamMessageId = null, string? streamVisibility = null,
+        string? dataKind = null, string? dataOperation = null, int? dataStatusCode = null)
     {
         if (!_enabled) return string.Empty;
 
@@ -175,7 +182,8 @@ public sealed class NetworkActivityTracker
             StreamName: streamName,
             StreamFunction: streamFunction,
             StreamMessageId: streamMessageId,
-            StreamVisibility: streamVisibility);
+            StreamVisibility: streamVisibility,
+            DataKind: dataKind, DataOperation: dataOperation, DataStatusCode: dataStatusCode);
 
         Enqueue(evt);
         return evt.Id;

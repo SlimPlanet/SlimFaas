@@ -357,3 +357,50 @@ local demo passed manifest validation, `/status-functions` and
 12 concurrent callers and the dashboard enabled completed 4,292 requests with no
 failures (858 requests/s, p95 18.9 ms). This is a short functional load check, not
 a comparative performance claim.
+
+## Data API traffic and workload layout — issue #502
+
+The live map pairs compact queues with their workloads, centers External above SlimFaas,
+and places Set/Files followed by Streams below the hub. Workload groups reserve room for
+at least one instance while sleeping, keeping the first ingress trajectory stable during
+wake-up. Data calls use correlated turquoise ingress/store hops without animated replies.
+
+Validation uses .NET 10.0.403 and Node 24.22.2 on macOS ARM64. The complete .NET suite
+passed **1,940 tests**; the dashboard passed **75 model tests** and **13 Playwright tests**. Dashboard model tests cover ordered Data hops, failed accesses,
+summary normalization, exact callers, adjacent queues, compact stores, non-overlapping
+20,000-instance layouts and stable geometry across a cold start. Native AOT publication,
+Storybook and documentation builds succeeded. A temporary ephemeral overlay preserved
+the standard local demo configuration; `/status-functions` and
+`/function/fibonacci1/hello/local` both returned HTTP 200.
+
+The native browser fixture runs three nodes and real managed function/job processes. It
+verifies all Set operations and File uploads/downloads/lists/deletions, peer SSE identity,
+causal turquoise trajectories, error journal entries, logical byte counts, keyboard access,
+selection, mobile overflow and reduced motion. Backend tests also check initial state and
+single/batched activity permissions, signed caller identities and peer deduplication.
+
+![Native function and job Data journeys](images/dashboard/traffic-data-topology.png)
+
+### Data performance screening
+
+Both runs use the same native AOT binary, three nodes, front enabled, four concurrent
+writers and 4 KiB values. Each has 2 s warmup, 5 s measured load and 1 s cooldown.
+The second run holds one full Traffic SSE subscription open, receiving 284 frames.
+
+| Traffic viewer | Successful writes | Errors | Writes/s | p95 (ms) | Sum of peak node RSS (MiB) |
+|---|---:|---:|---:|---:|---:|
+| Closed | 123 | 0 | 23.94 | 338.81 | 353.70 |
+| Open | 204 | 0 | 40.57 | 236.92 | 372.04 |
+
+These short single runs are a functional cost screening under concurrent browser checks;
+they do not establish a throughput improvement or statistical equivalence. Counters come
+from cached state rather than per-message scans, and no payload bodies are buffered for
+observation. Reproduce the workload with the existing laboratory:
+
+```bash
+MEMORY_LAB_ENABLE_FRONT=true WARMUP_SECONDS=2 COOLDOWN_SECONDS=1 \
+  .bin/memory-lab.sh aot set 5 4
+```
+
+For the open-view variant, connect Traffic to `http://127.0.0.1:30021/#/live/traffic`
+before the measured phase and keep it open until cooldown.

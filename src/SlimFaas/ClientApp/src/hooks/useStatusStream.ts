@@ -1,6 +1,6 @@
 import { appendActivity } from '../lib/live.ts';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import type { DataSummary, FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
 import { jobQueues } from '../lib/topology.ts';
 import { isDeadLetterSummary, type DeadLetterSummary } from '../lib/deadLetters.ts';
 import { isStreamSummary, isStreamFunction, type StreamSummary, type StreamFunction } from '../lib/streams.ts';
@@ -164,6 +164,9 @@ function normalizeActivity(raw: unknown): NetworkActivityEvent[] {
     DeadLetterId: asString(pick(entry, 'DeadLetterId', 'deadLetterId'), '') || null,
     ElementId: asString(pick(entry, 'ElementId', 'elementId'), '') || null,
     OriginalElementId: asString(pick(entry, 'OriginalElementId', 'originalElementId'), '') || null,
+    DataKind: asString(pick(entry, 'DataKind', 'dataKind'), '') || null,
+    DataOperation: asString(pick(entry, 'DataOperation', 'dataOperation'), '') || null,
+    DataStatusCode: asNullableNumber(pick(entry, 'DataStatusCode', 'dataStatusCode')),
     StreamName: asString(pick(entry, 'StreamName', 'streamName'), '') || null,
     StreamFunction: asString(pick(entry, 'StreamFunction', 'streamFunction'), '') || null,
     StreamMessageId: asString(pick(entry, 'StreamMessageId', 'streamMessageId'), '') || null,
@@ -181,8 +184,17 @@ export function normalizeSlimFaasNodes(raw: unknown): SlimFaasNodeInfo[] {
   });
 }
 
+function normalizeDataSummary(raw: unknown): DataSummary | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const result = Object.fromEntries(['Sets', 'Files', 'SetBytes', 'FileBytes', 'UnknownFileSizes'].map(key =>
+    [key, pick(raw, key, key[0].toLowerCase() + key.slice(1))]));
+  return Object.values(result).every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    ? result as unknown as DataSummary : null;
+}
+
 export function normalizePayload(raw: unknown): StatusStreamPayload {
   return {
+    DataSummary: normalizeDataSummary(pick(raw, 'DataSummary', 'dataSummary')),
     Functions: normalizeFunctions(pick(raw, 'Functions', 'functions')),
     Queues: normalizeQueues(pick(raw, 'Queues', 'queues')),
     Jobs: normalizeJobs(pick(raw, 'Jobs', 'jobs')),
@@ -231,6 +243,7 @@ export function useStatusStream(includeActivity = true) {
   const [streamsAvailable, setStreamsAvailable] = useState(false);
   const [streamsFrontEnabled, setStreamsFrontEnabled] = useState(false);
   const [streamsAccessible, setStreamsAccessible] = useState(false);
+  const [dataSummary, setDataSummary] = useState<DataSummary | null>(null);
   const [streamsTruncated, setStreamsTruncated] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -331,6 +344,8 @@ export function useStatusStream(includeActivity = true) {
         setStreamsFrontEnabled(payload.StreamsFrontEnabled === true);
         setStreamsAccessible(payload.StreamsAccessible === true);
         setStreamsTruncated(payload.StreamsTruncated === true);
+        setDataSummary(payload.DataSummary ?? null);
+        if (!payload.DataSummary) setActivity(previous => previous.filter(event => !event.DataKind));
         setError(null);
         reconnectFailures.current = 0;
         setLoading(false);
@@ -431,7 +446,7 @@ export function useStatusStream(includeActivity = true) {
   }, [wakeAllCooling]);
 
   return {
-    functions,
+    functions, dataSummary,
     queues,
     jobs,
     activity, activitySession,

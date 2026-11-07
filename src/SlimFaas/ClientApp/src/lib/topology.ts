@@ -1,10 +1,10 @@
-import { functionState } from './live.ts';
-import type { FunctionStatusDetailed, JobConfigurationStatus, NetworkActivityEvent, QueueInfo, SlimFaasNodeInfo } from '../types.ts';
+import { formatBytes, functionState } from './live.ts';
+import type { DataSummary, FunctionStatusDetailed, JobConfigurationStatus, NetworkActivityEvent, QueueInfo, SlimFaasNodeInfo } from '../types.ts';
 import type { DeadLetterSummary } from './deadLetters.ts';
 import type { StreamSummary } from './streams.ts';
 
 export interface MapNode {
-  id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external' | 'stream';
+  id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external' | 'stream' | 'sets' | 'files';
   role?: SlimFaasNodeInfo['Role'];
   state?: ReturnType<typeof functionState>; parent: string | null; x: number; y: number; status: string; detail: string;
   queueLength?: number; deadLetterCount?: number;
@@ -34,7 +34,7 @@ export function observedFunctions(functions: FunctionStatusDetailed[], events: N
   const known = new Set(functions.map(fn => fn.Name));
   const observed = new Map<string, Set<string>>();
   for (const event of events) {
-    if (!event.Target || event.Target.startsWith('dlq:') || event.Target.startsWith('stream:') || known.has(event.Target) || isJobQueueEvent(event) || ['slimfaas', 'external'].includes(event.Target)) continue;
+    if (event.DataKind || !event.Target || event.Target.startsWith('dlq:') || event.Target.startsWith('stream:') || known.has(event.Target) || isJobQueueEvent(event) || ['slimfaas', 'external'].includes(event.Target)) continue;
     const replicas = observed.get(event.Target) ?? new Set<string>();
     if (event.TargetPod) replicas.add(event.TargetPod);
     observed.set(event.Target, replicas);
@@ -47,17 +47,18 @@ export function observedQueues(queues: QueueInfo[], events: NetworkActivityEvent
   return [...new Set(events.flatMap(event => event.QueueName && !known.has(event.QueueName) ? [event.QueueName] : []))].sort();
 }
 
-export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[], observed: ObservedFunction[] = [], unknownQueues: string[] = [], deadLetters: DeadLetterSummary[] = [], streams: StreamSummary[] = []): Topology {
+export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[], observed: ObservedFunction[] = [], unknownQueues: string[] = [], deadLetters: DeadLetterSummary[] = [], streams: StreamSummary[] = [], dataSummary: DataSummary | null = null): Topology {
   const groups: MapGroup[] = [];
   const actors = new Map<string, string>(), pods = new Map<string, string>(), sourcePods = new Map<string, string>();
   const create = (kind: MapNode['kind'], label: string, status: string, children: Omit<MapNode, 'x' | 'y' | 'parent' | 'kind'>[], detail = '') => {
+    const compact = ['queue', 'stream', 'sets', 'files'].includes(kind);
     const columns = Math.max(1, Math.ceil(Math.sqrt(children.length)));
     const group: MapGroup = { id: nodeId(kind, label), label, kind, parent: null, x: 0, y: 0, status, detail,
-      width: Math.max(260, columns * CELL + 60), height: Math.max(150, Math.ceil(children.length / columns) * CELL + 160), children: [] };
+      width: compact ? 180 : Math.max(260, columns * CELL + 60), height: compact ? 104 : Math.max(150, Math.ceil((kind === 'function' || kind === 'job' ? Math.max(1, children.length) : children.length) / columns) * CELL + 160), children: [] };
     group.children = children.map((child, i) => ({ ...child, kind, parent: group.id,
       x: 30 + i % columns * CELL, y: 125 + Math.floor(i / columns) * CELL }));
     groups.push(group);
-    if (kind !== 'queue') actors.set(label, group.id);
+    if (!['queue', 'sets', 'files'].includes(kind)) actors.set(label, group.id);
     return group;
   };
   for (const job of [...jobs].sort((a, b) => a.Name.localeCompare(b.Name))) {
@@ -109,39 +110,70 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
     actors.set(`stream:${stream.Name}`, group.id);
   }
 
-  // Reserve readable hub space even when neighboring workloads have thousands of instances.
-  const hubWidth = Math.max(260, Math.min(1200, Math.max(...groups.map(g => g.width)) / 3));
-  for (const g of groups) if (['external', 'slimfaas', 'queue'].includes(g.kind)) {
-    g.width = Math.max(g.width, hubWidth); g.height = Math.max(g.height, hubWidth * 0.65);
+  for (const kind of ['sets', 'files'] as const) {
+    const count = dataSummary ? kind === 'sets' ? dataSummary.Sets : dataSummary.Files : null;
+    const bytes = dataSummary ? kind === 'sets' ? dataSummary.SetBytes : dataSummary.FileBytes : null;
+    const unknown = kind === 'files' ? dataSummary?.UnknownFileSizes ?? 0 : 0;
+    create(kind, kind === 'sets' ? 'Set' : 'Files', count === null ? 'Metadata unavailable' :
+      `${count} items · ${unknown ? '≥ ' : ''}${formatBytes(bytes)}`, [],
+      `Logical ${kind} store · unexpired public API entries` + (unknown ? ` · ${unknown} unknown file sizes` : ''));
   }
-  const regions: { groups: MapGroup[]; height: number }[] = [];
-  // Each kind has its own packed region. Group rectangles reserve all instance space.
-  let regionX = 0, height = 0;
-  for (const kind of ['job', 'external', 'job-queue', 'slimfaas', 'queue', 'stream', 'function']) {
-    const region = groups.filter(g => kind === 'job-queue'
-      ? g.kind === 'queue' && isJobQueueName(g.label)
-      : g.kind === kind && !(kind === 'queue' && isJobQueueName(g.label)));
-    if (!region.length) continue;
-    const cols = Math.ceil(Math.sqrt(region.length));
-    const cellW = Math.max(...region.map(g => g.width)) + GAP;
-    const cellH = Math.max(...region.map(g => g.height)) + GAP;
-    region.forEach((g, i) => {
-      g.x = regionX + i % cols * cellW; g.y = Math.floor(i / cols) * cellH;
-      for (const child of g.children) { child.x += g.x; child.y += g.y; }
-    });
-    regionX += cols * cellW;
-    const regionHeight = Math.ceil(region.length / cols) * cellH;
-    height = Math.max(height, regionHeight);
-    regions.push({ groups: region, height: regionHeight });
+
+  // Pack each workload together with its queue, reserving the full instance rectangle.
+  const pairGap = 28;
+  const workloads = (kind: 'job' | 'function') => groups.filter(group => group.kind === kind);
+  const sideWidth = (kind: 'job' | 'function') => Math.max(0, ...workloads(kind).map(group => group.width)) + 180 + pairGap;
+  const leftWidth = sideWidth('job');
+  const hub = groups.find(group => group.kind === 'slimfaas')!;
+  const centerWidth = Math.max(hub.width, 2 * 180 + pairGap);
+  const centerX = leftWidth + GAP;
+  const rightX = centerX + centerWidth + GAP;
+  const placedQueues = new Set<string>();
+  const queueByName = new Map(groups.filter(group => group.kind === 'queue').map(group => [group.label, group]));
+  const packSide = (kind: 'job' | 'function') => {
+    let y = 0;
+    for (const workload of workloads(kind)) {
+      const queue = queueByName.get(kind === 'job' ? jobQueueName(workload.label) : workload.label);
+      const rowHeight = Math.max(workload.height, queue?.height ?? 0);
+      workload.x = kind === 'job' ? leftWidth - 180 - pairGap - workload.width : rightX + 180 + pairGap;
+      workload.y = y + (rowHeight - workload.height) / 2;
+      if (queue) {
+        queue.x = kind === 'job' ? leftWidth - queue.width : rightX;
+        queue.y = y + (rowHeight - queue.height) / 2;
+        placedQueues.add(queue.id);
+      }
+      y += rowHeight + GAP;
+    }
+    for (const queue of groups.filter(group => group.kind === 'queue' && !placedQueues.has(group.id) && isJobQueueName(group.label) === (kind === 'job'))) {
+      queue.x = kind === 'job' ? leftWidth - queue.width : rightX; queue.y = y;
+      placedQueues.add(queue.id); y += queue.height + GAP;
+    }
+    return y;
+  };
+  const leftHeight = packSide('job'), rightHeight = packSide('function');
+  const external = groups.find(group => group.kind === 'external')!;
+  const sideOffset = external.height + GAP;
+  for (const group of groups) if (['job', 'function', 'queue'].includes(group.kind)) {
+    const sideHeight = group.kind === 'job' || group.kind === 'queue' && isJobQueueName(group.label) ? leftHeight : rightHeight;
+    group.y += sideOffset + (Math.max(leftHeight, rightHeight) - sideHeight) / 2;
   }
-  height += hubWidth * 0.65 + GAP;
-  for (const region of regions) for (const group of region.groups) {
-    const offset = group.kind === 'external' ? 0 : group.kind === 'queue' ? height - region.height : (height - region.height) / 2;
-    group.y += offset;
-    for (const child of group.children) child.y += offset;
-  }
+  external.x = centerX + (centerWidth - external.width) / 2; external.y = 0;
+  hub.x = centerX + (centerWidth - hub.width) / 2;
+  hub.y = sideOffset + Math.max(0, (Math.max(leftHeight, rightHeight) - GAP - hub.height) / 2);
+  const stores = groups.filter(group => group.kind === 'sets' || group.kind === 'files');
+  stores.forEach((group, index) => { group.x = centerX + (centerWidth - (2 * 180 + pairGap)) / 2 + index * (180 + pairGap); group.y = hub.y + hub.height + GAP; });
+  const streamGroups = groups.filter(group => group.kind === 'stream').sort((a, b) => a.label.localeCompare(b.label));
+  const streamTop = hub.y + hub.height + GAP + 104 + GAP;
+  streamGroups.forEach((group, index) => {
+    const columns = Math.min(2, streamGroups.length);
+    group.x = centerX + (centerWidth - (columns * 180 + (columns - 1) * pairGap)) / 2 + index % columns * (180 + pairGap);
+    group.y = streamTop + Math.floor(index / columns) * (104 + pairGap);
+  });
+  for (const group of groups) for (const child of group.children) { child.x += group.x; child.y += group.y; }
+  const width = Math.max(...groups.map(group => group.x + group.width)) + GAP;
+  const height = Math.max(...groups.map(group => group.y + group.height)) + GAP;
   const nodes = groups.flatMap(g => [g, ...g.children]);
-  return { groups, nodes, byId: new Map(nodes.map(n => [n.id, n])), actors, pods, sourcePods, width: regionX, height };
+  return { groups, nodes, byId: new Map(nodes.map(n => [n.id, n])), actors, pods, sourcePods, width, height };
 }
 
 export function resolveSource(topology: Topology, actor: string, pod: string | null): string {
@@ -170,7 +202,12 @@ export function eventPath(topology: Topology, event: NetworkActivityEvent): stri
     : (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
   const queue = nodeId('queue', event.QueueName ?? event.Target);
   let path: string[];
-  if (event.StreamName) {
+  if (event.DataKind) {
+    const store = nodeId(event.DataKind, event.DataKind === 'sets' ? 'Set' : 'Files');
+    path = event.Type === 'data_request' ? [source, slim] : event.Type === 'data_access' &&
+      event.DataStatusCode !== null && event.DataStatusCode !== undefined && event.DataStatusCode < 400 ? [slim, store] : [];
+  }
+  else if (event.StreamName) {
     const stream = nodeId('stream', event.StreamName);
     if (!topology.byId.has(stream)) return [];
     const destination = (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target);
@@ -201,6 +238,7 @@ export function selectedEvent(topology: Topology, event: NetworkActivityEvent, s
     if (selected === nodeId('stream', event.StreamName) || fn && selected === nodeId('function', fn) ||
       event.Type === 'stream_delivery' && !!event.TargetPod && selected === topology.pods.get(`${event.Target}/${event.TargetPod}`)) return true;
   }
+  if (event.DataKind && selected === nodeId(event.DataKind, event.DataKind === 'sets' ? 'Set' : 'Files')) return true;
   const caller = resolveSource(topology, event.Source, event.SourcePod);
   if (caller === selected || topology.byId.get(caller)?.parent === selected) return true;
   if (['request_waiting', 'request_started'].includes(event.Type) && topology.actors.get(event.Target) === selected) return true;

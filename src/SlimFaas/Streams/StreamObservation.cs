@@ -12,16 +12,15 @@ internal static class StreamObservation
     public static async Task<string> ProjectAsync(HttpContext context, string frame, CancellationToken cancellationToken)
     {
         var service = context.RequestServices.GetService<IStreamService>();
-        if (service is null) return frame;
         int start = frame.IndexOf("data: ", StringComparison.Ordinal) + 6;
         var original = JsonSerializer.Deserialize(frame.AsSpan(start).Trim(), StatusStreamSerializerContext.Default.StatusStreamPayload)
             ?? throw new InvalidDataException("Missing status snapshot.");
-        bool enabled = service.FrontEnabled;
-        bool accessible = service.CanManage(context);
+        bool enabled = service?.FrontEnabled == true;
+        bool accessible = service?.CanManage(context) == true;
         StreamSummary[] summaries = [];
         StreamFunctionSummary[] subscriptions = [];
         bool truncated = false;
-        if (enabled && accessible)
+        if (enabled && accessible && service is not null)
         {
             var payload = await service.ReadAsync(cancellationToken).ConfigureAwait(false);
             var all = service.Summaries(context, payload);
@@ -37,6 +36,6 @@ internal static class StreamObservation
             Streams = summaries, StreamSubscriptions = subscriptions, StreamsAvailable = enabled && accessible,
             StreamsTruncated = truncated, StreamsFrontEnabled = enabled, StreamsAccessible = accessible
         };
-        return "event: state\ndata: " + JsonSerializer.Serialize(projected, StatusStreamSerializerContext.Default.StatusStreamPayload) + "\n\n";
+        return "event: state\ndata: " + JsonSerializer.Serialize(DataObservation.Project(context, projected), StatusStreamSerializerContext.Default.StatusStreamPayload) + "\n\n";
     }
 }

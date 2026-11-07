@@ -175,7 +175,7 @@ public static class StatusStreamEndpoints
         while (writtenEvents < maxEventsPerWake && reader.TryRead(out var firstEvent))
         {
             if ((!includeDeadLetters && firstEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal)) ||
-                !SlimFaas.Streams.StreamObservation.Visible(context, firstEvent))
+                !SlimFaas.Streams.StreamObservation.Visible(context, firstEvent) || !DataObservation.Visible(context, firstEvent))
             {
                 writtenEvents++;
                 continue;
@@ -186,7 +186,7 @@ public static class StatusStreamEndpoints
                    && reader.TryRead(out var nextEvent))
             {
                 if ((!includeDeadLetters && nextEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal)) ||
-                    !SlimFaas.Streams.StreamObservation.Visible(context, nextEvent))
+                    !SlimFaas.Streams.StreamObservation.Visible(context, nextEvent) || !DataObservation.Visible(context, nextEvent))
                 {
                     writtenEvents++;
                     continue;

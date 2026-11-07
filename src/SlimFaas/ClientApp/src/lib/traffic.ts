@@ -4,8 +4,9 @@ import { eventPath, selectedEvent, type Topology } from './topology.ts';
 export const ANIMATION_LIMIT = 200;
 export const SPEEDS = { Fast: 450, Normal: 800, Slow: 1400 } as const;
 export type Speed = keyof typeof SPEEDS;
-export type MessageKind = 'request' | 'publication' | 'queue' | 'reply';
+export type MessageKind = 'request' | 'publication' | 'queue' | 'reply' | 'data';
 export function messageKind(event: NetworkActivityEvent): MessageKind {
+  if (event.DataKind) return 'data';
   if (event.Type === 'dead_lettered' || event.Type === 'dead_letter_requeued') return 'queue';
   if (event.Type === 'event_publish') return 'publication';
   if (event.Type === 'enqueue' || event.Type === 'dequeue' || (event.Type === 'request_out' && event.QueueName)) return 'queue';

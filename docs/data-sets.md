@@ -359,3 +359,7 @@ For a complete executable example covering values, expiration and every counter 
 The built-in dashboard's **Live Stream → Data** tab shows set keys and their TTL without fetching values or documents. Search by prefix, inspect expiration and navigate pages of 100 entries. The inventory updates at the configured status interval; short-lived entries between snapshots may be missed.
 
 Metadata follows the existing data visibility policy unless `SlimFaas__ExposeDataMetadata=true` explicitly enables metadata access for dashboard visitors. This does not grant access to stored contents. See [the dashboard inventory and SSE API](user-interface.md#data-inventory).
+
+### Live traffic visualization
+
+The dashboard animates authorized API calls through SlimFaas to its logical store, including reads, lists, writes and deletes. Set numeric operations are included. Store boxes show unexpired item counts and logical byte totals without exposing contents. See [Data API traffic and store counters](user-interface.md#data-api-traffic-and-store-counters) for metadata access and animation behavior.

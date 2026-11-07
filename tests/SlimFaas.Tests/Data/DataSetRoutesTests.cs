@@ -61,6 +61,9 @@ public sealed class DataSetRoutesTests
                     .ConfigureServices(services =>
                     {
                         services.AddRouting();
+                        services.AddSingleton<SlimFaas.Endpoints.NetworkActivityTracker>();
+                        services.AddSingleton(new Mock<SlimFaas.Jobs.IJobService>().Object);
+                        services.AddSingleton<IReplicasService, SlimFaas.Tests.Endpoints.MemoryReplicasService>();
                         services.AddSingleton(db);
                         services.AddSingleton(state.Object);
                         services.AddSingleton(accessPolicy.Object);

@@ -388,3 +388,30 @@ export const LiveAnimation: Story = {
     );
   },
 };
+
+export const DataTopology: Story = {
+  name: 'Data stores and adjacent workload queues',
+  render: () => {
+    const [activity, setActivity] = React.useState<NetworkActivityEvent[]>([]);
+    React.useEffect(() => {
+      let sequence = 0;
+      const timer = setInterval(() => {
+        const job = sequence % 2 === 1;
+        const kind = job ? 'files' : 'sets';
+        const id = `data-story-${sequence++}`;
+        const ingress: NetworkActivityEvent = { Id: id, Type: 'data_request', Source: job ? 'daily-report' : 'fibonacci1',
+          SourcePod: job ? 'daily-report-slimfaas-job-a1' : 'fib1-pod-0', Target: 'slimfaas', TargetPod: null,
+          QueueName: null, TimestampMs: Date.now(), NodeId: 'slimfaas-0', DataKind: kind, DataOperation: 'write', ReceivedAt: performance.now() };
+        setActivity(previous => [...previous, ingress, { ...ingress, Id: `${id}-store`, Type: 'data_access', CorrelationId: id, DataStatusCode: 200 }].slice(-100));
+      }, 2200);
+      return () => clearInterval(timer);
+    }, []);
+    return <NetworkMap functions={FUNCTIONS} jobs={JOBS} queues={QUEUES} activity={activity}
+      queuesWithActivity={FUNCTIONS_WITH_QUEUE_ACTIVITY} slimFaasReplicas={1}
+      slimFaasNodes={[{ Name: 'slimfaas-0', Status: 'Running', Role: 'Leader' }]}
+      dataSummary={{ Sets: 12, Files: 3, SetBytes: 4096, FileBytes: 1048576, UnknownFileSizes: 0 }}
+      streams={[{ Name: 'orders', Visibility: 'Public', RetainedMessageCount: 4, VisibleFunctionCount: 2,
+        MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'demo', CapturedAt: '',
+        OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null }]} />;
+  },
+};
