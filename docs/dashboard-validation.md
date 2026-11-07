@@ -408,3 +408,8 @@ before the measured phase and keep it open until cooldown.
 The PR checks also exposed unsupported `macos-14` ARM runner configurations for both
 native products. Their two matrix entries now use `macos-15`, a supported ARM64 label
 in the [GitHub-hosted runners reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+
+The initial multi-platform Docker run also spent over thirty minutes compiling ARM
+managed code under QEMU. The root Dockerfile now builds its static assets and managed
+ARM publication with the build host SDK; the x64 Native AOT stage retains its target
+x64 toolchain. Published RIDs and final runtime architectures are unchanged.
