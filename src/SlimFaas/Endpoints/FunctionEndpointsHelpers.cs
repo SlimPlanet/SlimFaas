@@ -30,7 +30,7 @@ public static class FunctionEndpointsHelpers
 
     public static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
     {
-        return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
+        return replicasService.Deployments.FindFunction(functionName);
     }
 
     /// <summary>

@@ -24,6 +24,16 @@ See [client routing and failure semantics](clients.md#multi-node-routing-and-fai
 
 SlimFaas sits between callers and their applications. It routes HTTP requests, wakes idle workloads, queues asynchronous work, dispatches jobs and coordinates state through SlimData.
 
+Routing and wake-up queries use explicit [ZLinq](https://github.com/Cysharp/ZLinq)
+value enumeration for function lookup and first-ready-pod port selection.
+Function lookup remains ordinal, case-sensitive and first-match, and reads the
+current deployment snapshot on each call. Arrays and lists avoid query iterator
+allocations; other `IList<T>` implementations remain supported. Predicated
+counts and readiness checks keep .NET 10 LINQ, whose array/list fast paths
+already avoid iterator allocations. There is no global LINQ replacement.
+See [performance measurements](performance-benchmarks.md#zlinq-routing-queries-issue-121)
+for local-cluster and allocation benchmarks.
+
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.
 
 ## Durable terminal failures

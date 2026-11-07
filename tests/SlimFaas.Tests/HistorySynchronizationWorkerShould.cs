@@ -156,14 +156,20 @@ public class HistorySynchronizationWorkerShould
         using var cancellation = new CancellationTokenSource();
         Task running = worker.StartAsync(cancellation.Token);
 
-        await Task.Delay(120);
-        long persistedTicks = await databaseHistory.GetTicksLastCallAsync(functionName);
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (await databaseHistory.GetTicksLastCallAsync(functionName) <= startedTicks)
+                await Task.Delay(10, timeout.Token);
 
-        Assert.True(persistedTicks > startedTicks);
-        Assert.True(memoryHistory.HasActiveCalls(functionName));
-
-        memoryHistory.EndActiveCall(functionName);
-        await cancellation.CancelAsync();
+            Assert.True(memoryHistory.HasActiveCalls(functionName));
+        }
+        finally
+        {
+            memoryHistory.EndActiveCall(functionName);
+            await cancellation.CancelAsync();
+            await worker.StopAsync(CancellationToken.None);
+        }
         await running;
         Assert.False(memoryHistory.HasActiveCalls(functionName));
     }
