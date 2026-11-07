@@ -2,6 +2,25 @@ namespace SlimFaas;
 
 internal static class InternalHttpClientHandler
 {
+    public static SocketsHttpHandler CreateForFunctions(bool allowUnsecureSsl)
+    {
+        var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = true,
+            UseProxy = false,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+        };
+
+        if (allowUnsecureSsl)
+        {
+#pragma warning disable CA5359 // Preserve the existing opt-in for self-signed internal TLS.
+            handler.SslOptions.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+#pragma warning restore CA5359
+        }
+
+        return handler;
+    }
+
     public static HttpClientHandler Create(bool allowUnsecureSsl)
     {
         var handler = new HttpClientHandler
