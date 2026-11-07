@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.88.0
+
+- [766cb5ca](https://github.com/SlimPlanet/SlimFaas/commit/766cb5caafc634565abe94624eb06a1d2adc8b46) - feat(dashboard): pair workload queues and visualize Data traffic (#503) (release), 2026-11-07 by *Guillaume Chervet*
+
+
 ## v0.87.1
 
 - [bd26db5d](https://github.com/SlimPlanet/SlimFaas/commit/bd26db5d417e7fef82e2148d38eb317d650a0149) - fix(clients): cancel the sync stream when the handler fails after starting the response (#492) (#493) (release), 2026-11-07 by *Asish*
@@ -270,10 +275,5 @@
 
 ## 0.82.5
 
-
-
-## v0.82.5
-
-- [48b7fc86](https://github.com/SlimPlanet/SlimFaas/commit/48b7fc869de28f2ac6e23d208371bb000f5dc39f) - docs: add guided onboarding, feature diagrams and standalone local demos (#334) (release), 2026-09-08 by *Guillaume Chervet*
 
 
