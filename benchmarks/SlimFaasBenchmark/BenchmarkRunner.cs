@@ -201,75 +201,146 @@ internal static class BenchmarkRunner
         string? runId = mode == "async"
             ? $"async-{payload.Length}-{concurrency}-{repetition}-{Guid.NewGuid():N}"
             : null;
-        using var resourceMonitorCancellation = mode == "async" ? new CancellationTokenSource() : null;
-        Task<IReadOnlyList<ClusterResourceSnapshot>>? resourceMonitor = resourceMonitorCancellation is null
-            ? null
-            : MonitorClusterResourcesAsync(client, options.NodeUrls, resourceMonitorCancellation.Token);
-        var runSamples = new ConcurrentQueue<RequestSample>();
-        TimeSpan elapsed = await ExecuteTimedLoadAsync(
-            client,
-            uri,
-            mode,
-            payload,
-            concurrency,
-            TimeSpan.FromSeconds(options.DurationSeconds),
-            repetition,
-            runId,
-            runSamples);
-        RequestSample[] snapshot = runSamples.ToArray();
-        double[] successful = snapshot
-            .Where(sample => sample.Success)
-            .Select(sample => sample.LatencyMilliseconds)
-            .Order()
-            .ToArray();
-        long failed = snapshot.LongLength - successful.LongLength;
-
-        TargetObservationSummary? asyncDelivery = null;
-        AsyncResourceUsage? asyncResources = null;
-        var asyncMissing = 0;
-        var asyncDuplicates = 0;
-        if (mode == "async" && runId is not null)
+        ProcessResourceSnapshot resourcesBefore = await ReadProcessResourcesAsync(client, options.NodeUrls);
+        using var processMonitorCancellation = new CancellationTokenSource();
+        Task<double> processMonitor = MonitorWorkingSetAsync(
+            client, options.NodeUrls, resourcesBefore.WorkingSetBytes, processMonitorCancellation.Token);
+        try
         {
-            asyncDelivery = await WaitForAsyncDeliveryAsync(
+            using var resourceMonitorCancellation = mode == "async" ? new CancellationTokenSource() : null;
+            Task<IReadOnlyList<ClusterResourceSnapshot>>? resourceMonitor = resourceMonitorCancellation is null
+                ? null
+                : MonitorClusterResourcesAsync(client, options.NodeUrls, resourceMonitorCancellation.Token);
+            var runSamples = new ConcurrentQueue<RequestSample>();
+            TimeSpan elapsed = await ExecuteTimedLoadAsync(
                 client,
-                options.DirectUrl,
+                uri,
+                mode,
+                payload,
+                concurrency,
+                TimeSpan.FromSeconds(options.DurationSeconds),
+                repetition,
                 runId,
-                checked((int)successful.LongLength),
-                options.AsyncDrainTimeout);
-            await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
-            asyncMissing = Math.Max(0, checked((int)successful.LongLength) - asyncDelivery.UniqueCount);
-            asyncDuplicates = asyncDelivery.DuplicateCount;
-            using HttpResponseMessage _ = await client.DeleteAsync(
-                new Uri(options.DirectUrl, $"benchmark/observations/{runId}"));
-        }
+                runSamples);
+            RequestSample[] snapshot = runSamples.ToArray();
+            double[] successful = snapshot
+                .Where(sample => sample.Success)
+                .Select(sample => sample.LatencyMilliseconds)
+                .Order()
+                .ToArray();
+            long failed = snapshot.LongLength - successful.LongLength;
 
-        if (resourceMonitorCancellation is not null && resourceMonitor is not null)
+            TargetObservationSummary? asyncDelivery = null;
+            AsyncResourceUsage? asyncResources = null;
+            var asyncMissing = 0;
+            var asyncDuplicates = 0;
+            if (mode == "async" && runId is not null)
+            {
+                asyncDelivery = await WaitForAsyncDeliveryAsync(
+                    client,
+                    options.DirectUrl,
+                    runId,
+                    checked((int)successful.LongLength),
+                    options.AsyncDrainTimeout);
+                await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
+                asyncMissing = Math.Max(0, checked((int)successful.LongLength) - asyncDelivery.UniqueCount);
+                asyncDuplicates = asyncDelivery.DuplicateCount;
+                using HttpResponseMessage _ = await client.DeleteAsync(
+                    new Uri(options.DirectUrl, $"benchmark/observations/{runId}"));
+            }
+
+            if (resourceMonitorCancellation is not null && resourceMonitor is not null)
+            {
+                await resourceMonitorCancellation.CancelAsync();
+                IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
+                asyncResources = BuildResourceUsage(resourceSamples, successful.LongLength);
+            }
+
+            ProcessResourceSnapshot resourcesAfter = await ReadProcessResourcesAsync(client, options.NodeUrls);
+            await processMonitorCancellation.CancelAsync();
+            double peakWorkingSet = Math.Max(await processMonitor, resourcesAfter.WorkingSetBytes);
+            double cpuSeconds = resourcesAfter.CpuSeconds - resourcesBefore.CpuSeconds;
+            var resources = new ProcessResourceUsage(
+                cpuSeconds,
+                successful.LongLength == 0 ? 0 : cpuSeconds * 1000 / successful.LongLength,
+                peakWorkingSet);
+
+            var result = new LatencyRunResult(
+                mode,
+                payload.Length,
+                concurrency,
+                repetition,
+                successful.LongLength,
+                failed,
+                elapsed.TotalSeconds,
+                successful.LongLength / Math.Max(0.001, elapsed.TotalSeconds),
+                Statistics.Percentile(successful, 0.50),
+                Statistics.Percentile(successful, 0.95),
+                Statistics.Percentile(successful, 0.99),
+                successful.Length == 0 ? 0 : successful[^1],
+                asyncDelivery,
+                successful.Length == 0 ? 0 : successful.Average(),
+                asyncMissing,
+                asyncDuplicates,
+                asyncResources,
+                Resources: resources);
+            return new LatencyCaseData(result, snapshot);
+        }
+        finally
         {
-            await resourceMonitorCancellation.CancelAsync();
-            IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
-            asyncResources = BuildResourceUsage(resourceSamples, successful.LongLength);
+            await processMonitorCancellation.CancelAsync();
+            await processMonitor;
         }
-
-        var result = new LatencyRunResult(
-            mode,
-            payload.Length,
-            concurrency,
-            repetition,
-            successful.LongLength,
-            failed,
-            elapsed.TotalSeconds,
-            successful.LongLength / Math.Max(0.001, elapsed.TotalSeconds),
-            Statistics.Percentile(successful, 0.50),
-            Statistics.Percentile(successful, 0.95),
-            Statistics.Percentile(successful, 0.99),
-            successful.Length == 0 ? 0 : successful[^1],
-            asyncDelivery,
-            successful.Length == 0 ? 0 : successful.Average(),
-            asyncMissing,
-            asyncDuplicates,
-            asyncResources);
-        return new LatencyCaseData(result, snapshot);
     }
+
+    private static async Task<ProcessResourceSnapshot> ReadProcessResourcesAsync(
+        HttpClient client, IReadOnlyList<Uri> nodeUrls, CancellationToken cancellationToken = default)
+    {
+        ProcessResourceSnapshot[] nodes = await Task.WhenAll(nodeUrls.Select(async nodeUrl =>
+        {
+            string metrics = await client.GetStringAsync(new Uri(nodeUrl, "metrics"), cancellationToken);
+            return new ProcessResourceSnapshot(
+                ReadRequiredMetric(metrics, "process_cpu_seconds_total"),
+                ReadRequiredMetric(metrics, "process_working_set_bytes"));
+        }));
+        return new ProcessResourceSnapshot(
+            nodes.Sum(node => node.CpuSeconds),
+            nodes.Sum(node => node.WorkingSetBytes));
+    }
+
+    internal static double ReadRequiredMetric(string metrics, string name)
+    {
+        foreach (ReadOnlySpan<char> line in metrics.AsSpan().EnumerateLines())
+        {
+            if (line.StartsWith(name + " ", StringComparison.Ordinal) &&
+                double.TryParse(line[(name.Length + 1)..], NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out double value) && double.IsFinite(value))
+                return value;
+        }
+        throw new InvalidOperationException($"Required process metric '{name}' is missing or invalid.");
+    }
+
+    private static async Task<double> MonitorWorkingSetAsync(
+        HttpClient client, IReadOnlyList<Uri> nodeUrls, double initialWorkingSet,
+        CancellationToken cancellationToken)
+    {
+        double peak = initialWorkingSet;
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(500, cancellationToken);
+                ProcessResourceSnapshot sample = await ReadProcessResourcesAsync(client, nodeUrls, cancellationToken);
+                peak = Math.Max(peak, sample.WorkingSetBytes);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return peak;
+        }
+    }
+
+    private sealed record ProcessResourceSnapshot(double CpuSeconds, double WorkingSetBytes);
 
     private static async Task<TimeSpan> ExecuteTimedLoadAsync(
         HttpClient client,
@@ -1139,6 +1210,21 @@ internal static class BenchmarkRunner
         builder.AppendLine("# SlimFaas local latency and scaling benchmark");
         builder.AppendLine();
         builder.AppendLine(CultureInfo.InvariantCulture, $"Generated at `{report.FinishedAtUtc:O}` on `{report.OperatingSystem}` with `{report.Framework}`.");
+        builder.AppendLine();
+        builder.AppendLine("## Runtime process resources");
+        builder.AppendLine();
+        builder.AppendLine("CPU and sampled peak working set are summed across all configured runtime nodes, excluding the local supervisor, target and load generator. Direct-route rows measure idle runtime activity, not target CPU. Sampling is every 500 ms; async measurements include queue drain. Values are medians across repetitions.");
+        builder.AppendLine();
+        builder.AppendLine("| mode | payload | concurrency | CPU/request | sampled peak working set |");
+        builder.AppendLine("|---|---:|---:|---:|---:|");
+        foreach (var group in report.LatencyRuns.Where(run => run.Resources is not null)
+                     .GroupBy(run => (run.Mode, run.PayloadBytes, run.Concurrency)))
+        {
+            double cpu = Statistics.Median(group.Select(run => run.Resources!.CpuMillisecondsPerRequest));
+            double workingSet = Statistics.Median(group.Select(run => run.Resources!.PeakWorkingSetBytes));
+            builder.AppendLine(FormattableString.Invariant(
+                $"| {group.Key.Mode} | {FormatBytes(group.Key.PayloadBytes)} | {group.Key.Concurrency} | {cpu:F3} ms | {workingSet / (1024 * 1024):F1} MiB |"));
+        }
         builder.AppendLine();
         builder.AppendLine("## Synchronous overhead");
         builder.AppendLine();
