@@ -48,7 +48,7 @@ jobs:
       - name: Bootstrap job configuration before admitting requests after node restarts
         run: >-
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/startup-jobs
-          --scenarios startup-jobs,schedules,restarts --recovery-timeout 300
+          --scenarios startup-jobs,schedules,streams,restarts --recovery-timeout 300
       - name: Install locked SDK dependencies without build scripts
         run: uv sync --frozen --project client/python/slimfaas-client --no-build --no-install-project
       - name: Exercise real SDK streaming, offline retention and reconnect
@@ -57,7 +57,14 @@ jobs:
         run: >-
           uv run --locked --no-sync --no-build --project client/python/slimfaas-client
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/websocket
-          --scenarios websocket --node-log-level Debug --request-timeout 120 --recovery-timeout 300
+          --scenarios websocket --delivery-diagnostics --request-timeout 120 --recovery-timeout 300
+      - name: Recover Async delivery after a WebSocket owner timeout
+        env:
+          PYTHONPATH: client/python/slimfaas-client/src
+        run: >-
+          uv run --locked --no-sync --no-build --project client/python/slimfaas-client
+          python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/websocket-timeout
+          --scenarios websocket-timeout --delivery-diagnostics --request-timeout 30 --recovery-timeout 60
       - name: Drop real Raft traffic in an isolated network namespace
         if: runner.os == 'Linux'
         run: >-

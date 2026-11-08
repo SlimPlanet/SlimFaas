@@ -23,7 +23,8 @@ class Journal:
         self.lock = threading.Lock()
 
     def append(self, value):
-        encoded = (json.dumps(value | {"utc": time.time(), "pid": os.getpid()}) + "\n").encode()
+        encoded = (json.dumps(value | {"utc": time.time(), "pid": os.getpid(),
+                                      "function": os.environ.get("CHAOS_FUNCTION", "")}) + "\n").encode()
         with self.lock, self.path.open("ab", buffering=0) as stream:
             stream.write(encoded)
             os.fsync(stream.fileno())

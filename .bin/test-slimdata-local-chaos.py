@@ -259,6 +259,16 @@ class Campaign:
         manifest["functions"]["chaos-wake"] = {
             "command": [sys.executable, str(fixture), "--journal-directory", str(self.receipts)],
             "workingDirectory": str(ROOT), "annotations": wake_annotations}
+        if "streams" in self.options.scenarios.split(","):
+            stream_annotations = annotations | {"SlimFaas/SubscribeStream": "Public:chaos-bounded",
+                "SlimFaas/StreamMaxLength": "3", "SlimFaas/StreamMaxAge": "15s",
+                "SlimFaas/Configuration": json.dumps({"DefaultAsync": {"HttpTimeout": 30,
+                    "TimeoutRetries": [1, 2], "HttpStatusRetries": [500, 502, 503, 504]}})}
+            for name in ("chaos-fanout-a", "chaos-fanout-b"):
+                manifest["functions"][name] = {
+                    "command": [sys.executable, str(fixture), "--journal-directory", str(self.receipts)],
+                    "workingDirectory": str(ROOT), "annotations": stream_annotations,
+                    "environment": {"CHAOS_FUNCTION": name}}
         self.manifest = self.output / "manifest.yaml"
         self.manifest.write_text(manifest_yaml(manifest) + "\n", encoding="utf-8")
 
@@ -273,6 +283,9 @@ class Campaign:
                             "OpenTelemetry__Enable": "false"}
         if "startup-jobs" in self.options.scenarios.split(","):
             env["Workers__JobsConfigurationDelayMilliseconds"] = "300000"
+        if self.options.delivery_diagnostics:
+            for category in ("WebSocketQueuesWorker", "WebSocketSendClient", "ClusterWebSocketSendClient"):
+                env["Logging__LogLevel__SlimFaas.WebSocket." + category] = "Debug"
         creation = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
         self.log = (self.output / f"supervisor-{self.generation}.log").open("ab", buffering=0)
         self.process = subprocess.Popen(self.command + ["local", "up", "-f", str(self.manifest)],
@@ -343,8 +356,12 @@ class Campaign:
         return None
 
     def node_pid(self, node):
-        log = self.state_root / "logs" / f"slimfaas-{node}.log"
-        matches = re.findall(r"\[node/slimfaas-\d+\] started pid=(\d+)", log.read_text(encoding="utf-8"))
+        # Optional logs live on the faulted filesystem and can miss a restart
+        # while it is full. The supervisor's captured stdout lives with the
+        # independent client ledger, outside that volume.
+        log = self.output / f"supervisor-{self.generation - 1}.log"
+        matches = re.findall(rf"\[node/slimfaas-{node}\] started pid=(\d+)",
+                             log.read_text(encoding="utf-8", errors="replace"))
         if not matches:
             raise AssertionError(f"Owned node PID missing: {log}")
         return int(matches[-1])
@@ -622,6 +639,85 @@ class Campaign:
                 raise AssertionError(f"Deleted schedule read on {port}: HTTP {status}, body={body!r}")
         self.results.append({"phase": self.phase, "schedule_id": schedule_id, "job_arg": identifier, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
+
+    def stream_contracts(self):
+        self.phase = "stream-fanout-retention"
+        stream = "/data/streams/chaos-bounded"
+        functions = ("chaos-fanout-a", "chaos-fanout-b")
+        for function in functions:
+            wait_until("independent Stream subscription " + function,
+                lambda function=function: request(self.entry, f"{stream}/functions/{function}")[0] == 200,
+                self.options.recovery_timeout)
+        def publish(delay=0):
+            identifier = uuid.uuid4().hex
+            receipt, _ = self.require_mutation("fanout", f"/publish-stream/chaos-bounded/consume?delay={delay}",
+                payload(65536, identifier), identifier=identifier, expected_status=202)
+            return identifier, json.loads(receipt)["MessageId"]
+        def completed(identifiers):
+            rows = read_receipts(self.receipts)
+            return all(any(row.get("function") == function and row.get("id") == identifier and
+                           self.receipt_succeeded(row) for row in rows)
+                       for identifier in identifiers for function in functions)
+        def acknowledged():
+            return all(json.loads(request(self.entry, f"{stream}/functions/{function}")[2])["Lag"] == 0
+                       for function in functions)
+        with ThreadPoolExecutor(max_workers=self.options.concurrency) as pool:
+            initial = list(pool.map(lambda _: publish(), range(3)))
+        wait_until("both independent functions processed every publication",
+                   lambda: completed([identifier for identifier, _ in initial]), self.options.recovery_timeout)
+        wait_until("both independent contiguous ACK positions", acknowledged, self.options.recovery_timeout)
+        history = self.stream_history(stream)
+        if history != sorted(message for _, message in initial):
+            raise AssertionError(f"Retained append order changed across pages: {history}")
+        for _ in range(3):
+            identifier, _ = publish()
+            wait_until("both consumers process before further retention pressure",
+                       lambda identifier=identifier: completed([identifier]), self.options.recovery_timeout)
+            wait_until("both consumers ACK before further retention pressure", acknowledged, self.options.recovery_timeout)
+        self.expired_stream_cursor(stream, history[0])
+        delayed, message = publish(20)
+        wait_until("retention expires an in-flight publication", lambda:
+            request(self.entry, stream + f"/messages/{message}/body")[0] == 410, self.options.recovery_timeout)
+        gaps = self.stream_retention_gaps(stream, functions)
+        wait_until("both late real handlers finish", lambda: completed([delayed]), self.options.recovery_timeout)
+        self.stop()
+        self.start()
+        identifier, _ = publish()
+        wait_until("both functions resume after full persistent restart",
+                   lambda: completed([identifier]), self.options.recovery_timeout)
+        self.results.append({"phase": self.phase, "passed": True, "initial_append_order": history,
+                             "retention_gap_summaries": gaps, "functions": functions})
+        print(json.dumps(self.results[-1]), flush=True)
+
+    def stream_history(self, stream):
+        history = []
+        after = ""
+        while True:
+            status, _, body = request(self.entry, stream + "?limit=1" + ("&after=" + after if after else ""))
+            if status != 200:
+                raise AssertionError(f"Stream history page: HTTP {status}, {body!r}")
+            page = json.loads(body)
+            history.extend(row["Id"] for row in page["Items"])
+            after = page["NextCursor"]
+            if not after:
+                break
+        return history
+
+    def expired_stream_cursor(self, stream, cursor):
+        for port in self.ports:
+            status, _, body = request(port, stream + "?after=" + cursor)
+            if status != 410 or "EarliestMessageId" not in json.loads(body):
+                raise AssertionError(f"Expired history cursor must report boundary: HTTP {status}, {body!r}")
+
+    def stream_retention_gaps(self, stream, functions):
+        gaps = {}
+        for function in functions:
+            status, _, body = request(self.entry, f"{stream}/functions/{function}")
+            summary = json.loads(body)
+            if status != 200 or summary["RetentionGapCount"] < 1:
+                raise AssertionError(f"Expired unacknowledged Stream message was not counted: {body!r}")
+            gaps[function] = summary
+        return gaps
 
     def wake_and_cancel(self):
         self.phase = "wake-and-cancel"
@@ -911,6 +1007,9 @@ class Campaign:
     def websocket(self):
         asyncio.run(WebSocketCampaign(self).run())
 
+    def websocket_timeout(self):
+        asyncio.run(WebSocketCampaign(self).owner_timeout())
+
     def startup_jobs(self):
         self.phase = "startup-job-configuration"
         identifier = uuid.uuid4().hex
@@ -1195,6 +1294,44 @@ class WebSocketCampaign:
         for identifier in identifiers:
             await asyncio.to_thread(self.campaign.observe, identifier)
 
+    async def owner_timeout(self):
+        campaign = self.campaign
+        campaign.phase = "websocket-owner-timeout"
+        # Override only the delivery timeout. Retry statuses remain the actual
+        # server defaults; this is the regression under test.
+        self.config.configuration = json.dumps({"DefaultAsync": {"HttpTimeout": 8}})
+        client, running = await self.connect(0)
+        pid = campaign.node_pid(0)
+        identifier = uuid.uuid4().hex
+        paused = False
+        try:
+            suspend(pid, True)
+            paused = True
+            campaign.suspended.add(pid)
+            campaign.client.append({"event": "owner-suspended", "node": 0, "pid": pid})
+            await asyncio.to_thread(wait_until, "leader available outside suspended owner",
+                lambda: campaign.leader(excluded=(0,)) is not None, campaign.options.recovery_timeout)
+            await asyncio.to_thread(campaign.require_mutation, "async", f"/async-function/{self.function}/consume",
+                payload(2097152, identifier), identifier=identifier, port=campaign.ports[1], expected_status=202)
+            started = time.monotonic()
+            await asyncio.sleep(20)
+            suspend(pid, False)
+            paused = False
+            campaign.suspended.remove(pid)
+            campaign.client.append({"event": "owner-resumed", "node": 0, "pid": pid,
+                                    "seconds_after_acceptance": time.monotonic() - started})
+            await asyncio.to_thread(campaign.ready)
+            await asyncio.to_thread(campaign.observe, identifier)
+            campaign.results.append({"phase": campaign.phase, "passed": True,
+                "delivery_timeout_seconds": 8, "owner_absence_after_acceptance_seconds": 20,
+                "id": identifier, "default_retry_statuses": True})
+            print(json.dumps(campaign.results[-1]), flush=True)
+        finally:
+            if paused:
+                suspend(pid, False)
+                campaign.suspended.discard(pid)
+            await self.disconnect(client, running)
+
     async def run(self):
         campaign = self.campaign
         client, running = await self.connect(0)
@@ -1230,6 +1367,7 @@ def parse_arguments(argv=None):
     parser.add_argument("--resume", action="store_true", help="Resume a retained run after rechecking its confirmed ledger; keep the original port base")
     parser.add_argument("--port-base", type=int, default=35120)
     parser.add_argument("--node-log-level", choices=["Warning", "Information", "Debug"], default="Warning")
+    parser.add_argument("--delivery-diagnostics", action="store_true", help="Debug delivery results without enabling verbose Raft/HTTP logs")
     parser.add_argument("--payload-sizes", type=lambda value: [int(x) for x in value.split(",")], default=SIZES)
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--request-timeout", type=float, default=15)
@@ -1251,7 +1389,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "schedules", "websocket", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1285,7 +1423,9 @@ def main():
              "files": campaign.file_boundaries, "retries": campaign.retries_dlq_jobs,
              "wake": campaign.wake_and_cancel,
              "schedules": campaign.schedules,
+             "streams": campaign.stream_contracts,
              "websocket": campaign.websocket,
+             "websocket-timeout": campaign.websocket_timeout,
              "startup-jobs": campaign.startup_jobs,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
              "diskfull": campaign.disk_full, "restarts": campaign.restarts}[scenario]()

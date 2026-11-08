@@ -24,6 +24,18 @@ FIXTURE = load("chaos_function", ROOT / "tests/SlimFaas.Tests/Local/chaos_functi
 
 
 class CampaignSafetyTests(unittest.TestCase):
+    def test_fault_pid_uses_supervisor_output_after_optional_node_log_loses_a_restart(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.generation = 1
+            logs = campaign.state_root / "logs"
+            logs.mkdir(parents=True)
+            (logs / "slimfaas-0.log").write_text("[node/slimfaas-0] started pid=111\n")
+            (campaign.output / "supervisor-0.log").write_text(
+                "[node/slimfaas-0] started pid=111\n[node/slimfaas-1] started pid=222\n"
+                "[node/slimfaas-0] started pid=333\n")
+            self.assertEqual(333, campaign.node_pid(0))
+
     def test_minority_write_success_is_allowed_only_after_quorum_restoration(self):
         with self.assertRaisesRegex(AssertionError, "without quorum"):
             HARNESS.assert_minority_result((200, {}, b"", "id"), 9.999, 10)
