@@ -157,13 +157,13 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
         {
             await Task.WhenAll(
                 functions.StartAsync(cancellationToken),
-                jobs.StartAsync(cancellationToken),
                 processes.StartAsync(cancellationToken),
                 nodeManager.StartAsync(cancellationToken));
 #pragma warning disable CA2000 // disposed in the finally block below
             gateway = new LocalTcpGateway(loaded.Manifest.Cluster.EntrypointPort, nodeManager);
 #pragma warning restore CA2000
             gateway.Start();
+            await jobs.StartAsync(cancellationToken);
 
             Console.WriteLine(
                 $"SlimFaas local '{loaded.Manifest.Name}' is running with {loaded.Manifest.Cluster.Nodes} node(s).");
@@ -174,7 +174,8 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
 
             try
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                Task stopped = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                await await Task.WhenAny(stopped, jobs.Completion);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

@@ -126,6 +126,18 @@ def main():
     options = parser.parse_args()
     journal = Journal(options.journal_directory)
     if options.job:
+        expected_id = os.environ.get("CHAOS_JOB_EXPECTED_ID")
+        if expected_id is not None and options.args != [expected_id]:
+            raise ValueError("Job environment or arguments were not preserved")
+        gate = os.environ.get("CHAOS_JOB_GATE") or next(
+            (arg.removeprefix("gate=") for arg in options.args if arg.startswith("gate=")), None)
+        if gate:
+            journal.append({"event": "job-started", "args": options.args})
+            deadline = time.monotonic() + 180
+            while not Path(gate).exists():
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("The job recovery gate was not released")
+                time.sleep(.05)
         journal.append({"event": "job", "args": options.args})
         return
     repair = options.repair or options.journal_directory / "repair"

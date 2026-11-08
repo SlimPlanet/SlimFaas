@@ -336,6 +336,37 @@ The dependency update also resolves four System.* packages from 10.0.13 to
 vulnerability audit found no reported vulnerability in SlimData's resolved graph.
 All earlier benchmark and endurance outcomes remain tied to their original hashes.
 
+## Additional Local job defects found during snapshot verification
+
+The snapshot repair made all three original failed nodes usable in 13.297 seconds,
+and confirmed Sets, HashSets, Files, Streams and counters passed verification on
+each node. Delivery reconciliation still failed: two previously accepted jobs had
+no independent execution receipt. Both processes were launched immediately before
+the original supervisor stopped. This retained campaign is **not a passing run**.
+
+A new controlled `job-recovery` scenario reproduced a separate Local durability
+gap on the Native `df03f8b1` runtime: hold a real job before its receipt, observe
+`Running` with no queued copy on all three APIs, restart the entire supervisor
+without cleaning storage, then release the job. The acknowledged job disappeared
+and the receipt deadline expired. Local's process/job dictionaries were volatile,
+while the distributed queue had already acknowledged the creation.
+
+Local now flushes a job plan before returning creation success, records execution
+transitions and deletions atomically, and reloads unfinished and terminal runs.
+Interrupted attempts can replay with the same identity under at-least-once delivery.
+Unwritable or malformed storage is explicit, and a failed journal transition stops
+the supervisor rather than silently losing its monitor. Real after-fix verification
+and final test totals are pending.
+
+The initial gated test also exposed an independent Native AOT job defect: an
+accepted job containing an environment list stayed queued because the trimmed
+binary could not resolve the generated `EnvVarInput` MemoryPack formatter. Its
+worker logged repeated decoding failures. The runtime now explicitly registers
+the generated job collection element formatters without reflection or a wire-format
+change. The `job-environments` scenario checks the literal value in a real process
+and decodes the supported reference shapes; Local continues to leave Kubernetes
+references unresolved. Native before/after validation is retained separately.
+
 ## Performance evidence
 
 The existing Local benchmark and MemoryLab drivers are reused. The final paired

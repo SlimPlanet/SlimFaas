@@ -12,6 +12,8 @@ public sealed class LocalJobManager : IAsyncDisposable
     private readonly LoadedLocalManifest _loaded;
     private readonly LocalStateStore _state;
     private readonly string _token;
+    private readonly LocalJobStore _store;
+    private readonly object _creationGate = new();
     private readonly ConcurrentDictionary<string, JobRuntime> _jobs = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _knownJobNames = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _stopping = new();
@@ -25,13 +27,40 @@ public sealed class LocalJobManager : IAsyncDisposable
         _loaded = loaded;
         _state = state;
         _token = token;
+        _store = new LocalJobStore(state.DirectoryPath);
         Configuration = BuildConfiguration(loaded.Manifest.Jobs);
     }
 
     public SlimFaasJobConfiguration Configuration { get; }
+    public Task Completion => _monitorTask ?? Task.CompletedTask;
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_creationGate)
+        {
+            foreach (LocalJobState saved in _store.ReadAll())
+            {
+                if (!_loaded.Manifest.Jobs.TryGetValue(saved.Command.Name, out LocalJobManifest? manifest))
+                {
+                    if (saved.Status is not (JobStatus.Succeeded or JobStatus.Failed))
+                        throw new LocalManifestException($"Persisted job configuration '{saved.Command.Name}' no longer exists.");
+                    manifest = new LocalJobManifest();
+                }
+                var runtime = new JobRuntime(saved.Command, manifest)
+                {
+                    Status = saved.Status == JobStatus.Running ? JobStatus.Pending : saved.Status,
+                    Attempts = saved.Attempts,
+                    StartTimestamp = saved.StartTimestamp,
+                    NextStart = saved.NextStart,
+                    FinishedAt = saved.FinishedAt,
+                    Completed = saved.Status is JobStatus.Succeeded or JobStatus.Failed,
+                    Deleted = saved.Deleted
+                };
+                _jobs.TryAdd(saved.Command.JobFullName, runtime);
+                _knownJobNames.TryAdd(saved.Command.JobFullName, 0);
+            }
+        }
         _monitorTask = MonitorLoopAsync(_stopping.Token);
         return Task.CompletedTask;
     }
@@ -41,14 +70,18 @@ public sealed class LocalJobManager : IAsyncDisposable
         if (!_loaded.Manifest.Jobs.TryGetValue(command.Name, out LocalJobManifest? manifest))
             throw new LocalManifestException($"Job configuration '{command.Name}' does not exist.");
 
-        // jobFullName is generated once in the distributed queue. TryAdd makes a
-        // leader hand-off safe: a second node cannot start the same process.
-        var runtime = new JobRuntime(command, manifest);
-        if (!_knownJobNames.TryAdd(command.JobFullName, 0) ||
-            !_jobs.TryAdd(command.JobFullName, runtime))
-            return Task.CompletedTask;
-
-        Start(runtime);
+        cancellationToken.ThrowIfCancellationRequested();
+        // Persist the plan before the distributed queue can acknowledge it.
+        // Serialize duplicate creates until their first durable publication.
+        lock (_creationGate)
+        {
+            if (_knownJobNames.ContainsKey(command.JobFullName))
+                return Task.CompletedTask;
+            var runtime = new JobRuntime(command, manifest);
+            _store.Save(runtime.ToState());
+            _jobs.TryAdd(command.JobFullName, runtime);
+            _knownJobNames.TryAdd(command.JobFullName, 0);
+        }
         return Task.CompletedTask;
     }
 
@@ -59,10 +92,9 @@ public sealed class LocalJobManager : IAsyncDisposable
             {
                 lock (runtime.Gate)
                 {
-                    List<string> dependsOn = runtime.Command.CreateJob.DependsOn ??
-                                             Configuration.Configurations[runtime.Command.Name].DependsOn ??
-                                             [];
-                    return new Job(
+                    Configuration.Configurations.TryGetValue(runtime.Command.Name, out SlimfaasJob? configuration);
+                    List<string> dependsOn = runtime.Command.CreateJob.DependsOn ?? configuration?.DependsOn ?? [];
+                    return runtime.Deleted ? null : new Job(
                         Name: runtime.Command.JobFullName,
                         Status: runtime.Status,
                         Ips: [],
@@ -72,13 +104,27 @@ public sealed class LocalJobManager : IAsyncDisposable
                         StartTimestamp: runtime.StartTimestamp);
                 }
             })
+            .OfType<Job>()
             .ToList();
 
     public async Task DeleteAsync(string fullName, CancellationToken cancellationToken)
     {
-        if (!_jobs.TryRemove(fullName, out JobRuntime? runtime))
+        if (!_jobs.TryGetValue(fullName, out JobRuntime? runtime))
             return;
 
+        lock (runtime.Gate)
+        {
+            runtime.Deleted = true;
+            runtime.Completed = true;
+            runtime.Status = JobStatus.Failed;
+            runtime.FinishedAt = DateTimeOffset.UtcNow;
+            _store.Save(runtime.ToState());
+        }
+        await StopRuntimeAsync(runtime, cancellationToken);
+    }
+
+    private static async Task StopRuntimeAsync(JobRuntime runtime, CancellationToken cancellationToken)
+    {
         ManagedLocalProcess? process;
         LocalWorkloadGateway? gateway;
         lock (runtime.Gate)
@@ -139,6 +185,10 @@ public sealed class LocalJobManager : IAsyncDisposable
             environment["SLIMFAAS_JOB_NAME"] = runtime.Command.Name;
             environment["SLIMFAAS_JOB_RUN_NAME"] = runtime.Command.JobFullName;
 
+            runtime.Status = JobStatus.Running;
+            runtime.StartTimestamp = DateTime.UtcNow.Ticks;
+            runtime.StartedAt = DateTimeOffset.UtcNow;
+            _store.Save(runtime.ToState());
             try
             {
                 runtime.Process = ManagedLocalProcess.Start(
@@ -147,15 +197,13 @@ public sealed class LocalJobManager : IAsyncDisposable
                     environment,
                     $"job/{runtime.Command.Name}/{runtime.Command.ElementId}",
                     Path.Combine(_state.LogsDirectory, $"{runtime.Command.JobFullName}.log"));
-                runtime.Status = JobStatus.Running;
-                runtime.StartTimestamp = DateTime.UtcNow.Ticks;
-                runtime.StartedAt = DateTimeOffset.UtcNow;
             }
             catch (Exception exception)
             {
                 Console.Error.WriteLine(
                     $"[job/{runtime.Command.Name}/{runtime.Command.ElementId}] start failed: {exception.Message}");
                 CompleteAttempt(runtime, exitCode: -1);
+                _store.Save(runtime.ToState());
             }
         }
     }
@@ -181,6 +229,7 @@ public sealed class LocalJobManager : IAsyncDisposable
                             runtime.Process = null;
                             completedProcess = process;
                             CompleteAttempt(runtime, exitCode);
+                            _store.Save(runtime.ToState());
                         }
 
                         if (!runtime.Completed && runtime.Process is null &&
@@ -208,6 +257,7 @@ public sealed class LocalJobManager : IAsyncDisposable
                     {
                         lock (removed.Gate)
                         {
+                            _store.Delete(removed.Command.JobFullName);
                             gatewayToDispose = removed.Gateway;
                             removed.Gateway = null;
                         }
@@ -322,8 +372,8 @@ public sealed class LocalJobManager : IAsyncDisposable
         if (_monitorTask is not null)
             await _monitorTask;
 
-        foreach (string name in _jobs.Keys.ToArray())
-            await DeleteAsync(name, CancellationToken.None);
+        foreach (JobRuntime runtime in _jobs.Values)
+            await StopRuntimeAsync(runtime, CancellationToken.None);
 
         _stopping.Dispose();
     }
@@ -342,5 +392,8 @@ public sealed class LocalJobManager : IAsyncDisposable
         public DateTimeOffset NextStart { get; set; }
         public DateTimeOffset? FinishedAt { get; set; }
         public bool Completed { get; set; }
+        public bool Deleted { get; set; }
+
+        public LocalJobState ToState() => new(1, Command, Status, Attempts, StartTimestamp, NextStart, FinishedAt, Deleted);
     }
 }

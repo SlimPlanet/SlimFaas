@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
+using MemoryPack;
 using Prometheus;
 using SlimData;
 using SlimData.Commands;
@@ -42,6 +43,17 @@ if (localCommandExitCode.HasValue)
     Environment.ExitCode = localCommandExitCode.Value;
     return;
 }
+
+// Collection element formatters may first be used while decoding another
+// node's persisted jobs. Root the generated implementations for Native AOT.
+MemoryPackFormatterProvider.Register<EnvVarInput>();
+MemoryPackFormatterProvider.Register<SecretRef>();
+MemoryPackFormatterProvider.Register<ConfigMapRef>();
+MemoryPackFormatterProvider.Register<FieldRef>();
+MemoryPackFormatterProvider.Register<ResourceFieldRef>();
+MemoryPackFormatterProvider.Register<CreateJobResources>();
+MemoryPackFormatterProvider.Register<ScheduleCreateJob>();
+MemoryPackFormatterProvider.Register<SlimfaasJob>();
 
 // Load configuration early
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");

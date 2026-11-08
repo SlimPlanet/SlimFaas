@@ -417,6 +417,20 @@ processes:
 
 ## Jobs
 
+Persistent Local mode journals each job plan under `jobs/` in its state directory
+before acknowledging creation to the distributed queue. After a supervisor restart,
+unfinished jobs resume with their original run name and arguments. An interrupted
+attempt can execute again: job side effects must tolerate at-least-once delivery.
+Completed, failed and explicitly deleted runs remain recorded until their configured
+TTL expires. Process exit failures retain the configured finite backoff policy.
+
+Keep the state directory and the manifest configuration for unfinished jobs. An
+unreadable job record or missing configuration for an unfinished run stops startup
+with an error; Local never deletes that evidence to obtain an empty successful start.
+Job journal I/O failures stop supervision if they prevent a state transition from
+being recorded. These guarantees cover process crashes and restarts with retained
+storage; they do not certify device or host power-loss behavior.
+
 Each node loads the supervisor's job configuration before opening its HTTP
 listener, including after a crash. The periodic refresh interval therefore does
 not create a window in which a declared job is queued under `Default`. Native

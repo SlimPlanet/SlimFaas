@@ -63,7 +63,7 @@ jobs:
       - name: Bootstrap job configuration before admitting requests after node restarts
         run: >-
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/startup-jobs
-          --scenarios startup-jobs,schedules,streams,restarts --recovery-timeout 300
+          --scenarios startup-jobs,job-environments,job-recovery,schedules,streams,restarts --recovery-timeout 300
       - name: Keep a healthy majority writable after a burst with a silent follower
         run: >-
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/lease-burst
@@ -165,7 +165,7 @@ jobs:
           python .bin/test-slimdata-local-chaos.py
           --runtime artifacts/local-chaos/native/SlimFaas.exe
           --output artifacts/local-chaos/endurance-windows-native
-          --scenarios payloads,api,files,retries,chaos,restarts
+          --scenarios job-environments,job-recovery,payloads,api,files,retries,chaos,restarts
           --roles ${{ matrix.role }}
           --durations 30,60,300,900,1800,3600
           --recovery-timeout 300 --traffic-interval 2

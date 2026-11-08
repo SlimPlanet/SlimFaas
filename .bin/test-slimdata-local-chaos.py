@@ -1014,6 +1014,54 @@ class Campaign:
     def websocket_timeout(self):
         asyncio.run(WebSocketCampaign(self).owner_timeout())
 
+    def job_environments(self):
+        self.phase = "job-environments"
+        identifier = uuid.uuid4().hex
+        environments = [{"Name": "CHAOS_JOB_EXPECTED_ID", "Value": identifier},
+            {"Name": "UNRESOLVED_SECRET", "Value": "", "SecretRef": {"Name": "secret", "Key": "key"}},
+            {"Name": "UNRESOLVED_CONFIG", "Value": "", "ConfigMapRef": {"Name": "config", "Key": "key"}},
+            {"Name": "UNRESOLVED_FIELD", "Value": "", "FieldRef": {"FieldPath": "metadata.name"}},
+            {"Name": "UNRESOLVED_RESOURCE", "Value": "", "ResourceFieldRef": {
+                "ContainerName": "main", "Resource": "limits.cpu", "Divisor": "1"}}]
+        self.require_mutation("job", "/job/chaos-job", json.dumps({
+            "Args": [identifier], "Environments": environments}).encode(), identifier=identifier,
+            headers={"Content-Type": "application/json"}, expected_status=202)
+        self.reconcile()
+        self.results.append({"phase": self.phase, "id": identifier, "passed": True})
+        print(json.dumps(self.results[-1]), flush=True)
+
+    def job_recovery(self):
+        self.phase = "job-supervisor-recovery"
+        identifier = uuid.uuid4().hex
+        gate = self.output / f"job-gate-{identifier}"
+        body, _ = self.require_mutation("job", "/job/chaos-job", json.dumps({
+            "Args": [identifier, "gate=" + str(gate)]
+        }).encode(), identifier=identifier, headers={"Content-Type": "application/json"}, expected_status=202)
+        queue_id = json.loads(body)["Id"]
+        wait_until("job process entered the independent gate", lambda:
+            any(row.get("event") == "job-started" and identifier in row["args"]
+                for row in read_receipts(self.receipts)), self.options.recovery_timeout)
+
+        def acknowledged():
+            for port in self.ports:
+                status, _, response = request(port, "/job/chaos-job")
+                if status != 200:
+                    return False
+                jobs = [row for row in json.loads(response) if row["Id"] == queue_id]
+                if len(jobs) != 1 or jobs[0]["Status"] != "Running":
+                    return False
+            return True
+
+        wait_until("running job no longer appears in the Raft queue", acknowledged, self.options.recovery_timeout)
+        self.client.append({"event": "job-acknowledged-before-supervisor-stop", "id": identifier,
+                            "queue_id": queue_id})
+        self.stop()
+        self.start()
+        gate.write_bytes(b"release")
+        self.reconcile()
+        self.results.append({"phase": self.phase, "id": identifier, "queue_id": queue_id, "passed": True})
+        print(json.dumps(self.results[-1]), flush=True)
+
     def lease_burst(self):
         """Keep a majority writable when a silent follower follows a write burst."""
         self.phase = "leader-lease-burst"
@@ -1439,7 +1487,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "job-environments", "job-recovery", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1483,6 +1531,8 @@ def main():
              "websocket": campaign.websocket,
              "websocket-timeout": campaign.websocket_timeout,
              "lease-burst": campaign.lease_burst,
+             "job-recovery": campaign.job_recovery,
+             "job-environments": campaign.job_environments,
              "startup-jobs": campaign.startup_jobs,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
              "diskfull": campaign.disk_full, "restarts": campaign.restarts}[scenario]()
