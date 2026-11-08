@@ -6,7 +6,6 @@ import ctypes
 import os
 import socket
 import subprocess
-import sys
 from ctypes import wintypes
 
 

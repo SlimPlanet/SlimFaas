@@ -1,0 +1,276 @@
+# SlimData reliability results — 8 November 2026
+
+**Verdict: not ready to certify SlimFaas 1.0 LTS.** Ten defects have fixes and
+regressions, and real three-node Local campaigns demonstrate substantial recovery
+coverage. Windows recovery/large-publication failures and incomplete fault coverage
+still block certification. A passing campaign on one revision or OS does not
+override a failed campaign on another.
+
+Tracking: [issue #505](https://github.com/SlimPlanet/SlimFaas/issues/505),
+[draft PR #506](https://github.com/SlimPlanet/SlimFaas/pull/506).
+See the [campaign guide](slimdata-reliability.md) for executable commands,
+accounting rules, Linux fault isolation and CI entry points.
+
+## Versions and evidence
+
+The baseline is `496e8739e5f7b4326f64520fe4caa4e0e23f8d06` (v0.88.0).
+The final Windows Native binary includes fixes 1–10 and was built from
+`7920d9f99d36ef0c68a0b497d4ee4c3526d2a979`:
+
+| Native runtime | SHA-256 |
+|---|---|
+| Baseline | `4b26047060c649f2760c2ae11aeb7361d35109e3206a706f6f8e5ff48932b66c` |
+| Fixes 1–8 | `80700d9d0b357d33ecce4d604fd056470e875ab779c8a117dfd5c5748947f122` |
+| Fixes 1–9 | `9be0f2927989de381f2bbc42e463db59ef449d672c825690063016962235a0d4` |
+| Fixes 1–10 | `15d7f7cf7dfa59ec3b5ca31a8541b1cd50407e666e3e65edaa0ac616917427e2` |
+
+Historical `parameters.json` files record the checkout at execution time. For a
+preserved executable, its recorded runtime hash identifies its implementation;
+the checkout may already contain later changes. Original pre-resume reports,
+manifests, client/function journals, logs, WALs and snapshots remain retained.
+Resumption never deletes or rewrites the original volumes to force success.
+
+Compact evidence is versioned under [reliability/2026-11-08](reliability/2026-11-08/).
+The local raw evidence root is `artifacts/slimdata-lts/` (ignored by Git).
+CI artifact links below include raw state and expire according to the workflow's
+14-day quick / 30-day endurance retention. Downloaded original archives and their
+hashes are retained locally. This report is a dated record, not a promise that
+expiring hosted artifacts remain available indefinitely.
+
+## Async: 2 MB and 2 MiB
+
+The tested sizes are exactly 65,536; 262,144; 1,048,576; **2,000,000 (2 MB)**;
+**2,097,152 (2 MiB)**; and 4,194,304 bytes. HTTP tests use Content-Length and
+chunked transfer at concurrency four, with function-side SHA-256 and length.
+The original HTTP baseline passed these sizes. A later Native HTTP campaign also
+passed 8,388,608 and 16,777,216 bytes with both encodings. A separate explicit
+1 MiB configured limit rejects overflow with HTTP 413. No HTTP size limit was
+blindly raised.
+
+The confirmed SDK defect occurs **after HTTP acceptance**. A real 2 MiB message
+became a 2,997,916-byte JSON/base64 WebSocket envelope, exceeding the Python
+WebSocket library's 1,048,576-byte default receive cap. The connection closed
+with code 1009 before the callback ran. The Python client now defaults to a
+positive, configurable 32 MiB encoded-envelope limit and a four-frame receive
+queue. JSON escaping also contributes to the encoded size; the payload limit
+must not be confused with the envelope limit. Real-connection SDK regressions
+cover 2 MB, 2 MiB, 4 MiB, heavily escaped data and explicit undersized limits.
+
+A second defect could discard an accepted message when its WebSocket owner was
+unavailable beyond the delivery timeout. Lease expiry produces status 504, which
+was absent from the default retry policy. The Native before case accepts a 2 MiB
+message and never observes its callback; managed and Native after cases observe
+the checksum after owner recovery. The test changes only the delivery timeout
+to eight seconds, suspends the owner for twenty seconds after acceptance and
+retains the runtime's default retry statuses. Explicit custom policies remain
+authoritative. Already persisted policies are not migrated; already discarded
+work cannot be reconstructed by upgrading.
+
+These diagnoses do not explain every large-body failure. The fresh Windows
+Native SDK run described below still fails concurrent large Stream publication.
+
+## Confirmed defects and regressions
+
+| # | Defect and change | Before/after evidence |
+|---|---|---|
+| 1 | Queue attempt metadata counted reservation attempts incorrectly; preserve total tries, expose zero-based retry number and correct final-attempt flag | Three-case regression; real 2 MiB attempts 0/1/2, final flag only on 2 |
+| 2 | Peer file pull rejected zero Content-Length | Empty-file regression fails before; empty and nonempty cases pass after; real cross-node file checks |
+| 3 | Default job lease policy omitted 504 and could discard work between pop and launch | Real accepted Native job disappeared after crash; actual policy/interpreter regression fails before and retains it after |
+| 4 | Optional local process-log IOException could terminate supervision | Write/dispose regressions, warning-once handling and later output recovery; console closed-pipe handling |
+| 5 | Python SDK receive cap rejected the encoded 2 MiB envelope | Real pre-fix close 1009; actual SDK connections and callbacks after fix |
+| 6 | MemoryPack root formatter lookup failed during replay and unexpected failures could be classified as skipped commands | CI command 20/index 358/term 5; four valid decoder cases fail against preserved pre-fix DLL; generated readers plus two producer-cache regressions pass |
+| 7 | Native requests could arrive before job definitions were loaded, routing accepted work to an undefined Default executable | Real startup refresh delayed five minutes; declared job executes immediately after fix, missing configuration is rejected before mutation |
+| 8 | Internal HashSet reads lacked a leader commit barrier | Native DELETE 204 followed by stale cron schedule on another node; deterministic read-blocking regression fails before and passes after; real retained-volume scenario passes |
+| 9 | Default Async lease policy omitted 504 | Real 2 MiB owner-timeout before failure; managed and Native after success; actual policy/interpreter regression |
+| 10 | Terminal DotNext WAL failure left a live but unrecoverable runtime | Linux ENOSPC CI retained the poisoned-WAL trace; diagnostics now logs critically and rethrows so the host stops and Local can restart it; terminal/transient worker regressions pass; later CI observed this stop and recovered its first disk-full cycle in 4.908 s, but failed a later file read during restarts |
+
+The suspected formatter publication window is an inference from the CI trace and
+matching deterministic regressions, not an upstream formal proof. Generated
+static readers retain the existing persisted wire format. Unexpected failures
+are propagated rather than silently counted as incompatible payloads.
+
+Fix 10 applies to the SlimFaas diagnostics worker and normal outer-host stop
+behavior. It is not a demonstrated standalone SlimData host recovery guarantee.
+Transient quorum and ordinary I/O failures do not deliberately stop that worker.
+
+## Executed absence matrix
+
+All successful entries below use real Local processes, real functions/API traffic
+and original volumes. Suspension is a process/communication outage, not a claim
+of packet-only partition coverage. Dedicated Linux packet-drop coverage is
+reported separately.
+
+| Requested absence | Follower | Leader | Quorum |
+|---|---|---|---|
+| 1 second | Passed, Windows Native fixes 1–8 | Passed, same campaign | Passed, same campaign |
+| 5 seconds | Passed, Windows Native fixes 1–8 | Passed, same campaign | Passed, same campaign |
+| 10 seconds | Passed, Windows Native fixes 1–8 | Passed, same campaign | Passed, same campaign |
+| 30 seconds | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` |
+| 60 seconds | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` |
+| 300 seconds | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` |
+| 900 seconds | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` |
+| 1,800 seconds | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` |
+| 3,600 seconds | Passed, Linux `5db8e568`; separate Windows state failed | Passed, Linux `5db8e568` | Passed, Linux `5db8e568` |
+
+The [Linux endurance run](https://github.com/SlimPlanet/SlimFaas/actions/runs/42489059631)
+has three successful endurance jobs and an independent failed Windows quick job;
+the workflow as a whole is failed. Its revision includes generated replay readers
+but predates the subsequent job-bootstrap, HashSet barrier, default Async 504 and
+terminal-WAL-stop changes. Do not present this matrix as a final-revision rerun.
+
+| Linux role | Final confirmed / unknown | Full recovery after 3,600 seconds | New leader observed |
+|---|---:|---:|---:|
+| Follower | 9,240 / 654 | 16.061 s | Not applicable |
+| Leader | 11,404 / 266 | 12.632 s | 4.835 s |
+| Quorum | 120 / 26,426 | 20.009 s | Not measured as a separate milestone |
+
+Each job then passed successive crashes and full persistent restart, with final
+business reconciliation. Unknown HTTP outcomes are individually classified;
+they are not counted as confirmed loss or as proven rejection.
+
+Additional retained Windows runs passed a leader-hour absence (67.640-second
+recovery; final 7,790 confirmed / 2,603 unknown) and a seeded Native quorum-hour
+absence (85.812-second recovery; final 42 / 14,093). These used older revisions.
+An earlier quorum campaign had only two confirmed prefault probes and is not
+proof of the later eight-API seeded invariant.
+
+The original Windows follower campaign passed 1,800 seconds, then failed its
+bounded return after 3,600 seconds. A later restart of that same state using the
+newer runtime also failed the 300-second all-node readiness budget. No final
+reconciliation was completed: an empty `missing` array in a failed report is not
+evidence that no confirmed work was lost.
+
+## API and fault coverage
+
+| Area | Executed successful evidence | Remaining coverage or failures |
+|---|---|---|
+| Sync | Real checksum/status, mixed concurrency, wake 0→1→0, timeout with later execution, leader/follower/quorum faults | Exhaustive cancellation and deterministic crash exactly within a selected request |
+| Async | Six sizes × two encodings × concurrency four; Native 8/16 MiB; retries, DLQ repair/requeue, SDK callbacks, owner timeout, crash/restart | Latest Windows CI also timed out during payload publication; not every final-revision combination is green |
+| Streams | Two real independent HTTP consumers, concurrent append, paginated order, contiguous ACK, length/age retention, 410 boundary/gap counters, offline SDK retention/reconnect and restart | Windows Native concurrent 2 MiB failure; advanced manual reserve/ACK and long-absence retention combinations remain incomplete |
+| Files | Zero/one/4/16 MiB, all-node checksums, concurrent mixed traffic, interrupted upload, TTL/delete | Repeated ENOSPC post-ready read failed with 503; permanent originating-volume loss and deterministic mid-transfer crash are not proven |
+| Sets / HashSets | CRUD, TTL, deletion on all nodes, concurrent INCR/DECR, INCRBY/DECRBY/INCRBYFLOAT, explicit limit, mixed-fault convergence | Not an exhaustive linearizability history/model check |
+| Jobs / DLQ | Actual concurrent job processes/arguments, retry expiry policy, DLQ body/repair/requeue, bootstrap and real cron across full restart/deletion | Cron scheduling during prolonged outages and every job crash window remain incomplete |
+| Packet faults | Linux isolated bidirectional Raft drops at 1/5/10/30/60 seconds; CI netem 25 ms and restart | Asymmetric partitions and additional latency/loss profiles not executed; WSL lacks netem support |
+| Disk full | Real marked 128 MiB ext4 exhaustion; an earlier campaign recovered in 22.767 s; latest repeated run passed one cycle in 99.140 s | Second latest cycle failed strict post-ready file verification with HTTP 503; third cycle/restarts never ran |
+| Persistence | Successive abrupt crashes, full original-volume restart, observed WAL/snapshot progress and replay-counter gates | Crashes were not synchronized to exact WAL-write/snapshot-install/compaction instruction windows; other targeted I/O faults not executed |
+
+CI [42501124569](https://github.com/SlimPlanet/SlimFaas/actions/runs/42501124569)
+observed the new terminal-WAL critical log and normal BackgroundService host stop,
+then passed its first disk-full recovery in 4.908 seconds. Its subsequent crash
+sequence timed out reading a newly confirmed 1,024-byte file. The separate repeated
+WSL campaign failed with a post-ready 503. Neither overall campaign is successful.
+Root causes of these later file/recovery failures are still unproven.
+
+CI [42502578270](https://github.com/SlimPlanet/SlimFaas/actions/runs/42502578270)
+passed Linux quick/SDK/network/disk/restart coverage, while Windows failed waiting
+300 seconds for an accepted **256 KiB Async** callback. Its other eleven size/
+encoding callbacks were observed. This is a missed delivery deadline, not proof
+that every absent callback was permanently discarded. It is independent evidence
+that fixing the original code-1009 size cap does not resolve all delivery failures.
+
+The Native quick campaign with fixes 1–8 passed **266 confirmed / 12 unknown**,
+including larger HTTP bodies and all short role absences. Its function journals
+contain 96 successful deliveries for 91 distinct IDs: five extra successes across
+two IDs, allowed by at-least-once delivery. Two-consumer fanout is counted by
+`(message ID, function)` so legitimate fanout is not mislabeled duplication.
+
+## Unresolved Windows large Stream publication
+
+On a fresh Windows Native run with fixes 1–9, all twelve SDK Async size/encoding
+cases passed. Four concurrent 2 MiB Stream appends then produced three accepted
+writes at 64.063, 109.281 and 113.297 seconds and one unknown at 120.016 seconds.
+The campaign failed with 18 confirmed / one unknown. Retained runs also failed
+after resuming with class-specific delivery diagnostics and global Warning.
+
+Logs contain repeated 2.5-second Raft RPC cancellations and follower lag. No
+terminal `System.Diagnostics.UnreachableException` or format-skip violation was
+observed in this case. Neither a serialization-size root cause nor an AOT-specific
+cause is established. Raising deadlines, changing Raft timeouts or moving Stream
+bytes outside their durability contract is not accepted as a fix. An older
+retained SDK run passed with a 120-second budget after an initial failed run;
+its maximum accepted Stream latency was 89.812 seconds, not a 30-second guarantee.
+
+## Performance evidence
+
+The existing Local benchmark and MemoryLab drivers are reused. The final paired
+Native comparison uses the preserved baseline and fixes-1–10 executables on the
+same Windows host, in ABBA order, with no concurrent builds or chaos campaigns.
+The matrix has six exact sizes, concurrency 1/4, two-second warmup and five-second
+measurement per latency case, plus the original 200-message scaling scenario.
+This is screening evidence, not statistical proof of non-regression or controlled
+production capacity. Two complete runs per binary were planned.
+
+The replacement candidate benchmark failed to drain the Async warmup queue within
+180 seconds at **1 MiB/concurrency four**, without an injected fault. No final
+report/scaling verdict exists for that attempt; its partial CSV, metrics and logs
+are retained. Completed results therefore provide two baseline runs and only one
+fully successful candidate run. The earlier post-driver Bash error is excluded
+separately. This failure also blocks a performance non-regression verdict.
+
+The initial comparison is excluded: surviving runtime/target descendants
+contaminated later cases. Its failed scaling phases and raw results are retained.
+The Windows launcher now assigns the process tree to an owned kill-on-close Job
+Object before resuming execution, and rejects occupied ports before startup or
+cleanup. Three real lifecycle regressions pass.
+
+Final measurements and limitations are recorded in the
+[performance report](reliability/2026-11-08/performance.md) and its versioned JSON.
+The corrected MemoryLab ABBA comparison passed all 16 measured loads and 16
+warmups, including all-node state validation and **2,585** actual Async deliveries
+reconciled by distinct element ID and 4 KiB checksum across warmups/measurements.
+Median throughput changes were **−12.8% / −0.4%** for Set at concurrency 12/48,
+and **−6.8% / +8.7%** for mixed operations. This does not establish non-regression.
+
+The existing normalized comparer also fails its guardrails against both complete
+baselines. At Sync 2 MiB/concurrency four, the proxy-to-direct throughput ratio
+changed by **−53.8% / −43.1%**. These observed regressions remain release gates;
+they are not dismissed as noise, and their cause is not established. Raw HTTP
+samples provide throughput and p50/p95/p99; one-second metric
+captures provide available CPU/RAM/allocation/GC and WAL/snapshot observations.
+Application byte rate and WAL growth are not wire replication bandwidth. Actual
+network replication byte throughput was not instrumented and must not be inferred
+as a measured value. Resource gauges update less frequently than some short
+phases; zero or absent samples cannot certify zero resource cost.
+
+## Validation and release gates
+
+- Full .NET suite after fix 10: **1,974 passed** (SlimData 295, SlimFaas 1,523,
+  MCP 106, Kafka 11, .NET client 39). The final style-only adjustment also passed
+  all nine selected recovery/read-barrier tests.
+- Python SDK: **37 passed**, including actual WebSocket frame-limit cases.
+- Harness safety/accounting: **13 passed**; Windows process ownership: **3 passed**.
+- Native AOT publication succeeded. Existing aggregate third-party trim/AOT
+  warnings from MemoryPack.Core/System.Configuration.ConfigurationManager remain
+  visible; this is not a zero-warning publish claim.
+- Final official Native release bundle passed the empty-PATH three-node smoke:
+  dashboard, four real functions, Sync, file and actual job.
+- No dependency or lockfile change. No new project-wide warning suppression.
+
+Earlier native builds, Sonar, FOSSA and DCO successes are revision-specific;
+current PR checks remain the authority for merge readiness. Quick Linux/Windows
+and manually dispatched three-role endurance workflows upload evidence even
+when the workload fails. The PR remains draft while release gates are open.
+
+The demonstrated guarantees are limited to the recorded successful histories:
+confirmed immutable values and delivered bodies matched their checksums, nodes
+converged after those faults, counters met their confirmed/unknown bounds,
+minority writes were not acknowledged without quorum, and configured delivery
+replays remained visible. A real earlier replay skip failed an independent
+consensus gate even when business checksums converged.
+
+File metadata commits through Raft; file bytes transfer separately. Metadata
+acceptance is not proof of a durable byte copy on a quorum of disks. Mixed-version
+rolling upgrades and permanent volume loss remain untested. Formal consensus
+verification, exhaustive crash windows and arbitrary device failures are outside
+the demonstrated evidence.
+
+Earlier campaigns were also interrupted by an unplanned host disk-full event
+from generated AOT diagnostic graphs. Original failures and volumes were kept;
+verified orphan processes had to be stopped to release locks. Those combined-fault
+resumptions are not claimed as autonomous recovery. Subsequent publications
+disabled graph generation; no runtime volume was deleted or compressed to force
+a passing result.
+
+Certification requires successful bounded Windows recovery and large-publication
+investigation, repeated disk-full recovery, the outstanding coverage above, a
+final-revision endurance matrix, and an acceptable performance comparison.

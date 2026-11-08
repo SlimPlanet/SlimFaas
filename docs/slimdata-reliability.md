@@ -4,6 +4,10 @@ The [1.0 LTS reliability tracker](https://github.com/SlimPlanet/SlimFaas/issues/
 records release evidence and outstanding scenarios. A successful short campaign
 establishes its recorded invariants for that run; it does not certify LTS readiness.
 
+The [8 November 2026 results](slimdata-reliability-results.md) include the executed
+absence/API matrix, 2 MB versus 2 MiB diagnosis, fixes, failed campaigns and the
+current LTS verdict. Compact evidence and raw archive hashes accompany the report.
+
 ## Run the real Local campaign
 
 From the repository root, with .NET from `global.json` and Python 3.10+:
@@ -154,7 +158,7 @@ and DLQ payloads; the retained network/restart campaigns exercise real replay.
 ## Performance comparisons
 
 Reuse [the existing benchmarks](benchmarking.md), including
-`.bin/slimfaas-local-benchmark.sh` and `benchmarks/compare-versions.sh`.
+`.bin/slimfaas-local-benchmark.sh` and the `SlimFaasBenchmark compare` command.
 `BENCHMARK_RUNTIME` selects a preserved native executable or managed DLL when
 `BENCHMARK_SKIP_BUILD=true`; the same benchmark driver and manifest are used.
 The manifest records the runtime path and SHA-256. `BENCHMARK_SLIMFAAS_DLL`
@@ -167,8 +171,8 @@ Short or overlapping runs cannot support a performance non-regression verdict.
 The tracker must distinguish implemented coverage from executed evidence for
 every API and absence duration. Additional isolated campaigns are required for
 asymmetric partitions, other network latency/loss profiles, targeted I/O faults,
-targeted WAL/snapshot/compaction crash windows, Stream retention/checkpoint gaps,
-WebSocket reconnection/streaming, scheduling over prolonged outages, permanent
+targeted WAL/snapshot/compaction crash windows, advanced manual Stream checkpoints,
+scheduling over prolonged outages, permanent
 loss of a file's originating volume, and mixed-version rolling upgrades.
 
 Files replicate metadata through Raft and transfer bytes separately; an upload's

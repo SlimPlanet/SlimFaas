@@ -18,7 +18,7 @@ fi
 benchmark_dll="$repo_root/benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll"
 local_log="$run_root/slimfaas-local.log"
 if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
-  slimfaas_command=(python "$repo_root/.bin/run-local-benchmark-host.py" --ports 31020,31021,31022,31023,3162,3163,3164,31080 "${slimfaas_command[@]}")
+  slimfaas_command=(python "$repo_root/.bin/run-local-benchmark-host.py" --ports 31020,31021,31022,31023,3162,3163,3164,31080,32000,32001,32002,32003,32004,32005,32006,32007,32008,32009,32010,32011,32012,32013,32014,32015 "${slimfaas_command[@]}")
 fi
 
 case "$profile" in
