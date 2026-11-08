@@ -389,7 +389,7 @@ class Campaign:
             self.counter_results.append(int(response))
 
     def require_mutation(self, kind, path, body, expected_status=None, **kwargs):
-        status, headers, response, identifier = self.mutate(kind, path, body, **kwargs)
+        status, _, response, identifier = self.mutate(kind, path, body, **kwargs)
         if status is None or not 200 <= status < 300 or (expected_status and status != expected_status):
             raise AssertionError(f"{kind} {identifier}: HTTP {status}, {response!r}")
         return response, identifier
@@ -1046,7 +1046,7 @@ class WebSocketCampaign:
     async def consume(self, req):
         headers = {key.lower(): value[0] for key, value in req.headers.items() if value}
         value = req.body or b""
-        self.journal.append({"event": "completed", "id": headers.get("x-chaos-id", ""),
+        await asyncio.to_thread(self.journal.append, {"event": "completed", "id": headers.get("x-chaos-id", ""),
                              "bytes": len(value), "sha256": sha256(value),
                              "expected_sha256": headers.get("x-chaos-sha256", ""),
                              "status": 200, "attempt": req.try_number,

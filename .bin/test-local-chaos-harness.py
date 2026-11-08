@@ -87,9 +87,9 @@ class CampaignSafetyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)
             stopping = threading.Event()
-            with patch.object(campaign, "mutate", side_effect=AssertionError("producer failed")):
-                with self.assertRaisesRegex(AssertionError, "producer failed"):
-                    campaign.traffic(stopping)
+            with patch.object(campaign, "mutate", side_effect=AssertionError("producer failed")), \
+                    self.assertRaisesRegex(AssertionError, "producer failed"):
+                campaign.traffic(stopping)
             self.assertTrue(stopping.is_set())
 
     def test_existing_run_directory_is_never_reused_or_cleaned(self):
@@ -135,8 +135,9 @@ class BodyIntegrityTests(unittest.TestCase):
     def test_truncated_transfers_never_produce_a_success_checksum(self):
         for stream, length, chunked in ((b"abc", 4, False), (b"4\r\nabc", None, True),
                                         (b"0\r\n", None, True)):
+            body_stream = io.BytesIO(stream)
             with self.subTest(stream=stream), self.assertRaises(EOFError):
-                FIXTURE.hash_body(io.BytesIO(stream), length, chunked)
+                FIXTURE.hash_body(body_stream, length, chunked)
 
 
 if __name__ == "__main__":

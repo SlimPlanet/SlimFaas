@@ -45,9 +45,13 @@ jobs:
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
       - name: Exercise real APIs, payload checksums, retries, DLQ and faults
         run: python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/quick --durations 1,5,10
+      - name: Install locked SDK dependencies without build scripts
+        run: uv sync --frozen --project client/python/slimfaas-client --no-build --no-install-project
       - name: Exercise real SDK streaming, offline retention and reconnect
+        env:
+          PYTHONPATH: client/python/slimfaas-client/src
         run: >-
-          uv run --locked --project client/python/slimfaas-client
+          uv run --locked --no-sync --no-build --project client/python/slimfaas-client
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/websocket
           --scenarios websocket --request-timeout 120 --recovery-timeout 300
       - name: Drop real Raft traffic in an isolated network namespace

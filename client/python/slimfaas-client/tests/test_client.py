@@ -83,6 +83,7 @@ class TestAsyncRequest:
             client = SlimFaasClient(f"ws://127.0.0.1:{port}", make_config())
             async def handle(req):
                 received.append((len(req.body), hashlib.sha256(req.body).digest(), req.try_number))
+                await asyncio.sleep(0)  # Yield like an asynchronous application handler.
                 return 200
             client.on_async_request(handle)
             await asyncio.wait_for(client._connect_and_loop(), timeout=15)
@@ -100,15 +101,17 @@ class TestAsyncRequest:
         async with serve(server, "127.0.0.1", 0) as listener:
             port = listener.sockets[0].getsockname()[1]
             client = SlimFaasClient(f"ws://127.0.0.1:{port}", make_config(), max_message_size=1024)
+            receiving = asyncio.wait_for(client._connect_and_loop(), timeout=15)
             with pytest.raises(ConnectionClosed, match="1009"):
-                await asyncio.wait_for(client._connect_and_loop(), timeout=15)
+                await receiving
         assert close_codes == [1009]
 
     @pytest.mark.parametrize("option", ["max_message_size", "max_queue"])
     @pytest.mark.parametrize("value", [0, -1, None, True])
     def test_receive_limits_cannot_be_disabled(self, option, value):
+        config = make_config()
         with pytest.raises(ValueError, match=option):
-            SlimFaasClient("ws://fake", make_config(), **{option: value})
+            SlimFaasClient("ws://fake", config, **{option: value})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("stream", [False, True])
