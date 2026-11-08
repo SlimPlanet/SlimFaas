@@ -162,6 +162,30 @@ config = SlimFaasClientConfig(
 
 ## Sync streaming (HTTP-over-WebSocket)
 
+### Incoming message limits
+
+The client defaults to a **32 MiB WebSocket envelope limit** and a four-frame
+incoming buffer with backpressure. `max_message_size` and `max_queue` are positive
+integer constructor options; the receive limit cannot be disabled. This bounds
+the transport buffer, not the memory used by active application handlers.
+
+Async, Events and Streams encode whole bodies as base64 inside JSON. Budget for
+base64 and JSON escaping, headers and metadata, rather than the original body
+size alone. A 2 MiB body can produce about a 3 MiB envelope; highly escaped
+base64 data can be substantially larger. For large bodies, prefer Data File
+references. An envelope beyond the configured limit still closes with code 1009.
+Server HTTP/body limits and persistent formats are unchanged.
+
+Earlier client versions inherited `websockets`' 1 MiB default and disconnected
+before dispatching valid larger Async bodies, including 2 MB and 2 MiB payloads.
+Upgrade the client to receive those envelopes. For a stricter application budget:
+
+```python
+client = SlimFaasClient(url, config, max_message_size=8 * 1024 * 1024, max_queue=2)
+```
+
+### Streaming handler
+
 ```python
 from slimfaas_client import SyncRequest
 

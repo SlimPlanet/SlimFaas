@@ -5,12 +5,16 @@ Tests unitaires pour slimfaas-client.
 from __future__ import annotations
 
 import asyncio
+import base64
 import gc
+import hashlib
 import json
 import weakref
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from websockets.asyncio.server import serve
+from websockets.exceptions import ConnectionClosed
 
 from slimfaas_client._models import (
     AsyncRequest,
@@ -55,6 +59,57 @@ def make_envelope(msg_type: int, payload: dict | None, correlation_id: str = "co
 # ---------------------------------------------------------------------------
 
 class TestAsyncRequest:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("size,pattern", [(2_000_000, bytes(range(256))), (2_097_152, bytes(range(256))),
+                                              (4_194_304, bytes(range(256))), (2_097_152, b"\xfb\xef\xbe")])
+    async def test_real_connection_delivers_large_async_envelopes(self, size, pattern):
+        body = (pattern * ((size + len(pattern) - 1) // len(pattern)))[:size]
+        received = []
+        async def server(ws):
+            await ws.recv()
+            await ws.send(make_envelope(MessageType.REGISTER_RESPONSE, {"success": True, "connectionId": "large"}))
+            envelope = make_envelope(MessageType.ASYNC_REQUEST, {
+                "elementId": "large", "method": "POST", "path": "/work", "tryNumber": 0,
+                "body": base64.b64encode(body).decode(),
+            }).replace("+", "\\u002B")
+            await ws.send(envelope)
+            try:
+                callback = json.loads(await ws.recv())
+                assert callback["payload"]["statusCode"] == 200
+            except ConnectionClosed:
+                pass  # The client-side await still fails on an oversized envelope.
+        async with serve(server, "127.0.0.1", 0) as listener:
+            port = listener.sockets[0].getsockname()[1]
+            client = SlimFaasClient(f"ws://127.0.0.1:{port}", make_config())
+            async def handle(req):
+                received.append((len(req.body), hashlib.sha256(req.body).digest(), req.try_number))
+                return 200
+            client.on_async_request(handle)
+            await asyncio.wait_for(client._connect_and_loop(), timeout=15)
+        assert received == [(size, hashlib.sha256(body).digest(), 0)]
+
+    @pytest.mark.asyncio
+    async def test_configured_message_limit_still_closes_oversized_envelopes(self):
+        close_codes = []
+        async def server(ws):
+            await ws.recv()
+            await ws.send(make_envelope(MessageType.REGISTER_RESPONSE, {"success": True, "connectionId": "bounded"}))
+            await ws.send("x" * 2048)
+            await ws.wait_closed()
+            close_codes.append(ws.close_code)
+        async with serve(server, "127.0.0.1", 0) as listener:
+            port = listener.sockets[0].getsockname()[1]
+            client = SlimFaasClient(f"ws://127.0.0.1:{port}", make_config(), max_message_size=1024)
+            with pytest.raises(ConnectionClosed, match="1009"):
+                await asyncio.wait_for(client._connect_and_loop(), timeout=15)
+        assert close_codes == [1009]
+
+    @pytest.mark.parametrize("option", ["max_message_size", "max_queue"])
+    @pytest.mark.parametrize("value", [0, -1, None, True])
+    def test_receive_limits_cannot_be_disabled(self, option, value):
+        with pytest.raises(ValueError, match=option):
+            SlimFaasClient("ws://fake", make_config(), **{option: value})
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("stream", [False, True])
     @pytest.mark.parametrize("failure", [False, True])

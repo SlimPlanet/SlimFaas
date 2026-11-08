@@ -6,6 +6,9 @@
 
 # SlimFaasClient
 
+Async bodies are base64 encoded inside WebSocket JSON envelopes. For Python
+workers receiving larger bodies, see [the Python client's bounded receive limits](../../python/slimfaas-client/README.md#incoming-message-limits).
+
 Async request `TryNumber` starts at `0`. With two configured retries, only
 attempt `2` has `IsLastTry == true`. Older runtimes exposed incorrect queue
 attempt metadata; the runtime correction does not change the client wire format.

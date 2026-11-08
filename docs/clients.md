@@ -1,5 +1,13 @@
 ﻿# SlimFaas Clients
 
+The Python client bounds incoming WebSocket envelopes to 32 MiB by default,
+with a four-frame buffer and backpressure. Configure positive `max_message_size`
+and `max_queue` constructor options for your memory budget. JSON/base64 overhead
+counts toward the envelope limit; it is separate from server HTTP body limits.
+Older clients inherited a 1 MiB receive limit and closed with code 1009 before
+dispatching valid larger Async bodies, including 2 MB and 2 MiB. Upgrade those
+clients; see [Python message limits](../client/python/slimfaas-client/README.md#incoming-message-limits).
+
 Async `TryNumber` / `try_number` is zero-based. With two configured retries,
 deliveries are numbered `0`, `1`, `2`, and only the final one has
 `IsLastTry` / `is_last_try` set to `true`. Runtimes predating the queue metadata

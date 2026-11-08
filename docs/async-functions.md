@@ -345,6 +345,11 @@ Return the actual completion status from an async handler. For deferred work,
 return 202 and send the existing explicit callback with its execution ID.
 An offloaded body is loaded before delivery through the existing base64
 WebSocket contract; that transport still materializes the body in memory.
+The Python client's receive limit applies to the entire JSON/base64 envelope.
+Older clients inherited a 1 MiB cap, causing a 1009 disconnect for valid larger
+bodies. Current clients use a configurable, bounded 32 MiB envelope limit;
+see [client limits](clients.md). Prefer file references when envelope overhead
+or concurrent in-memory deliveries exceed the worker's budget.
 See [client documentation](clients.md) and SDK examples.
 
 ### Observability and upgrades
