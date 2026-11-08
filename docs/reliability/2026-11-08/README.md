@@ -41,6 +41,10 @@ interpreting a passing field or an empty missing-ID list.
   succeeded but two old job receipts remain missing), both Native job failures
   and the passing managed job-recovery/API/restart campaign. It includes original
   and resumed parameter/runtime attribution and raw-file hashes.
+- `native-7e-verification.json`: passing Native API/short-outage, complete official
+  SDK and owner-timeout campaigns on `7e1f20a6`, plus Native replay of the original
+  pre-repair archive. The latter still fails on two old job receipts, while its
+  confirmed data passes verification. Large Stream latency remains a release gate.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

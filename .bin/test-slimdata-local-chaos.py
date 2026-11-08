@@ -1030,8 +1030,7 @@ class Campaign:
         self.results.append({"phase": self.phase, "id": identifier, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
 
-    def job_recovery(self):
-        self.phase = "job-supervisor-recovery"
+    def start_gated_job(self):
         identifier = uuid.uuid4().hex
         gate = self.output / f"job-gate-{identifier}"
         body, _ = self.require_mutation("job", "/job/chaos-job", json.dumps({
@@ -1053,6 +1052,11 @@ class Campaign:
             return True
 
         wait_until("running job no longer appears in the Raft queue", acknowledged, self.options.recovery_timeout)
+        return identifier, gate, queue_id
+
+    def job_recovery(self):
+        self.phase = "job-supervisor-recovery"
+        identifier, gate, queue_id = self.start_gated_job()
         self.client.append({"event": "job-acknowledged-before-supervisor-stop", "id": identifier,
                             "queue_id": queue_id})
         self.stop()
@@ -1061,6 +1065,25 @@ class Campaign:
         self.reconcile()
         self.results.append({"phase": self.phase, "id": identifier, "queue_id": queue_id, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
+
+    def completed_job_checkpoint(self, queue_id):
+        checkpoint = {}
+        def check():
+            copies = []
+            for port in self.ports:
+                status, _, body = request(port, "/job/chaos-job")
+                if status != 200:
+                    return False
+                rows = [row for row in json.loads(body) if row["Id"] == queue_id]
+                if len(rows) != 1 or rows[0]["Status"] != "Succeeded":
+                    return False
+                copies.append({key: rows[0][key] for key in ("Name", "Id", "Status", "StartTimestamp")})
+            if any(row != copies[0] for row in copies):
+                raise AssertionError(f"Job checkpoint differs across nodes: {copies!r}")
+            checkpoint.update(copies[0])
+            return True
+        wait_until("completed job checkpoint on every node", check, self.options.recovery_timeout)
+        return checkpoint
 
     def lease_burst(self):
         """Keep a majority writable when a silent follower follows a write burst."""
@@ -1207,7 +1230,7 @@ class Campaign:
             self.results.append(result)
             print(json.dumps(result), flush=True)
 
-    def disk_full(self):
+    def disk_full(self, pause_raft=False):
         """Exhaust only a marked, small, separate test filesystem, then recover."""
         volume = self.state_root.parent
         marker = volume / ".slimdata-chaos-volume"
@@ -1218,21 +1241,36 @@ class Campaign:
             raise RuntimeError("Refusing to exhaust a shared or larger-than-256-MiB filesystem")
         self.seed()
         filler = volume / "chaos-filler"
-        self.phase = "disk-full"
+        self.phase = "job-journal-disk-full" if pause_raft else "disk-full"
+        job_id, job_gate, queue_id = self.start_gated_job()
+        paused = []
         stopping = threading.Event()
         with ThreadPoolExecutor(max_workers=1) as pool:
             traffic = pool.submit(self.traffic, stopping)
             try:
+                if pause_raft:
+                    for node in range(3):
+                        pid = self.node_pid(node)
+                        suspend(pid, True)
+                        paused.append(pid)
+                        self.suspended.add(pid)
+                    self.client.append({"event": "journal-fault-raft-paused", "pids": paused})
                 with filler.open("xb", buffering=0) as stream:
-                    block = bytes(65536)
-                    try:
-                        while True:
-                            stream.write(block)
-                    except OSError as error:
-                        if error.errno != errno.ENOSPC:
-                            raise
+                    for block_size in (65536, 4096, 1):
+                        block = bytes(block_size)
+                        try:
+                            while True:
+                                stream.write(block)
+                        except OSError as error:
+                            if error.errno != errno.ENOSPC:
+                                raise
                 self.client.append({"event": "disk-full", "free_bytes": os.statvfs(volume).f_bfree * space.f_frsize})
                 started = time.monotonic()
+                job_gate.write_bytes(b"release")
+                self.client.append({"event": "job-released-while-disk-full", "id": job_id, "queue_id": queue_id})
+                wait_until("gated job completes while its journal volume is full", lambda:
+                    any(row.get("event") == "job" and job_id in row["args"]
+                        for row in read_receipts(self.receipts)), min(15, self.options.recovery_timeout))
                 while time.monotonic() - started < self.options.durations[0]:
                     if traffic.done():
                         traffic.result()
@@ -1243,12 +1281,30 @@ class Campaign:
                 filler.unlink(missing_ok=True)
                 resumed = time.monotonic()
                 self.client.append({"event": "disk-space-restored"})
+                for pid in paused:
+                    try:
+                        suspend(pid, False)
+                    except ProcessLookupError:
+                        self.client.append({"event": "paused-node-exited-during-journal-fault", "pid": pid})
+                    self.suspended.discard(pid)
                 stopping.set()
                 traffic.result()
         self.ready()
         self.verify()
         self.reconcile()
         self.audit()
+        if pause_raft:
+            before_restart = self.completed_job_checkpoint(queue_id)
+            self.stop()
+            self.start()
+            after_restart = self.completed_job_checkpoint(queue_id)
+            if before_restart != after_restart:
+                raise AssertionError(f"Confirmed terminal job replayed after restart: {before_restart!r} -> {after_restart!r}")
+            self.verify()
+            self.reconcile()
+            self.audit()
+            self.client.append({"event": "job-journal-checkpoint-retained", "id": job_id,
+                                "checkpoint": after_restart})
         self.capture(self.phase)
         self.results.append({"phase": self.phase, "full_recovery_seconds": time.monotonic() - resumed, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
@@ -1487,7 +1543,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "job-environments", "job-recovery", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "job-environments", "job-recovery", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "job-diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1535,7 +1591,8 @@ def main():
              "job-environments": campaign.job_environments,
              "startup-jobs": campaign.startup_jobs,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
-             "diskfull": campaign.disk_full, "restarts": campaign.restarts}[scenario]()
+             "diskfull": campaign.disk_full,
+             "job-diskfull": lambda: campaign.disk_full(pause_raft=True), "restarts": campaign.restarts}[scenario]()
         campaign.reconcile()
         campaign.audit()
         campaign.capture("final")

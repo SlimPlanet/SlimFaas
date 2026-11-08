@@ -56,6 +56,7 @@ binaries outside the build directory when rebuilding another version on Windows.
 | `partitions` | Linux packet drops on every Raft link while HTTP traffic continues, followed by quorum restoration and reconciliation |
 | `latency` | Linux netem adds 25 ms to loopback packets for the longest requested duration while mixed traffic continues |
 | `diskfull` | Exhaustion of a marked, separate 128 MiB filesystem; restore space by removing only the synthetic filler, then verify original state |
+| `job-diskfull` | Hold an acknowledged real job, suspend Raft so cleanup cannot free space, exhaust the marked filesystem with progressively smaller writes, complete the job, then verify its terminal checkpoint survives recovery and full supervisor restart |
 
 `--scenarios` selects a comma-separated list. `--payload-sizes` accepts exact byte
 counts, up to the fixture's 20 MiB ceiling; it does not change runtime limits.
@@ -102,7 +103,7 @@ sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT" \
   --output artifacts/local-chaos/network --scenarios api,partitions,restarts
 sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT" \
   bash .bin/run-local-disk-chaos.sh artifacts/local-chaos/disk-resources \
-  --output artifacts/local-chaos/disk --scenarios api,diskfull,restarts \
+  --output artifacts/local-chaos/disk --scenarios api,diskfull,job-diskfull,restarts \
   --durations 15 --recovery-timeout 300
 ```
 

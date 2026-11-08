@@ -401,8 +401,49 @@ send aborts that ambiguous transport, preventing an old callback from completing
 new attempt. A completed transmission still retains its reservation until callback
 or disconnection. Tests cover text/binary active-send cancellation and preserve the
 real peer late-callback regression. All **17** focused WebSocket activity, peer
-and queue tests pass; the unsent-ID test failed before the fix. Fresh Local SDK
-and Native runs are pending.
+and queue tests pass; the unsent-ID test failed before the fix.
+
+Revision `7e1f20a6` subsequently passed **1,992 .NET tests** and Native AOT
+publication (executable SHA-256
+`4b68aa1831bc0b10d593798432139d108357877645331f713aedf1d6aec1bedd`).
+Its full Native API/short-fault campaign passed **351 accepted / eight unknown /
+zero missing receipts**, and its real official SDK campaign passed **84 accepted /
+nine unknown / zero missing receipts**. The separate eight-second delivery timeout
+with a 20-second owner absence also passed. The four initial 2 MiB Stream appends
+still took **1.578 / 8.547 / 45.609 / 47.062 seconds**; functional success within
+the declared 120-second SDK budget does not clear the performance gate.
+
+Native replay of a fresh copy of the original pre-repair snapshot archive reached
+all three data barriers in **6.141 seconds** and verified confirmed data. Its
+overall campaign still failed on the same two old job receipts. No replayed job
+was synthesized to change that result.
+
+## Job journal completion I/O terminated Local supervision
+
+A separate endurance dispatch on `7e1f20a6` failed its Linux disk-full phase;
+the PR's independent quick matrix passed both OS jobs. Cleanup's state-marker
+ENOSPC initially masked the initiating exception. A diagnostic-only commit logs
+the original supervision exception before cleanup. Ordinary Linux disk-full
+runs recovered in **43.447 s** and **8.660 s**. They did not force the small job
+journal write to fail: the latter still had **2,682,880 bytes** free after the
+coarse filler returned ENOSPC.
+
+The deterministic `job-diskfull` profile gates a real acknowledged job, suspends
+the three Raft processes to prevent cleanup freeing space, exhausts the marked
+filesystem with 64 KiB/4 KiB/one-byte writes, and lets the job finish while the
+volume is unavailable. On `19b108bc`, `LocalJobStore.Save` threw ENOSPC while
+persisting that exit, the job monitor faulted, and Local exited. The primary
+stack identifies `LocalJobManager.MonitorLoopAsync`; a later marker-write error
+during disposal is retained separately. All original volumes remain retained.
+
+The follow-up keeps failed transitions pending and reports the failure once per
+affected run. The monitor reconciles pending state on later cycles and reports
+recovery. Until a terminal transition is flushed, its public state stays Pending.
+New creations and explicit deletions still require a durable write before success;
+no request waits through an unbounded retry loop. Cleanup releases owned job
+processes even if its monitor faults. The strengthened real regression compares
+the terminal checkpoint before and after full supervisor restart. Its after-fix
+run and final validation are pending; the 300-second recovery gate is unchanged.
 
 ## Performance evidence
 

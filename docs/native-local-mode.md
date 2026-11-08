@@ -427,8 +427,13 @@ TTL expires. Process exit failures retain the configured finite backoff policy.
 Keep the state directory and the manifest configuration for unfinished jobs. An
 unreadable job record or missing configuration for an unfinished run stops startup
 with an error; Local never deletes that evidence to obtain an empty successful start.
-Job journal I/O failures stop supervision if they prevent a state transition from
-being recorded. These guarantees cover process crashes and restarts with retained
+During supervision, a journal I/O failure retains the last durable plan and pending
+transition. The affected job remains `Pending` until its transition is flushed; the
+monitor reports the failure once, reconciles pending state on later cycles, and
+reports storage recovery. New creations and deletions still fail explicitly if
+their state cannot be persisted. Process failure backoffs remain finite; a journal
+write does not keep a client request open through an unbounded retry loop. These
+guarantees cover process crashes and restarts with retained
 storage; they do not certify device or host power-loss behavior.
 
 Each node loads the supervisor's job configuration before opening its HTTP

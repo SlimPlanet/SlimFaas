@@ -95,7 +95,7 @@ jobs:
         run: >-
           sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT"
           bash .bin/run-local-disk-chaos.sh artifacts/local-chaos/disk-resources
-          --output artifacts/local-chaos/disk --scenarios api,diskfull,restarts
+          --output artifacts/local-chaos/disk --scenarios api,diskfull,job-diskfull,restarts
           --durations 15 --recovery-timeout 300
       - uses: actions/upload-artifact@v4
         if: always()

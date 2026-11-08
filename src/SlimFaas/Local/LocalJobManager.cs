@@ -96,7 +96,7 @@ public sealed class LocalJobManager : IAsyncDisposable
                     List<string> dependsOn = runtime.Command.CreateJob.DependsOn ?? configuration?.DependsOn ?? [];
                     return runtime.Deleted ? null : new Job(
                         Name: runtime.Command.JobFullName,
-                        Status: runtime.Status,
+                        Status: runtime.NeedsPersistence ? JobStatus.Pending : runtime.Status,
                         Ips: [],
                         DependsOn: dependsOn,
                         ElementId: runtime.Command.ElementId,
@@ -114,11 +114,15 @@ public sealed class LocalJobManager : IAsyncDisposable
 
         lock (runtime.Gate)
         {
+            LocalJobState deleted = runtime.ToState() with
+            {
+                Deleted = true, Status = JobStatus.Failed, FinishedAt = DateTimeOffset.UtcNow
+            };
+            Persist(runtime, deleted);
             runtime.Deleted = true;
             runtime.Completed = true;
             runtime.Status = JobStatus.Failed;
-            runtime.FinishedAt = DateTimeOffset.UtcNow;
-            _store.Save(runtime.ToState());
+            runtime.FinishedAt = deleted.FinishedAt;
         }
         await StopRuntimeAsync(runtime, cancellationToken);
     }
@@ -185,10 +189,11 @@ public sealed class LocalJobManager : IAsyncDisposable
             environment["SLIMFAAS_JOB_NAME"] = runtime.Command.Name;
             environment["SLIMFAAS_JOB_RUN_NAME"] = runtime.Command.JobFullName;
 
+            DateTimeOffset started = DateTimeOffset.UtcNow;
+            Persist(runtime, runtime.ToState() with { Status = JobStatus.Running, StartTimestamp = started.UtcTicks });
             runtime.Status = JobStatus.Running;
-            runtime.StartTimestamp = DateTime.UtcNow.Ticks;
-            runtime.StartedAt = DateTimeOffset.UtcNow;
-            _store.Save(runtime.ToState());
+            runtime.StartTimestamp = started.UtcTicks;
+            runtime.StartedAt = started;
             try
             {
                 runtime.Process = ManagedLocalProcess.Start(
@@ -200,10 +205,11 @@ public sealed class LocalJobManager : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                Console.Error.WriteLine(
-                    $"[job/{runtime.Command.Name}/{runtime.Command.ElementId}] start failed: {exception.Message}");
+                ILogger logger = LocalProcessOutputLog.ConsoleLogger;
+                if (logger.IsEnabled(LogLevel.Error))
+                    logger.LogLocalJobStartFailed(runtime.Command.Name, runtime.Command.ElementId, exception.ToString());
                 CompleteAttempt(runtime, exitCode: -1);
-                _store.Save(runtime.ToState());
+                Persist(runtime);
             }
         }
     }
@@ -216,55 +222,7 @@ public sealed class LocalJobManager : IAsyncDisposable
             do
             {
                 foreach (JobRuntime runtime in _jobs.Values)
-                {
-                    ManagedLocalProcess? completedProcess = null;
-                    LocalWorkloadGateway? gatewayToDispose = null;
-                    bool restart = false;
-                    bool remove = false;
-                    lock (runtime.Gate)
-                    {
-                        if (runtime.Process is { HasExited: true } process)
-                        {
-                            int exitCode = process.ExitCode ?? -1;
-                            runtime.Process = null;
-                            completedProcess = process;
-                            CompleteAttempt(runtime, exitCode);
-                            _store.Save(runtime.ToState());
-                        }
-
-                        if (!runtime.Completed && runtime.Process is null &&
-                            DateTimeOffset.UtcNow >= runtime.NextStart)
-                        {
-                            restart = true;
-                        }
-
-                        int ttl = runtime.Command.CreateJob.TtlSecondsAfterFinished;
-                        if (runtime.Completed && runtime.FinishedAt.HasValue &&
-                            DateTimeOffset.UtcNow - runtime.FinishedAt.Value >= TimeSpan.FromSeconds(ttl))
-                        {
-                            remove = true;
-                        }
-                    }
-
-#pragma warning disable CA1508 // assigned inside the lock above; the analyzer does not track it
-                    if (completedProcess is not null)
-                        await completedProcess.DisposeAsync();
-#pragma warning restore CA1508
-                    if (restart)
-                        Start(runtime);
-                    if (remove &&
-                        _jobs.TryRemove(runtime.Command.JobFullName, out JobRuntime? removed))
-                    {
-                        lock (removed.Gate)
-                        {
-                            _store.Delete(removed.Command.JobFullName);
-                            gatewayToDispose = removed.Gateway;
-                            removed.Gateway = null;
-                        }
-                    }
-                    if (gatewayToDispose is not null)
-                        await gatewayToDispose.DisposeAsync();
-                }
+                    await MonitorJobAsync(runtime);
             } while (await timer.WaitForNextTickAsync(cancellationToken));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -272,8 +230,97 @@ public sealed class LocalJobManager : IAsyncDisposable
         }
     }
 
+    private async Task MonitorJobAsync(JobRuntime runtime)
+    {
+        ManagedLocalProcess? completedProcess = null;
+        LocalWorkloadGateway? gatewayToDispose = null;
+        try
+        {
+            completedProcess = TakeCompletedProcess(runtime);
+            bool restart;
+            bool remove;
+            lock (runtime.Gate)
+            {
+                if (runtime.NeedsPersistence)
+                    Persist(runtime);
+                restart = !runtime.Completed && runtime.Process is null && DateTimeOffset.UtcNow >= runtime.NextStart;
+                int ttl = runtime.Command.CreateJob.TtlSecondsAfterFinished;
+                remove = runtime.Completed && runtime.FinishedAt.HasValue &&
+                         DateTimeOffset.UtcNow - runtime.FinishedAt.Value >= TimeSpan.FromSeconds(ttl);
+            }
+            if (completedProcess is not null)
+            {
+                ManagedLocalProcess exited = completedProcess;
+                completedProcess = null;
+                await exited.DisposeAsync();
+            }
+            if (restart)
+                Start(runtime);
+            if (remove)
+            {
+                lock (runtime.Gate)
+                {
+                    _store.Delete(runtime.Command.JobFullName);
+                    PersistenceResumed(runtime);
+                    if (_jobs.TryRemove(runtime.Command.JobFullName, out _))
+                    {
+                        gatewayToDispose = runtime.Gateway;
+                        runtime.Gateway = null;
+                    }
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            lock (runtime.Gate)
+            {
+                runtime.PersistenceFailures++;
+                ILogger logger = LocalProcessOutputLog.ConsoleLogger;
+                if (runtime.PersistenceFailures == 1 && logger.IsEnabled(LogLevel.Error))
+                    logger.LogLocalJobPersistenceUnavailable(runtime.Command.JobFullName, exception.ToString());
+            }
+        }
+        finally
+        {
+#pragma warning disable CA1508 // The detached process remains owned here when persisting its observed exit throws.
+            if (completedProcess is not null)
+                await completedProcess.DisposeAsync();
+#pragma warning restore CA1508
+            if (gatewayToDispose is not null)
+                await gatewayToDispose.DisposeAsync();
+        }
+    }
+
+    private static ManagedLocalProcess? TakeCompletedProcess(JobRuntime runtime)
+    {
+        lock (runtime.Gate)
+        {
+            if (runtime.Process is not { HasExited: true } process)
+                return null;
+            runtime.Process = null;
+            CompleteAttempt(runtime, process.ExitCode ?? -1);
+            return process;
+        }
+    }
+
+    private void Persist(JobRuntime runtime, LocalJobState? state = null)
+    {
+        _store.Save(state ?? runtime.ToState());
+        runtime.NeedsPersistence = false;
+        PersistenceResumed(runtime);
+    }
+
+    private static void PersistenceResumed(JobRuntime runtime)
+    {
+        if (runtime.PersistenceFailures == 0)
+            return;
+        LocalProcessOutputLog.ConsoleLogger.LogLocalJobPersistenceResumed(runtime.Command.JobFullName, runtime.PersistenceFailures);
+        runtime.PersistenceFailures = 0;
+    }
+
     private static void CompleteAttempt(JobRuntime runtime, int exitCode)
     {
+        runtime.NeedsPersistence = true;
         if (exitCode == 0)
         {
             runtime.Status = JobStatus.Succeeded;
@@ -369,13 +416,22 @@ public sealed class LocalJobManager : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _stopping.CancelAsync();
-        if (_monitorTask is not null)
-            await _monitorTask;
-
-        foreach (JobRuntime runtime in _jobs.Values)
-            await StopRuntimeAsync(runtime, CancellationToken.None);
-
-        _stopping.Dispose();
+        try
+        {
+            if (_monitorTask is not null)
+                await _monitorTask;
+        }
+        finally
+        {
+            try
+            {
+                await Task.WhenAll(_jobs.Values.Select(runtime => StopRuntimeAsync(runtime, CancellationToken.None)));
+            }
+            finally
+            {
+                _stopping.Dispose();
+            }
+        }
     }
 
     private sealed class JobRuntime(ProcessCreateJobCommand command, LocalJobManifest manifest)
@@ -393,6 +449,8 @@ public sealed class LocalJobManager : IAsyncDisposable
         public DateTimeOffset? FinishedAt { get; set; }
         public bool Completed { get; set; }
         public bool Deleted { get; set; }
+        public bool NeedsPersistence { get; set; }
+        public long PersistenceFailures { get; set; }
 
         public LocalJobState ToState() => new(1, Command, Status, Attempts, StartTimestamp, NextStart, FinishedAt, Deleted);
     }
