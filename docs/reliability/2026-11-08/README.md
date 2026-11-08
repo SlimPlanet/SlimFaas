@@ -32,6 +32,8 @@ interpreting a passing field or an empty missing-ID list.
 - `dependency-upgrade.json`: resolved direct/transitive package changes,
   distribution contents/hashes, unchanged System.* third-party notices, NuGet
   vulnerability audit and the exact revision validated by FOSSA.
+- `windows-default-trial.json`: the withdrawn default experiment, same-binary
+  Private/Shared HTTP controls and the failed complete Native SDK recovery.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

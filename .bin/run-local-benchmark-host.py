@@ -4,8 +4,10 @@
 import argparse
 import ctypes
 import os
+import shutil
 import socket
 import subprocess
+import tempfile
 from ctypes import wintypes
 
 
@@ -27,7 +29,22 @@ class ExtendedLimits(ctypes.Structure):
                 ("peak_job_memory", ctypes.c_size_t)]
 
 
-def windows_host(command):
+def require_disk_reserve(minimum_free_bytes):
+    for directory in (os.getcwd(), tempfile.gettempdir()):
+        if shutil.disk_usage(directory).free < minimum_free_bytes:
+            raise OSError(f"Benchmark disk reserve exhausted in {directory}; stopping the owned host and retaining its state")
+
+
+def wait_for_host(process, minimum_free_bytes):
+    while True:
+        try:
+            return process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            require_disk_reserve(minimum_free_bytes)
+
+
+def windows_host(command, minimum_free_bytes=512 * 1024 * 1024):
+    require_disk_reserve(minimum_free_bytes)
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
     kernel.CreateJobObjectW.restype = wintypes.HANDLE
@@ -63,7 +80,7 @@ def windows_host(command):
                     raise OSError("Unable to resume the owned benchmark host")
             finally:
                 kernel.CloseHandle(handle)
-            return process.wait()
+            return wait_for_host(process, minimum_free_bytes)
         except BaseException:
             process.kill()
             process.wait()
@@ -75,15 +92,18 @@ def windows_host(command):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ports", default="")
+    parser.add_argument("--minimum-free-bytes", type=int, default=512 * 1024 * 1024)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     options = parser.parse_args()
     if not options.command:
         raise SystemExit("Usage: run-local-benchmark-host.py command [arguments...]")
+    if options.minimum_free_bytes < 0:
+        parser.error("--minimum-free-bytes must be nonnegative")
     for port in (int(value) for value in options.ports.split(",") if value):
         with socket.socket() as probe:
             probe.settimeout(.2)
             if probe.connect_ex(("127.0.0.1", port)) == 0:
                 raise SystemExit(f"Benchmark port {port} already has a listener; refusing to start or clean its state.")
     if os.name == "nt":
-        raise SystemExit(windows_host(options.command))
+        raise SystemExit(windows_host(options.command, options.minimum_free_bytes))
     raise SystemExit("This owned-process launcher requires Windows Job Objects.")

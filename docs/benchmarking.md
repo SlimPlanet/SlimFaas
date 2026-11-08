@@ -240,6 +240,10 @@ Available variables are:
 
 The standard Local manifest's path and SHA-256 are also recorded. Its ephemeral
 mode assigns a new state directory to each independent benchmark invocation.
+The Windows host launcher requires a 512 MiB free-space reserve on the working
+and temporary volumes before startup and while running. If exhausted, it stops
+only its owned process tree and leaves state for investigation. Such an interrupted
+run is an environment failure and cannot support a performance verdict.
 
 ## Interpret the result correctly
 

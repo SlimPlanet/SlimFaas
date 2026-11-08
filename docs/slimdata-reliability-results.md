@@ -6,6 +6,9 @@ coverage. Windows recovery/large-publication failures and incomplete fault cover
 still block certification. A passing campaign on one revision or OS does not
 override a failed campaign on another.
 
+A further confirmed defect is under investigation: interrupted incoming snapshots
+can be published under their final index/term filename while still truncated.
+
 Tracking: [issue #505](https://github.com/SlimPlanet/SlimFaas/issues/505),
 [draft PR #506](https://github.com/SlimPlanet/SlimFaas/pull/506).
 See the [campaign guide](slimdata-reliability.md) for executable commands,
@@ -215,12 +218,11 @@ Unknowns include the intentionally injected later crashes. See
 [the complete profiles](reliability/2026-11-08/wal-strategy-profiles.json).
 These controls show substantial strategy sensitivity and intermittent behavior;
 they do not erase the earlier failures or prove that this setting alone fixes
-them. The candidate now selects `PrivateMemory` by default on Windows;
-Linux/macOS retain `SharedMemory`. Explicit configuration remains authoritative.
-This uses the existing asynchronous write-through backend without changing WAL
-geometry or persistence formats. More private RAM can be required for a large
-retained WAL. The failed 300-second PrivateMemory recovery controls below are not
-waived by this default change.
+them. A Windows PrivateMemory default was trialled in `04476c15` and then withdrawn:
+subsequent complete Native recovery and independent CI checks failed. The runtime
+retains SharedMemory by default and the existing explicit PrivateMemory option.
+More private RAM can be required for a large retained WAL. Earlier recovery
+failures are not waived by faster successful publication controls.
 
 The exact upstream implementation performs synchronous mapped-page flushes and
 additional Windows metadata/disk flushes for SharedMemory, while PrivateMemory
@@ -289,8 +291,33 @@ offline-retention publication returned HTTP 503 (**21 accepted / one unknown**).
 The same executable with explicit PrivateMemory passed the entire SDK, crash and
 restart sequence (**81 accepted / three unknown**) with initial Stream latencies
 **6.844 / 12.641 / 18.657 / 20.188 s**. These are strategy controls, not proof that
-the newly packaged platform default passes all release gates. Its full tests,
-new Native publication and paired benchmarks are under validation.
+the trial platform default passes all release gates. Its new Native binary
+(`3432ee01631d540bb080ac6e3a1a6d828330d2bec8f8f4eb1f303b7434a0e93d`)
+passed the twelve HTTP size/encoding cases with a 15-second request budget, as did
+an explicit SharedMemory control on that same binary. However, its complete SDK
+campaign failed a 300-second all-node read-barrier gate after crashes, with
+**1,643 accepted / 14 unknown**. Two Windows quick CI jobs also failed initial
+publication deadlines. These findings do not isolate strategy as their cause;
+they are insufficient validation for changing the default.
+
+The failed Native SDK state exposes a separate concrete snapshot defect. At the
+end, follower 0 remained at applied index 132 while peers were at 2,482/2,483.
+Its final-named snapshot `2440-4` contained **765,436 bytes**, while the same-index
+leader snapshot contained **15,350,868 bytes**. The log contains 322 references
+to cancelled InstallSnapshot transfers. In the exact 6.12.0
+[receiver implementation](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/SimpleStateMachine.Snapshot.cs),
+`ReadFromAsync` commits the temporary snapshot in a `finally` block even when
+copying throws. Numerous other truncated final-named copies remain in that
+follower's directory. No format-skip violation was observed. This is a published
+truncated snapshot, not proof that the healthy majority lost its confirmed data.
+
+The entire failed run was archived before any repair/replay:
+`platform-default-native-sdk-before-repair.tar.gz`, 3,303,705 bytes, SHA-256
+`4602c271c6c05de613fea8bd1f9fe4d8926e0bc44129d1d544d3cf084b66ba8a`.
+The original directory also remains retained. A regression and transactional
+snapshot publication fix are in progress; paired benchmarking is deferred until
+this data-integrity defect is addressed. See
+[windows-default-trial.json](reliability/2026-11-08/windows-default-trial.json).
 
 The dependency update also resolves four System.* packages from 10.0.13 to
 10.0.14; their third-party notices are byte-identical. NuGet's direct/transitive

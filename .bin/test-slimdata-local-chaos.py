@@ -1450,6 +1450,9 @@ def main():
     options = parse_arguments()
     campaign = Campaign(options)
     metadata = {"started_utc": time.time(), "platform": platform.platform(), "python": sys.version,
+                "environment_overrides": {name: os.environ[name] for name in (
+                    "SlimData__WalMemoryManagement", "SlimData__SnapshotIntervalEntries",
+                    "SlimData__SnapshotIntervalBytes") if name in os.environ},
                 "commit": options.source_commit or subprocess.check_output(["git", "-c", f"safe.directory={ROOT}", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                 "runtime_sha256": sha256(campaign.runtime.read_bytes()),
                 "slimdata_sha256": sha256((campaign.runtime.parent / "SlimData.dll").read_bytes())

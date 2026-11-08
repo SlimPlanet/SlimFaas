@@ -69,6 +69,45 @@ class BenchmarkHostTests(unittest.TestCase):
     def test_abrupt_launcher_exit_closes_the_entire_job(self):
         self.exercise(True)
 
+    def test_disk_reserve_failure_stops_the_owned_process_tree(self):
+        helper = Path(__file__).with_name("run-local-benchmark-host.py")
+        root_code = (
+            "import json,os,subprocess,sys,time\n"
+            "child=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)'])\n"
+            "with open(sys.argv[1]+'.tmp','w') as output: json.dump({'root':os.getpid(),'child':child.pid},output)\n"
+            "os.replace(sys.argv[1]+'.tmp',sys.argv[1])\n"
+            "time.sleep(30)\n"
+        )
+        launcher_code = (
+            "import importlib.util,pathlib,sys,types\n"
+            "spec=importlib.util.spec_from_file_location('host',sys.argv[1])\n"
+            "host=importlib.util.module_from_spec(spec); spec.loader.exec_module(host)\n"
+            "receipt=pathlib.Path(sys.argv[2]); original=host.shutil.disk_usage\n"
+            "host.shutil.disk_usage=lambda directory: types.SimpleNamespace(free=0) if receipt.exists() else original(directory)\n"
+            "raise SystemExit(host.windows_host(sys.argv[3:]))\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = Path(directory) / "owned-pids.json"
+            result = subprocess.run([sys.executable, "-c", launcher_code, str(helper), str(receipt),
+                sys.executable, "-c", root_code, str(receipt)], capture_output=True, text=True,
+                timeout=15, check=False)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("disk reserve exhausted", result.stderr)
+            self.assertTrue(receipt.exists())
+            for pid in json.loads(receipt.read_text()).values():
+                self.assert_stopped(pid)
+
+    def test_insufficient_disk_reserve_rejects_the_host_before_startup(self):
+        helper = Path(__file__).with_name("run-local-benchmark-host.py")
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "started"
+            result = subprocess.run([sys.executable, str(helper), "--minimum-free-bytes", str(2 ** 64),
+                sys.executable, "-c", "from pathlib import Path; import sys; Path(sys.argv[1]).touch()", str(marker)],
+                capture_output=True, text=True, check=False)
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("disk reserve exhausted", result.stderr)
+            self.assertFalse(marker.exists())
+
 
 class BenchmarkPortTests(unittest.TestCase):
     def test_occupied_port_is_rejected_before_starting_the_runtime(self):
