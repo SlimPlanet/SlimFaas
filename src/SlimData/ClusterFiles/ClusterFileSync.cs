@@ -142,7 +142,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 }
 
                 var length = headResp.Content.Headers.ContentLength;
-                if (length is null || length <= 0)
+                if (length is null || length < 0)
                 {
                     _logger.LogHEADOkButNoContentLength(fileUri);
                     continue;

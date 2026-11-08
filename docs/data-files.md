@@ -56,6 +56,11 @@ The [file exercise](guided-tour.md#files) uploads the supplied fixture and compa
 
 Base path: `/data/files`
 
+Empty files are valid. A peer transfer with `Content-Length: 0` persists an
+empty artifact and verifies its SHA-256 just like a nonempty file. Earlier
+versions incorrectly treated zero as a missing peer Content-Length, making an
+accepted empty upload unavailable on nodes that had to fetch its bytes.
+
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/data/files?id={id?}&ttl={ms?}` | Store a binary artifact (request body = raw bytes) |

@@ -259,8 +259,10 @@ public sealed class ClusterFileSyncTests
         Assert.Equal(new byte[] { 1, 2, 3 }, bytes);
     }
 
-    [Fact]
-    public async Task PullFileIfMissingAsync_downloads_from_first_remote_with_file_and_returns_local_stream()
+    [Theory]
+    [InlineData("")]
+    [InlineData("hello")]
+    public async Task PullFileIfMissingAsync_downloads_from_first_remote_with_file_and_returns_local_stream(string content)
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
         var bus = new Mock<IMessageBus>(MockBehavior.Strict);
@@ -283,7 +285,7 @@ public sealed class ClusterFileSyncTests
         bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
         bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
 
-        var payload = Encoding.UTF8.GetBytes("hello");
+        var payload = Encoding.UTF8.GetBytes(content);
         var sha = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
         var len = payload.Length;
         var expireAt = DateTime.UtcNow.AddMinutes(10).Ticks;
