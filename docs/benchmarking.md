@@ -235,7 +235,11 @@ Available variables are:
 
 ## Compare JIT and Native AOT on a new machine
 
-The four-variant campaign requires Python 3.11+. Rebuild and measure **both**
+The [Apple M4 Pro ZLinq report](performance-benchmarks-m4.md) records the
+before/after measurements, resource definitions and limitations of this protocol.
+
+The four-variant campaign requires Python 3.11+ on macOS or Linux; its orchestration
+uses POSIX process groups, `ps` and host load averages. Rebuild and measure **both**
 revisions on the same host. Previous measurements
 from a different CPU or OS are historical context, not a baseline. Publish four
 isolated directories named `baseline-jit`, `candidate-jit`, `baseline-aot` and
@@ -282,12 +286,16 @@ Stream delivery checks reject missing or duplicate IDs. The Stream burst must
 reach zero lag and pending deliveries with committed ACKs. Microbenchmarks
 exercise larger collection populations separately.
 File payloads default to 256 KiB and can be changed with `--file-bytes`.
+The file workload reuses one ID per worker, uploads to one node and drains a read
+from the next. It measures warm repeated-file access and HTTP success, without
+byte-by-byte comparison. Unique 2 MiB async bodies exercise offload separately.
 `--dispatch-parallelism` defaults to 16 and sets both async dispatch limits on
 the benchmark function through a generated local overlay. The original manifest
 stays unchanged. Use 256 explicitly to retain the original high-parallelism
-stress profile. Sustained 2 MiB traffic at that setting exposed quorum loss and
-delivery deadlines on this shared-host three-node setup, including the baseline
-without ZLinq; those failed stress attempts cannot substantiate speedups.
+stress profile. Sustained 2 MiB traffic exposed quorum interruptions and delivery
+deadlines at both capacities 256 and 16 on this three-node setup, including the
+baseline without ZLinq. Retain unsuccessful attempts alongside completed runs;
+performance medians conditional on successful completion cannot establish reliability.
 
 CPU and sampled peak RSS sum the runtime nodes, excluding the supervisor,
 functions and load generator. Async and Stream CPU windows include delivery and
@@ -298,7 +306,7 @@ Data operations may issue multiple HTTP requests. Stream throughput includes
 delivery/drain; its p95 is append acceptance latency.
 
 The summarizer rejects incomplete rounds and correctness failures. It retains
-every repetition in `comparison.json`, reports medians plus rate ranges, and
+every repetition in `comparison.json`, reports medians plus rate/CPU/RSS/p95 ranges, and
 includes the unchanged direct-target control. Compressed per-request HTTP samples,
 per-case resources, validation logs, binary hashes and settings remain in the
 campaign directory. A noisy direct control or overlapping repetition ranges
@@ -309,6 +317,24 @@ After an interrupted campaign, repeat its exact command with `--resume`. The
 runner checks settings and executable/assembly hashes, skips completed variants,
 and archives incomplete attempts before restarting them with clean state.
 It waits for ports to become reusable and accepts TCP `TIME_WAIT` during restart.
+
+If instability prevents a planned repetition from completing, retain its logs and
+failure counts. An explicit `analysis.json` can limit repetitions symmetrically
+before/after within each runtime mode; `--resume` honors those limits and the
+summarizer displays the analyzed counts. Keep the original manifest unchanged:
+
+```json
+{
+  "rounds_by_variant": {
+    "baseline-jit": 3, "candidate-jit": 3,
+    "baseline-aot": 2, "candidate-aot": 2
+  },
+  "reason": "Stop AOT retries after repeated heavy-body failures; retain both completed repetitions per revision."
+}
+```
+
+These are conditional performance statistics, with fewer AOT repetitions. Report
+unsuccessful attempts alongside them; do not describe the workload as reliable.
 
 For more stable collection timing and allocation estimates, run the same
 benchmark sources against each revision:

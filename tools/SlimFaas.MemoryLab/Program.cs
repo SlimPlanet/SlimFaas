@@ -1388,6 +1388,7 @@ static void PrintUsage()
           load [--scenario mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [--duration 60] [--phase-file PATH]
                [--concurrency 12] [--payload-bytes 4096] [--file-bytes 262144]
                [--first-port 30021] [--nodes 3] [--keys-per-worker 16]
+               [--function memory-function]
                [--target-rps 0]
                [--target-rps-per-replica 0]
                [--key-prefix memory-lab] [--validate true]

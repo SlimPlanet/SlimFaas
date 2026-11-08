@@ -357,12 +357,27 @@ def main():
             "functions:\n  benchmark-latency:\n    annotations:\n"
             f'      SlimFaas/NumberParallelRequest: "{args.dispatch_parallelism}"\n'
             f'      SlimFaas/NumberParallelRequestPerPod: "{args.dispatch_parallelism}"\n')
+    analysis_path = args.output / "analysis.json"
+    analysis = json.loads(analysis_path.read_text()) if analysis_path.exists() else {}
+    limits = analysis.get("rounds_by_variant", {})
+    if set(limits) - set(variants) or any(type(count) is not int or not 1 <= count <= args.rounds
+                                        for count in limits.values()):
+        parser.error("Invalid explicit analysis repetition counts")
+    if limits and not analysis.get("reason"):
+        parser.error("Explicit analysis repetition counts require a reason")
+    for mode in ["jit", "aot"]:
+        before, after = "baseline-" + mode, "candidate-" + mode
+        if before in variants and after in variants and limits.get(before, args.rounds) != limits.get(after, args.rounds):
+            parser.error(f"Unbalanced before/after analysis counts: {mode}")
     for round_index in range(args.rounds):
         order = variants if round_index % 2 == 0 else list(reversed(variants))
         if round_index > 1:
             offset = round_index // 2
             order = order[offset:] + order[:offset]
         for variant in order:
+            if round_index >= limits.get(variant, args.rounds):
+                print(f"SKIP explicit analysis limit round={round_index + 1} variant={variant}", flush=True)
+                continue
             directory = args.output / f"round-{round_index + 1}-{variant}"
             if args.resume and (directory / "complete.json").exists():
                 print(f"SKIP completed round={round_index + 1} variant={variant}", flush=True)

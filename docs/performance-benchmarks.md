@@ -1,5 +1,10 @@
 # SlimFaas performance benchmarks
 
+For the new-machine ZLinq comparison, including longer collection measurements,
+sets, files, Streams and three-node local JIT/Native AOT runs, see the
+[Apple M4 Pro report](performance-benchmarks-m4.md). The measurements below retain
+their original hardware and protocol.
+
 This document tracks the methodology and results of the micro-benchmarks used to
 validate the performance commits of the `claude/performance-improvements-9h83ah` branch
 (PR #313) and of its follow-ups (theme 6, branch `claude/slimdata-queue`).
