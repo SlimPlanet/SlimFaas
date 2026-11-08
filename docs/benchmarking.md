@@ -12,6 +12,12 @@ The quick profile is intended for a smoke test and takes a few minutes:
 BENCHMARK_PROFILE=quick .bin/slimfaas-local-benchmark.sh
 ```
 
+On Windows, run the script in Git Bash with Python 3.10+. The launcher places the
+runtime and its descendants in an owned Windows Job Object before execution.
+Normal completion and an abrupt launcher exit both close the entire process
+tree. Occupied benchmark ports are rejected before starting or cleaning state.
+Run `python .bin/test-local-benchmark-host.py` to verify those lifecycle checks.
+
 ## Run the three-node recovery scenario
 
 The restart-under-load scenario starts the same three-node SlimFaas Local

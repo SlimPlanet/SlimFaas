@@ -41,6 +41,8 @@ jobs:
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
       - name: Verify campaign failure and accounting invariants
         run: python .bin/test-local-chaos-harness.py
+      - name: Verify owned benchmark processes and occupied-port rejection
+        run: python .bin/test-local-benchmark-host.py
       - name: Build runtime
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
       - name: Exercise real APIs, payload checksums, retries, DLQ and faults
