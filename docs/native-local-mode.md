@@ -507,6 +507,10 @@ never replayed; a later connection selects from the current ready set.
 
 ## Logs and shutdown
 
+If an internal supervision task fails, Local prints its original exception before
+disposing processes and storage. A second I/O failure during shutdown therefore
+cannot hide the initiating cause in the captured console log.
+
 `local up` stays in the foreground, prefixes and aggregates child output, and
 writes the same output below `state.directory/logs`. Every emitted line keeps
 its `[function/<name>/<replica>]`, `[job/<name>]`, `[process/<name>]`, or

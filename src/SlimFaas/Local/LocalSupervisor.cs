@@ -180,6 +180,13 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
             }
+            catch (Exception exception)
+            {
+                ILogger logger = LocalProcessOutputLog.ConsoleLogger;
+                if (logger.IsEnabled(LogLevel.Critical))
+                    logger.LogLocalSupervisionFailedBeforeCleanup(exception.ToString());
+                throw;
+            }
         }
         finally
         {
