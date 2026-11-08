@@ -584,6 +584,11 @@ The dashboard reads a separate bounded in-memory diagnostic journal. The journal
 
 Followers resolve the leader from configured Raft membership and reuse the configured application-port resolution for HTTP relays. State frames are briefly cached per function and leader, with a maximum of eight cache entries per node. Internal endpoints require the front, allowed ports and a direct connection from a recognized SlimFaas member IP; browser-supplied upstream addresses are not accepted. See [the UI guide](user-interface.md#scaling-diagnostics-and-playground).
 
+### Reliability testing
+
+See [SlimData reliability campaigns](slimdata-reliability.md) for executable
+three-node Local recovery checks and the remaining 1.0 LTS evidence gates.
+
 ### Multi-platform runtime image compilation
 
 The root Dockerfile builds its static dashboard on `BUILDPLATFORM`. Its managed
