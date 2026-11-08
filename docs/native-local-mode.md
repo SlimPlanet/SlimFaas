@@ -563,6 +563,19 @@ SlimFaas__ExposeLogs=false dotnet run --project src/SlimFaas -- local up -f ../.
 `cluster.exposeLogs` defaults to `false` for other manifests. Log level and log exposure are independent: `nodeLogLevel: Error` can leave only supervisor start/stop messages when there are no application errors. Log streaming follows the selected instance generation, detects file rotation/truncation, and stops when the viewer disconnects. See [instance logs](user-interface.md#instance-logs) for access semantics, filters and retention limits.
 
 
+## Reliability testing
+
+Process output continues on the console if its optional log file cannot be
+written (for example, a full log volume). The supervisor reports the first file
+logging error and reports recovery with the number of failed writes. File output
+during the failure may be incomplete. A file-log write or final-flush error does
+not terminate the supervisor. This does not suppress errors from Raft, WAL,
+snapshot or artifact storage.
+
+For persistent three-node recovery tests, see the
+[SlimData reliability campaign](slimdata-reliability.md). It drives real Local
+functions and APIs during owned process outages and preserves all volumes/logs.
+
 ## External metrics demo
 
 `slimfaas.local.external-metrics.yaml` runs a Python standard-library exporter as an
