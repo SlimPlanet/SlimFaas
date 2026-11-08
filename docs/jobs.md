@@ -610,6 +610,11 @@ curl -i -X DELETE "$BASE_URL/job-schedules/fibonacci/$SCHEDULE_ID"
 
 Dynamic schedules (created at runtime via `POST /job-schedules`) are stored in the internal SlimData Raft database. Deleting Raft storage also deletes these schedules. Export the schedules before a planned storage reset; ordinary follower recovery should preserve storage.
 
+Dynamic schedule listing uses a Raft read barrier, including on followers. A read
+after a successful create/delete observes that committed change. If quorum is
+unavailable, listing reports an availability error instead of serving a stale
+local HashSet. This also applies to other internal HashSet consumers.
+
 To prevent data loss, SlimFaas can **automatically back up** all dynamic schedule data to a **separate volume** and **restore** it on cold start when the database is empty.
 
 #### Enabling backup

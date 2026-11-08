@@ -48,7 +48,7 @@ jobs:
       - name: Bootstrap job configuration before admitting requests after node restarts
         run: >-
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/startup-jobs
-          --scenarios startup-jobs,restarts --recovery-timeout 300
+          --scenarios startup-jobs,schedules,restarts --recovery-timeout 300
       - name: Install locked SDK dependencies without build scripts
         run: uv sync --frozen --project client/python/slimfaas-client --no-build --no-install-project
       - name: Exercise real SDK streaming, offline retention and reconnect

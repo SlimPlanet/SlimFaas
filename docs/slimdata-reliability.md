@@ -37,11 +37,13 @@ binaries outside the build directory when rebuilding another version on Windows.
 | Scenario | Checks |
 |---|---|
 | `payloads` | Concurrent Async bodies of 65,536, 262,144, 1,048,576, 2,000,000, 2,097,152 and 4,194,304 bytes, each with Content-Length and chunked transfer; function-side length and SHA-256 |
-| `api` | Sync status/body integrity; Sets, HashSets, Files and retained Stream bodies on every node; concurrent atomic increments, TTL and explicit 1 MiB overflow rejection |
+| `api` | Sync status/body integrity; Sets, HashSets, Files and retained Stream bodies on every node; concurrent atomic INCR/DECR, INCRBY/DECRBY/INCRBYFLOAT, TTL and explicit 1 MiB overflow rejection |
 | `files` | Empty through 16 MiB uploads/downloads on every node and interrupted upload visibility |
 | `wake` | A real function scales 0 → 1 → 0; a timed-out Sync response remains unknown and its later execution is observed |
 | `websocket` | Optional official Python SDK: cross-node Sync streaming/Async/Streams, offline retained publications, reconnect through another owner, crashes and persistent restart |
 | `retries` | A 2 MiB body across retry attempts 0/1/2, final-attempt flags, exhausted delivery, DLQ body checksum, repair/requeue and actual concurrent job processes |
+| `startup-jobs` | Delay periodic configuration refresh for five minutes; run a declared job immediately and reject an undefined name before enqueue |
+| `schedules` | Create a dynamic UTC cron schedule, read it through every node, preserve it across full persistent restart, observe a real scheduled process and delete it on every node |
 | `chaos` | Independent producers for Sync, Async, Streams, Files, Sets, HashSets, atomic counters and jobs while a follower, leader or both followers are suspended |
 | `restarts` | Successive abrupt follower/leader crashes with supervisor restart, followed by a full supervisor/cluster restart using original state |
 | `partitions` | Linux packet drops on every Raft link while HTTP traffic continues, followed by quorum restoration and reconciliation |

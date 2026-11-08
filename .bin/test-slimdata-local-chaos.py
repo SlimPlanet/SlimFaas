@@ -242,7 +242,7 @@ class Campaign:
         manifest = {"schemaVersion": 1, "name": "slimdata-chaos",
                     "cluster": {"nodes": 3, "entrypointPort": self.entry,
                                 "nodeHttpPortBase": self.ports[0], "raftPortBase": self.raft,
-                                "nodeLogLevel": "Warning"},
+                                "nodeLogLevel": self.options.node_log_level},
                     "processPorts": {"from": self.entry + 30, "to": self.entry + 60},
                     "state": {"mode": "persistent", "directory": self.state_root.as_posix()},
                     "functions": {"chaos": {
@@ -512,11 +512,7 @@ class Campaign:
         message = json.loads(response)["MessageId"]
         self.expected[f"/data/streams/chaos-stream/messages/{message}/body"] = sha256(value)
         self.observe(identifier)
-        with ThreadPoolExecutor(max_workers=self.options.concurrency) as pool:
-            increments = list(pool.map(lambda _: self.require_mutation("counter-check", "/data/sets/chaos-counter/incr", b"")[0], range(32)))
-        if sorted(int(x) for x in increments) != list(range(1, 33)):
-            raise AssertionError(f"Nonatomic counter results: {increments}")
-        self.expected["/data/sets/chaos-counter"] = sha256(b"32")
+        self.counter_contracts()
         self.require_mutation("ttl", "/data/sets/chaos-ttl?ttl=1000", b"expires")
         wait_until("set TTL", lambda: request(self.entry, "/data/sets/chaos-ttl")[0] == 404)
         self.require_mutation("ttl", "/data/hashsets?id=chaos-hash-ttl&ttl=1000", b"expires")
@@ -539,6 +535,22 @@ class Campaign:
         self.verify()
         self.results.append({"phase": self.phase, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
+
+    def counter_contracts(self):
+        with ThreadPoolExecutor(max_workers=self.options.concurrency) as pool:
+            increments = list(pool.map(lambda _: self.require_mutation("counter-check", "/data/sets/chaos-counter/incr", b"")[0], range(32)))
+        if sorted(int(x) for x in increments) != list(range(1, 33)):
+            raise AssertionError(f"Nonatomic counter results: {increments}")
+        with ThreadPoolExecutor(max_workers=self.options.concurrency) as pool:
+            decrements = list(pool.map(lambda _: self.require_mutation("counter-check", "/data/sets/chaos-counter/decr", b"")[0], range(32)))
+        if sorted(int(x) for x in decrements) != list(range(32)):
+            raise AssertionError(f"Nonatomic decrement results: {decrements}")
+        for operation, result in (("incrby?by=42", b"42"), ("decrby?by=10", b"32"),
+                                  ("incrbyfloat?by=0.5", b"32.5")):
+            actual, _ = self.require_mutation("counter-check", f"/data/sets/chaos-counter/{operation}", b"")
+            if actual != result:
+                raise AssertionError(f"Counter {operation}: {actual!r}, expected {result!r}")
+        self.expected["/data/sets/chaos-counter"] = sha256(b"32.5")
 
     def retries_dlq_jobs(self):
         self.phase = "retries-dlq-jobs"
@@ -576,6 +588,39 @@ class Campaign:
             {arg for row in read_receipts(self.receipts) if row["event"] == "job" for arg in row["args"]}),
             self.options.recovery_timeout)
         self.results.append({"phase": self.phase, "passed": True, "job_ids": job_ids, "dlq_id": dead_letter["Id"]})
+        print(json.dumps(self.results[-1]), flush=True)
+
+    def schedules(self):
+        self.phase = "scheduled-job"
+        identifier = uuid.uuid4().hex
+        value = json.dumps({"Schedule": "* * * * *", "TimeZone": "UTC", "Args": [identifier],
+                            "TtlSecondsAfterFinished": 3600}).encode()
+        receipt, _ = self.require_mutation("schedule", "/job-schedules/chaos-job", value,
+            headers={"Content-Type": "application/json"}, expected_status=201)
+        schedule_id = json.loads(receipt)["Id"]
+        def visible():
+            for port in self.ports:
+                status, _, body = request(port, "/job-schedules/chaos-job")
+                if status != 200 or not any(row["Id"] == schedule_id for row in json.loads(body)):
+                    return False
+            return True
+        wait_until("schedule replicated to every node", visible, self.options.recovery_timeout)
+        self.stop()
+        self.start()
+        if not visible():
+            raise AssertionError("Accepted schedule missing after persistent restart")
+        wait_until("cron launched a real job process", lambda: any(
+            identifier in row.get("args", []) for row in read_receipts(self.receipts) if row["event"] == "job"),
+            self.options.recovery_timeout)
+        path = f"/job-schedules/chaos-job/{schedule_id}"
+        self.require_mutation("schedule-delete", path, b"", method="DELETE", expected_status=204)
+        for port in self.ports:
+            status, _, body = request(port, "/job-schedules/chaos-job")
+            self.client.append({"event": "schedule-deletion-read", "port": port, "status": status,
+                                "body": body.decode(errors="replace"), "schedule_id": schedule_id})
+            if status != 200 or any(row["Id"] == schedule_id for row in json.loads(body)):
+                raise AssertionError(f"Deleted schedule read on {port}: HTTP {status}, body={body!r}")
+        self.results.append({"phase": self.phase, "schedule_id": schedule_id, "job_arg": identifier, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
 
     def wake_and_cancel(self):
@@ -1184,6 +1229,7 @@ def parse_arguments(argv=None):
     parser.add_argument("--state-directory", type=Path, help="Separate persistent storage, required for isolated disk-full tests")
     parser.add_argument("--resume", action="store_true", help="Resume a retained run after rechecking its confirmed ledger; keep the original port base")
     parser.add_argument("--port-base", type=int, default=35120)
+    parser.add_argument("--node-log-level", choices=["Warning", "Information", "Debug"], default="Warning")
     parser.add_argument("--payload-sizes", type=lambda value: [int(x) for x in value.split(",")], default=SIZES)
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--request-timeout", type=float, default=15)
@@ -1205,7 +1251,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "websocket", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "schedules", "websocket", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1238,6 +1284,7 @@ def main():
             {"payloads": campaign.payloads, "api": campaign.api_smoke,
              "files": campaign.file_boundaries, "retries": campaign.retries_dlq_jobs,
              "wake": campaign.wake_and_cancel,
+             "schedules": campaign.schedules,
              "websocket": campaign.websocket,
              "startup-jobs": campaign.startup_jobs,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
@@ -1248,6 +1295,10 @@ def main():
         passed = True
     except BaseException as failure:
         error = repr(failure)
+        try:
+            campaign.capture("failure")
+        except Exception as capture_error:
+            error += "; failure metrics: " + repr(capture_error)
         raise
     finally:
         try:

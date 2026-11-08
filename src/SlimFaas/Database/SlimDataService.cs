@@ -499,7 +499,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             not BatchQueueFullException;
     }
 
-    private async Task<byte[]?> DoGetAsync(string key)
+    private async Task WaitForReadBarrierAsync()
     {
         using var timeout = new CancellationTokenSource(ReadBarrierTimeout);
         try
@@ -524,7 +524,11 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             throw new SlimDataUnavailableException(
                 "Raft read barrier or leader lease timed out.", ex);
         }
+    }
 
+    private async Task<byte[]?> DoGetAsync(string key)
+    {
+        await WaitForReadBarrierAsync().ConfigureAwait(false);
         var data = SimplePersistentState.Invoke();
         if (TryReadExpireAtFromKeyValues(data, key, out var expireAt) &&
             expireAt <= DateTime.UtcNow.Ticks)
@@ -539,9 +543,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
     private async Task<IDictionary<string, byte[]>> DoHashGetAllAsync(string key)
     {
-        await GetAndWaitForLeader().ConfigureAwait(false);
-        await WaitForLocalApplyAsync().ConfigureAwait(false);
-        await MasterWaitForLeaseToken().ConfigureAwait(false);
+        await WaitForReadBarrierAsync().ConfigureAwait(false);
 
         var data = SimplePersistentState.Invoke();
         if (TryReadExpireAtFromHashsets(data, key, out var expireAt) &&

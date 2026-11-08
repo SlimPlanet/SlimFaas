@@ -123,6 +123,30 @@ public sealed class SlimDataRecoveryTests
     }
 
     [Fact]
+    public async Task Hashset_read_waits_for_the_leaders_read_barrier_before_observing_local_state()
+    {
+        using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using var fixture = await Fixture.CreateAsync(handler);
+        var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
+            .Returns((ReadBarrierType _, CancellationToken token) => new ValueTask(barrier.Task.WaitAsync(token)));
+
+        var read = fixture.Service.HashGetAllAsync("recovery");
+        try
+        {
+            Assert.False(read.IsCompleted);
+            fixture.Cluster.Verify(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()), Times.Once);
+            barrier.SetResult();
+            Assert.Empty(await read.WaitAsync(TestDeadline));
+        }
+        finally
+        {
+            barrier.TrySetResult();
+            await read.WaitAsync(TestDeadline);
+        }
+    }
+
+    [Fact]
     public async Task Persistent_local_apply_timeout_is_reported_as_unavailable()
     {
         using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
@@ -210,6 +234,8 @@ public sealed class SlimDataRecoveryTests
             member.SetupGet(m => m.EndPoint).Returns(() => new UriEndPoint(new Uri($"http://127.0.0.1:{LeaderPort}")));
             Cluster.SetupGet(c => c.Leader).Returns(member.Object);
             Cluster.SetupGet(c => c.AuditTrail).Returns(Log);
+            Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
+                .Returns((ReadBarrierType _, CancellationToken token) => Log.WaitForApply(token));
             // Follower reads do not need a leader lease after local application.
             Cluster.SetupGet(c => c.LeadershipToken).Returns(new CancellationToken(true));
             var compatibility = new Mock<ISlimDataProtocolCompatibility>();
