@@ -766,7 +766,7 @@ public static class SlimDataInterpreter
             {
                 session = MemoryPackPayload.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
             {
                 throw new InvalidDataException("The persisted SlimData producer session is invalid.", ex);
             }
@@ -872,7 +872,7 @@ public static class SlimDataInterpreter
             return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(response)
                 ?? throw new InvalidDataException("The cached SlimData producer response is null.");
         }
-        catch (Exception ex) when (ex is not InvalidDataException)
+        catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
         {
             throw new InvalidDataException("The cached SlimData producer response is invalid.", ex);
         }

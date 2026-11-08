@@ -1,4 +1,6 @@
 using MemoryPack;
+using System.Collections.Immutable;
+using SlimData.Commands;
 
 namespace SlimData.Tests;
 
@@ -8,6 +10,38 @@ public sealed class MemoryPackRegistrationCollection;
 [Collection("MemoryPack formatter registration")]
 public sealed class MemoryPackReplayTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Duplicate_replay_keeps_the_counter_unchanged_when_a_cached_root_formatter_is_pending(bool responseFormatter)
+    {
+        SlimDataState state = new(
+            ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+            ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
+        ExecuteBatchCommand command = new() { Payload = SlimDataRaftBatchEnvelopeCodec.Serialize(new()
+        {
+            Requests = [new() { ProducerId = "owner", GenerationId = "generation", Sequence = 1, RequestId = "request",
+                Operations = [new() { Kind = SlimDataBatchOperationKind.KeyValue, RequestId = "increment", Key = "counter",
+                    KeyValueOperation = KeyValueOperation.IncrementInteger, IntegerDelta = 1, NowTicks = 100 }] }]
+        }) };
+        await SlimDataInterpreter.DoExecuteBatchAsync(command, state);
+        ImmutableDictionary<string, ReadOnlyMemory<byte>> before = state.KeyValues;
+        Action restore = responseFormatter
+            ? SuspendFormatter<SlimDataCommandBatchResponse>() : SuspendFormatter<SlimDataProducerSession>();
+        try
+        {
+            SlimDataCommandBatchContext context = new();
+            await SlimDataInterpreter.DoExecuteBatchAsync(command, state, context);
+            Assert.True(Assert.Single(context.Responses).Duplicate);
+            Assert.Same(before, state.KeyValues);
+        }
+        finally
+        {
+            restore();
+        }
+    }
+
     [Theory]
     [InlineData(SlimDataBatchOperationKind.None)]
     [InlineData(SlimDataBatchOperationKind.WebSocketDirectory)]
@@ -76,7 +110,7 @@ public sealed class MemoryPackReplayTests
     private static Action SuspendFormatter<T>() where T : IMemoryPackFormatterRegister
     {
         MemoryPackFormatterProvider.Register<T>();
-        using var state = MemoryPackReaderOptionalStatePool.Rent(null);
+        using MemoryPackReaderOptionalState state = MemoryPackReaderOptionalStatePool.Rent(null);
         using var reader = new MemoryPackReader(ReadOnlySpan<byte>.Empty, state);
         MemoryPackFormatter<T> formatter = (MemoryPackFormatter<T>)reader.GetFormatter<T>();
         MemoryPackFormatterProvider.Register<T>(null!);

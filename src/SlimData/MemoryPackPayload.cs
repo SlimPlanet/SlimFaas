@@ -7,7 +7,7 @@ internal static class MemoryPackPayload
 {
     internal static T? Deserialize<T>(ReadOnlySpan<byte> payload) where T : IMemoryPackable<T>
     {
-        using var optionalState = MemoryPackReaderOptionalStatePool.Rent(null);
+        using MemoryPackReaderOptionalState optionalState = MemoryPackReaderOptionalStatePool.Rent(null);
         using var reader = new MemoryPackReader(payload, optionalState);
         // Static generated dispatch avoids a root formatter being observed while
         // registration has published its flag but not yet assigned the formatter.
