@@ -579,6 +579,14 @@ during the failure may be incomplete. A file-log write or final-flush error does
 not terminate the supervisor. This does not suppress errors from Raft, WAL,
 snapshot or artifact storage.
 
+When DotNext reports a terminal WAL state (for example, a snapshot write failed
+while the disk was full), the runtime logs a critical error and lets the host
+stop. The local supervisor then restarts the node with the retained WAL,
+snapshots and files. Its existing restart backoff applies while storage remains
+unavailable. The diagnostics worker keeps reporting ordinary transient failures;
+loss of quorum alone does not trigger this restart. Persistent corruption still
+requires investigation and is never repaired by deleting storage automatically.
+
 For persistent three-node recovery tests, see the
 [SlimData reliability campaign](slimdata-reliability.md). It drives real Local
 functions and APIs during owned process outages and preserves all volumes/logs.

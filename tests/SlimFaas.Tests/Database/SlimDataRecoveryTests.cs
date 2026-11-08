@@ -131,7 +131,7 @@ public sealed class SlimDataRecoveryTests
         fixture.Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
             .Returns((ReadBarrierType _, CancellationToken token) => new ValueTask(barrier.Task.WaitAsync(token)));
 
-        var read = fixture.Service.HashGetAllAsync("recovery");
+        Task<IDictionary<string, byte[]>> read = fixture.Service.HashGetAllAsync("recovery");
         try
         {
             Assert.False(read.IsCompleted);
@@ -156,7 +156,7 @@ public sealed class SlimDataRecoveryTests
 
         try
         {
-            var error = await Assert.ThrowsAsync<SlimDataUnavailableException>(() =>
+            SlimDataUnavailableException error = await Assert.ThrowsAsync<SlimDataUnavailableException>(() =>
                 fixture.Service.ListCountAsync("Job:recovery", [CountType.Available])
                     .WaitAsync(TimeSpan.FromSeconds(30)));
             Assert.Contains("local", error.Message, StringComparison.OrdinalIgnoreCase);

@@ -14,7 +14,7 @@ public sealed class JobQueueRecoveryTests
     [Fact]
     public async Task Default_async_policy_preserves_a_reservation_when_its_worker_disappears()
     {
-        var policy = new SlimFaasConfiguration().DefaultAsync;
+        SlimFaasDefaultConfiguration policy = new SlimFaasConfiguration().DefaultAsync;
         const long start = 1;
         long expired = start + (policy.HttpTimeout + 1L) * TimeSpan.TicksPerSecond;
         var reserved = new QueueElement(new byte[] { 42 }, "accepted-async", start, policy.HttpTimeout,

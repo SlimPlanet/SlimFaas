@@ -55,6 +55,14 @@ public sealed class SlimDataDiagnosticsWorker(
             {
                 break;
             }
+            catch (UnreachableException ex)
+            {
+                // DotNext marks its WAL terminal after a failed state-machine
+                // application. That instance cannot resume after space returns.
+                // Let the host stop and its supervisor restart retained storage.
+                logger.LogTerminalSlimDataWalFailure(ex);
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogUnableToRecordSlimDataDiagnostics(ex);
