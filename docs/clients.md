@@ -1,5 +1,12 @@
 ﻿# SlimFaas Clients
 
+Async `TryNumber` / `try_number` is zero-based. With two configured retries,
+deliveries are numbered `0`, `1`, `2`, and only the final one has
+`IsLastTry` / `is_last_try` set to `true`. Runtimes predating the queue metadata
+correction exposed one-based attempts and an inverted final-attempt flag;
+upgrade the runtime to obtain the corrected values. The client wire format is
+unchanged. See [async delivery metadata](async-functions.md#deferred-completion-callbacks).
+
 For retained events, use `SubscribeStreams` / `subscribe_streams` and
 `OnStreamMessage` / `on_stream_message`. See [Durable Streams](streams.md) for
 registration, deferred callbacks, visibility, and reconnect semantics.

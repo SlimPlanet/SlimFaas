@@ -592,7 +592,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             .Select(static item => new QueueData(
                 item.Id,
                 item.Value.ToArray(),
-                item.NumberOfTries(),
+                item.GetTryNumber(),
                 item.IsLastTry(),
                 item.GetLastRetryTimeTicks(),
                 item.GetHttpTimeoutTicks(),

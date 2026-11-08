@@ -451,7 +451,7 @@ public static class Endpoints
                         var last = qe.RetryQueueElements[^1];
                         if (last.IdTransaction != transactionId) continue;
                         
-                        values.Items.Add(new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry(), qe.GetLastRetryTimeTicks(), qe.GetHttpTimeoutTicks(), qe.GetLastReservedIp()));
+                        values.Items.Add(new QueueData(qe.Id, qe.Value.ToArray(), qe.GetTryNumber(), qe.IsLastTry(), qe.GetLastRetryTimeTicks(), qe.GetHttpTimeoutTicks(), qe.GetLastReservedIp()));
                     }
                 }
 

@@ -50,13 +50,16 @@ public static class QueueElementExtensions
         var arr = e.RetryQueueElements;
         return arr.IsDefaultOrEmpty ? 0 : arr.Length;
     }
+
+    /// <summary>The zero-based attempt exposed to a reserved queue consumer.</summary>
+    public static int GetTryNumber(this QueueElement e) => Math.Max(0, e.NumberOfTries() - 1);
     
     public static bool IsLastTry(this QueueElement e) 
     {
         var tries = e.RetryQueueElements;
         var count = tries.IsDefault ? 0 : tries.Length;
         var retries = e.TimeoutRetriesSeconds;
-        return count > 0 && (retries.IsDefaultOrEmpty || count <= retries.Length);
+        return count > 0 && (retries.IsDefaultOrEmpty || count > retries.Length);
     }
     
     // ---------- États élémentaires ----------

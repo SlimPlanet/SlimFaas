@@ -42,11 +42,12 @@ public class QueueElementExtensionsTests
     [Theory]
     [InlineData(0, 0, false)]  // Aucun essai, aucun retry configuré => False
     [InlineData(0, 3, false)]  // Aucun essai, 3 retries configurés => False
-    [InlineData(1, 0, true)]   // 1 essai, aucun retry configuré => True (pas de limite)
-    [InlineData(1, 3, true)]   // 1 essai, 3 retries configurés => True (count <= retries.Length)
-    [InlineData(2, 3, true)]   // 2 essais, 3 retries configurés => True (count <= retries.Length)
-    [InlineData(3, 3, true)]   // 3 essais, 3 retries configurés => True (count == retries.Length)
-    [InlineData(4, 3, false)]  // 4 essais, 3 retries configurés => False (count > retries.Length)
+    [InlineData(1, 0, true)]   // No retries: the initial attempt is the final delivery.
+    [InlineData(1, 3, false)]  // Three retries remain after the initial attempt.
+    [InlineData(2, 3, false)]
+    [InlineData(3, 3, false)]  // One configured retry remains.
+    [InlineData(4, 3, true)]   // Initial attempt plus all three retries.
+    [InlineData(5, 3, true)]   // Exhausted historical state must remain terminal.
     public static void IsLastTry_ReturnsExpectedResult(int numberOfTries, int numberOfRetries, bool expectedResult)
     {
         // Arrange

@@ -6,6 +6,10 @@
 
 # SlimFaasClient
 
+Async request `TryNumber` starts at `0`. With two configured retries, only
+attempt `2` has `IsLastTry == true`. Older runtimes exposed incorrect queue
+attempt metadata; the runtime correction does not change the client wire format.
+
 Durable Streams use `SubscribeStreams` (`SubscribeStreamConfig`) and
 `OnStreamMessage` (`SlimFaasStreamMessage`). The message includes `StreamName`,
 `MessageId`, the delivery `ElementId` and original request. Return final status

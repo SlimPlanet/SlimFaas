@@ -1045,7 +1045,7 @@ public static class SlimDataInterpreter
             .Select(static item => new QueueData(
                 item.Id,
                 GetQueueValueBuffer(item.Value),
-                item.NumberOfTries(),
+                item.GetTryNumber(),
                 item.IsLastTry(),
                 item.GetLastRetryTimeTicks(),
                 item.GetHttpTimeoutTicks(),

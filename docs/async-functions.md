@@ -109,6 +109,13 @@ HTTP deliveries include:
 | `SlimFaas-Try-Number` | Zero-based attempt number |
 | `Slimfaas-Last-Try` | Lowercase `true` or `false` |
 
+With `TimeoutRetries: [1, 2]`, the three possible deliveries have attempt
+numbers `0`, `1`, `2`; only attempt `2` has `Slimfaas-Last-Try: true`.
+Earlier versions incorrectly exposed one-based queue attempt numbers and
+inverted the final-attempt flag when retries were configured. The correction
+also applies to WebSocket async deliveries. Stored retry history and the
+number of configured deliveries are unchanged.
+
 Use the real received element ID, not a Stream message ID or an invented UUID:
 
 ```http

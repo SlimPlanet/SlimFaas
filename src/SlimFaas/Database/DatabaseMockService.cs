@@ -175,7 +175,7 @@ public sealed class DatabaseMockService : IDatabaseService
         }
 
         var elementId = string.IsNullOrWhiteSpace(newElementId) ? Guid.NewGuid().ToString() : newElementId;
-        list.Add(new QueueData(elementId, field, 1, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond));
+        list.Add(new QueueData(elementId, field, 0, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond));
         return Task.FromResult(elementId);
     }
 
