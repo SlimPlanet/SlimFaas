@@ -1131,6 +1131,36 @@ class Campaign:
                              "probe_seconds": probe_seconds, "probe_budget_seconds": 15, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
 
+    def leader_route(self):
+        self.phase = "stale-leader-http-route"
+        leader = self.leader()
+        if leader is None:
+            raise AssertionError("No leader before route test")
+        ingress = (leader + 1) % 3
+        path = "/data/sets/leader-route-" + uuid.uuid4().hex
+        self.require_mutation("set", path, b"warmup", port=self.ports[ingress])
+        pid = self.node_pid(leader)
+        started = time.monotonic()
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            suspend(pid, True)
+            self.suspended.add(pid)
+            self.client.append({"event": "route-leader-suspended", "node": leader, "pid": pid})
+            try:
+                pending = pool.submit(self.require_mutation, "set", path, b"after-election",
+                                      port=self.ports[ingress])
+                wait_until("new leader outside paused route", lambda:
+                    self.leader(excluded=(leader,)) is not None, self.options.recovery_timeout)
+                pending.result()
+            finally:
+                suspend(pid, False)
+                self.suspended.remove(pid)
+        self.expected[path] = sha256(b"after-election")
+        self.ready()
+        self.verify()
+        self.results.append({"phase": self.phase, "ingress_node": ingress,
+                             "old_leader": leader, "seconds": time.monotonic() - started, "passed": True})
+        print(json.dumps(self.results[-1]), flush=True)
+
     def startup_jobs(self):
         self.phase = "startup-job-configuration"
         identifier = uuid.uuid4().hex
@@ -1543,7 +1573,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "job-environments", "job-recovery", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "job-diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "leader-route", "job-environments", "job-recovery", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "job-diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1587,6 +1617,7 @@ def main():
              "websocket": campaign.websocket,
              "websocket-timeout": campaign.websocket_timeout,
              "lease-burst": campaign.lease_burst,
+             "leader-route": campaign.leader_route,
              "job-recovery": campaign.job_recovery,
              "job-environments": campaign.job_environments,
              "startup-jobs": campaign.startup_jobs,

@@ -22,6 +22,49 @@ public sealed class SlimDataRecoveryTests
     [Theory]
     [InlineData(SlimDataBatchMode.Global)]
     [InlineData(SlimDataBatchMode.PartitionedByKey)]
+    public async Task Lost_consensus_cancels_the_old_leader_http_epoch_without_waiting_for_client_timeout(SlimDataBatchMode mode)
+    {
+        using var stalled = new StalledContent();
+        using var oldConsensus = new CancellationTokenSource();
+        CancellationToken consensus = oldConsensus.Token;
+        var requests = new ConcurrentQueue<(Uri Uri, byte[] Payload)>();
+        using var handler = new Handler(async (request, token) =>
+        {
+            byte[] bytes = await request.Content!.ReadAsByteArrayAsync(token);
+            requests.Enqueue((request.RequestUri!, bytes));
+            if (requests.Count == 1)
+                return new(HttpStatusCode.OK) { Content = stalled };
+            SlimDataCommandBatchRequest batch = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(bytes)!;
+            return Reply(batch, "");
+        });
+        await using var fixture = await Fixture.CreateAsync(handler, Timeout.InfiniteTimeSpan, mode);
+        fixture.Cluster.SetupGet(cluster => cluster.ConsensusToken).Returns(() => consensus);
+        var queue = new JobQueue(fixture.Service);
+        var first = queue.EnqueueAsync("recovery", [1]);
+        await stalled.Started.Task.WaitAsync(TestDeadline);
+        var next = queue.EnqueueAsync("recovery", [2]);
+
+        fixture.LeaderPort = 3263;
+        consensus = CancellationToken.None;
+        await oldConsensus.CancelAsync();
+
+        await first.WaitAsync(TestDeadline);
+        await next.WaitAsync(TestDeadline);
+        Assert.True(stalled.Disposed);
+        var sent = requests.ToArray();
+        Assert.Equal(3, sent.Length);
+        Assert.Equal(3262, sent[0].Uri.Port);
+        Assert.Equal(3263, sent[1].Uri.Port);
+        Assert.Equal(sent[0].Payload, sent[1].Payload);
+        SlimDataCommandBatchRequest retried = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(sent[1].Payload)!;
+        SlimDataCommandBatchRequest following = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(sent[2].Payload)!;
+        Assert.Equal(retried.Sequence + 1, following.Sequence);
+        Assert.Equal(retried.GenerationId, following.GenerationId);
+    }
+
+    [Theory]
+    [InlineData(SlimDataBatchMode.Global)]
+    [InlineData(SlimDataBatchMode.PartitionedByKey)]
     public async Task Accepted_job_is_dequeued_after_response_body_timeout_and_leader_change(SlimDataBatchMode mode)
     {
         using var stalled = new StalledContent();

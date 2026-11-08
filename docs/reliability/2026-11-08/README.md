@@ -45,6 +45,11 @@ interpreting a passing field or an empty missing-ID list.
   SDK and owner-timeout campaigns on `7e1f20a6`, plus Native replay of the original
   pre-repair archive. The latter still fails on two old job receipts, while its
   confirmed data passes verification. Large Stream latency remains a release gate.
+- `journal-io-evidence.json`: the excluded cross-OS development-manifest setup
+  error, two ordinary ENOSPC recoveries, a forced journal-write failure before the
+  fix and the three-cycle after-fix recovery. The final run verifies a terminal
+  job checkpoint across full supervisor restart and retains the same volume for
+  the subsequent crashes/restart. Raw images and their archives remain local.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

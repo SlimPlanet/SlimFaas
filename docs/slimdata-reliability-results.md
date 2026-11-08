@@ -442,8 +442,43 @@ recovery. Until a terminal transition is flushed, its public state stays Pending
 New creations and explicit deletions still require a durable write before success;
 no request waits through an unbounded retry loop. Cleanup releases owned job
 processes even if its monitor faults. The strengthened real regression compares
-the terminal checkpoint before and after full supervisor restart. Its after-fix
-run and final validation are pending; the 300-second recovery gate is unchanged.
+the terminal checkpoint before and after full supervisor restart.
+
+The after-fix run on `b00224c5` passed **230 accepted / 102 unknown / zero missing
+receipts** on one retained ext4 volume: ordinary ENOSPC (**9.076 s** recovery),
+the forced journal/quorum fault (**9.038 s**, including terminal checkpoint
+verification across full supervisor restart), a second ordinary ENOSPC (**8.026 s**),
+successive crashes and full restart. Logs explicitly show failed journal writes
+and subsequent recovery. The full suite still passes **1,992 tests**. The original
+failed image was archived before further replay. Native publication and fresh
+benchmarks on this revision are pending; the 300-second recovery gate is unchanged.
+
+## An ordered producer remained attached to an unavailable old leader
+
+Native `b00224c5` passed the complete SDK campaign, but its subsequent owner-timeout
+run failed. The measured suspension lasted **124.561 seconds**, because publication
+took **99.603 seconds** before HTTP 202 and the scenario then waited 20 seconds.
+This does not reproduce the intended short owner absence: finite delivery retries
+can already be exhausted during the longer interval. The original failure and
+receipt absence remain retained.
+
+The runtime log explicitly records the configured **100-second HttpClient timeout**
+in `SlimDataService.SendCommandBatchAsync`, then retries the same ordered batch.
+The local client kept its old leader HTTP request alive after consensus changed;
+every subsequent mutation in that producer waited behind it. A reduced real Local
+`leader-route` case reproduces the blockage with a small Set through a follower:
+the old leader is suspended, another leader is available, but the single mutation
+expires at the unchanged 15-second deadline. No mutation is retried by the harness.
+
+Outgoing batch requests now link to the local Raft consensus token captured before
+leader selection. Losing that epoch cancels the stale HTTP request, including a
+stalled response body. The existing consumer retries identical batch identity and
+content, preserving deduplication if the prior leader committed before its reply
+was interrupted. HTTP deadlines are unchanged. Two regressions with an infinite
+test-client timeout fail before the fix in Global and PartitionedByKey modes.
+All **11** focused recovery tests pass after the fix, including both new modes,
+response-body timeout, shutdown cancellation and read-barrier recovery. Real Local
+after-fix validation and final benchmark attribution are pending.
 
 ## Performance evidence
 

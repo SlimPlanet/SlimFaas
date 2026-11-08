@@ -57,6 +57,7 @@ binaries outside the build directory when rebuilding another version on Windows.
 | `latency` | Linux netem adds 25 ms to loopback packets for the longest requested duration while mixed traffic continues |
 | `diskfull` | Exhaustion of a marked, separate 128 MiB filesystem; restore space by removing only the synthetic filler, then verify original state |
 | `job-diskfull` | Hold an acknowledged real job, suspend Raft so cleanup cannot free space, exhaust the marked filesystem with progressively smaller writes, complete the job, then verify its terminal checkpoint survives recovery and full supervisor restart |
+| `leader-route` | Warm a follower's leader HTTP route, suspend that leader and submit one unretried small mutation; require completion through the newly elected leader before the existing 15-second request budget |
 
 `--scenarios` selects a comma-separated list. `--payload-sizes` accepts exact byte
 counts, up to the fixture's 20 MiB ceiling; it does not change runtime limits.

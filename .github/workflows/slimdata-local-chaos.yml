@@ -67,7 +67,7 @@ jobs:
       - name: Keep a healthy majority writable after a burst with a silent follower
         run: >-
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/lease-burst
-          --scenarios lease-burst --request-timeout 15 --recovery-timeout 180
+          --scenarios lease-burst,leader-route --request-timeout 15 --recovery-timeout 180
       - name: Install locked SDK dependencies without build scripts
         run: uv sync --frozen --project client/python/slimfaas-client --no-build --no-install-project
       - name: Exercise real SDK streaming, offline retention and reconnect

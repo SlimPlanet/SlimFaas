@@ -448,7 +448,14 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         byte[] payload,
         CancellationToken cancellationToken)
     {
-        var endpoint = await GetAndWaitForLeader(cancellationToken).ConfigureAwait(false);
+        // A leader URI belongs to this Raft consensus epoch. Cancel a stale
+        // in-flight request when that epoch ends instead of holding the ordered
+        // producer until HttpClient.Timeout. The caller retries the same batch
+        // identity, including when the previous leader already committed it.
+        using var consensusCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, _cluster.ConsensusToken);
+        CancellationToken requestToken = consensusCancellation.Token;
+        var endpoint = await GetAndWaitForLeader(requestToken).ConfigureAwait(false);
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             new Uri($"{endpoint}{UnifiedBatchResource}"))
@@ -462,10 +469,10 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         using var response = await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseContentRead,
-                cancellationToken)
+                requestToken)
             .ConfigureAwait(false);
 
-        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        var bytes = await response.Content.ReadAsByteArrayAsync(requestToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
             throw new InvalidDataException(

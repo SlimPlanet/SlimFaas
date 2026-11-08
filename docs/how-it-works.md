@@ -307,6 +307,15 @@ mutation: a stalled local consumer can therefore stop dispatch even when functio
 are Ready and Raft continues committing writes from other nodes. Check local batch
 queue growth and dispatch-cycle progress together with Raft health.
 
+An outgoing mutation request uses the current local Raft consensus token for its
+lifetime, including the HTTP response body. When that node loses communication
+with the leader or becomes a candidate, the old request is cancelled and the
+ordered consumer retries the same producer/generation/sequence against the newly
+observed leader. This avoids holding every later command until the old HTTP
+request's 100-second default timeout. A previously committed attempt is resolved
+through the existing batch deduplication; no request is skipped to unblock the
+queue. The configured HTTP timeout still bounds a request within a valid epoch.
+
 The consumer stops after 15 seconds of inactivity and starts again when a command
 arrives. Admission, retirement and disposal are synchronized so that a command
 arriving during retirement remains owned by exactly one consumer. An unexpected
