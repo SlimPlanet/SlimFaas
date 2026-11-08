@@ -7,6 +7,20 @@ SlimFaas lets you run **oneâ€‘off, batch, and scheduled (cron) jobs** either onâ
 
 ## From a trigger to a completed job
 
+Job creation uses a durable queue reservation with a 120-second timeout and
+bounded retry delays of 2, 4, 8, 16 and 32 seconds. A worker crash after reservation
+and before creating the orchestrator job expires that reservation as HTTP 504;
+504 is retryable, so a replacement worker can create the accepted job.
+The stable job name makes repeated creation requests idempotent in the local
+supervisor. Application jobs should still tolerate at-least-once execution.
+
+Earlier versions omitted 504 from this internal retry policy. A reservation
+timeout could therefore evict an accepted job before any process was created.
+The correction applies to newly enqueued jobs. Existing queued entries retain
+their persisted retry policy; review/drain them before a disruptive upgrade.
+An entry already evicted by the old policy cannot be recovered from a compacted
+queue solely by installing this correction; reconcile it with the caller's log.
+
 HTTP requests and schedules feed the same job execution path. A job configuration supplies the executable/image, dependencies, concurrency and retry limits; it is distinct from each execution created from that configuration.
 
 ```mermaid
