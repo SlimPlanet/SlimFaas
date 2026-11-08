@@ -271,6 +271,8 @@ class Campaign:
         env = os.environ | {"SlimData__SnapshotIntervalEntries": "50",
                             "SlimData__SnapshotIntervalBytes": "8388608",
                             "OpenTelemetry__Enable": "false"}
+        if "startup-jobs" in self.options.scenarios.split(","):
+            env["Workers__JobsConfigurationDelayMilliseconds"] = "300000"
         creation = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
         self.log = (self.output / f"supervisor-{self.generation}.log").open("ab", buffering=0)
         self.process = subprocess.Popen(self.command + ["local", "up", "-f", str(self.manifest)],
@@ -864,6 +866,20 @@ class Campaign:
     def websocket(self):
         asyncio.run(WebSocketCampaign(self).run())
 
+    def startup_jobs(self):
+        self.phase = "startup-job-configuration"
+        identifier = uuid.uuid4().hex
+        self.require_mutation("job", "/job/chaos-job",
+            json.dumps({"Args": [identifier], "TtlSecondsAfterFinished": 3600}).encode(),
+            identifier=identifier, headers={"Content-Type": "application/json"}, expected_status=202)
+        self.reconcile()
+        status, _, _, _ = self.mutate("invalid-job", "/job/missing-configuration",
+            json.dumps({"Args": ["must-not-execute"]}).encode(), headers={"Content-Type": "application/json"})
+        if status != 400:
+            raise AssertionError(f"Undefined native job was not rejected before enqueue: HTTP {status}")
+        self.results.append({"phase": self.phase, "job_argument": identifier, "passed": True})
+        print(json.dumps(self.results[-1]), flush=True)
+
     def network_latency(self):
         if sys.platform != "linux" or os.geteuid() != 0 or os.readlink("/proc/self/ns/net") == os.readlink("/proc/1/ns/net"):
             raise RuntimeError("Network faults require root inside a separate network namespace; use .bin/run-local-network-chaos.sh")
@@ -1189,7 +1205,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "websocket", "chaos", "latency", "partitions", "diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "websocket", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1223,6 +1239,7 @@ def main():
              "files": campaign.file_boundaries, "retries": campaign.retries_dlq_jobs,
              "wake": campaign.wake_and_cancel,
              "websocket": campaign.websocket,
+             "startup-jobs": campaign.startup_jobs,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
              "diskfull": campaign.disk_full, "restarts": campaign.restarts}[scenario]()
         campaign.reconcile()

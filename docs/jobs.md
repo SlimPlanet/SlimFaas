@@ -7,6 +7,14 @@ SlimFaas lets you run **oneâ€‘off, batch, and scheduled (cron) jobs** either onâ
 
 ## From a trigger to a completed job
 
+Native local nodes load the manifest's job configuration before accepting
+requests. They do not invent a `Default` executable: unknown job/schedule names
+are rejected unless a default command is explicitly declared. This closes the
+post-restart configuration-refresh window in which a valid job could previously
+be accepted into the wrong queue. It does not reconstruct a job already routed
+to `Default` by an older runtime; reconcile those entries with the original caller
+journal. See [native local Jobs](native-local-mode.md#jobs).
+
 Job creation uses a durable queue reservation with a 120-second timeout and
 bounded retry delays of 2, 4, 8, 16 and 32 seconds. A worker crash after reservation
 and before creating the orchestrator job expires that reservation as HTTP 504;

@@ -238,6 +238,13 @@ ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServicePr
 #pragma warning restore ASP0000
 IReplicasService replicasService = serviceProviderStarter.GetRequiredService<IReplicasService>();
 
+if (envOrConfig == "Process")
+{
+    IJobConfiguration initialJobs = serviceProviderStarter.GetRequiredService<IJobConfiguration>();
+    if (!await initialJobs.SyncJobsConfigurationAsync())
+        throw new InvalidOperationException("Local job configuration is unavailable; the node cannot start safely.");
+}
+
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 builder.WebHost.UseStaticWebAssets();
 

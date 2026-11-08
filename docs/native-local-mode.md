@@ -417,6 +417,13 @@ processes:
 
 ## Jobs
 
+Each node loads the supervisor's job configuration before opening its HTTP
+listener, including after a crash. The periodic refresh interval therefore does
+not create a window in which a declared job is queued under `Default`. Native
+local mode only provides a default job command when the manifest explicitly
+declares it; otherwise an undefined job or schedule is rejected with HTTP 400
+before it enters SlimData.
+
 Local Jobs use the same `SlimFaas/*` annotations as suspended Kubernetes
 CronJobs. For example:
 

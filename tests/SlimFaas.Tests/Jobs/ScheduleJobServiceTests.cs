@@ -7,6 +7,19 @@ namespace SlimFaas.Tests.Jobs;
 
 public class ScheduleJobServiceTests
 {
+    [Fact]
+    public async Task Undefined_native_schedule_is_rejected_without_creating_or_deleting_state()
+    {
+        _jobConfigMock.SetupGet(value => value.Configuration).Returns(new SlimFaasJobConfiguration([]));
+        ScheduleCreateJob command = new("* * * * *", ["argument"]);
+        ResultWithError<CreateScheduleJobResult> created = await _sut.CreateScheduleJobAsync("missing", command, true);
+        ResultWithError<string> deleted = await _sut.DeleteScheduleJobAsync("missing", "schedule", true);
+
+        Assert.Equal("configuration_not_found", created.Error?.Key);
+        Assert.Equal(ScheduleJobService.NotFound, deleted.Error?.Key);
+        _dbMock.VerifyNoOtherCalls();
+    }
+
     private readonly Mock<IJobConfiguration> _jobConfigMock = new();
     private readonly Mock<IDatabaseService> _dbMock        = new();
     private readonly Mock<IJobService> _jobServiceMock = new();
