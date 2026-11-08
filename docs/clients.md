@@ -61,6 +61,9 @@ buffers; cancellation propagates to the owner. An unavailable owner returns an
 explicit failure, not a blind synchronous replay. Async delivery retains the
 normal retry/DLQ behavior. An ambiguous attempt's element ID stays fenced on its
 connection until a late callback or disconnect; retries may use another replica.
+A dispatch cancelled before acquiring the socket send lock releases its ID, since
+no callback can arrive. A failed active send aborts its transport before retry;
+this prevents an ambiguous frame from producing a callback for a later attempt.
 Events remain best effort: `204` is acceptance, not delivery confirmation, and
 partial fan-out is not automatically resent. Disconnect removes the route;
 crashes expire the lease, and reconnect creates a new connection identity.

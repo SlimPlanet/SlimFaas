@@ -355,8 +355,11 @@ Local now flushes a job plan before returning creation success, records executio
 transitions and deletions atomically, and reloads unfinished and terminal runs.
 Interrupted attempts can replay with the same identity under at-least-once delivery.
 Unwritable or malformed storage is explicit, and a failed journal transition stops
-the supervisor rather than silently losing its monitor. Real after-fix verification
-and final test totals are pending.
+the supervisor rather than silently losing its monitor. The managed after-fix
+`job-environments,job-recovery,api,restarts` campaign passed with **143 accepted /
+eight unknown / no missing receipts**, including another full persistent restart.
+The full .NET suite passed **1,989 tests** before the subsequent WebSocket race
+correction. Native after-fix verification remains pending.
 
 The initial gated test also exposed an independent Native AOT job defect: an
 accepted job containing an environment list stayed queued because the trimmed
@@ -366,6 +369,40 @@ the generated job collection element formatters without reflection or a wire-for
 change. The `job-environments` scenario checks the literal value in a real process
 and decodes the supported reference shapes; Local continues to leave Kubernetes
 references unresolved. Native before/after validation is retained separately.
+
+The second full Linux endurance matrix on `bc343f05` also passed all three roles
+with DotNext 6.12.0, including retained full-cluster restart. Following the
+one-hour absence, full recovery took **22.926 s** (follower), **24.832 s** (leader,
+new election observed at **4.245 s**) and **15.365 s** (quorum). Final accounting
+was respectively **23,036 / 28**, **21,792 / 212** and **147 / 26,413**
+accepted/unknown operations. Original archives and their hashes are indexed in
+[linux-endurance-612.json](reliability/2026-11-08/linux-endurance-612.json).
+These results predate the new snapshot and job changes.
+
+## Unsent WebSocket attempt retained an impossible callback reservation
+
+The Windows quick job in the snapshot-repair endurance dispatch failed while a
+separate quick run on the same revision passed. Its original artifact contains a
+**1 MiB** Async publication accepted with HTTP 202 and element ID
+`ad5aee92-d0eb-49b6-b73c-b503eec43fe4`. Other sizes, including 2 MB, 2 MiB and 4 MiB,
+completed. This ID timed out without an `AsyncRequest sent` event; its later retries
+reported no eligible client while another ID completed on that same connection.
+
+An exact regression reproduced the reservation defect: block the connection's
+send lock with a binary frame, start an Async dispatch, cancel it before the text
+frame enters the socket, and retry. Previously the unsent ID remained reserved
+awaiting a callback that could never arrive. A leadership change can cancel such
+a locally tracked attempt. The original CI evidence is consistent with this race;
+it does not prove every earlier Windows timeout had this cause.
+
+The sender now marks dispatch only after transmission completes. Cancellation while
+waiting for the lock releases an unsent reservation. Failure during an active socket
+send aborts that ambiguous transport, preventing an old callback from completing a
+new attempt. A completed transmission still retains its reservation until callback
+or disconnection. Tests cover text/binary active-send cancellation and preserve the
+real peer late-callback regression. All **17** focused WebSocket activity, peer
+and queue tests pass; the unsent-ID test failed before the fix. Fresh Local SDK
+and Native runs are pending.
 
 ## Performance evidence
 

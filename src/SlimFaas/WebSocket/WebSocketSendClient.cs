@@ -92,7 +92,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             _logger.LogNoWebSocketClientAvailableForFunction(functionName);
             return 503;
         }
-        bool dispatchStarted = false;
+        bool dispatched = false;
 
         try
         {
@@ -132,8 +132,8 @@ public class WebSocketSendClient : IWebSocketSendClient
             _activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut,
                 NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
                 targetPod: connection.ConnectionId, correlationId: dequeueId);
-            dispatchStarted = true;
             await connection.SendAsync(envelope, ct);
+            dispatched = true;
             _logger.LogAsyncRequestSentViaWebSocketToElementId(functionName, connection.ConnectionId, elementId);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -152,7 +152,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         }
         finally
         {
-            if (!dispatchStarted || tcs.Task.IsCompletedSuccessfully || !connection.IsAlive)
+            if (!dispatched || tcs.Task.IsCompletedSuccessfully || !connection.IsAlive)
                 connection.PendingCallbacks.TryRemove(new KeyValuePair<string, TaskCompletionSource<int>>(elementId, tcs));
             else
                 // Keep a timed-out ID occupied until its callback or disconnect; old SDK callbacks contain only the element ID.

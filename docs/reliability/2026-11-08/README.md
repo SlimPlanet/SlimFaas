@@ -9,6 +9,9 @@ interpreting a passing field or an empty missing-ID list.
   they are not per-payload causal measurements.
 - `linux-endurance.json`: reports and accounting from the three original CI ZIPs,
   exact revision, artifact URLs, archive hashes and unknown-outcome categories.
+- `linux-endurance-612.json`: a second complete three-role Linux endurance matrix
+  with DotNext 6.12.0, including original ZIP hashes and all outage/restart results.
+  This revision predates the transactional snapshot and Local job fixes.
 - `linux-local-faults.json`: reports/parameters and archive hashes for preserved
   WSL packet-drop and disk-full campaigns, including the latest failed repeat.
 - `performance.md` / `performance.json`: completed and failed Native benchmark
@@ -34,6 +37,10 @@ interpreting a passing field or an empty missing-ID list.
   vulnerability audit and the exact revision validated by FOSSA.
 - `windows-default-trial.json`: the withdrawn default experiment, same-binary
   Private/Shared HTTP controls and the failed complete Native SDK recovery.
+- `job-snapshot-recovery.json`: retained snapshot repair (data verification
+  succeeded but two old job receipts remain missing), both Native job failures
+  and the passing managed job-recovery/API/restart campaign. It includes original
+  and resumed parameter/runtime attribution and raw-file hashes.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

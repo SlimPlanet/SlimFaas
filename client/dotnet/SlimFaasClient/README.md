@@ -7,6 +7,9 @@
 # SlimFaasClient
 
 The server's default retry statuses include `504` for delivery/owner timeouts.
+The runtime releases an Async ID cancelled before transmission. An interrupted
+active send closes its connection; reconnect allows safe at-least-once replay.
+A fully transmitted attempt remains reserved until its callback or disconnect.
 Explicit `HttpStatusRetries` lists override this policy. Existing queued messages
 retain their original statuses; enable DLQ retention for exhausted failures.
 

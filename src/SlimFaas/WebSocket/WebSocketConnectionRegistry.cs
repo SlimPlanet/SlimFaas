@@ -88,32 +88,32 @@ public sealed class WebSocketClientConnection : IDisposable
     {
         string json = JsonSerializer.Serialize(envelope, AppJsonContext.Default.WebSocketEnvelope);
         byte[] bytes = Encoding.UTF8.GetBytes(json);
-        await _sendLock.WaitAsync(ct);
-        try
-        {
-            await Socket.SendAsync(
-                new ArraySegment<byte>(bytes),
-                System.Net.WebSockets.WebSocketMessageType.Text,
-                endOfMessage: true,
-                ct);
-        }
-        finally
-        {
-            _sendLock.Release();
-        }
+        await SendFrameAsync(bytes, System.Net.WebSockets.WebSocketMessageType.Text, ct);
     }
 
     /// <summary>Envoie une frame binaire brute au client WebSocket.</summary>
-    public async Task SendBinaryAsync(byte[] frame, CancellationToken ct)
+    public Task SendBinaryAsync(byte[] frame, CancellationToken ct)
+        => SendFrameAsync(frame, System.Net.WebSockets.WebSocketMessageType.Binary, ct);
+
+    private async Task SendFrameAsync(byte[] frame, System.Net.WebSockets.WebSocketMessageType type, CancellationToken ct)
     {
         await _sendLock.WaitAsync(ct);
         try
         {
             await Socket.SendAsync(
                 new ArraySegment<byte>(frame),
-                System.Net.WebSockets.WebSocketMessageType.Binary,
+                type,
                 endOfMessage: true,
                 ct);
+        }
+        catch
+        {
+            // A failed active send may have transmitted part or all of the
+            // message. Abort this transport so a later callback cannot be
+            // mistaken for a retry. Cancellation while waiting for the lock
+            // occurs outside this block and leaves the connection usable.
+            Socket.Abort();
+            throw;
         }
         finally
         {
