@@ -647,7 +647,7 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
 
 WebApplication app = builder.Build();
 // DotNext requires snapshot restoration before any service constructs the Raft WAL.
-await app.RestoreStateAsync<SlimPersistentState>();
+await app.Services.GetRequiredService<SlimPersistentState>().RestoreAsync();
 
 // X-Forwarded-For is ignored unless the operator declares the proxies allowed to set it.
 // Must run first so that every later caller classification sees the real client address.

@@ -6,8 +6,9 @@ coverage. Windows recovery/large-publication failures and incomplete fault cover
 still block certification. A passing campaign on one revision or OS does not
 override a failed campaign on another.
 
-A further confirmed defect is under investigation: interrupted incoming snapshots
-can be published under their final index/term filename while still truncated.
+A further confirmed defect has a transactional snapshot fix under validation:
+interrupted incoming snapshots could be published under their final index/term
+filename while still truncated.
 
 Tracking: [issue #505](https://github.com/SlimPlanet/SlimFaas/issues/505),
 [draft PR #506](https://github.com/SlimPlanet/SlimFaas/pull/506).
@@ -314,9 +315,20 @@ truncated snapshot, not proof that the healthy majority lost its confirmed data.
 The entire failed run was archived before any repair/replay:
 `platform-default-native-sdk-before-repair.tar.gz`, 3,303,705 bytes, SHA-256
 `4602c271c6c05de613fea8bd1f9fe4d8926e0bc44129d1d544d3cf084b66ba8a`.
-The original directory also remains retained. A regression and transactional
-snapshot publication fix are in progress; paired benchmarking is deferred until
-this data-integrity defect is addressed. See
+The original directory also remains retained. Two regressions through the real
+DotNext WAL fail before the fix (cancellation and I/O failure publish a partial
+file). SlimData now owns the snapshot lifecycle through public DotNext interfaces,
+using a fully flushed and decoded temporary copy before publication and atomic
+in-memory replacement. Startup retains unexpected-EOF files and can restore an
+older complete snapshot; with no complete snapshot it fails closed. Other decoding
+errors propagate. Existing state is preserved if snapshot decoding fails.
+
+The full suite passes **1,983 tests**, including **nine** new snapshot cases,
+historical 6.6.0 persistence compatibility and byte-for-byte snapshot transfer
+across 64 KiB buffer boundaries. No Raft/WAL page or snapshot payload format was
+changed. The adapted lifecycle carries its upstream MIT notice. Real retained-state
+repair, Native publication and fresh benchmarks remain under validation; paired
+benchmarking is deferred until the durability regression has passed end to end. See
 [windows-default-trial.json](reliability/2026-11-08/windows-default-trial.json).
 
 The dependency update also resolves four System.* packages from 10.0.13 to

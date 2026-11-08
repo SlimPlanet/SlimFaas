@@ -22,4 +22,8 @@
         <InternalsVisibleTo Include="SlimFaas.Benchmarks" />
     </ItemGroup>
 
+    <ItemGroup>
+        <Content Include="ThirdPartyNotices/DotNext.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>

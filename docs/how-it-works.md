@@ -349,6 +349,24 @@ before upgrading existing state. Do not infer safe rollback from a forward-upgra
 
 ### SlimData recovery
 
+SlimData implements DotNext's public `IStateMachine` and `ISnapshotManager`
+contracts for its snapshot lifecycle; Raft consensus and the WAL remain DotNext.
+Incoming snapshots are written to a temporary file in the same directory, checked
+against their declared length, flushed to disk and decoded into detached state.
+Only successful completion publishes the index/term filename and replaces the
+in-memory payload. Cancellation, short input and I/O errors retain the previous
+state and cannot promote an incomplete temporary copy. Snapshot transport and
+serialization use bounded 64 KiB I/O buffers; WAL page geometry is unchanged.
+
+Older receivers could leave truncated files under final snapshot names. Startup
+logs and retains those files when decoding reaches unexpected end-of-file, then
+tries an older complete snapshot before WAL replay or peer synchronization. If
+none is complete, startup fails explicitly instead of accepting an empty reset.
+Unexpected decoding failures still propagate. The snapshot payload and filenames
+remain compatible with historical formats; the 6.6.0 WAL/snapshot fixture is part
+of the regressions. Snapshot lifecycle code adapted from DotNext carries its MIT
+notice in `src/SlimData/ThirdPartyNotices/DotNext.txt` and published output.
+
 DotNext 6.12.0 chooses the synchronization path internally. SlimFaas supplies
 `warmupRounds` (100 by default): a restarted member first attempts WAL
 backtracking and can fall back to DotNext snapshot recovery when the gap is

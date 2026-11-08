@@ -38,7 +38,7 @@ public enum SlimDataSnapshotTrigger
     Incompatible
 }
 
-public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimDataPayload>
+public sealed partial class SlimPersistentState : IStateMachine, ISupplier<SlimDataPayload>, IAsyncDisposable
 {
     public const string LogLocation = "SlimData:LogLocation";
     public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
@@ -119,8 +119,12 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         int snapshotIntervalEntries,
         long snapshotIntervalBytes,
         ILogger<SlimPersistentState>? logger)
-        : base(location)
     {
+        _snapshotDirectory = location;
+        location.Create();
+        _snapshotLifetimeToken = _snapshotLifetimeSource!.Token;
+        _snapshotSentinel = Task.FromException<SnapshotPersistence>(new ObjectDisposedException(nameof(SlimPersistentState)));
+        _snapshotAppliedIndex = EnumerateSnapshots().Any() ? -1L : 0L;
         _snapshotIntervalEntries = snapshotIntervalEntries > 0
             ? snapshotIntervalEntries
             : throw new ArgumentOutOfRangeException(
@@ -191,7 +195,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     SlimDataPayload ISupplier<SlimDataPayload>.Invoke()
         => _state.CapturePayload();
 
-    protected override async ValueTask<bool> ApplyAsync(LogEntry entry, CancellationToken token)
+    private async ValueTask<bool> ApplyAsync(LogEntry entry, CancellationToken token)
     {
         if (entry.IsConfiguration || entry.IsSnapshot)
             return false;
@@ -451,7 +455,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             result.SetError(KeyValueCommandStatus.NotCommitted, SkippedIncompatibleCommandMessage);
     }
 
-    protected override async ValueTask PersistAsync(IAsyncBinaryWriter writer, CancellationToken token)
+    private async ValueTask PersistAsync(IAsyncBinaryWriter writer, CancellationToken token)
     {
         var startedAt = Stopwatch.GetTimestamp();
         var snapshot = _state.Capture();
@@ -489,13 +493,24 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         }
     }
 
-    protected override async ValueTask RestoreAsync(FileInfo snapshotFile, CancellationToken token)
+    private async ValueTask RestoreAsync(FileInfo snapshotFile, CancellationToken token)
+    {
+        SlimDataStateSnapshot snapshot = await ReadSnapshotAsync(snapshotFile, token).ConfigureAwait(false);
+        PublishRestoredSnapshot(snapshot, snapshotFile.Length);
+    }
+
+    private void PublishRestoredSnapshot(SlimDataStateSnapshot snapshot, long fileBytes)
+    {
+        _state.Replace(snapshot);
+        ResetSnapshotWindow(SlimDataSnapshotTrigger.None);
+        Volatile.Write(ref _incompatibleCompactionRequested, 0);
+        Volatile.Write(ref _lastSnapshotSizeBytes, fileBytes);
+    }
+
+    private async ValueTask<SlimDataStateSnapshot> ReadSnapshotAsync(FileInfo snapshotFile, CancellationToken token)
     {
         var startedAt = Stopwatch.GetTimestamp();
         Volatile.Write(ref _isRestoring, 1);
-        ResetSnapshotWindow(SlimDataSnapshotTrigger.None);
-        Volatile.Write(ref _incompatibleCompactionRequested, 0);
-        _state.Reset();
         if (_logger?.IsEnabled(LogLevel.Information) == true)
         {
             _logger?.LogRestoringSlimDataSnapshotFileFileBytesManagedMemoryBytes(snapshotFile.FullName, snapshotFile.Length, GC.GetTotalMemory(forceFullCollection: false));
@@ -511,10 +526,8 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
                 Options = FileOptions.Asynchronous | FileOptions.SequentialScan
             });
 
-            var reader = IAsyncBinaryReader.Create(stream, new byte[Environment.SystemPageSize]);
-            var snapshot = await SlimDataSnapshotSerializer.ReadAsync(reader, token).ConfigureAwait(false);
-            _state.Replace(snapshot);
-            Volatile.Write(ref _lastSnapshotSizeBytes, snapshotFile.Length);
+            var reader = IAsyncBinaryReader.Create(stream, new byte[SnapshotTransferBufferSize]);
+            return await SlimDataSnapshotSerializer.ReadAsync(reader, token).ConfigureAwait(false);
         }
         finally
         {
