@@ -103,7 +103,7 @@ public sealed class SlimDataRecoveryTests
     {
         using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
         await using var fixture = await Fixture.CreateAsync(handler);
-        using var cleanup = new CancellationTokenSource();
+        using CancellationTokenSource cleanup = new();
         var attempts = 0;
         fixture.Log.WaitForApply = token =>
             Interlocked.Increment(ref attempts) == 1 ? StallApplyAsync(token, cleanup.Token) : ValueTask.CompletedTask;

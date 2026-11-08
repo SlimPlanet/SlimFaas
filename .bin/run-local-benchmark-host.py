@@ -87,4 +87,4 @@ if __name__ == "__main__":
                 raise SystemExit(f"Benchmark port {port} already has a listener; refusing to start or clean its state.")
     if os.name == "nt":
         raise SystemExit(windows_host(options.command))
-    os.execvp(options.command[0], options.command)
+    raise SystemExit("This owned-process launcher requires Windows Job Objects.")
