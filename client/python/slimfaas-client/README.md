@@ -6,6 +6,10 @@
 
 # slimfaas-client
 
+The server's default retry statuses include `504` for delivery/owner timeouts.
+Explicit `HttpStatusRetries` lists override this policy. Existing queued messages
+retain their original statuses; enable DLQ retention for exhausted failures.
+
 Async request `try_number` starts at `0`. With two configured retries, only
 attempt `2` has `is_last_try == True`. Older runtimes exposed incorrect queue
 attempt metadata; the runtime correction does not change the client wire format.

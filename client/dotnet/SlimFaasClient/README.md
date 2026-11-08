@@ -6,6 +6,10 @@
 
 # SlimFaasClient
 
+The server's default retry statuses include `504` for delivery/owner timeouts.
+Explicit `HttpStatusRetries` lists override this policy. Existing queued messages
+retain their original statuses; enable DLQ retention for exhausted failures.
+
 Async bodies are base64 encoded inside WebSocket JSON envelopes. For Python
 workers receiving larger bodies, see [the Python client's bounded receive limits](../../python/slimfaas-client/README.md#incoming-message-limits).
 

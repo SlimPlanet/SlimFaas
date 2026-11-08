@@ -4,12 +4,42 @@ using SlimData;
 using SlimData.Commands;
 using SlimFaas;
 using SlimFaas.Jobs;
+using SlimFaas.Kubernetes;
 using Xunit;
 
 namespace SlimData.Tests;
 
 public sealed class JobQueueRecoveryTests
 {
+    [Fact]
+    public async Task Default_async_policy_preserves_a_reservation_when_its_worker_disappears()
+    {
+        var policy = new SlimFaasConfiguration().DefaultAsync;
+        const long start = 1;
+        long expired = start + (policy.HttpTimeout + 1L) * TimeSpan.TicksPerSecond;
+        var reserved = new QueueElement(new byte[] { 42 }, "accepted-async", start, policy.HttpTimeout,
+            [.. policy.TimeoutRetries], [new QueueHttpTryElement(start, "crashed-worker")], [.. policy.HttpStatusRetries]);
+        var state = new SlimDataState(
+            ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+            ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty.Add("Queue:worker", [reserved]));
+
+        await SlimDataInterpreter.DoListRightPopAsync(new ListRightPopCommand
+        {
+            Key = "Queue:worker", Count = 1, NowTicks = expired, IdTransaction = "replacement-1", ReservedIps = []
+        }, state);
+        QueueElement retained = Assert.Single(state.Queues["Queue:worker"]);
+        Assert.Equal(504, Assert.Single(retained.RetryQueueElements).HttpCode);
+        await SlimDataInterpreter.DoListRightPopAsync(new ListRightPopCommand
+        {
+            Key = "Queue:worker", Count = 1,
+            NowTicks = expired + policy.TimeoutRetries[0] * TimeSpan.TicksPerSecond + 1,
+            IdTransaction = "replacement-2", ReservedIps = []
+        }, state);
+        Assert.Equal(2, retained.NumberOfTries());
+        Assert.Equal("replacement-2", retained.RetryQueueElements[^1].IdTransaction);
+    }
+
     [Fact]
     public async Task Accepted_job_remains_retryable_when_its_reserving_worker_disappears()
     {

@@ -8,6 +8,11 @@ Older clients inherited a 1 MiB receive limit and closed with code 1009 before
 dispatching valid larger Async bodies, including 2 MB and 2 MiB. Upgrade those
 clients; see [Python message limits](../client/python/slimfaas-client/README.md#incoming-message-limits).
 
+Server retry defaults include `504` for expired delivery reservations and
+WebSocket delivery timeouts. Explicit `HttpStatusRetries` lists override them;
+include `504` for bounded recovery after a worker/owner disappears. Existing
+queue entries retain their original policy. See [function retry configuration](functions.md#6-function-configuration).
+
 Async `TryNumber` / `try_number` is zero-based. With two configured retries,
 deliveries are numbered `0`, `1`, `2`, and only the final one has
 `IsLastTry` / `is_last_try` set to `true`. Runtimes predating the queue metadata
