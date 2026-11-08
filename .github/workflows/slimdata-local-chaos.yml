@@ -57,7 +57,7 @@ jobs:
         run: >-
           uv run --locked --no-sync --no-build --project client/python/slimfaas-client
           python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/websocket
-          --scenarios websocket --request-timeout 120 --recovery-timeout 300
+          --scenarios websocket --node-log-level Debug --request-timeout 120 --recovery-timeout 300
       - name: Drop real Raft traffic in an isolated network namespace
         if: runner.os == 'Linux'
         run: >-
