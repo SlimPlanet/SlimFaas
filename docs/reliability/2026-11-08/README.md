@@ -24,6 +24,14 @@ interpreting a passing field or an empty missing-ID list.
 - `follower-long-and-lease.json`: retained follower volumes eventually pass a
   larger-budget diagnostic, preserving original bounded failures, plus baseline
   silent-follower burst probes. This does not pass the original 300-second gate.
+- `dotnext-612-first-campaigns.json`: Native lease, retained-state forward replay
+  and Shared/Private SDK controls before changing the packaged Windows default.
+- `linux-file-offline-inspection.json`: original failed CI image read without
+  writes; converged snapshot metadata and an intact originating copy of the
+  unavailable file, with image hashes checked before and after inspection.
+- `dependency-upgrade.json`: resolved direct/transitive package changes,
+  distribution contents/hashes, unchanged System.* third-party notices, NuGet
+  vulnerability audit and the exact revision validated by FOSSA.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

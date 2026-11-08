@@ -74,6 +74,8 @@ fi
   echo "worktree_dirty=$(git -C "$repo_root" status --porcelain | grep -q . && echo true || echo false)"
   echo "dotnet_sdk=$(dotnet --version)"
   echo "runtime=$slimfaas_dll"
+  echo "local_manifest=$manifest"
+  echo "local_manifest_sha256=$(sha256sum "$manifest" | cut -d ' ' -f 1)"
   echo "runtime_sha256=$(sha256sum "$slimfaas_dll" | cut -d ' ' -f 1)"
   echo "host=$(uname -s)-$(uname -m)"
   echo "duration_seconds=$duration_seconds"

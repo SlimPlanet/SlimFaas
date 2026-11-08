@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "source": "ci-7920-linux.zip / disk-resources/disk.img",
+  "identifier": "6b5f6e010dae483ab3a7004754038374",
+  "image_sha256_before": "e1db74fd3954da1f5e23ad98cd39ef3b33db93a3979e8d1363dd29bf05cb632d",
+  "image_sha256_after": "e1db74fd3954da1f5e23ad98cd39ef3b33db93a3979e8d1363dd29bf05cb632d",
+  "method": "debugfs without -w; parse only headerless snapshot key/value prefix; no runtime replay",
+  "nodes": [
+    {
+      "node": 0,
+      "snapshot": "1765-15",
+      "snapshot_sha256": "cf4b1a881afb8c92dc04244c1848e1387e8924bb311dc2baea0040649d7161d9",
+      "snapshot_key_count": 157,
+      "raft_file_metadata": {
+        "data:file:6b5f6e010dae483ab3a7004754038374:meta": {
+          "bytes": 157,
+          "sha256": "8cd0d0f59925acc9be914f135666b7f4e6c35ce291cbdadefa3038279cf93b36",
+          "expected_content_sha_present": true
+        }
+      },
+      "local_file": {
+        "bin": {
+          "exists": false,
+          "bytes": null,
+          "sha256": null
+        },
+        "meta.mp": {
+          "exists": false,
+          "bytes": null,
+          "sha256": null
+        }
+      }
+    },
+    {
+      "node": 1,
+      "snapshot": "1815-15",
+      "snapshot_sha256": "422f7421ddfbb3e3d898c785c7b9a8b583a4af2425e3f38083789ef1043ec230",
+      "snapshot_key_count": 157,
+      "raft_file_metadata": {
+        "data:file:6b5f6e010dae483ab3a7004754038374:meta": {
+          "bytes": 157,
+          "sha256": "8cd0d0f59925acc9be914f135666b7f4e6c35ce291cbdadefa3038279cf93b36",
+          "expected_content_sha_present": true
+        }
+      },
+      "local_file": {
+        "bin": {
+          "exists": false,
+          "bytes": null,
+          "sha256": null
+        },
+        "meta.mp": {
+          "exists": false,
+          "bytes": null,
+          "sha256": null
+        }
+      }
+    },
+    {
+      "node": 2,
+      "snapshot": "1815-15",
+      "snapshot_sha256": "475324dfb666177d1295b8d57e255736f027c793d9416925ac7cf5b4662a4a4b",
+      "snapshot_key_count": 157,
+      "raft_file_metadata": {
+        "data:file:6b5f6e010dae483ab3a7004754038374:meta": {
+          "bytes": 157,
+          "sha256": "8cd0d0f59925acc9be914f135666b7f4e6c35ce291cbdadefa3038279cf93b36",
+          "expected_content_sha_present": true
+        }
+      },
+      "local_file": {
+        "bin": {
+          "exists": true,
+          "bytes": 1024,
+          "sha256": "a42a4e2a4a7706730878d794488b3b011c6110afbcbaf7da2b11d87467e7384b"
+        },
+        "meta.mp": {
+          "exists": true,
+          "bytes": 133,
+          "sha256": "f61ddee9e3c2b359107fd7629a035e3bd856cc879b033d33a31549753445a720"
+        }
+      }
+    }
+  ]
+}

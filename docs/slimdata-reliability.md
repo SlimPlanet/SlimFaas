@@ -164,6 +164,19 @@ and DLQ payloads; the retained network/restart campaigns exercise real replay.
 
 ## Performance comparisons
 
+The dedicated GitHub Actions endurance workflow supports Linux managed and Windows
+Native runtimes. Each selected platform runs the follower, leader and quorum roles
+independently through 30/60/300/900/1800/3600-second absences, then crashes and a
+full restart with its original volumes. Select `endurance_platforms=all`, `linux`
+or `windows-native` when dispatching:
+
+```bash
+gh workflow run slimdata-local-chaos.yml --ref YOUR_BRANCH \
+  -f endurance=true -f endurance_platforms=all
+```
+
+Run performance comparisons on a separate host or after local chaos work stops.
+
 Reuse [the existing benchmarks](benchmarking.md), including
 `.bin/slimfaas-local-benchmark.sh` and the `SlimFaasBenchmark compare` command.
 `BENCHMARK_RUNTIME` selects a preserved native executable or managed DLL when

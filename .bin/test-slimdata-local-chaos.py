@@ -294,6 +294,7 @@ class Campaign:
         self.ready()
 
     def ready(self):
+        started = time.monotonic()
         def check():
             if self.process.poll() is not None:
                 raise AssertionError(f"Local supervisor exited with code {self.process.returncode}; inspect logs")
@@ -307,6 +308,9 @@ class Campaign:
         wait_until("all node data read barriers available",
                    lambda: all(request(port, f"/data/sets/{missing}", timeout=2)[0] == 404 for port in self.ports),
                    self.options.recovery_timeout)
+        self.client.append({"event": "cluster-ready", "phase": self.phase,
+                            "supervisor_generation": self.generation - 1,
+                            "seconds": time.monotonic() - started})
 
     def stop(self):
         while self.suspended:
@@ -1459,10 +1463,13 @@ def main():
     try:
         campaign.start()
         if options.resume:
+            resume_check_started = time.monotonic()
             campaign.verify()
             if "websocket" not in options.scenarios.split(","):
                 campaign.reconcile()
             campaign.audit()
+            campaign.client.append({"event": "resume-verified", "phase": campaign.phase,
+                                    "seconds": time.monotonic() - resume_check_started})
         campaign.capture("initial")
         for scenario in options.scenarios.split(","):
             {"payloads": campaign.payloads, "api": campaign.api_smoke,

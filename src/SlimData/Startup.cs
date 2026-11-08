@@ -216,7 +216,14 @@ public class Startup(IConfiguration configuration)
     {
         var configuredValue = configuration[WalMemoryManagement];
         if (configuredValue is null)
-            return WriteAheadLog.MemoryManagementStrategy.SharedMemory;
+        {
+            // Windows flushes each mapped WAL page synchronously. Private buffers
+            // use the WAL's asynchronous write-through path instead; both retain
+            // the same persistence format and per-commit durability guarantees.
+            return OperatingSystem.IsWindows()
+                ? WriteAheadLog.MemoryManagementStrategy.PrivateMemory
+                : WriteAheadLog.MemoryManagementStrategy.SharedMemory;
+        }
 
         if (string.Equals(
                 configuredValue,

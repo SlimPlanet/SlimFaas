@@ -47,13 +47,16 @@ public sealed class StartupConfigurationTests
     }
 
     [Fact]
-    public void Wal_memory_management_defaults_to_shared_memory()
+    public void Wal_memory_management_uses_the_platform_default()
     {
         var configuration = new ConfigurationBuilder().Build();
 
         var strategy = Startup.GetWalMemoryManagement(configuration);
 
-        Assert.Equal(WriteAheadLog.MemoryManagementStrategy.SharedMemory, strategy);
+        WriteAheadLog.MemoryManagementStrategy expected = OperatingSystem.IsWindows()
+            ? WriteAheadLog.MemoryManagementStrategy.PrivateMemory
+            : WriteAheadLog.MemoryManagementStrategy.SharedMemory;
+        Assert.Equal(expected, strategy);
     }
 
     [Theory]

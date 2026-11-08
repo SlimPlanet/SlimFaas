@@ -278,7 +278,12 @@ and deduplication identity.
 
 `SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
 
-SlimData uses DotNext's `SharedMemory` WAL strategy by default. It keeps WAL chunks in memory-mapped files so the operating system can reclaim their pages under memory pressure. Deployments that explicitly favor maximum write throughput over memory usage can select `PrivateMemory` instead:
+SlimData defaults to DotNext's `SharedMemory` WAL strategy on Linux/macOS and
+`PrivateMemory` on Windows. Shared memory keeps WAL chunks in mapped files so the
+operating system can reclaim their pages. Private memory uses private buffers and
+asynchronous write-through I/O; it avoids slow mapped-page flushes on Windows,
+but can consume more RAM when opening a large WAL. An explicit setting overrides
+the platform default, including existing deployed settings. Select a strategy with:
 
 ```bash
 SlimData__WalMemoryManagement=PrivateMemory

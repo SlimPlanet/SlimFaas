@@ -402,8 +402,14 @@ See the [upstream release notes](https://github.com/dotnet/dotNext/blob/aa75879e
 
 DotNext supports two WAL memory-management strategies. SlimFaas selects the strategy with `SlimData:WalMemoryManagement`:
 
-- `SharedMemory` is the default. It writes directly to memory-mapped WAL files so the operating system can reclaim or flush mapped pages under memory pressure.
-- `PrivateMemory` uses private temporary buffers and favors write throughput, at the cost of higher RAM consumption.
+- `SharedMemory` is the default on Linux and macOS. It writes directly to memory-mapped WAL files so the operating system can reclaim or flush mapped pages under memory pressure.
+- `PrivateMemory` is the default on Windows. It uses private temporary buffers and asynchronous write-through I/O, avoiding the Windows mapped-page flush path observed to delay concurrent large publications. It can consume more RAM, especially when opening a large existing WAL.
+
+An explicit value always overrides the platform default, including an existing
+`SharedMemory` setting in a deployment's configuration. The packaged settings no
+longer pin a strategy. This choice does not change WAL page geometry, snapshot
+thresholds or the requirement to flush durable writes. See the
+[recorded controls and remaining reliability gates](slimdata-reliability-results.md).
 
 SlimData creates a streaming snapshot when either **32 MiB of successfully applied WAL entries** or **500 successfully applied entries** have accumulated, whichever occurs first. A snapshot compacts the preceding Raft log window; the byte and entry counters restart after the snapshot request or a snapshot restore.
 

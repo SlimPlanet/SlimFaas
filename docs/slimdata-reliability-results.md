@@ -23,6 +23,7 @@ The Windows Native binary used for the paired benchmarks includes fixes 1–10 a
 | Fixes 1–8 | `80700d9d0b357d33ecce4d604fd056470e875ab779c8a117dfd5c5748947f122` |
 | Fixes 1–9 | `9be0f2927989de381f2bbc42e463db59ef449d672c825690063016962235a0d4` |
 | Fixes 1–10 | `15d7f7cf7dfa59ec3b5ca31a8541b1cd50407e666e3e65edaa0ac616917427e2` |
+| Fixes 1–10 + DotNext 6.12.0 controls (before platform default change) | `8bd724a700b3f39eacbb22f104c482cc518235db0724fd401d5cfa6ab09f5627` |
 
 Historical `parameters.json` files record the checkout at execution time. For a
 preserved executable, its recorded runtime hash identifies its implementation;
@@ -159,7 +160,14 @@ observed the new terminal-WAL critical log and normal BackgroundService host sto
 then passed its first disk-full recovery in 4.908 seconds. Its subsequent crash
 sequence timed out reading a newly confirmed 1,024-byte file. The separate repeated
 WSL campaign failed with a post-ready 503. Neither overall campaign is successful.
-Root causes of these later file/recovery failures are still unproven.
+Root causes of these later file/recovery failures are still unproven. A subsequent
+read-only inspection of the original CI disk image found identical file metadata
+in all three persisted snapshots and the complete 1,024-byte body with the accepted
+SHA-256 on node 2. The original image hash was unchanged by inspection. Thus this
+specific failure demonstrates prolonged unavailability, not disappearance of those
+bytes from the archived image. No runtime replay or general durability proof follows
+from that inspection; see
+[linux-file-offline-inspection.json](reliability/2026-11-08/linux-file-offline-inspection.json).
 
 CI [42502578270](https://github.com/SlimPlanet/SlimFaas/actions/runs/42502578270)
 passed Linux quick/SDK/network/disk/restart coverage, while Windows failed waiting
@@ -207,7 +215,12 @@ Unknowns include the intentionally injected later crashes. See
 [the complete profiles](reliability/2026-11-08/wal-strategy-profiles.json).
 These controls show substantial strategy sensitivity and intermittent behavior;
 they do not erase the earlier failures or prove that this setting alone fixes
-them. The runtime's strategy default was not changed by these experiments.
+them. The candidate now selects `PrivateMemory` by default on Windows;
+Linux/macOS retain `SharedMemory`. Explicit configuration remains authoritative.
+This uses the existing asynchronous write-through backend without changing WAL
+geometry or persistence formats. More private RAM can be required for a large
+retained WAL. The failed 300-second PrivateMemory recovery controls below are not
+waived by this default change.
 
 The exact upstream implementation performs synchronous mapped-page flushes and
 additional Windows metadata/disk flushes for SharedMemory, while PrivateMemory
@@ -258,9 +271,31 @@ write burst, stops the producer for one second, and sends one unretried write
 within a 15-second request budget. Its final baseline 6.11.1 Native attempt passed
 with a **6.969-second** probe; this did not reproduce the upstream catastrophic
 stall. An earlier diagnostic also passed but inserted a slow metrics capture before
-the probe and is retained separately. The first candidate checks, Native publication,
-retained-state replay and dependency compliance are under validation. All earlier
-benchmark and endurance outcomes remain tied to their original runtime hashes.
+the probe and is retained separately. The 6.12.0 Native probe passed at **0.016 s**,
+with 22 writes during the silent burst versus five in the final 6.11.1 attempt.
+The old small-volume campaign then passed forward replay, real APIs, successive
+crashes and full restart with **166 cumulative accepted / zero unknown**.
+
+All **1,974 .NET tests** and Native publication passed with 6.12.0. Both quick CI
+OS jobs passed on `bc343f05`; Sonar's analysis and FOSSA License Compliance passed.
+The analysis workflow itself failed one existing idle-retirement test's initial
+five-second wait. Its virtual clock is now armed after observing the first result,
+so the simulated retirement cannot block that initial result's continuation.
+The seven selected tests and twenty repetitions passed without raising deadlines.
+
+A fresh 6.12.0 Native SDK run using SharedMemory still **failed**: its first four
+2 MiB Stream writes took **11.641 / 41.671 / 57.046 / 64.062 s**, then a later
+offline-retention publication returned HTTP 503 (**21 accepted / one unknown**).
+The same executable with explicit PrivateMemory passed the entire SDK, crash and
+restart sequence (**81 accepted / three unknown**) with initial Stream latencies
+**6.844 / 12.641 / 18.657 / 20.188 s**. These are strategy controls, not proof that
+the newly packaged platform default passes all release gates. Its full tests,
+new Native publication and paired benchmarks are under validation.
+
+The dependency update also resolves four System.* packages from 10.0.13 to
+10.0.14; their third-party notices are byte-identical. NuGet's direct/transitive
+vulnerability audit found no reported vulnerability in SlimData's resolved graph.
+All earlier benchmark and endurance outcomes remain tied to their original hashes.
 
 ## Performance evidence
 

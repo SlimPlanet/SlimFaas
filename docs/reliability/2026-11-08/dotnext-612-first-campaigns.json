@@ -1,0 +1,2627 @@
+{
+  "schema": 1,
+  "runs": [
+    {
+      "run": "dotnext-612-lease-native",
+      "reports": {
+        "report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "leader-lease-burst",
+              "leader": 2,
+              "silent_follower": 0,
+              "healthy_writes": 23,
+              "silent_writes": 22,
+              "probe_seconds": 0.015999999945051968,
+              "probe_budget_seconds": 15,
+              "passed": true
+            }
+          ],
+          "accepted": 46,
+          "unknown": 0,
+          "missing": [],
+          "finished_utc": 1794166823.2174637
+        }
+      },
+      "parameters": {
+        "parameters.json": {
+          "started_utc": 1794166808.327658,
+          "platform": "Windows-10-10.0.26300-SP0",
+          "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+          "commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+          "runtime_sha256": "8bd724a700b3f39eacbb22f104c482cc518235db0724fd401d5cfa6ab09f5627",
+          "slimdata_sha256": null,
+          "harness_sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377",
+          "arguments": {
+            "runtime": "artifacts\\slimdata-lts\\dotnext-612-aot\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+            "output": "artifacts\\slimdata-lts\\dotnext-612-lease-native",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 39520,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "lease-burst",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        }
+      },
+      "ledger_events": {
+        "metrics:": 6,
+        "resource-sample:": 6,
+        "intent:set": 46,
+        "accepted:set": 46,
+        "lease-follower-suspended:": 1,
+        "lease-follower-resumed:": 1
+      },
+      "receipt_events": {},
+      "successful_deliveries": 0,
+      "distinct_successful_ids": 0,
+      "distinct_successful_consumer_pairs": 0,
+      "extra_successful_deliveries": 0,
+      "resource_ranges_across_nodes_and_phases": {
+        "slimdata_process_working_set_bytes": {
+          "minimum": 52408320.0,
+          "maximum": 69660672.0
+        },
+        "slimdata_process_private_memory_bytes": {
+          "minimum": 29917184.0,
+          "maximum": 47792128.0
+        },
+        "slimdata_process_managed_heap_bytes": {
+          "minimum": 12675912.0,
+          "maximum": 22653712.0
+        },
+        "slimdata_process_cpu_seconds_total": {
+          "minimum": 0.28125,
+          "maximum": 1.28125
+        },
+        "slimdata_state_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 2105.0
+        },
+        "slimdata_state_key_values": {
+          "minimum": 0.0,
+          "maximum": 12.0
+        },
+        "slimdata_state_hashset_items": {
+          "minimum": 0.0,
+          "maximum": 4.0
+        },
+        "slimdata_state_queue_items": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_restore_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_size_bytes": {
+          "minimum": 0.0,
+          "maximum": 2105.0
+        },
+        "slimdata_snapshot_last_duration_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_wal_bytes_since_snapshot": {
+          "minimum": 0.0,
+          "maximum": 19201.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"entries\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"bytes\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"incompatible\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_size_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_format_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_last_skipped_index": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_term": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_command_id": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_length_bytes": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_log_index": {
+          "minimum": 0.0,
+          "maximum": 65.0
+        },
+        "slimdata_raft_committed_log_index": {
+          "minimum": 0.0,
+          "maximum": 65.0
+        },
+        "slimdata_raft_commit_index_clamped_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_applied_log_index": {
+          "minimum": 0.0,
+          "maximum": 65.0
+        },
+        "slimdata_raft_local_apply_lag": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_progress_stalled": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_wal_generation_rate": {
+          "minimum": 0.0,
+          "maximum": 9.964601152988056
+        },
+        "slimdata_raft_catch_up_rate": {
+          "minimum": 0.0,
+          "maximum": 9.964601152988056
+        },
+        "slimdata_raft_catch_up_cannot_converge": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"wal\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"restoring\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"unknown\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 5.9477845
+        },
+        "slimdata_raft_has_leader": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_consensus_unavailable_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_has_consensus": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_has_leader_lease": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_protocol_compatible": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_member_count": {
+          "minimum": 3.0,
+          "maximum": 3.0
+        },
+        "slimdata_batch_mode{mode=\"Global\"}": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_partition_count": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_low_load_fast_path_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_low_latency_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_max_wait_milliseconds": {
+          "minimum": 5.0,
+          "maximum": 5.0
+        },
+        "slimdata_batch_local_requests_per_second": {
+          "minimum": 1.108691084848683,
+          "maximum": 9.41843564593335
+        },
+        "slimdata_batch_low_load_fast_path_active": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_local_delay_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_local_coalesce_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_queue_items{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_queue_bytes{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_latency_sensitive_operations_total{kind=\"commands\"}": {
+          "minimum": 1.0,
+          "maximum": 21.0
+        },
+        "slimdata_batch_forced_flush_total{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_last_latency_sensitive_wait_milliseconds{kind=\"commands\"}": {
+          "minimum": 0.036,
+          "maximum": 0.185
+        },
+        "slimdata_command_batch_queue_requests": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_queue_bytes": {
+          "minimum": 0.0,
+          "maximum": 343.0
+        },
+        "slimdata_command_batch_raft_total": {
+          "minimum": 0.0,
+          "maximum": 64.0
+        },
+        "slimdata_command_batch_producer_total": {
+          "minimum": 0.0,
+          "maximum": 68.0
+        },
+        "slimdata_command_batch_operations_total": {
+          "minimum": 0.0,
+          "maximum": 71.0
+        },
+        "slimdata_command_batch_duplicates_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_sequence_gaps_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_last_raft_latency_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 14.516
+        },
+        "slimdata_command_batch_last_max_queue_wait_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 14.147
+        },
+        "slimdata_command_batch_last_producer_batches": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_last_operations": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_last_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 353.0
+        },
+        "process_start_time_seconds": {
+          "minimum": 1794166810.353746,
+          "maximum": 1794166810.3972335
+        },
+        "process_cpu_seconds_total": {
+          "minimum": 0.484375,
+          "maximum": 1.328125
+        },
+        "process_virtual_memory_bytes": {
+          "minimum": 281926877184.0,
+          "maximum": 281931632640.0
+        },
+        "process_working_set_bytes": {
+          "minimum": 60796928.0,
+          "maximum": 70508544.0
+        },
+        "process_private_memory_bytes": {
+          "minimum": 37658624.0,
+          "maximum": 48513024.0
+        },
+        "process_open_handles": {
+          "minimum": 303.0,
+          "maximum": 328.0
+        },
+        "process_num_threads": {
+          "minimum": 25.0,
+          "maximum": 28.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen2\"}": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen1\"}": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2.0,
+          "maximum": 3.0
+        },
+        "system_runtime_dotnet_process_memory_working_set": {
+          "minimum": 60284928.0,
+          "maximum": 69992448.0
+        },
+        "system_runtime_dotnet_gc_heap_total_allocated": {
+          "minimum": 24501472.0,
+          "maximum": 39346624.0
+        },
+        "system_runtime_dotnet_gc_last_collection_memory_committed_size": {
+          "minimum": 18882560.0,
+          "maximum": 21827584.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2136840.0,
+          "maximum": 2507656.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 2566584.0,
+          "maximum": 4597384.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 554128.0,
+          "maximum": 2239000.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 4254336.0,
+          "maximum": 4352720.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 1232640.0,
+          "maximum": 1265600.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2094936.0,
+          "maximum": 2507368.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 29520.0,
+          "maximum": 285448.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 6592.0,
+          "maximum": 40504.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 1835272.0,
+          "maximum": 1966336.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_gc_pause_time": {
+          "minimum": 0.034671,
+          "maximum": 0.049851
+        },
+        "system_runtime_dotnet_jit_compiled_il_size": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compiled_methods": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compilation_time": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_monitor_lock_contentions": {
+          "minimum": 1.0,
+          "maximum": 7.0
+        },
+        "system_runtime_dotnet_thread_pool_thread_count": {
+          "minimum": 5.0,
+          "maximum": 8.0
+        },
+        "system_runtime_dotnet_thread_pool_work_item_count": {
+          "minimum": 552.0,
+          "maximum": 4141.0
+        },
+        "system_runtime_dotnet_thread_pool_queue_length": {
+          "minimum": 0.0,
+          "maximum": 2.0
+        },
+        "system_runtime_dotnet_timer_count": {
+          "minimum": 50.0,
+          "maximum": 84.0
+        },
+        "system_runtime_dotnet_assembly_count": {
+          "minimum": 149.0,
+          "maximum": 149.0
+        },
+        "system_runtime_dotnet_process_cpu_count": {
+          "minimum": 8.0,
+          "maximum": 8.0
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"user\"}": {
+          "minimum": 0.234375,
+          "maximum": 0.640625
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"system\"}": {
+          "minimum": 0.1875,
+          "maximum": 0.6875
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"TimeoutException\"}": {
+          "minimum": 437.0,
+          "maximum": 967.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"BadHttpRequestException\"}": {
+          "minimum": 10.0,
+          "maximum": 10.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"EndOfStreamException\"}": {
+          "minimum": 2.0,
+          "maximum": 2.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"IOException\"}": {
+          "minimum": 5.0,
+          "maximum": 5.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"TaskCanceledException\"}": {
+          "minimum": 15.0,
+          "maximum": 15.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"MemberUnavailableException\"}": {
+          "minimum": 11.0,
+          "maximum": 11.0
+        }
+      },
+      "files": {
+        "accounting.json": {
+          "bytes": 132,
+          "sha256": "86fe4dd31a2ea0b41d52e09436d9d92a64edc80cdabc9c2fdc4169fda088881d"
+        },
+        "campaign.py": {
+          "bytes": 83922,
+          "sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377"
+        },
+        "chaos_function.py": {
+          "bytes": 5503,
+          "sha256": "f9aad45f6c7388d8011c74cdeafcbc89d48846f0c06e7ac15477dac14cdff210"
+        },
+        "client.jsonl": {
+          "bytes": 84160,
+          "sha256": "da8109dc209a8855b31a8d21055b077ead39e244564441f7cdebc4c8918c381b"
+        },
+        "final-node-0.prom": {
+          "bytes": 101356,
+          "sha256": "c939b1eb26323ad92c9a4ad59534886e4a2e82bfcc84b37abf256d6b5da5ad23"
+        },
+        "final-node-1.prom": {
+          "bytes": 83053,
+          "sha256": "249d579775a891fc00c57dd453ee6d774de65295aa942c880512fb868d4848cb"
+        },
+        "final-node-2.prom": {
+          "bytes": 100447,
+          "sha256": "84baffc5f46b2157f8f1842efc8571cac29e745706c55b49bf0a16f6127a6a55"
+        },
+        "initial-node-0.prom": {
+          "bytes": 46419,
+          "sha256": "5f368eab56ee2316a40cc91090233276fcff8180f24775d65a6a6ae9300feccb"
+        },
+        "initial-node-1.prom": {
+          "bytes": 43298,
+          "sha256": "fdde0323275db143bc37b4fbb6aa7b07144ce5ab36dd7ea72952635d3ed6c86c"
+        },
+        "initial-node-2.prom": {
+          "bytes": 43920,
+          "sha256": "0bd6800fc954092e5b9c21d90b134d852f1595e891184501391652a2403efb44"
+        },
+        "manifest.yaml": {
+          "bytes": 2813,
+          "sha256": "c0ba7eb77f84bae6dce1e5b69748259338a474f11d4fd7a9e0982c3ac67d6010"
+        },
+        "parameters.json": {
+          "bytes": 1215,
+          "sha256": "79c5af0ca8e1ba87b5b77196cd664cbd35d0ecbc2595fffd121f563765f8562f"
+        },
+        "report.json": {
+          "bytes": 416,
+          "sha256": "13819e5cec2d7eca8dedbe5070169be62f804da5e6fcc8b6fbbcfdbba43def73"
+        },
+        "supervisor-0.log": {
+          "bytes": 33240,
+          "sha256": "eaad6c8ea4919cd04236fdcf64f76d3c78e5466b0d050e64bb240fbc61c8963e"
+        }
+      }
+    },
+    {
+      "run": "lease-burst-6111-native-02",
+      "reports": {
+        "report-before-resume-1794166862534326000.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "leader-lease-burst",
+              "leader": 2,
+              "silent_follower": 0,
+              "healthy_writes": 24,
+              "silent_writes": 5,
+              "probe_seconds": 6.968999999924563,
+              "probe_budget_seconds": 15,
+              "passed": true
+            }
+          ],
+          "accepted": 30,
+          "unknown": 0,
+          "missing": [],
+          "finished_utc": 1794165995.2530293
+        },
+        "report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "leader-lease-burst",
+              "leader": 2,
+              "silent_follower": 0,
+              "healthy_writes": 24,
+              "silent_writes": 5,
+              "probe_seconds": 6.968999999924563,
+              "probe_budget_seconds": 15,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 166,
+          "unknown": 9,
+          "missing": [],
+          "finished_utc": 1794166895.4321797
+        }
+      },
+      "parameters": {
+        "parameters-resume-1.json": {
+          "started_utc": 1794166862.5403283,
+          "platform": "Windows-10-10.0.26300-SP0",
+          "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+          "commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+          "runtime_sha256": "8bd724a700b3f39eacbb22f104c482cc518235db0724fd401d5cfa6ab09f5627",
+          "slimdata_sha256": null,
+          "harness_sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377",
+          "arguments": {
+            "runtime": "artifacts\\slimdata-lts\\dotnext-612-aot\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+            "output": "artifacts\\slimdata-lts\\lease-burst-6111-native-02",
+            "state_directory": null,
+            "resume": true,
+            "port_base": 39520,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "api,restarts",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "parameters.json": {
+          "started_utc": 1794165971.1244795,
+          "platform": "Windows-10-10.0.26300-SP0",
+          "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+          "commit": "7920d9f99d36ef0c68a0b497d4ee4c3526d2a979",
+          "runtime_sha256": "15d7f7cf7dfa59ec3b5ca31a8541b1cd50407e666e3e65edaa0ac616917427e2",
+          "slimdata_sha256": null,
+          "harness_sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377",
+          "arguments": {
+            "runtime": "artifacts\\slimdata-lts\\terminal-aot\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": "7920d9f99d36ef0c68a0b497d4ee4c3526d2a979",
+            "output": "artifacts\\slimdata-lts\\lease-burst-6111-native-02",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 39520,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "lease-burst",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        }
+      },
+      "ledger_events": {
+        "metrics:": 12,
+        "resource-sample:": 12,
+        "intent:set": 38,
+        "accepted:set": 37,
+        "lease-follower-suspended:": 1,
+        "lease-follower-resumed:": 1,
+        "intent:hashset": 9,
+        "accepted:hashset": 9,
+        "intent:file": 7,
+        "accepted:file": 5,
+        "intent:sync": 13,
+        "accepted:sync": 12,
+        "intent:stream": 10,
+        "accepted:stream": 9,
+        "intent:counter-check": 67,
+        "accepted:counter-check": 67,
+        "intent:ttl": 3,
+        "accepted:ttl": 3,
+        "intent:delete-fixture": 3,
+        "accepted:delete-fixture": 3,
+        "intent:delete": 3,
+        "accepted:delete": 3,
+        "killed:": 3,
+        "intent:async": 7,
+        "intent:counter": 7,
+        "unknown:stream": 1,
+        "intent:job": 8,
+        "accepted:async": 5,
+        "accepted:counter": 5,
+        "accepted:job": 8,
+        "unknown:set": 1,
+        "unknown:async": 2,
+        "unknown:file": 2,
+        "unknown:counter": 2,
+        "unknown:sync": 1
+      },
+      "receipt_events": {
+        "job": 8,
+        "started": 26,
+        "completed": 26
+      },
+      "successful_deliveries": 26,
+      "distinct_successful_ids": 26,
+      "distinct_successful_consumer_pairs": 26,
+      "extra_successful_deliveries": 0,
+      "resource_ranges_across_nodes_and_phases": {
+        "slimdata_process_working_set_bytes": {
+          "minimum": 53899264.0,
+          "maximum": 71675904.0
+        },
+        "slimdata_process_private_memory_bytes": {
+          "minimum": 30101504.0,
+          "maximum": 49545216.0
+        },
+        "slimdata_process_managed_heap_bytes": {
+          "minimum": 12708648.0,
+          "maximum": 24304040.0
+        },
+        "slimdata_process_cpu_seconds_total": {
+          "minimum": 0.25,
+          "maximum": 1.046875
+        },
+        "slimdata_state_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 232766.0
+        },
+        "slimdata_state_key_values": {
+          "minimum": 0.0,
+          "maximum": 26.0
+        },
+        "slimdata_state_hashset_items": {
+          "minimum": 0.0,
+          "maximum": 58.0
+        },
+        "slimdata_state_queue_items": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_restore_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_size_bytes": {
+          "minimum": 0.0,
+          "maximum": 766314.0
+        },
+        "slimdata_snapshot_last_duration_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 25.0
+        },
+        "slimdata_wal_bytes_since_snapshot": {
+          "minimum": 0.0,
+          "maximum": 21412.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"entries\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"bytes\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"incompatible\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_size_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_format_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_last_skipped_index": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_term": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_command_id": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_length_bytes": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_log_index": {
+          "minimum": 0.0,
+          "maximum": 211.0
+        },
+        "slimdata_raft_committed_log_index": {
+          "minimum": 0.0,
+          "maximum": 211.0
+        },
+        "slimdata_raft_commit_index_clamped_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_applied_log_index": {
+          "minimum": 0.0,
+          "maximum": 211.0
+        },
+        "slimdata_raft_local_apply_lag": {
+          "minimum": 0.0,
+          "maximum": 9.0
+        },
+        "slimdata_raft_progress_stalled": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_wal_generation_rate": {
+          "minimum": 0.0,
+          "maximum": 1.795030851993045
+        },
+        "slimdata_raft_catch_up_rate": {
+          "minimum": 0.0,
+          "maximum": 1.7951760388519178
+        },
+        "slimdata_raft_catch_up_cannot_converge": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"wal\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"restoring\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"unknown\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 14.3336217
+        },
+        "slimdata_raft_has_leader": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_consensus_unavailable_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_has_consensus": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_has_leader_lease": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_protocol_compatible": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_member_count": {
+          "minimum": 3.0,
+          "maximum": 3.0
+        },
+        "slimdata_batch_mode{mode=\"Global\"}": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_partition_count": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_low_load_fast_path_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_low_latency_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_max_wait_milliseconds": {
+          "minimum": 5.0,
+          "maximum": 5.0
+        },
+        "slimdata_batch_local_requests_per_second": {
+          "minimum": 0.36026771638111366,
+          "maximum": 4.0
+        },
+        "slimdata_batch_low_load_fast_path_active": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_local_delay_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_local_coalesce_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_queue_items{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_queue_bytes{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_latency_sensitive_operations_total{kind=\"commands\"}": {
+          "minimum": 1.0,
+          "maximum": 26.0
+        },
+        "slimdata_batch_forced_flush_total{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_last_latency_sensitive_wait_milliseconds{kind=\"commands\"}": {
+          "minimum": 0.025,
+          "maximum": 0.15
+        },
+        "slimdata_command_batch_queue_requests": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_queue_bytes": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_raft_total": {
+          "minimum": 0.0,
+          "maximum": 54.0
+        },
+        "slimdata_command_batch_producer_total": {
+          "minimum": 0.0,
+          "maximum": 61.0
+        },
+        "slimdata_command_batch_operations_total": {
+          "minimum": 0.0,
+          "maximum": 66.0
+        },
+        "slimdata_command_batch_duplicates_total": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_sequence_gaps_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_last_raft_latency_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 3.694
+        },
+        "slimdata_command_batch_last_max_queue_wait_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 7.253
+        },
+        "slimdata_command_batch_last_producer_batches": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_last_operations": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_last_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 343.0
+        },
+        "process_start_time_seconds": {
+          "minimum": 1794165973.0067036,
+          "maximum": 1794166890.0331793
+        },
+        "process_cpu_seconds_total": {
+          "minimum": 0.421875,
+          "maximum": 1.046875
+        },
+        "process_virtual_memory_bytes": {
+          "minimum": 281928454144.0,
+          "maximum": 281930055680.0
+        },
+        "process_working_set_bytes": {
+          "minimum": 61026304.0,
+          "maximum": 71970816.0
+        },
+        "process_private_memory_bytes": {
+          "minimum": 38387712.0,
+          "maximum": 49807360.0
+        },
+        "process_open_handles": {
+          "minimum": 308.0,
+          "maximum": 323.0
+        },
+        "process_num_threads": {
+          "minimum": 26.0,
+          "maximum": 27.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen2\"}": {
+          "minimum": 1.0,
+          "maximum": 2.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen1\"}": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen0\"}": {
+          "minimum": 1.0,
+          "maximum": 3.0
+        },
+        "system_runtime_dotnet_process_memory_working_set": {
+          "minimum": 60542976.0,
+          "maximum": 71958528.0
+        },
+        "system_runtime_dotnet_gc_heap_total_allocated": {
+          "minimum": 25741320.0,
+          "maximum": 40391360.0
+        },
+        "system_runtime_dotnet_gc_last_collection_memory_committed_size": {
+          "minimum": 18915328.0,
+          "maximum": 24301568.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2050216.0,
+          "maximum": 14608752.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 535496.0,
+          "maximum": 5225136.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 549616.0,
+          "maximum": 1225624.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 4254336.0,
+          "maximum": 4778680.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 1265640.0,
+          "maximum": 2878384.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2049928.0,
+          "maximum": 10450608.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 119224.0,
+          "maximum": 883272.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 10824.0,
+          "maximum": 40504.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 819320.0,
+          "maximum": 1966368.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_gc_pause_time": {
+          "minimum": 0.024559,
+          "maximum": 0.037407
+        },
+        "system_runtime_dotnet_jit_compiled_il_size": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compiled_methods": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compilation_time": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_monitor_lock_contentions": {
+          "minimum": 0.0,
+          "maximum": 10.0
+        },
+        "system_runtime_dotnet_thread_pool_thread_count": {
+          "minimum": 6.0,
+          "maximum": 7.0
+        },
+        "system_runtime_dotnet_thread_pool_work_item_count": {
+          "minimum": 597.0,
+          "maximum": 5862.0
+        },
+        "system_runtime_dotnet_thread_pool_queue_length": {
+          "minimum": 0.0,
+          "maximum": 13.0
+        },
+        "system_runtime_dotnet_timer_count": {
+          "minimum": 42.0,
+          "maximum": 84.0
+        },
+        "system_runtime_dotnet_assembly_count": {
+          "minimum": 149.0,
+          "maximum": 149.0
+        },
+        "system_runtime_dotnet_process_cpu_count": {
+          "minimum": 8.0,
+          "maximum": 8.0
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"user\"}": {
+          "minimum": 0.1875,
+          "maximum": 0.671875
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"system\"}": {
+          "minimum": 0.140625,
+          "maximum": 0.375
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"TimeoutException\"}": {
+          "minimum": 2.0,
+          "maximum": 2246.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"BadHttpRequestException\"}": {
+          "minimum": 10.0,
+          "maximum": 10.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"IOException\"}": {
+          "minimum": 4.0,
+          "maximum": 25.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"TaskCanceledException\"}": {
+          "minimum": 11.0,
+          "maximum": 65.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"MemberUnavailableException\"}": {
+          "minimum": 4.0,
+          "maximum": 39.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"SlimDataUnavailableException\"}": {
+          "minimum": 9.0,
+          "maximum": 29.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"OperationCanceledException\"}": {
+          "minimum": 5.0,
+          "maximum": 5.0
+        }
+      },
+      "files": {
+        "accounting.json": {
+          "bytes": 1260,
+          "sha256": "2fedf2a5591857fc1b21b44231c10df6858997d7d3b8a5291abf7d17834f01c3"
+        },
+        "campaign-resume-1.py": {
+          "bytes": 83922,
+          "sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377"
+        },
+        "campaign.py": {
+          "bytes": 83922,
+          "sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377"
+        },
+        "chaos_function.py": {
+          "bytes": 5503,
+          "sha256": "f9aad45f6c7388d8011c74cdeafcbc89d48846f0c06e7ac15477dac14cdff210"
+        },
+        "client.jsonl": {
+          "bytes": 245218,
+          "sha256": "179b10683b509061510bfb466beae0f4d6b662b9109371e9462a1d4084612e88"
+        },
+        "final-node-0.prom": {
+          "bytes": 71228,
+          "sha256": "93ecf6019db5ea9bb6cd9e098d0dfd21a751c31c68a4c1ed4f958044bdf290e0"
+        },
+        "final-node-1.prom": {
+          "bytes": 72975,
+          "sha256": "781a97be65a2d379f19b8d9525a645dd40d12b83b1efc105b70851097c467335"
+        },
+        "final-node-2.prom": {
+          "bytes": 64365,
+          "sha256": "f2375fad495536d66f17855867865074e9fc8916e478f48e1b6a182aa5856aa2"
+        },
+        "initial-node-0.prom": {
+          "bytes": 53626,
+          "sha256": "7d0801d7e417cd4d5ec36f5a077fb26a17b02d4e146268d42e0268c94492e3ac"
+        },
+        "initial-node-1.prom": {
+          "bytes": 46730,
+          "sha256": "b9af4fdf8d9aa0d74d138dd7ff26779f35ec8de9a1750212bc63abf904a8295e"
+        },
+        "initial-node-2.prom": {
+          "bytes": 52440,
+          "sha256": "48a67fc308ce84c8d82f74c34734f8b193c02e7ef5963af0f2bb82d73d40b47d"
+        },
+        "manifest.yaml": {
+          "bytes": 2827,
+          "sha256": "90a45039b11618f32efaf45d87371805ec2e7da21c7f588da97043932c59be4d"
+        },
+        "parameters-resume-1.json": {
+          "bytes": 1218,
+          "sha256": "f9500880b8ac6c2ffeb362588b41499a74a4833d84a65b33c48fa2c7ca7b1ae9"
+        },
+        "parameters.json": {
+          "bytes": 1215,
+          "sha256": "e0173c13708130f7fa2e1f963af6344482dfab059895cc25672d10273a1a808e"
+        },
+        "report-before-resume-1794166862534326000.json": {
+          "bytes": 412,
+          "sha256": "4bc22300e57d3af70448c91cd5856896f5f4bfb6d9826ed330b4110438e2fb4f"
+        },
+        "report.json": {
+          "bytes": 559,
+          "sha256": "9c2d48ec9b55998756f75aedcd01fa54feb370b697d0ec20fd3c03c8b462c7a3"
+        },
+        "supervisor-0.log": {
+          "bytes": 67267,
+          "sha256": "a079a0b634d0917f61f092f7caf67c8f60918bff8fe4dfa8f4867f421d296595"
+        },
+        "supervisor-1.log": {
+          "bytes": 77692,
+          "sha256": "58c018a5c27f4cec5f9e6c3cb76e20e861da34b4474bb8cacc5e137f7c168735"
+        },
+        "supervisor-2.log": {
+          "bytes": 15391,
+          "sha256": "074e597f5d559d1e8aa6e0a24530b932a3bb513db8e4ccd724f6c333e62ed374"
+        }
+      }
+    },
+    {
+      "run": "dotnext-612-native-sdk",
+      "reports": {
+        "report.json": {
+          "passed": false,
+          "error": "AssertionError(\"stream 158bd3d0d8734d7b9f2dda4f2bc2d759: HTTP 503, b''\")",
+          "results": [
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": true,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": false,
+              "port": 39523,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": false,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": true,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": true,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": false,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": true,
+              "port": 39523,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": false,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": false,
+              "port": 39523,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": true,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": false,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": true,
+              "port": 39523,
+              "passed": true
+            }
+          ],
+          "accepted": 21,
+          "unknown": 1,
+          "missing": [],
+          "finished_utc": 1794167030.9768343
+        }
+      },
+      "parameters": {
+        "parameters.json": {
+          "started_utc": 1794166918.5934865,
+          "platform": "Windows-11-10.0.26300-SP0",
+          "python": "3.12.11 (main, Aug 18 2025, 19:17:54) [MSC v.1944 64 bit (AMD64)]",
+          "commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+          "runtime_sha256": "8bd724a700b3f39eacbb22f104c482cc518235db0724fd401d5cfa6ab09f5627",
+          "slimdata_sha256": null,
+          "harness_sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377",
+          "arguments": {
+            "runtime": "artifacts\\slimdata-lts\\dotnext-612-aot\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+            "output": "artifacts\\slimdata-lts\\dotnext-612-native-sdk",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 39520,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": true,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 120.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "websocket",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        }
+      },
+      "ledger_events": {
+        "metrics:": 6,
+        "resource-sample:": 6,
+        "intent:sync-websocket": 3,
+        "accepted:sync-websocket": 3,
+        "intent:async": 12,
+        "accepted:async": 12,
+        "intent:stream": 7,
+        "accepted:stream": 6,
+        "unknown:stream": 1
+      },
+      "receipt_events": {
+        "completed": 16
+      },
+      "successful_deliveries": 16,
+      "distinct_successful_ids": 16,
+      "distinct_successful_consumer_pairs": 16,
+      "extra_successful_deliveries": 0,
+      "resource_ranges_across_nodes_and_phases": {
+        "slimdata_process_working_set_bytes": {
+          "minimum": 54054912.0,
+          "maximum": 442863616.0
+        },
+        "slimdata_process_private_memory_bytes": {
+          "minimum": 30195712.0,
+          "maximum": 715681792.0
+        },
+        "slimdata_process_managed_heap_bytes": {
+          "minimum": 13800616.0,
+          "maximum": 304556752.0
+        },
+        "slimdata_process_cpu_seconds_total": {
+          "minimum": 0.265625,
+          "maximum": 66.171875
+        },
+        "slimdata_state_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 12591654.0
+        },
+        "slimdata_state_key_values": {
+          "minimum": 0.0,
+          "maximum": 13.0
+        },
+        "slimdata_state_hashset_items": {
+          "minimum": 0.0,
+          "maximum": 28.0
+        },
+        "slimdata_state_queue_items": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_restore_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_size_bytes": {
+          "minimum": 0.0,
+          "maximum": 12591654.0
+        },
+        "slimdata_snapshot_last_duration_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 19.0
+        },
+        "slimdata_wal_bytes_since_snapshot": {
+          "minimum": 0.0,
+          "maximum": 4054.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"entries\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"bytes\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"incompatible\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_size_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_format_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_last_skipped_index": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_term": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_command_id": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_length_bytes": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_log_index": {
+          "minimum": 0.0,
+          "maximum": 154.0
+        },
+        "slimdata_raft_committed_log_index": {
+          "minimum": 0.0,
+          "maximum": 154.0
+        },
+        "slimdata_raft_commit_index_clamped_total": {
+          "minimum": 0.0,
+          "maximum": 40.0
+        },
+        "slimdata_raft_applied_log_index": {
+          "minimum": 0.0,
+          "maximum": 154.0
+        },
+        "slimdata_raft_local_apply_lag": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_progress_stalled": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_wal_generation_rate": {
+          "minimum": 0.0,
+          "maximum": 2.589968121078539
+        },
+        "slimdata_raft_catch_up_rate": {
+          "minimum": 0.0,
+          "maximum": 2.7885347164306182
+        },
+        "slimdata_raft_catch_up_cannot_converge": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"wal\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"restoring\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"unknown\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 75.2207667
+        },
+        "slimdata_raft_has_leader": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_consensus_unavailable_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_has_consensus": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_has_leader_lease": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_protocol_compatible": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_member_count": {
+          "minimum": 3.0,
+          "maximum": 3.0
+        },
+        "slimdata_batch_mode{mode=\"Global\"}": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_partition_count": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_low_load_fast_path_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_low_latency_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_max_wait_milliseconds": {
+          "minimum": 5.0,
+          "maximum": 5.0
+        },
+        "slimdata_batch_local_requests_per_second": {
+          "minimum": 0.20658344672870876,
+          "maximum": 4.0
+        },
+        "slimdata_batch_low_load_fast_path_active": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_local_delay_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_local_coalesce_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_queue_items{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_queue_bytes{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_latency_sensitive_operations_total{kind=\"commands\"}": {
+          "minimum": 1.0,
+          "maximum": 103.0
+        },
+        "slimdata_batch_forced_flush_total{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_last_latency_sensitive_wait_milliseconds{kind=\"commands\"}": {
+          "minimum": 0.031,
+          "maximum": 0.991
+        },
+        "slimdata_command_batch_queue_requests": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_queue_bytes": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_raft_total": {
+          "minimum": 0.0,
+          "maximum": 95.0
+        },
+        "slimdata_command_batch_producer_total": {
+          "minimum": 0.0,
+          "maximum": 99.0
+        },
+        "slimdata_command_batch_operations_total": {
+          "minimum": 0.0,
+          "maximum": 113.0
+        },
+        "slimdata_command_batch_duplicates_total": {
+          "minimum": 0.0,
+          "maximum": 3.0
+        },
+        "slimdata_command_batch_sequence_gaps_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_last_raft_latency_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 1231.074
+        },
+        "slimdata_command_batch_last_max_queue_wait_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 12.353
+        },
+        "slimdata_command_batch_last_producer_batches": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_last_operations": {
+          "minimum": 0.0,
+          "maximum": 4.0
+        },
+        "slimdata_command_batch_last_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 2099025.0
+        },
+        "process_start_time_seconds": {
+          "minimum": 1794166920.6755316,
+          "maximum": 1794166920.7092943
+        },
+        "process_cpu_seconds_total": {
+          "minimum": 0.375,
+          "maximum": 66.484375
+        },
+        "process_virtual_memory_bytes": {
+          "minimum": 281928441856.0,
+          "maximum": 281970720768.0
+        },
+        "process_working_set_bytes": {
+          "minimum": 60870656.0,
+          "maximum": 442892288.0
+        },
+        "process_private_memory_bytes": {
+          "minimum": 37683200.0,
+          "maximum": 715681792.0
+        },
+        "process_open_handles": {
+          "minimum": 303.0,
+          "maximum": 21620.0
+        },
+        "process_num_threads": {
+          "minimum": 23.0,
+          "maximum": 31.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen2\"}": {
+          "minimum": 1.0,
+          "maximum": 20.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen1\"}": {
+          "minimum": 1.0,
+          "maximum": 3.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2.0,
+          "maximum": 12.0
+        },
+        "system_runtime_dotnet_process_memory_working_set": {
+          "minimum": 60366848.0,
+          "maximum": 442888192.0
+        },
+        "system_runtime_dotnet_gc_heap_total_allocated": {
+          "minimum": 24571440.0,
+          "maximum": 1798711128.0
+        },
+        "system_runtime_dotnet_gc_last_collection_memory_committed_size": {
+          "minimum": 18980864.0,
+          "maximum": 677613568.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2027216.0,
+          "maximum": 8698136.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 2394952.0,
+          "maximum": 13956176.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 555712.0,
+          "maximum": 19622032.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 4254336.0,
+          "maximum": 524316600.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 1236760.0,
+          "maximum": 22244800.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2026928.0,
+          "maximum": 8157224.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 30072.0,
+          "maximum": 8763600.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 6592.0,
+          "maximum": 8716808.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 1933656.0,
+          "maximum": 265195632.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 0.0,
+          "maximum": 1945880.0
+        },
+        "system_runtime_dotnet_gc_pause_time": {
+          "minimum": 0.03375,
+          "maximum": 0.160294
+        },
+        "system_runtime_dotnet_jit_compiled_il_size": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compiled_methods": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compilation_time": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_monitor_lock_contentions": {
+          "minimum": 2.0,
+          "maximum": 40.0
+        },
+        "system_runtime_dotnet_thread_pool_thread_count": {
+          "minimum": 6.0,
+          "maximum": 9.0
+        },
+        "system_runtime_dotnet_thread_pool_work_item_count": {
+          "minimum": 593.0,
+          "maximum": 145906.0
+        },
+        "system_runtime_dotnet_thread_pool_queue_length": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "system_runtime_dotnet_timer_count": {
+          "minimum": 51.0,
+          "maximum": 94.0
+        },
+        "system_runtime_dotnet_assembly_count": {
+          "minimum": 149.0,
+          "maximum": 149.0
+        },
+        "system_runtime_dotnet_process_cpu_count": {
+          "minimum": 8.0,
+          "maximum": 8.0
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"user\"}": {
+          "minimum": 0.171875,
+          "maximum": 17.0
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"system\"}": {
+          "minimum": 0.171875,
+          "maximum": 57.546875
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"TimeoutException\"}": {
+          "minimum": 2.0,
+          "maximum": 12599.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"SlimDataUnavailableException\"}": {
+          "minimum": 135.0,
+          "maximum": 164.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"OperationCanceledException\"}": {
+          "minimum": 29.0,
+          "maximum": 360.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"QuorumUnreachableException\"}": {
+          "minimum": 10.0,
+          "maximum": 12.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"IOException\"}": {
+          "minimum": 6.0,
+          "maximum": 179.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"TaskCanceledException\"}": {
+          "minimum": 10.0,
+          "maximum": 425.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"MemberUnavailableException\"}": {
+          "minimum": 72.0,
+          "maximum": 177.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"NotLeaderException\"}": {
+          "minimum": 5.0,
+          "maximum": 10.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"HttpRequestException\"}": {
+          "minimum": 42.0,
+          "maximum": 114.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"InvalidOperationException\"}": {
+          "minimum": 3.0,
+          "maximum": 3.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"BadHttpRequestException\"}": {
+          "minimum": 11.0,
+          "maximum": 172.0
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"EndOfStreamException\"}": {
+          "minimum": 4.0,
+          "maximum": 4.0
+        }
+      },
+      "files": {
+        "campaign.py": {
+          "bytes": 83922,
+          "sha256": "dcb8062a37d3dfc39f72e669c4735805f7bd1ad18936d4e4cb22aa5a0d108377"
+        },
+        "chaos_function.py": {
+          "bytes": 5503,
+          "sha256": "f9aad45f6c7388d8011c74cdeafcbc89d48846f0c06e7ac15477dac14cdff210"
+        },
+        "client.jsonl": {
+          "bytes": 109707,
+          "sha256": "ee946af88bb7613c7841a81ff0de80b92822a4f1d21c5bf4068cb109185e0741"
+        },
+        "failure-node-0.prom": {
+          "bytes": 193962,
+          "sha256": "95490366c89244f26af4492badb2f7b171cdfac428cef32fa1a7466fd79144ec"
+        },
+        "failure-node-1.prom": {
+          "bytes": 145013,
+          "sha256": "d72ee9049fc295ba08f7fc5789dc6fd33428f59a9479269b31d3767a8b13067b"
+        },
+        "failure-node-2.prom": {
+          "bytes": 186265,
+          "sha256": "26b99ce797f0a00cebf6fea1fa99ff20acdd0a2628f233af3efea3e3ca7e42ca"
+        },
+        "initial-node-0.prom": {
+          "bytes": 46677,
+          "sha256": "77ded7d1c4e24e8865d4d570658dd6d22e9b44f85465c9f7f9227538ea324d24"
+        },
+        "initial-node-1.prom": {
+          "bytes": 43321,
+          "sha256": "1bec6ff0891cdfdeee9c78fbe549e9bdbeb142c851dbfa7924f5a6add2b158ab"
+        },
+        "initial-node-2.prom": {
+          "bytes": 43948,
+          "sha256": "9fac3d6e9fc332643f97169e082e6f3182215c5fb262de10bd0fde3040714987"
+        },
+        "manifest.yaml": {
+          "bytes": 2787,
+          "sha256": "635383169ca10dd568dbc1e5d8168c04ded5f1eb3d71e3f180a8a588884b5dd8"
+        },
+        "parameters.json": {
+          "bytes": 1197,
+          "sha256": "19d474389000dbf42bee653957ec09a1a9e40200f869d12e0eb8691c71ca4408"
+        },
+        "report.json": {
+          "bytes": 1943,
+          "sha256": "d244c1543452c7b115dc97fb22f365f19f29983d5a0ae54178f78744131038ed"
+        },
+        "supervisor-0.log": {
+          "bytes": 739124,
+          "sha256": "799dae2cb7b49c55e2e9fd5c1495ff54bca5a2b2454b60d9952184cc17d2866c"
+        },
+        "websocket.json": {
+          "bytes": 119,
+          "sha256": "a0f57f5c31d7de62ed21f540797bc1cdd167ba76b6f0ea5d0f8c8a3e644109e8"
+        }
+      }
+    },
+    {
+      "run": "dotnext-612-native-private-sdk",
+      "reports": {
+        "report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": true,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": false,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": true,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": false,
+              "port": 39523,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": true,
+              "port": 39523,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": false,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": false,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": true,
+              "port": 39521,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": false,
+              "port": 39523,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": true,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": false,
+              "port": 39522,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": true,
+              "port": 39523,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            },
+            {
+              "phase": "websocket",
+              "function": "chaos-ws-59c0c301e0394566bc3fe861a6c1852e",
+              "stream": "stream-chaos-ws-59c0c301e0394566bc3fe861a6c1852e",
+              "passed": true
+            }
+          ],
+          "accepted": 81,
+          "unknown": 3,
+          "missing": [],
+          "finished_utc": 1794167468.159596
+        }
+      },
+      "parameters": {
+        "parameters.json": {
+          "started_utc": 1794167403.6109533,
+          "platform": "Windows-11-10.0.26300-SP0",
+          "python": "3.12.11 (main, Aug 18 2025, 19:17:54) [MSC v.1944 64 bit (AMD64)]",
+          "commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+          "runtime_sha256": "8bd724a700b3f39eacbb22f104c482cc518235db0724fd401d5cfa6ab09f5627",
+          "slimdata_sha256": null,
+          "harness_sha256": "b10ed48c462a8832c27e019432fa63d8bb7ff90f26631492e629f76d17bf6a4d",
+          "arguments": {
+            "runtime": "artifacts\\slimdata-lts\\dotnext-612-aot\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+            "output": "artifacts\\slimdata-lts\\dotnext-612-native-private-sdk",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 39520,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": true,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 120.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "websocket",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        }
+      },
+      "ledger_events": {
+        "cluster-ready:": 5,
+        "metrics:": 6,
+        "resource-sample:": 6,
+        "intent:sync-websocket": 3,
+        "accepted:sync-websocket": 3,
+        "intent:async": 17,
+        "accepted:async": 16,
+        "intent:stream": 18,
+        "accepted:stream": 18,
+        "killed:": 3,
+        "intent:sync": 11,
+        "intent:file": 5,
+        "intent:hashset": 9,
+        "intent:set": 8,
+        "intent:counter": 5,
+        "intent:job": 8,
+        "accepted:set": 8,
+        "accepted:hashset": 9,
+        "accepted:job": 8,
+        "accepted:sync": 11,
+        "unknown:async": 1,
+        "unknown:counter": 1,
+        "unknown:file": 1,
+        "accepted:counter": 4,
+        "accepted:file": 4
+      },
+      "receipt_events": {
+        "job": 8,
+        "started": 25,
+        "completed": 45
+      },
+      "successful_deliveries": 45,
+      "distinct_successful_ids": 45,
+      "distinct_successful_consumer_pairs": 45,
+      "extra_successful_deliveries": 0,
+      "resource_ranges_across_nodes_and_phases": {
+        "slimdata_process_working_set_bytes": {
+          "minimum": 54136832.0,
+          "maximum": 142622720.0
+        },
+        "slimdata_process_private_memory_bytes": {
+          "minimum": 30257152.0,
+          "maximum": 124506112.0
+        },
+        "slimdata_process_managed_heap_bytes": {
+          "minimum": 13792136.0,
+          "maximum": 74375680.0
+        },
+        "slimdata_process_cpu_seconds_total": {
+          "minimum": 0.234375,
+          "maximum": 1.8125
+        },
+        "slimdata_state_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 14735183.0
+        },
+        "slimdata_state_key_values": {
+          "minimum": 0.0,
+          "maximum": 32.0
+        },
+        "slimdata_state_hashset_items": {
+          "minimum": 0.0,
+          "maximum": 100.0
+        },
+        "slimdata_state_queue_items": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_restore_in_progress": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_size_bytes": {
+          "minimum": 0.0,
+          "maximum": 14734496.0
+        },
+        "slimdata_snapshot_last_duration_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 27.0
+        },
+        "slimdata_wal_bytes_since_snapshot": {
+          "minimum": 0.0,
+          "maximum": 4400.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"entries\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"bytes\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_snapshot_last_trigger{cause=\"incompatible\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_size_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_command_format_violation_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_last_skipped_index": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_term": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_command_id": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_skipped_length_bytes": {
+          "minimum": -1.0,
+          "maximum": -1.0
+        },
+        "slimdata_raft_last_log_index": {
+          "minimum": 0.0,
+          "maximum": 218.0
+        },
+        "slimdata_raft_committed_log_index": {
+          "minimum": 0.0,
+          "maximum": 217.0
+        },
+        "slimdata_raft_commit_index_clamped_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_applied_log_index": {
+          "minimum": 0.0,
+          "maximum": 217.0
+        },
+        "slimdata_raft_local_apply_lag": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_progress_stalled": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_wal_generation_rate": {
+          "minimum": 0.0,
+          "maximum": 2.3944022705957106
+        },
+        "slimdata_raft_catch_up_rate": {
+          "minimum": 0.0,
+          "maximum": 2.3914909794355292
+        },
+        "slimdata_raft_catch_up_cannot_converge": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"wal\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"restoring\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_recovery_mode{mode=\"unknown\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_recovery_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 5.0219781
+        },
+        "slimdata_raft_has_leader": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_consensus_unavailable_duration_seconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_raft_has_consensus": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_has_leader_lease": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_protocol_compatible": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_raft_member_count": {
+          "minimum": 3.0,
+          "maximum": 3.0
+        },
+        "slimdata_batch_mode{mode=\"Global\"}": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_partition_count": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_low_load_fast_path_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_low_latency_enabled": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_max_wait_milliseconds": {
+          "minimum": 5.0,
+          "maximum": 5.0
+        },
+        "slimdata_batch_local_requests_per_second": {
+          "minimum": 1.026977887522917,
+          "maximum": 4.0
+        },
+        "slimdata_batch_low_load_fast_path_active": {
+          "minimum": 1.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_local_delay_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_local_coalesce_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_queue_items{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_batch_queue_bytes{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 376.0
+        },
+        "slimdata_batch_latency_sensitive_operations_total{kind=\"commands\"}": {
+          "minimum": 1.0,
+          "maximum": 8.0
+        },
+        "slimdata_batch_forced_flush_total{kind=\"commands\"}": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_batch_last_latency_sensitive_wait_milliseconds{kind=\"commands\"}": {
+          "minimum": 0.036,
+          "maximum": 14.925
+        },
+        "slimdata_command_batch_queue_requests": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_queue_bytes": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_raft_total": {
+          "minimum": 0.0,
+          "maximum": 10.0
+        },
+        "slimdata_command_batch_producer_total": {
+          "minimum": 0.0,
+          "maximum": 14.0
+        },
+        "slimdata_command_batch_operations_total": {
+          "minimum": 0.0,
+          "maximum": 16.0
+        },
+        "slimdata_command_batch_duplicates_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_sequence_gaps_total": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "slimdata_command_batch_last_raft_latency_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 3.488
+        },
+        "slimdata_command_batch_last_max_queue_wait_milliseconds": {
+          "minimum": 0.0,
+          "maximum": 23.409
+        },
+        "slimdata_command_batch_last_producer_batches": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_last_operations": {
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "slimdata_command_batch_last_payload_bytes": {
+          "minimum": 0.0,
+          "maximum": 292.0
+        },
+        "process_start_time_seconds": {
+          "minimum": 1794167405.6480927,
+          "maximum": 1794167459.8701036
+        },
+        "process_cpu_seconds_total": {
+          "minimum": 0.359375,
+          "maximum": 2.1875
+        },
+        "process_virtual_memory_bytes": {
+          "minimum": 281928433664.0,
+          "maximum": 281941585920.0
+        },
+        "process_working_set_bytes": {
+          "minimum": 61640704.0,
+          "maximum": 147021824.0
+        },
+        "process_private_memory_bytes": {
+          "minimum": 37814272.0,
+          "maximum": 171724800.0
+        },
+        "process_open_handles": {
+          "minimum": 304.0,
+          "maximum": 321.0
+        },
+        "process_num_threads": {
+          "minimum": 26.0,
+          "maximum": 29.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen2\"}": {
+          "minimum": 1.0,
+          "maximum": 7.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen1\"}": {
+          "minimum": 1.0,
+          "maximum": 2.0
+        },
+        "system_runtime_dotnet_gc_collections{gc_heap_generation=\"gen0\"}": {
+          "minimum": 2.0,
+          "maximum": 3.0
+        },
+        "system_runtime_dotnet_process_memory_working_set": {
+          "minimum": 61132800.0,
+          "maximum": 147017728.0
+        },
+        "system_runtime_dotnet_gc_heap_total_allocated": {
+          "minimum": 25545592.0,
+          "maximum": 194762296.0
+        },
+        "system_runtime_dotnet_gc_last_collection_memory_committed_size": {
+          "minimum": 19243008.0,
+          "maximum": 145870848.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 935360.0,
+          "maximum": 3219416.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 2033064.0,
+          "maximum": 5318888.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 555792.0,
+          "maximum": 4045416.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 4254336.0,
+          "maximum": 109906048.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 1232640.0,
+          "maximum": 20568416.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen0\"}": {
+          "minimum": 713560.0,
+          "maximum": 3215008.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen1\"}": {
+          "minimum": 28848.0,
+          "maximum": 979384.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"gen2\"}": {
+          "minimum": 6392.0,
+          "maximum": 40480.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"loh\"}": {
+          "minimum": 1835304.0,
+          "maximum": 22381600.0
+        },
+        "system_runtime_dotnet_gc_last_collection_heap_fragmentation_size{gc_heap_generation=\"poh\"}": {
+          "minimum": 0.0,
+          "maximum": 8232.0
+        },
+        "system_runtime_dotnet_gc_pause_time": {
+          "minimum": 0.034555,
+          "maximum": 0.085944
+        },
+        "system_runtime_dotnet_jit_compiled_il_size": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compiled_methods": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_jit_compilation_time": {
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "system_runtime_dotnet_monitor_lock_contentions": {
+          "minimum": 3.0,
+          "maximum": 12.0
+        },
+        "system_runtime_dotnet_thread_pool_thread_count": {
+          "minimum": 6.0,
+          "maximum": 9.0
+        },
+        "system_runtime_dotnet_thread_pool_work_item_count": {
+          "minimum": 623.0,
+          "maximum": 5445.0
+        },
+        "system_runtime_dotnet_thread_pool_queue_length": {
+          "minimum": 1.0,
+          "maximum": 4.0
+        },
+        "system_runtime_dotnet_timer_count": {
+          "minimum": 50.0,
+          "maximum": 56.0
+        },
+        "system_runtime_dotnet_assembly_count": {
+          "minimum": 149.0,
+          "maximum": 149.0
+        },
+        "system_runtime_dotnet_process_cpu_count": {
+          "minimum": 8.0,
+          "maximum": 8.0
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"user\"}": {
+          "minimum": 0.21875,
+          "maximum": 0.828125
+        },
+        "system_runtime_dotnet_process_cpu_time{cpu_mode=\"system\"}": {
+          "minimum": 0.140625,
+          "maximum": 1.421875
+        },
+        "system_runtime_dotnet_exceptions{error_type=\"TimeoutException\"}": {
+          "minimum": 2.0,
+          "maximum": 2.0
+        }
+      },
+      "files": {
+        "accounting.json": {
+          "bytes": 512,
+          "sha256": "8332fe2562dc32bdf445a0136769252a53f58d88b8a5e8381a51601640cb7824"
+        },
+        "campaign.py": {
+          "bytes": 84411,
+          "sha256": "b10ed48c462a8832c27e019432fa63d8bb7ff90f26631492e629f76d17bf6a4d"
+        },
+        "chaos_function.py": {
+          "bytes": 5503,
+          "sha256": "f9aad45f6c7388d8011c74cdeafcbc89d48846f0c06e7ac15477dac14cdff210"
+        },
+        "client.jsonl": {
+          "bytes": 175030,
+          "sha256": "c5d25f20f2e0f42027a1022aded5a591a83b9ea4849f3bded2f03481bbcaab28"
+        },
+        "final-node-0.prom": {
+          "bytes": 68818,
+          "sha256": "209a77cc85e5cd5dd425301f81f9adcdeec3b5a992e674923521348a1036b4dc"
+        },
+        "final-node-1.prom": {
+          "bytes": 75324,
+          "sha256": "b8d3bb04dec449aac27290b1f3265662e2b5b52e1390339c60e65fca115a06fd"
+        },
+        "final-node-2.prom": {
+          "bytes": 67457,
+          "sha256": "5fb935c24b5c2b32047a2229818dbc2e078a89b004bf10172a60603226ecac2f"
+        },
+        "initial-node-0.prom": {
+          "bytes": 85197,
+          "sha256": "98887d62896ae1e75cd44a7b75ee128b9161321046871c1e2b0e3c17027bd861"
+        },
+        "initial-node-1.prom": {
+          "bytes": 46399,
+          "sha256": "6fe85f319e4e988c348028c877211353efde94a548078757b14a80002fb17b69"
+        },
+        "initial-node-2.prom": {
+          "bytes": 58280,
+          "sha256": "93c2f696b781bea03a09b15a304478ab14dedceaf3357f1f14b0f8ee403d52ca"
+        },
+        "manifest.yaml": {
+          "bytes": 2843,
+          "sha256": "02635f89151999fc0bb7bb8a2f25bc093efa237096edc86c8fd5e6cfbc3166dc"
+        },
+        "parameters.json": {
+          "bytes": 1205,
+          "sha256": "75117b3284f88b439e94171283766a19733646d017952a96afb69e2279134ae4"
+        },
+        "report.json": {
+          "bytes": 2148,
+          "sha256": "18fe117cf82cbe74da054a4553b7b9cd3d81f2ae7b925d52a00f4f858624f23f"
+        },
+        "supervisor-0.log": {
+          "bytes": 99664,
+          "sha256": "e29952d59f076a36c4e4a8dea5839c79bad66e0e25a3e1bd751515750d002f95"
+        },
+        "supervisor-1.log": {
+          "bytes": 19859,
+          "sha256": "b6dd1bb02438cafea973264ecb92b97f45b8274f970f66c0ea1265f9dfc17a61"
+        },
+        "websocket.json": {
+          "bytes": 119,
+          "sha256": "69207f2491049cb6feea892bc7fe8e960696b8f8c627734157b0860b3a5cca92"
+        }
+      }
+    }
+  ]
+}

@@ -236,6 +236,10 @@ Available variables are:
 | `BENCHMARK_ASYNC_BURST_CONCURRENCY` | `64` | burst enqueue concurrency |
 | `BENCHMARK_RUN_ROOT` | timestamped artifacts path | exact output directory |
 | `BENCHMARK_SKIP_BUILD` | `false` | reuse existing Release binaries for repeated runs on the same checkout |
+| `BENCHMARK_RUNTIME` | built Release SlimFaas DLL | preserved managed DLL or Native executable to compare |
+
+The standard Local manifest's path and SHA-256 are also recorded. Its ephemeral
+mode assigns a new state directory to each independent benchmark invocation.
 
 ## Interpret the result correctly
 
