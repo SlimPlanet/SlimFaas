@@ -12,6 +12,10 @@ interpreting a passing field or an empty missing-ID list.
 - `linux-endurance-612.json`: a second complete three-role Linux endurance matrix
   with DotNext 6.12.0, including original ZIP hashes and all outage/restart results.
   This revision predates the transactional snapshot and Local job fixes.
+- `six-role-endurance-df03.json`: all six Linux managed / Windows Native roles
+  passed every dedicated outage duration and retained full restart after the
+  snapshot fix. Original ZIP hashes and reports identify the exact older runtime;
+  the separate Windows quick failure remains recorded.
 - `linux-local-faults.json`: reports/parameters and archive hashes for preserved
   WSL packet-drop and disk-full campaigns, including the latest failed repeat.
 - `performance.md` / `performance.json`: completed and failed Native benchmark

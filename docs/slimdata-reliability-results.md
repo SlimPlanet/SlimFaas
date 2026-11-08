@@ -453,6 +453,27 @@ and subsequent recovery. The full suite still passes **1,992 tests**. The origin
 failed image was archived before further replay. Native publication and fresh
 benchmarks on this revision are pending; the 300-second recovery gate is unchanged.
 
+## Six-role endurance after transactional snapshot recovery
+
+All six dedicated endurance jobs passed on `df03f8b1`: Linux managed and Windows
+Native each retained their volumes through follower, leader and quorum absences
+of 30/60/300/900/1800/3600 seconds, successive crashes and full restart. The
+workflow's separate Windows quick SDK job failed; it does not change these six
+individual job results. This runtime predates later Local job/WebSocket fixes.
+
+| Runtime / role | Full recovery after one-hour absence | Final accepted / unknown |
+| --- | ---: | ---: |
+| Linux follower | 19.962 s | 23,161 / 27 |
+| Linux leader | 25.932 s | 21,624 / 211 |
+| Linux quorum | 21.469 s | 159 / 26,424 |
+| Windows Native follower | 80.953 s | 22,990 / 24 |
+| Windows Native leader | 76.047 s | 20,751 / 219 |
+| Windows Native quorum | 64.656 s | 157 / 26,381 |
+
+Original reports, parameters, runtime attribution and complete ZIP hashes are in
+[six-role-endurance-df03.json](reliability/2026-11-08/six-role-endurance-df03.json).
+Later-revision matrices remain separate evidence.
+
 ## An ordered producer remained attached to an unavailable old leader
 
 Native `b00224c5` passed the complete SDK campaign, but its subsequent owner-timeout
@@ -470,15 +491,21 @@ every subsequent mutation in that producer waited behind it. A reduced real Loca
 the old leader is suspended, another leader is available, but the single mutation
 expires at the unchanged 15-second deadline. No mutation is retried by the harness.
 
-Outgoing batch requests now link to the local Raft consensus token captured before
-leader selection. Losing that epoch cancels the stale HTTP request, including a
+The first token-only implementation (`ac30f4dd`) passed its unit regressions but
+still failed the real Local case at 15 seconds. The trace shows the ingress
+follower observing the replacement leader without its captured consensus token
+being cancelled. That failed run remains retained.
+
+Outgoing batch requests now link to both the local Raft consensus token and a
+leader generation captured before leader selection. The `LeaderChanged` event
+retires the latter independently. Losing either epoch cancels the stale HTTP request, including a
 stalled response body. The existing consumer retries identical batch identity and
 content, preserving deduplication if the prior leader committed before its reply
 was interrupted. HTTP deadlines are unchanged. Two regressions with an infinite
 test-client timeout fail before the fix in Global and PartitionedByKey modes.
-All **11** focused recovery tests pass after the fix, including both new modes,
-response-body timeout, shutdown cancellation and read-barrier recovery. Real Local
-after-fix validation and final benchmark attribution are pending.
+The token-only version passed **11** focused recovery tests. Additional cases now
+cover a leader change while the consensus token remains live in both batching
+modes. Real Local after-fix validation and final benchmark attribution are pending.
 
 ## Performance evidence
 

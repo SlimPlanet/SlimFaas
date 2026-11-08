@@ -20,9 +20,12 @@ public sealed class SlimDataRecoveryTests
     private static readonly TimeSpan TestDeadline = TimeSpan.FromSeconds(12);
 
     [Theory]
-    [InlineData(SlimDataBatchMode.Global)]
-    [InlineData(SlimDataBatchMode.PartitionedByKey)]
-    public async Task Lost_consensus_cancels_the_old_leader_http_epoch_without_waiting_for_client_timeout(SlimDataBatchMode mode)
+    [InlineData(SlimDataBatchMode.Global, false)]
+    [InlineData(SlimDataBatchMode.Global, true)]
+    [InlineData(SlimDataBatchMode.PartitionedByKey, false)]
+    [InlineData(SlimDataBatchMode.PartitionedByKey, true)]
+    public async Task Leader_epoch_change_cancels_the_old_http_request_without_waiting_for_client_timeout(
+        SlimDataBatchMode mode, bool loseConsensus)
     {
         using var stalled = new StalledContent();
         using var oldConsensus = new CancellationTokenSource();
@@ -46,7 +49,10 @@ public sealed class SlimDataRecoveryTests
 
         fixture.LeaderPort = 3263;
         consensus = CancellationToken.None;
-        await oldConsensus.CancelAsync();
+        if (loseConsensus)
+            await oldConsensus.CancelAsync();
+        else
+            fixture.Cluster.Raise(cluster => cluster.LeaderChanged += null, fixture.Cluster.Object, fixture.Cluster.Object.Leader!);
 
         await first.WaitAsync(TestDeadline);
         await next.WaitAsync(TestDeadline);
