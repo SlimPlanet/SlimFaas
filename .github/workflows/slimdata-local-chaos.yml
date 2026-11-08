@@ -25,7 +25,7 @@ jobs:
   quick:
     name: Three-node Local (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -38,12 +38,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
       - name: Verify campaign failure and accounting invariants
         run: python .bin/test-local-chaos-harness.py
       - name: Build runtime
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
       - name: Exercise real APIs, payload checksums, retries, DLQ and faults
         run: python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/quick --durations 1,5,10
+      - name: Exercise real SDK streaming, offline retention and reconnect
+        run: >-
+          uv run --locked --project client/python/slimfaas-client
+          python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/websocket
+          --scenarios websocket --request-timeout 120 --recovery-timeout 300
       - name: Drop real Raft traffic in an isolated network namespace
         if: runner.os == 'Linux'
         run: >-

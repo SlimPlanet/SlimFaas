@@ -36,7 +36,7 @@ public sealed class JobQueueRecoveryTests
             Key = "Job:task", Count = 1, NowTicks = expired, IdTransaction = "replacement-1", ReservedIps = []
         }, state);
 
-        var retained = Assert.Single(state.Queues["Job:task"]);
+        QueueElement retained = Assert.Single(state.Queues["Job:task"]);
         Assert.Equal(504, Assert.Single(retained.RetryQueueElements).HttpCode);
         await SlimDataInterpreter.DoListRightPopAsync(new ListRightPopCommand
         {

@@ -7,6 +7,7 @@ never retried. HTTP failures/timeouts during chaos remain unknown until reconcil
 """
 
 import argparse
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import ctypes
 import errno
@@ -18,6 +19,7 @@ from pathlib import Path
 import platform
 import re
 import signal
+import shutil
 import socket
 import subprocess
 import sys
@@ -201,30 +203,33 @@ class Campaign:
                 self.unknown[record["id"]] = record
             if record["event"] != "accepted":
                 continue
-            record["response"] = record["response"].encode()
-            self.accepted[record["id"]] = record
-            kind = record["kind"]
-            if kind in ("set", "minority-probe"):
-                self.expected[record["path"]] = record["sha256"]
-            elif kind in ("file", "hashset"):
-                identifier = parse_qs(urlsplit(record["path"]).query)["id"][0]
-                collection = "files" if kind == "file" else "hashsets"
-                self.expected[f"/data/{collection}/{identifier}"] = record["sha256"]
-            elif kind == "stream":
-                identifier = json.loads(record["response"])["MessageId"]
-                self.expected[f"/data/streams/chaos-stream/messages/{identifier}/body"] = record["sha256"]
-            elif kind == "counter":
-                self.counter_results.append(int(record["response"]))
-            elif kind == "delete":
-                self.expected.pop(record["path"], None)
-                self.deleted.add(record["path"])
-        (self.output / f"campaign-resume-{self.generation}.py").write_bytes(Path(__file__).read_bytes())
+            self.restore_accepted(record)
+        shutil.copyfile(__file__, self.output / f"campaign-resume-{self.generation}.py")
+
+    def restore_accepted(self, record):
+        record["response"] = record["response"].encode()
+        self.accepted[record["id"]] = record
+        kind = record["kind"]
+        if kind in ("set", "minority-probe"):
+            self.expected[record["path"]] = record["sha256"]
+        elif kind in ("file", "hashset"):
+            identifier = parse_qs(urlsplit(record["path"]).query)["id"][0]
+            collection = "files" if kind == "file" else "hashsets"
+            self.expected[f"/data/{collection}/{identifier}"] = record["sha256"]
+        elif kind == "stream":
+            receipt = json.loads(record["response"])
+            self.expected[f"/data/streams/{receipt['Stream']}/messages/{receipt['MessageId']}/body"] = record["sha256"]
+        elif kind == "counter":
+            self.counter_results.append(int(record["response"]))
+        elif kind == "delete":
+            self.expected.pop(record["path"], None)
+            self.deleted.add(record["path"])
 
     def generate_manifest(self):
         fixture_source = ROOT / "tests/SlimFaas.Tests/Local/chaos_function.py"
         fixture = self.output / "chaos_function.py"
-        fixture.write_bytes(fixture_source.read_bytes())
-        (self.output / "campaign.py").write_bytes(Path(__file__).read_bytes())
+        shutil.copyfile(fixture_source, fixture)
+        shutil.copyfile(__file__, self.output / "campaign.py")
         annotations = {"SlimFaas/Function": "true", "SlimFaas/ReplicasMin": "1",
                        "SlimFaas/ReplicasAtStart": "1", "SlimFaas/NumberParallelRequest": "16",
                        "SlimFaas/NumberParallelRequestPerPod": "16",
@@ -289,9 +294,17 @@ class Campaign:
                    self.options.recovery_timeout)
 
     def stop(self):
-        for pid in list(self.suspended):
+        while self.suspended:
+            pid = next(iter(self.suspended))
             suspend(pid, False)
             self.suspended.remove(pid)
+        self.stop_supervisor()
+        wait_until("owned Local nodes release listening ports", self.ports_released, 30)
+        if self.log:
+            self.log.close()
+            self.log = None
+
+    def stop_supervisor(self):
         if self.process is not None and self.process.poll() is None:
             self.process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
             try:
@@ -303,17 +316,13 @@ class Campaign:
                     os.killpg(self.process.pid, signal.SIGKILL)
                 self.process.wait(timeout=10)
                 raise
-        def ports_released():
-            for port in self.ports + list(range(self.raft, self.raft + 3)):
-                with socket.socket() as probe:
-                    probe.settimeout(.2)
-                    if probe.connect_ex(("127.0.0.1", port)) == 0:
-                        return False
-            return True
-        wait_until("owned Local nodes release listening ports", ports_released, 30)
-        if self.log:
-            self.log.close()
-            self.log = None
+    def ports_released(self):
+        for port in self.ports + list(range(self.raft, self.raft + 3)):
+            with socket.socket() as probe:
+                probe.settimeout(.2)
+                if probe.connect_ex(("127.0.0.1", port)) == 0:
+                    return False
+        return True
 
     def leader(self, excluded=()):
         for node in range(3):
@@ -322,7 +331,7 @@ class Campaign:
             try:
                 status, headers, body = request(self.raft + node, "/SlimData/leader", timeout=.2, redirects=False)
                 address = body if status == 200 else headers.get("Location", "").encode()
-                match = re.search(rb"http://127\.0\.0\.1:(\d+)", address)
+                match = re.search(rb"http://127\.0\.0\.1:(\d+)", address)  # NOSONAR - Local Raft discovery is loopback-only and has no TLS listener.
                 if status in (200, 301, 302, 307, 308) and match:
                     leader = int(match[1]) - self.raft
                     if leader not in excluded and 0 <= leader < 3:
@@ -358,19 +367,26 @@ class Campaign:
                                          "seconds": time.monotonic() - started})
             return None, None, None, identifier
         # 5xx may occur after commit. Treat them as unknown, not proven rejection.
-        result = "accepted" if 200 <= status < 300 else "unknown" if status >= 500 else "rejected"
+        result = "rejected"
+        if 200 <= status < 300:
+            result = "accepted"
+        elif status >= 500:
+            result = "unknown"
         self.client.append(record | {"event": result, "status": status,
                                      "headers": response_headers, "response": response[:4096].decode(errors="replace"),
                                      "seconds": time.monotonic() - started})
         if result == "accepted":
-            self.accepted[identifier] = record | {"response": response, "headers": response_headers}
-            if kind == "minority-probe":
-                self.expected[path] = record["sha256"]
-            if kind == "counter":
-                self.counter_results.append(int(response))
+            self.accept_result(record, response, response_headers)
         elif result == "unknown":
             self.unknown[identifier] = record
         return status, response_headers, response, identifier
+
+    def accept_result(self, record, response, headers):
+        self.accepted[record["id"]] = record | {"response": response, "headers": headers}
+        if record["kind"] == "minority-probe":
+            self.expected[record["path"]] = record["sha256"]
+        if record["kind"] == "counter":
+            self.counter_results.append(int(response))
 
     def require_mutation(self, kind, path, body, expected_status=None, **kwargs):
         status, headers, response, identifier = self.mutate(kind, path, body, **kwargs)
@@ -420,38 +436,44 @@ class Campaign:
         # All reads share a deadline; 404 is allowed only while catching up. Wrong
         # values and server errors fail immediately, never becoming a retry pass.
         deadline = time.monotonic() + self.options.recovery_timeout
-        for path, expected in list(self.expected.items()):
-            for port in self.ports:
-                def check():
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise AssertionError("Convergence verification exceeded phase deadline")
-                    status, _, body = request(port, path, timeout=min(5, remaining))
-                    if status == 404:
-                        return False
-                    if status != 200 or sha256(body) != expected:
-                        raise AssertionError(f"Convergence failure at {port}{path}: HTTP {status}, sha256={sha256(body)}")
-                    return True
-                wait_until(f"node {port} {path}", check, max(.001, deadline - time.monotonic()))
+        for path, expected in self.expected.items():
+            self.verify_value(path, expected, deadline)
         for path in self.deleted:
             for port in self.ports:
                 status, _, _ = request(port, path, timeout=5)
                 if status != 404:
                     raise AssertionError(f"Confirmed deletion is visible on {port}{path}: HTTP {status}")
+        self.verify_counters()
+
+    def verify_value(self, path, expected, deadline):
+        for port in self.ports:
+            def check(port=port):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise AssertionError("Convergence verification exceeded phase deadline")
+                status, _, body = request(port, path, timeout=min(5, remaining))
+                if status == 404:
+                    return False
+                if status != 200 or sha256(body) != expected:
+                    raise AssertionError(f"Convergence failure at {port}{path}: HTTP {status}, sha256={sha256(body)}")
+                return True
+            wait_until(f"node {port} {path}", check, max(.001, deadline - time.monotonic()))
+
+    def verify_counters(self):
         unknown_counters = sum(record["kind"] == "counter" for record in self.unknown.values())
-        if self.counter_results or unknown_counters:
-            # Unknown increment responses may still have committed. Their bounded
-            # range is checked without retrying any non-idempotent mutation.
-            lower = len(self.counter_results)
-            upper = lower + unknown_counters
-            values = [request(port, "/data/sets/chaos-mixed-counter") for port in self.ports]
-            if lower == 0 and all(status == 404 for status, _, _ in values):
-                return
-            if any(status != 200 for status, _, _ in values):
-                raise AssertionError("Mixed counter is unavailable after recovery")
-            numbers = [int(value) for _, _, value in values]
-            if len(set(numbers)) != 1 or not lower <= numbers[0] <= upper or len(set(self.counter_results)) != lower:
-                raise AssertionError(f"Mixed counter invariant: {numbers}, confirmed={lower}, possible={upper}")
+        if not self.counter_results and not unknown_counters:
+            return
+        # Unknown responses may have committed; never retry the mutation.
+        lower = len(self.counter_results)
+        upper = lower + unknown_counters
+        values = [request(port, "/data/sets/chaos-mixed-counter") for port in self.ports]
+        if lower == 0 and all(status == 404 for status, _, _ in values):
+            return
+        if any(status != 200 for status, _, _ in values):
+            raise AssertionError("Mixed counter is unavailable after recovery")
+        numbers = [int(value) for _, _, value in values]
+        if len(set(numbers)) != 1 or not lower <= numbers[0] <= upper or len(set(self.counter_results)) != lower:
+            raise AssertionError(f"Mixed counter invariant: {numbers}, confirmed={lower}, possible={upper}")
 
     def payloads(self):
         self.phase = "payloads"
@@ -498,7 +520,8 @@ class Campaign:
         self.require_mutation("ttl", "/data/hashsets?id=chaos-hash-ttl&ttl=1000", b"expires")
         self.require_mutation("ttl", "/data/files?id=chaos-file-ttl&ttl=1000", b"expires")
         for collection, identifier in (("hashsets", "chaos-hash-ttl"), ("files", "chaos-file-ttl")):
-            wait_until(f"{collection} TTL", lambda: request(self.entry, f"/data/{collection}/{identifier}")[0] == 404)
+            wait_until(f"{collection} TTL", lambda collection=collection, identifier=identifier:
+                       request(self.entry, f"/data/{collection}/{identifier}")[0] == 404)
         for name in ("sets", "hashsets"):
             status, _, _ = request(self.entry, f"/data/{name}" + ("?id=oversize" if name == "hashsets" else "/oversize"),
                                    "POST", payload(1048577))
@@ -527,14 +550,14 @@ class Campaign:
             raise AssertionError(f"Incorrect attempt/final delivery metadata: {attempts}")
         _, failed_id = self.require_mutation("dlq", "/async-function/chaos/consume?fail=always", value, expected_status=202)
         element_id = next(v for k, v in self.accepted[failed_id]["headers"].items() if k.lower() == "slimfaas-element-id")
-        dead_letter = None
+        dead_letter = {}
         def retained():
             nonlocal dead_letter
             status, _, body = request(self.entry, "/data/dead-letters/chaos/messages")
             if status != 200:
                 return False
-            dead_letter = next((r for r in json.loads(body)["Items"] if r["OriginalElementId"] == element_id), None)
-            return dead_letter is not None
+            dead_letter = next((r for r in json.loads(body)["Items"] if r["OriginalElementId"] == element_id), {})
+            return bool(dead_letter)
         wait_until("terminal failure retained in DLQ", retained, self.options.recovery_timeout)
         dead_path = f"/data/dead-letters/chaos/messages/{dead_letter['Id']}"
         status, _, body = request(self.entry, dead_path + "/body")
@@ -603,16 +626,7 @@ class Campaign:
         job_args = {arg for record in self.accepted.values() if record["kind"] == "job" for arg in record["job_args"]}
         def check():
             rows = read_receipts(self.receipts)
-            completed = set()
-            for row in rows:
-                if row["event"] == "completed" and row["sha256"] != row["expected_sha256"]:
-                    raise AssertionError(f"Function received a corrupt body: {row}")
-                if row.get("id") in self.accepted and row.get("event") == "completed":
-                    expected = self.accepted[row["id"]]
-                    if row["sha256"] != expected["sha256"] or row["bytes"] != expected["bytes"]:
-                        raise AssertionError(f"Receipt integrity failure: {row}")
-                    if 200 <= row["status"] < 300:
-                        completed.add(row["id"])
+            completed = {row["id"] for row in rows if self.receipt_succeeded(row)}
             missing = async_ids - completed
             missing_jobs = job_args - {arg for row in rows if row["event"] == "job" for arg in row["args"]}
             self.missing = sorted(missing | missing_jobs)
@@ -620,45 +634,22 @@ class Campaign:
         wait_until("all confirmed async/stream publications executed: see missing IDs in report", check,
                    self.options.recovery_timeout)
 
+    def receipt_succeeded(self, row):
+        if row.get("event") != "completed":
+            return False
+        if row["sha256"] != row["expected_sha256"]:
+            raise AssertionError(f"Function received a corrupt body: {row}")
+        expected = self.accepted.get(row.get("id"))
+        if expected is None:
+            return False
+        if row["sha256"] != expected["sha256"] or row["bytes"] != expected["bytes"]:
+            raise AssertionError(f"Receipt integrity failure: {row}")
+        return 200 <= row["status"] < 300
+
     def traffic(self, stopping):
         """One independent producer per API: mixed operations overlap during faults."""
-        def worker(kind):
-            sequence = 0
-            while not stopping.is_set():
-                identifier = uuid.uuid4().hex
-                value = payload(self.options.payload_sizes[sequence % len(self.options.payload_sizes)], identifier) if kind == "async" else payload(1024, identifier)
-                get = None
-                if kind == "async":
-                    path = "/async-function/chaos/consume?delay=0.1"
-                elif kind == "sync":
-                    path = "/function/chaos/echo?delay=0.1"
-                elif kind == "stream":
-                    path = "/publish-stream/chaos-stream/consume"
-                elif kind == "file":
-                    path, get = f"/data/files?id={identifier}", f"/data/files/{identifier}"
-                elif kind == "hashset":
-                    path, get = f"/data/hashsets?id={identifier}", f"/data/hashsets/{identifier}"
-                elif kind == "counter":
-                    path, value = "/data/sets/chaos-mixed-counter/incr", b""
-                elif kind == "job":
-                    path = "/job/chaos-job"
-                    value = json.dumps({"Args": [identifier], "TtlSecondsAfterFinished": 3600}).encode()
-                else:
-                    path, get = f"/data/sets/{identifier}", f"/data/sets/{identifier}"
-                status, _, response, _ = self.mutate(kind, path, value, identifier=identifier,
-                    headers={"Content-Type": "application/json"} if kind == "job" else None)
-                if status is not None and 200 <= status < 300:
-                    if get:
-                        self.expected[get] = sha256(value)
-                    if kind == "stream":
-                        message_id = json.loads(response)["MessageId"]
-                        self.expected[f"/data/streams/chaos-stream/messages/{message_id}/body"] = sha256(value)
-                    if kind == "sync" and json.loads(response)["sha256"] != sha256(value):
-                        raise AssertionError("Sync corruption during chaos")
-                sequence += 1
-                stopping.wait(self.options.traffic_interval)
         with ThreadPoolExecutor(max_workers=8) as pool:
-            futures = [pool.submit(worker, kind) for kind in ("async", "sync", "stream", "file", "hashset", "set", "counter", "job")]
+            futures = [pool.submit(self.produce, kind, stopping) for kind in ("async", "sync", "stream", "file", "hashset", "set", "counter", "job")]
             # Propagate producer failures promptly; their exceptions must never be
             # hidden in a background task while the campaign reports success.
             try:
@@ -671,6 +662,43 @@ class Campaign:
                 for future in futures:
                     future.result()
 
+    def traffic_request(self, kind, identifier, sequence):
+        value = payload(1024, identifier)
+        if kind == "async":
+            value = payload(self.options.payload_sizes[sequence % len(self.options.payload_sizes)], identifier)
+            return "/async-function/chaos/consume?delay=0.1", value, None, None
+        if kind == "job":
+            value = json.dumps({"Args": [identifier], "TtlSecondsAfterFinished": 3600}).encode()
+            return "/job/chaos-job", value, None, {"Content-Type": "application/json"}
+        routes = {"sync": ("/function/chaos/echo?delay=0.1", None),
+                  "stream": ("/publish-stream/chaos-stream/consume", None),
+                  "file": (f"/data/files?id={identifier}", f"/data/files/{identifier}"),
+                  "hashset": (f"/data/hashsets?id={identifier}", f"/data/hashsets/{identifier}"),
+                  "set": (f"/data/sets/{identifier}", f"/data/sets/{identifier}"),
+                  "counter": ("/data/sets/chaos-mixed-counter/incr", None)}
+        path, get = routes[kind]
+        return path, b"" if kind == "counter" else value, get, None
+
+    def produce(self, kind, stopping):
+        sequence = 0
+        while not stopping.is_set():
+            identifier = uuid.uuid4().hex
+            path, value, get, headers = self.traffic_request(kind, identifier, sequence)
+            status, _, response, _ = self.mutate(kind, path, value, identifier=identifier, headers=headers)
+            if status is not None and 200 <= status < 300:
+                self.check_traffic_result(kind, value, get, response)
+            sequence += 1
+            stopping.wait(self.options.traffic_interval)
+
+    def check_traffic_result(self, kind, value, get, response):
+        if get:
+            self.expected[get] = sha256(value)
+        if kind == "stream":
+            receipt = json.loads(response)
+            self.expected[f"/data/streams/{receipt['Stream']}/messages/{receipt['MessageId']}/body"] = sha256(value)
+        if kind == "sync" and json.loads(response)["sha256"] != sha256(value):
+            raise AssertionError("Sync corruption during chaos")
+
     def audit(self):
         """Account for duplicate deliveries and commit/response ambiguity explicitly."""
         rows = read_receipts(self.receipts)
@@ -681,34 +709,7 @@ class Campaign:
         unknowns = []
         deadline = time.monotonic() + self.options.recovery_timeout
         for identifier, record in self.unknown.items():
-            evidence = [row for row in completed if row["id"] == identifier]
-            outcome = "executed" if evidence else "unresolved"
-            if record["kind"] in ("set", "hashset", "file", "minority-probe"):
-                get = record["path"]
-                if record["kind"] == "hashset":
-                    get = f"/data/hashsets/{identifier}"
-                elif record["kind"] == "file":
-                    get = f"/data/files/{identifier}"
-                values = []
-                def read_all():
-                    nonlocal values
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise AssertionError("Unknown-operation audit exceeded its phase deadline")
-                    values = [request(port, get, timeout=min(5, remaining)) for port in self.ports]
-                    if any(status not in (200, 404) for status, _, _ in values):
-                        raise AssertionError(f"Unknown write cannot be audited after recovery: {identifier}, {[r[0] for r in values]}")
-                    return True
-                wait_until(f"audit unknown operation {identifier}", read_all, max(.001, deadline - time.monotonic()))
-                if all(status == 200 and sha256(value) == record["sha256"] for status, _, value in values):
-                    outcome = "committed-on-all-nodes"
-                elif all(status == 404 for status, _, _ in values):
-                    outcome = "absent-at-final-observation"
-                else:
-                    raise AssertionError(f"Unknown write has inconsistent final state: {identifier}")
-            elif record["kind"] == "job" and any(row["event"] == "job" and
-                    set(record["job_args"]).issubset(row["args"]) for row in rows):
-                outcome = "job-executed"
+            outcome = self.audit_unknown(identifier, record, rows, completed, deadline)
             unknowns.append({"id": identifier, "kind": record["kind"], "outcome": outcome})
         report = {"accepted": len(self.accepted), "unknown": unknowns,
                   "completed_deliveries": len(completed), "distinct_delivered_ids": len(executions),
@@ -716,13 +717,47 @@ class Campaign:
         (self.output / "accounting.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         return report
 
+    def audit_unknown(self, identifier, record, rows, completed, deadline):
+        if record["kind"] in ("set", "hashset", "file", "minority-probe"):
+            return self.audit_stored_value(identifier, record, deadline)
+        if record["kind"] == "job" and any(row["event"] == "job" and
+                set(record["job_args"]).issubset(row["args"]) for row in rows):
+            return "job-executed"
+        return "executed" if any(row["id"] == identifier for row in completed) else "unresolved"
+
+    def audit_stored_value(self, identifier, record, deadline):
+        get = record["path"]
+        if record["kind"] == "hashset":
+            get = f"/data/hashsets/{identifier}"
+        elif record["kind"] == "file":
+            get = f"/data/files/{identifier}"
+        values = []
+        def read_all():
+            nonlocal values
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise AssertionError("Unknown-operation audit exceeded its phase deadline")
+            values = [request(port, get, timeout=min(5, remaining)) for port in self.ports]
+            if any(status not in (200, 404) for status, _, _ in values):
+                raise AssertionError(f"Unknown write cannot be audited after recovery: {identifier}, {[r[0] for r in values]}")
+            return True
+        wait_until(f"audit unknown operation {identifier}", read_all, max(.001, deadline - time.monotonic()))
+        if all(status == 200 and sha256(value) == record["sha256"] for status, _, value in values):
+            return "committed-on-all-nodes"
+        if all(status == 404 for status, _, _ in values):
+            return "absent-at-final-observation"
+        raise AssertionError(f"Unknown write has inconsistent final state: {identifier}")
+
     def absence(self, role, seconds):
         self.phase = f"absence-{role}-{seconds:g}s"
         self.ready()
         leader = self.leader()
         if leader is None:
             raise AssertionError("No leader before fault injection")
-        nodes = [leader] if role == "leader" else [n for n in range(3) if n != leader][:1 if role == "follower" else 2]
+        nodes = [leader]
+        if role != "leader":
+            count = 1 if role == "follower" else 2
+            nodes = [node for node in range(3) if node != leader][:count]
         pids = [self.node_pid(n) for n in nodes]
         stopping = threading.Event()
         started = time.monotonic()
@@ -742,30 +777,7 @@ class Campaign:
                 # Direct minority write: a ready-gateway refusal alone does not
                 # demonstrate the consensus invariant.
                 minority = pool.submit(minority_write) if role == "quorum" else None
-                deadline = started + seconds
-                heartbeat = started
-                while time.monotonic() < deadline:
-                    if traffic.done():
-                        traffic.result()
-                    if role == "leader" and election_seconds is None and self.leader(excluded=nodes) is not None:
-                        election_seconds = time.monotonic() - started
-                    if minority and minority.done():
-                        result, completed_at = minority.result()
-                        assert_minority_result(result, completed_at, time.perf_counter())
-                    if time.monotonic() - heartbeat >= 30:
-                        heartbeat = time.monotonic()
-                        print(json.dumps({"phase": self.phase, "elapsed_seconds": heartbeat - started,
-                                          "accepted": len(self.accepted), "unknown": len(self.unknown)}), flush=True)
-                        # Sample one reachable node; slow diagnostic reads never
-                        # run on a suspended node or count as successful traffic.
-                        observed = next(node for node in range(3) if node not in nodes)
-                        try:
-                            status, _, metrics = request(self.ports[observed], "/metrics", timeout=.2)
-                            if status == 200:
-                                self.record_metrics(self.phase, observed, metrics)
-                        except NETWORK_ERRORS:
-                            pass
-                    stopping.wait(min(.2, max(0, deadline - time.monotonic())))
+                election_seconds = self.monitor_absence(role, nodes, started, seconds, traffic, minority, stopping)
             finally:
                 restoration_at = time.perf_counter()
                 resumed = time.monotonic()
@@ -791,6 +803,36 @@ class Campaign:
                   "accepted": len(self.accepted), "unknown": len(self.unknown), "passed": True}
         self.results.append(result)
         print(json.dumps(result), flush=True)
+
+    def monitor_absence(self, role, nodes, started, seconds, traffic, minority, stopping):
+        deadline = started + seconds
+        heartbeat = started
+        election_seconds = None
+        while time.monotonic() < deadline:
+            if traffic.done():
+                traffic.result()
+            if role == "leader" and election_seconds is None and self.leader(excluded=nodes) is not None:
+                election_seconds = time.monotonic() - started
+            if minority and minority.done():
+                result, completed_at = minority.result()
+                assert_minority_result(result, completed_at, time.perf_counter())
+            if time.monotonic() - heartbeat >= 30:
+                heartbeat = time.monotonic()
+                self.heartbeat(nodes, heartbeat - started)
+            stopping.wait(min(.2, max(0, deadline - time.monotonic())))
+        return election_seconds
+
+    def heartbeat(self, nodes, elapsed):
+        print(json.dumps({"phase": self.phase, "elapsed_seconds": elapsed,
+                          "accepted": len(self.accepted), "unknown": len(self.unknown)}), flush=True)
+        # Sample one reachable node; slow diagnostics do not count as traffic.
+        observed = next(node for node in range(3) if node not in nodes)
+        try:
+            status, _, metrics = request(self.ports[observed], "/metrics", timeout=.2)
+            if status == 200:
+                self.record_metrics(self.phase, observed, metrics)
+        except NETWORK_ERRORS:
+            pass
 
     def chaos(self):
         self.seed()
@@ -818,6 +860,9 @@ class Campaign:
         self.reconcile()
         self.verify()
         self.seeded = True
+
+    def websocket(self):
+        asyncio.run(WebSocketCampaign(self).run())
 
     def network_latency(self):
         if sys.platform != "linux" or os.geteuid() != 0 or os.readlink("/proc/self/ns/net") == os.readlink("/proc/1/ns/net"):
@@ -867,7 +912,7 @@ class Campaign:
             stopping = threading.Event()
             with ThreadPoolExecutor(max_workers=2) as pool:
                 traffic = pool.submit(self.traffic, stopping)
-                def minority_write():
+                def minority_write(leader=leader):
                     result = self.mutate("minority-probe", f"/data/sets/partition-{uuid.uuid4().hex}",
                                          b"partition", port=self.ports[leader])
                     return result, time.perf_counter()
@@ -962,7 +1007,7 @@ class Campaign:
                 try:
                     os.kill(pid, signal.SIGTERM if os.name == "nt" else signal.SIGKILL)
                     self.client.append({"event": "killed", "node": node, "pid": pid})
-                    wait_until("supervisor restarted owned node", lambda: self.node_pid(node) != pid,
+                    wait_until("supervisor restarted owned node", lambda node=node, pid=pid: self.node_pid(node) != pid,
                                self.options.recovery_timeout)
                     self.ready()
                 finally:
@@ -977,6 +1022,141 @@ class Campaign:
         self.reconcile()
         self.results.append({"phase": self.phase, "passed": True})
         print(json.dumps(self.results[-1]), flush=True)
+
+
+class WebSocketCampaign:
+    """Optional official SDK fixture; every mutation still uses the main ledger."""
+
+    def __init__(self, campaign):
+        from slimfaas_client import SlimFaasClient, SlimFaasClientConfig, SubscribeStreamConfig
+        self.campaign = campaign
+        self.client_type = SlimFaasClient
+        config_path = campaign.output / "websocket.json"
+        prior = next((record["path"].split("/")[2] for record in campaign.accepted.values()
+                      if record["kind"] == "async" and record["path"].startswith("/async-function/chaos-ws-")), None)
+        self.function = prior or "chaos-ws-" + uuid.uuid4().hex
+        if config_path.is_file():
+            self.function = json.loads(config_path.read_text())["function"]
+        self.stream = "stream-" + self.function
+        config_path.write_text(json.dumps({"function": self.function, "stream": self.stream}), encoding="utf-8")
+        self.config = SlimFaasClientConfig(function_name=self.function, subscribe_streams=[SubscribeStreamConfig(self.stream)])
+        self.journal = Journal(campaign.receipts / f"receipts-websocket-{os.getpid()}.jsonl")
+        self.parallel = asyncio.Semaphore(campaign.options.concurrency)
+
+    async def consume(self, req):
+        headers = {key.lower(): value[0] for key, value in req.headers.items() if value}
+        value = req.body or b""
+        self.journal.append({"event": "completed", "id": headers.get("x-chaos-id", ""),
+                             "bytes": len(value), "sha256": sha256(value),
+                             "expected_sha256": headers.get("x-chaos-sha256", ""),
+                             "status": 200, "attempt": req.try_number,
+                             "element_id": req.element_id, "transport": "websocket"})
+        return 200
+
+    @staticmethod
+    async def sync(req):
+        value = await req.body.readall()
+        await req.response.start(201, {"Content-Length": [str(len(value))]})
+        for start in range(0, len(value), 65536):
+            await req.response.write(value[start:start + 65536])
+        await req.response.complete()
+
+    async def wait_registered(self, client, running):
+        while not client.is_connected:
+            if running.done():
+                raise AssertionError("Official WebSocket client stopped before registration")
+            await asyncio.sleep(.05)
+
+    async def connect(self, node):
+        campaign = self.campaign
+        client = self.client_type(f"ws://127.0.0.1:{campaign.ports[node]}/ws", self.config, reconnect_delay=.2)
+        client.on_async_request(self.consume)
+        client.on_stream_message(self.consume)
+        client.on_sync_request(self.sync)
+        running = asyncio.create_task(client.run_forever())
+        try:
+            await asyncio.wait_for(self.wait_registered(client, running), campaign.options.recovery_timeout)
+            await asyncio.to_thread(wait_until, "durable WebSocket subscription", lambda:
+                request(campaign.entry, f"/data/streams/{self.stream}/functions/{self.function}")[0] == 200,
+                campaign.options.recovery_timeout)
+            await asyncio.to_thread(wait_until, "WebSocket configuration on every node", lambda:
+                all(self.function.encode() in request(port, "/status-functions")[2] for port in campaign.ports),
+                campaign.options.recovery_timeout)
+            return client, running
+        except BaseException:
+            await self.disconnect(client, running)
+            raise
+
+    @staticmethod
+    async def disconnect(client, running):
+        await client.close()
+        await asyncio.wait_for(running, 15)
+
+    async def publish(self, port):
+        identifier = uuid.uuid4().hex
+        value = payload(2097152, identifier)
+        body, _ = await asyncio.to_thread(self.campaign.require_mutation, "stream",
+            f"/publish-stream/{self.stream}/consume", value, identifier=identifier,
+            port=port, expected_status=202)
+        receipt = json.loads(body)
+        self.campaign.expected[f"/data/streams/{self.stream}/messages/{receipt['MessageId']}/body"] = sha256(value)
+        return identifier
+
+    async def sync_check(self, port):
+        value = payload(2097152)
+        body, _ = await asyncio.to_thread(self.campaign.require_mutation, "sync-websocket",
+            f"/function/{self.function}/echo", value, port=port, expected_status=201)
+        if body != value:
+            raise AssertionError("HTTP-over-WebSocket streaming body mismatch")
+
+    async def cross_node(self):
+        campaign = self.campaign
+        campaign.phase = "websocket-cross-node"
+        await asyncio.gather(*(self.sync_check(port) for port in campaign.ports))
+        cases = [(size, chunked) for size in campaign.options.payload_sizes for chunked in (False, True)]
+        await asyncio.gather(*(self.async_check(size, chunked, campaign.ports[index % 3])
+                               for index, (size, chunked) in enumerate(cases)))
+        identifiers = await asyncio.gather(*(self.publish(campaign.ports[index % 3]) for index in range(4)))
+        await self.observe(identifiers)
+
+    async def async_check(self, size, chunked, port):
+        async with self.parallel:
+            identifier = uuid.uuid4().hex
+            _, _ = await asyncio.to_thread(self.campaign.require_mutation, "async",
+                f"/async-function/{self.function}/consume", payload(size, identifier),
+                identifier=identifier, port=port, expected_status=202, chunked=chunked)
+            await asyncio.to_thread(self.campaign.observe, identifier)
+            self.campaign.results.append({"phase": "websocket-async", "bytes": size,
+                                          "chunked": chunked, "port": port, "passed": True})
+            print(json.dumps(self.campaign.results[-1]), flush=True)
+
+    async def observe(self, identifiers):
+        for identifier in identifiers:
+            await asyncio.to_thread(self.campaign.observe, identifier)
+
+    async def run(self):
+        campaign = self.campaign
+        client, running = await self.connect(0)
+        try:
+            await asyncio.to_thread(campaign.reconcile)
+            await self.cross_node()
+            await self.disconnect(client, running)
+            campaign.phase = "websocket-offline-retention"
+            identifiers = [await self.publish(campaign.entry) for _ in range(3)]
+            client, running = await self.connect(2)
+            await self.observe(identifiers)
+            await asyncio.to_thread(campaign.restarts)
+            campaign.phase = "websocket-recovery"
+            await self.observe([await self.publish(campaign.entry)])
+            await asyncio.to_thread(wait_until, "WebSocket contiguous ACK progress", lambda:
+                json.loads(request(campaign.entry, f"/data/streams/{self.stream}/functions/{self.function}")[2])["Lag"] == 0,
+                campaign.options.recovery_timeout)
+            await asyncio.to_thread(campaign.verify)
+            await asyncio.to_thread(campaign.reconcile)
+            campaign.results.append({"phase": "websocket", "function": self.function, "stream": self.stream, "passed": True})
+            print(json.dumps(campaign.results[-1]), flush=True)
+        finally:
+            await self.disconnect(client, running)
 
 
 def parse_arguments(argv=None):
@@ -1009,7 +1189,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "chaos", "latency", "partitions", "diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "websocket", "chaos", "latency", "partitions", "diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1034,13 +1214,15 @@ def main():
         campaign.start()
         if options.resume:
             campaign.verify()
-            campaign.reconcile()
+            if "websocket" not in options.scenarios.split(","):
+                campaign.reconcile()
             campaign.audit()
         campaign.capture("initial")
         for scenario in options.scenarios.split(","):
             {"payloads": campaign.payloads, "api": campaign.api_smoke,
              "files": campaign.file_boundaries, "retries": campaign.retries_dlq_jobs,
              "wake": campaign.wake_and_cancel,
+             "websocket": campaign.websocket,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
              "diskfull": campaign.disk_full, "restarts": campaign.restarts}[scenario]()
         campaign.reconcile()

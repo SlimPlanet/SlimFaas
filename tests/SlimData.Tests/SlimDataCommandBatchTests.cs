@@ -15,20 +15,20 @@ public sealed class SlimDataCommandBatchTests
     public async Task Pop_reports_zero_based_attempt_and_only_marks_the_final_delivery(int completedAttempts, bool lastTry)
     {
         long now = new DateTime(2026, 11, 8, 12, 0, 0, DateTimeKind.Utc).Ticks;
-        var state = NewState();
+        SlimDataState state = NewState();
         var tries = Enumerable.Range(0, completedAttempts)
             .Select(index => new QueueHttpTryElement(now - (10 * TimeSpan.TicksPerSecond),
                 $"previous-{index}", now - (5 * TimeSpan.TicksPerSecond), 500))
             .ToImmutableArray();
         state.Queues = state.Queues.SetItem("queue", [new QueueElement(new byte[] { 42 }, "element", now, 30, [1, 2], tries, [500])]);
-        var pop = Operation(SlimDataBatchOperationKind.ListRightPop, "pop", "queue");
+        SlimDataBatchOperation pop = Operation(SlimDataBatchOperationKind.ListRightPop, "pop", "queue");
         pop.TransactionId = "current-delivery";
         pop.Count = 1;
         pop.NowTicks = now;
 
-        var response = await ApplyAsync(state, NewRequest(pop));
+        SlimDataCommandBatchResponse response = await ApplyAsync(state, NewRequest(pop));
 
-        var delivery = Assert.Single(Assert.Single(response.Results).QueueItems!);
+        QueueData delivery = Assert.Single(Assert.Single(response.Results).QueueItems!);
         Assert.Equal(completedAttempts, delivery.TryNumber);
         Assert.Equal(lastTry, delivery.IsLastTry);
         Assert.Equal(completedAttempts + 1, Assert.Single(state.Queues["queue"]).NumberOfTries());

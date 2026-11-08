@@ -40,6 +40,7 @@ binaries outside the build directory when rebuilding another version on Windows.
 | `api` | Sync status/body integrity; Sets, HashSets, Files and retained Stream bodies on every node; concurrent atomic increments, TTL and explicit 1 MiB overflow rejection |
 | `files` | Empty through 16 MiB uploads/downloads on every node and interrupted upload visibility |
 | `wake` | A real function scales 0 → 1 → 0; a timed-out Sync response remains unknown and its later execution is observed |
+| `websocket` | Optional official Python SDK: cross-node Sync streaming/Async/Streams, offline retained publications, reconnect through another owner, crashes and persistent restart |
 | `retries` | A 2 MiB body across retry attempts 0/1/2, final-attempt flags, exhausted delivery, DLQ body checksum, repair/requeue and actual concurrent job processes |
 | `chaos` | Independent producers for Sync, Async, Streams, Files, Sets, HashSets, atomic counters and jobs while a follower, leader or both followers are suspended |
 | `restarts` | Successive abrupt follower/leader crashes with supervisor restart, followed by a full supervisor/cluster restart using original state |
@@ -51,6 +52,14 @@ binaries outside the build directory when rebuilding another version on Windows.
 counts, up to the fixture's 20 MiB ceiling; it does not change runtime limits.
 The runtime's HTTP/body/file capacity limits still apply. `api` also checks TTL
 and deletion for Sets, HashSets and Files, including deletion visibility on all nodes.
+
+The optional WebSocket scenario uses the existing locked client dependencies:
+
+```bash
+uv run --locked --project client/python/slimfaas-client python .bin/test-slimdata-local-chaos.py \
+  --output artifacts/local-chaos/websocket --scenarios websocket \
+  --request-timeout 120 --recovery-timeout 300
+```
 
 Every mutation has an fsynced client intent and result. HTTP timeouts, disconnects
 and server errors remain **unknown**, because commit may precede response loss.

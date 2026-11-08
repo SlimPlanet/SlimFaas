@@ -287,7 +287,7 @@ public sealed class ClusterFileSyncTests
 
         var payload = Encoding.UTF8.GetBytes(content);
         var sha = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
-        var len = payload.Length;
+        int len = payload.Length;
         var expireAt = DateTime.UtcNow.AddMinutes(10).Ticks;
 
         // ExistsAsync appelé au moins 2 fois (avant/après lock)
