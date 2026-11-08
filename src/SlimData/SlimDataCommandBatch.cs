@@ -192,21 +192,21 @@ internal static class SlimDataCommandBatchValidator
             case SlimDataBatchOperationKind.DeleteKeyValue:
                 break;
             case SlimDataBatchOperationKind.WebSocketDirectory:
-                var directoryMutation = MemoryPackSerializer.Deserialize<WebSocketDirectoryMutation>(operation.Value)
+                var directoryMutation = MemoryPackPayload.Deserialize<WebSocketDirectoryMutation>(operation.Value)
                     ?? throw new InvalidDataException("Missing WebSocket directory mutation.");
                 WebSocketDirectoryStore.Validate(directoryMutation);
                 if (operation.Key != WebSocketDirectoryStore.Key)
                     throw new InvalidDataException("Invalid WebSocket directory mutation key.");
                 break;
             case SlimDataBatchOperationKind.Stream:
-                var streamMutation = MemoryPackSerializer.Deserialize<DurableStreamMutation>(operation.Value)
+                var streamMutation = MemoryPackPayload.Deserialize<DurableStreamMutation>(operation.Value)
                     ?? throw new InvalidDataException("Missing Stream mutation.");
                 DurableStreamStore.Validate(streamMutation);
                 if (operation.Key != DurableStreamStore.DefinitionPrefix + streamMutation.Stream)
                     throw new InvalidDataException("Invalid Stream mutation key.");
                 break;
             case SlimDataBatchOperationKind.DeadLetter:
-                var mutation = MemoryPackSerializer.Deserialize<DeadLetterMutation>(operation.Value)
+                var mutation = MemoryPackPayload.Deserialize<DeadLetterMutation>(operation.Value)
                     ?? throw new InvalidDataException("Missing DLQ mutation.");
                 if (!Enum.IsDefined(mutation.Action) || string.IsNullOrWhiteSpace(mutation.Function) ||
                     mutation.NowTicks <= 0 || mutation.NowTicks > DateTime.MaxValue.Ticks ||
@@ -295,7 +295,7 @@ internal static class SlimDataRaftBatchEnvelopeCodec
                 offset += sizeof(int);
                 if (requestLength < 0 || requestLength > payload.Length - offset)
                     throw new InvalidDataException("The composite SlimData RAFT request length is invalid.");
-                requests[i] = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(
+                requests[i] = MemoryPackPayload.Deserialize<SlimDataCommandBatchRequest>(
                                   payload.Slice(offset, requestLength))
                               ?? throw new InvalidDataException("A composite SlimData RAFT request is null.");
                 offset += requestLength;
@@ -307,7 +307,7 @@ internal static class SlimDataRaftBatchEnvelopeCodec
             SlimDataCommandBatchValidator.ValidateEnvelope(envelope);
             return envelope;
         }
-        catch (Exception ex) when (ex is not InvalidDataException)
+        catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
         {
             throw new InvalidDataException("The composite SlimData RAFT payload is invalid.", ex);
         }

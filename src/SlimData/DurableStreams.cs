@@ -125,8 +125,8 @@ public static class DurableStreamStore
     private static string Id(DurableStreamDefinition definition, long sequence) =>
         definition.Generation + "_" + sequence.ToString("D20", CultureInfo.InvariantCulture);
 
-    private static T? Decode<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(ReadOnlyMemory<byte> bytes) where T : class =>
-        bytes.IsEmpty ? null : MemoryPackSerializer.Deserialize<T>(bytes.Span);
+    private static T? Decode<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(ReadOnlyMemory<byte> bytes) where T : class, IMemoryPackable<T> =>
+        bytes.IsEmpty ? null : MemoryPackPayload.Deserialize<T>(bytes.Span);
     private static ImmutableDictionary<string, ReadOnlyMemory<byte>> Hash(SlimDataPayload payload, string key) =>
         payload.Hashsets.GetValueOrDefault(key) ?? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
     private static void Put(SlimDataState state, string key, string field, byte[] bytes) =>

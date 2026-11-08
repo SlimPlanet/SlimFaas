@@ -4,9 +4,12 @@
 attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
 path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the
 same shared state. SLDC/5 fences the additive WebSocket directory batch contract; stored
-producer receipts from earlier formats remain readable. Stream payloads use
-generated MemoryPack writers directly to avoid Native AOT generic virtual
-formatter dispatch, without changing the wire format. API payloads use
+producer receipts from earlier formats remain readable. SlimData payloads use
+generated MemoryPack readers and writers directly, without changing the wire
+format. Readers rent their own temporary state and avoid a partially published
+root formatter during concurrent startup/WAL replay. Unexpected runtime decoding
+or validation exceptions propagate; only known structural/serialization errors
+are classified as incompatible batch payloads. API payloads use
 source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/4 and SLDC/5
 clusters are deliberately not ready.
 

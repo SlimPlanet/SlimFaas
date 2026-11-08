@@ -141,6 +141,12 @@ An unresolved unknown operation is not counted as confirmed loss or as proven
 rejection. Preserve it for investigation. A stopped or failed campaign must not be
 presented as successful endurance evidence.
 
+The command-format counters are a separate consensus gate even if application
+checksums converge. A startup failure in a MemoryPack formatter must not be
+converted to an incompatible-command skip. The generated-reader regression
+models partially published formatter registration for batch, directory, Stream
+and DLQ payloads; the retained network/restart campaigns exercise real replay.
+
 ## Performance comparisons
 
 Reuse [the existing benchmarks](benchmarking.md), including

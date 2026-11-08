@@ -115,7 +115,7 @@ public static class DeadLetterKeys
             if (key.StartsWith("\0dlq:messages:", StringComparison.Ordinal))
                 foreach (var value in values.Values)
                 {
-                    var entry = MemoryPackSerializer.Deserialize<DeadLetterEntry>(value.Span)!;
+                    var entry = MemoryPackPayload.Deserialize<DeadLetterEntry>(value.Span)!;
                     yield return entry.OriginalElementId;
                     if (entry.RootElementId is not null)
                         yield return entry.RootElementId;
@@ -123,7 +123,7 @@ public static class DeadLetterKeys
             if (key.StartsWith("\0dlq:active:", StringComparison.Ordinal))
                 foreach (var value in values.Values)
                 {
-                    var active = MemoryPackSerializer.Deserialize<DeadLetterActive>(value.Span)!;
+                    var active = MemoryPackPayload.Deserialize<DeadLetterActive>(value.Span)!;
                     if (active.RootElementId is not null)
                         yield return active.RootElementId;
                 }
@@ -133,8 +133,8 @@ public static class DeadLetterKeys
 
 internal static class DeadLetterStateMachine
 {
-    private static T? Read<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(SlimDataState state, string key) where T : class =>
-        state.KeyValues.TryGetValue(key, out var bytes) ? MemoryPackSerializer.Deserialize<T>(bytes.Span) : null;
+    private static T? Read<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(SlimDataState state, string key) where T : class, IMemoryPackable<T> =>
+        state.KeyValues.TryGetValue(key, out var bytes) ? MemoryPackPayload.Deserialize<T>(bytes.Span) : null;
 
     private static ImmutableDictionary<string, ReadOnlyMemory<byte>> Get(SlimDataState state, string key) =>
         state.Hashsets.GetValueOrDefault(key) ?? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
@@ -149,7 +149,7 @@ internal static class DeadLetterStateMachine
 
     private static DeadLetterActive Active(SlimDataState state, string function, string id) =>
         Get(state, DeadLetterKeys.Active(function)).TryGetValue(id, out var bytes)
-            ? MemoryPackSerializer.Deserialize<DeadLetterActive>(bytes.Span)!
+            ? MemoryPackPayload.Deserialize<DeadLetterActive>(bytes.Span)!
             : new();
 
     private static void Increment(SlimDataState state, string function, Action<DeadLetterStatistics> change)
@@ -256,23 +256,23 @@ internal static class DeadLetterStateMachine
                 break;
             case DeadLetterAction.Delete:
                 if (!Get(state, DeadLetterKeys.Messages(function)).TryGetValue(mutation.MessageId, out var deleted) ||
-                    MemoryPackSerializer.Deserialize<DeadLetterEntry>(deleted.Span)!.ExpiresAtTicks <= now)
+                    MemoryPackPayload.Deserialize<DeadLetterEntry>(deleted.Span)!.ExpiresAtTicks <= now)
                     return new() { Status = 404 };
-                var deletedEntry = MemoryPackSerializer.Deserialize<DeadLetterEntry>(deleted.Span)!;
+                var deletedEntry = MemoryPackPayload.Deserialize<DeadLetterEntry>(deleted.Span)!;
                 RemoveEntry(state, deletedEntry);
                 Transition(state, deletedEntry, "dead_letter_deleted");
                 return new() { Status = 204 };
             case DeadLetterAction.Requeue:
                 if (Get(state, DeadLetterKeys.Receipts(function)).TryGetValue(mutation.MessageId, out var receiptBytes))
                 {
-                    var receipt = MemoryPackSerializer.Deserialize<DeadLetterReceipt>(receiptBytes.Span)!;
+                    var receipt = MemoryPackPayload.Deserialize<DeadLetterReceipt>(receiptBytes.Span)!;
                     return receipt.ExpiresAtTicks > now
                         ? new() { Status = 202, Receipt = receipt }
                         : new() { Status = 404 };
                 }
                 if (!Get(state, DeadLetterKeys.Messages(function)).TryGetValue(mutation.MessageId, out var entryBytes))
                     return new() { Status = 404 };
-                var entry = MemoryPackSerializer.Deserialize<DeadLetterEntry>(entryBytes.Span)!;
+                var entry = MemoryPackPayload.Deserialize<DeadLetterEntry>(entryBytes.Span)!;
                 if (entry.ExpiresAtTicks <= now)
                     return new() { Status = 404 };
                 if (!Get(state, DeadLetterKeys.Payloads(function)).TryGetValue(entry.Id, out var payload))
@@ -433,7 +433,7 @@ internal static class DeadLetterStateMachine
     {
         var policy = Read<DeadLetterPolicy>(state, DeadLetterKeys.Policy(function)) ?? new();
         var entries = Get(state, DeadLetterKeys.Messages(function)).Values
-            .Select(bytes => MemoryPackSerializer.Deserialize<DeadLetterEntry>(bytes.Span)!)
+            .Select(bytes => MemoryPackPayload.Deserialize<DeadLetterEntry>(bytes.Span)!)
             .OrderBy(entry => entry.FailedAtTicks).ThenBy(entry => entry.Id, StringComparer.Ordinal).ToList();
         foreach (var entry in entries.Where(entry => entry.ExpiresAtTicks <= now))
         {
@@ -447,7 +447,7 @@ internal static class DeadLetterStateMachine
             Transition(state, entry, "dead_letter_evicted");
         }
         foreach (var (id, value) in Get(state, DeadLetterKeys.Receipts(function)))
-            if (MemoryPackSerializer.Deserialize<DeadLetterReceipt>(value.Span)!.ExpiresAtTicks <= now)
+            if (MemoryPackPayload.Deserialize<DeadLetterReceipt>(value.Span)!.ExpiresAtTicks <= now)
                 Remove(state, DeadLetterKeys.Receipts(function), id);
     }
 }

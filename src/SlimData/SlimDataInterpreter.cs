@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -764,7 +764,7 @@ public static class SlimDataInterpreter
             SlimDataProducerSession? session;
             try
             {
-                session = MemoryPackSerializer.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
+                session = MemoryPackPayload.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
             }
             catch (Exception ex)
             {
@@ -869,7 +869,7 @@ public static class SlimDataInterpreter
     {
         try
         {
-            return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(response)
+            return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(response)
                 ?? throw new InvalidDataException("The cached SlimData producer response is null.");
         }
         catch (Exception ex) when (ex is not InvalidDataException)
@@ -908,15 +908,15 @@ public static class SlimDataInterpreter
         {
             case SlimDataBatchOperationKind.WebSocketDirectory:
                 result.WebSocketDirectoryResult = WebSocketDirectoryStore.Apply(
-                    MemoryPackSerializer.Deserialize<WebSocketDirectoryMutation>(operation.Value)!, state);
+                    MemoryPackPayload.Deserialize<WebSocketDirectoryMutation>(operation.Value)!, state);
                 break;
             case SlimDataBatchOperationKind.Stream:
                 result.StreamResult = DurableStreamStore.Apply(
-                    MemoryPackSerializer.Deserialize<DurableStreamMutation>(operation.Value)!, state);
+                    MemoryPackPayload.Deserialize<DurableStreamMutation>(operation.Value)!, state);
                 break;
             case SlimDataBatchOperationKind.DeadLetter:
                 result.DeadLetterResult = DeadLetterStateMachine.Apply(
-                    MemoryPackSerializer.Deserialize<DeadLetterMutation>(operation.Value)!, state);
+                    MemoryPackPayload.Deserialize<DeadLetterMutation>(operation.Value)!, state);
                 break;
             case SlimDataBatchOperationKind.KeyValue:
             {

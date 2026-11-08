@@ -199,7 +199,7 @@ public sealed class DiskFileRepository : IFileRepository
         // Metadata is very small => full read is fine, and cancellation is supported.
         ct.ThrowIfCancellationRequested();
         var bytes = await File.ReadAllBytesAsync(metaPath, ct).ConfigureAwait(false);
-        return MemoryPackSerializer.Deserialize<FileMetadata>(bytes);
+        return MemoryPackPayload.Deserialize<FileMetadata>(bytes);
     }
 
     private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, ILogger<DiskFileRepository> logger, CancellationToken ct)

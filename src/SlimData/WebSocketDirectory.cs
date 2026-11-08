@@ -64,7 +64,7 @@ public static class WebSocketDirectoryStore
 
     public static WebSocketDirectoryOwner? Owner(SlimDataPayload payload, string node) =>
         Hash(payload, OwnersKey).TryGetValue(node, out var bytes)
-            ? MemoryPackSerializer.Deserialize<WebSocketDirectoryOwner>(bytes.Span) : null;
+            ? MemoryPackPayload.Deserialize<WebSocketDirectoryOwner>(bytes.Span) : null;
 
     public static IReadOnlyList<WebSocketDirectoryConnection> Connections(SlimDataPayload payload, long nowTicks,
         bool includeProvisional = false)
@@ -72,7 +72,7 @@ public static class WebSocketDirectoryStore
         var result = new List<WebSocketDirectoryConnection>();
         foreach (var bytes in Hash(payload, ConnectionsKey).Values)
         {
-            var connection = MemoryPackSerializer.Deserialize<WebSocketDirectoryConnection>(bytes.Span)
+            var connection = MemoryPackPayload.Deserialize<WebSocketDirectoryConnection>(bytes.Span)
                 ?? throw new InvalidDataException("Invalid WebSocket directory connection.");
             var owner = Owner(payload, connection.Node);
             if (owner is not null && owner.Incarnation == connection.Incarnation && owner.ExpiresAtTicks > nowTicks &&
@@ -132,7 +132,7 @@ public static class WebSocketDirectoryStore
                     return Error(409, "All WebSocket clients with the same function name must share the same configuration.");
                 if (connections.TryGetValue(mutation.ConnectionId, out var reservedBytes))
                 {
-                    var reserved = MemoryPackSerializer.Deserialize<WebSocketDirectoryConnection>(reservedBytes.Span)!;
+                    var reserved = MemoryPackPayload.Deserialize<WebSocketDirectoryConnection>(reservedBytes.Span)!;
                     if (reserved.Node != mutation.Node || reserved.Incarnation != mutation.Incarnation ||
                         reserved.Function != mutation.Function || reserved.Fingerprint != mutation.Fingerprint)
                         return Error(409, "WebSocket connection identity is already reserved.");
@@ -148,7 +148,7 @@ public static class WebSocketDirectoryStore
             case WebSocketDirectoryAction.Remove:
                 if (connections.TryGetValue(mutation.ConnectionId, out var bytes))
                 {
-                    var connection = MemoryPackSerializer.Deserialize<WebSocketDirectoryConnection>(bytes.Span)!;
+                    var connection = MemoryPackPayload.Deserialize<WebSocketDirectoryConnection>(bytes.Span)!;
                     if (connection.Node != mutation.Node || connection.Incarnation != mutation.Incarnation)
                         return Error(409, "WebSocket connection belongs to another owner.");
                     if (mutation.Action == WebSocketDirectoryAction.Remove)
@@ -171,7 +171,7 @@ public static class WebSocketDirectoryStore
         var owners = Hash(payload, OwnersKey).SetItem(mutation.Node, MemoryPackPayload.Serialize(owner));
         foreach (var (node, bytes) in owners)
         {
-            var expired = MemoryPackSerializer.Deserialize<WebSocketDirectoryOwner>(bytes.Span)!;
+            var expired = MemoryPackPayload.Deserialize<WebSocketDirectoryOwner>(bytes.Span)!;
             if (expired.ExpiresAtTicks > mutation.NowTicks) continue;
             owners = owners.Remove(node);
             connections = WithoutOwner(connections, node, expired.Incarnation);
@@ -184,7 +184,7 @@ public static class WebSocketDirectoryStore
         ImmutableDictionary<string, ReadOnlyMemory<byte>> connections, string node, string incarnation) =>
         connections.RemoveRange(connections.Where(pair =>
         {
-            var connection = MemoryPackSerializer.Deserialize<WebSocketDirectoryConnection>(pair.Value.Span)!;
+            var connection = MemoryPackPayload.Deserialize<WebSocketDirectoryConnection>(pair.Value.Span)!;
             return connection.Node == node && connection.Incarnation == incarnation;
         }).Select(pair => pair.Key));
 
