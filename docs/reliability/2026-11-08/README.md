@@ -19,6 +19,8 @@ interpreting a passing field or an empty missing-ID list.
   normalized comparer; both fail guardrails. Optimization improvement targets
   are separate from this reliability change's non-regression requirement.
 - `validation.json`: test totals and hashes of raw verification logs.
+- `wal-strategy-profiles.json`: later Private/Shared/Private Native controls,
+  including their original reports and failure/unknown accounting.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash
@@ -41,7 +43,8 @@ their original limitation. Acknowledgement races permit at-least-once replay.
 
 ## Reproduce the recorded Windows performance setup
 
-`scripts/` retains the actual experiment orchestration/summary sources. These
+`scripts/` retains the experiment orchestration/summary sources, with subsequent
+static-analysis cleanups that preserve their parameters and results. These
 reuse the existing Local benchmark and MemoryLab executables; they are a dated
 Windows setup, not a new portable benchmark driver. Restore them to their original
 `artifacts/slimdata-lts/` location so their repository-root calculation is valid.
@@ -64,5 +67,7 @@ to a fresh directory; the original intentionally refuses an existing output.
 It declares the real `memory-function` expected by the unmodified MemoryLab
 driver and reconciles distinct delivered element IDs and checksums. All four
 runs retain their own persistent volumes. Run the two comparisons sequentially,
-with builds and other workload campaigns stopped. The summary script expects
-the recorded original directory names; adapt only those paths for a fresh run.
+with builds and other workload campaigns stopped. The summary script rebuilds
+this dated report from the complete retained dataset, including excluded and
+failed attempts. For a fresh comparison, use the existing `SlimFaasBenchmark
+compare` command and the new raw MemoryLab reports.

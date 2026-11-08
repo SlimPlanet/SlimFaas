@@ -149,6 +149,12 @@ An unresolved unknown operation is not counted as confirmed loss or as proven
 rejection. Preserve it for investigation. A stopped or failed campaign must not be
 presented as successful endurance evidence.
 
+The read-only evidence exporter writes under the repository's `artifacts/`
+directory. It resolves paths and rejects traversal or symlinks escaping that
+output root; it cannot overwrite repository source files through `--output`.
+Choose a new JSON filename outside every input campaign directory. Existing
+reports, client journals and other files are never overwritten by the exporter.
+
 The command-format counters are a separate consensus gate even if application
 checksums converge. A startup failure in a MemoryPack formatter must not be
 converted to an incompatible-command skip. The generated-reader regression

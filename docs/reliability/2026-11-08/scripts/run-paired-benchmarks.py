@@ -33,13 +33,12 @@ def sample(port):
         return {'port': port, 'error': str(error)}
 
 def monitor(stop, destination):
-    with gzip.open(destination, 'wt', encoding='utf-8') as output:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-            while not stop.is_set():
-                started = time.monotonic()
-                output.write(json.dumps({'utc': time.time(), 'nodes': list(pool.map(sample, (31021,31022,31023)))}) + '\n')
-                output.flush()
-                stop.wait(max(0, 1 - (time.monotonic() - started)))
+    with gzip.open(destination, 'wt', encoding='utf-8') as output, concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        while not stop.is_set():
+            started = time.monotonic()
+            output.write(json.dumps({'utc': time.time(), 'nodes': list(pool.map(sample, (31021,31022,31023)))}) + '\n')
+            output.flush()
+            stop.wait(max(0, 1 - (time.monotonic() - started)))
 
 statuses = json.loads((OUTPUT / 'status.json').read_text()) if options.resume else []
 for ordinal, variant in enumerate(('baseline', 'candidate', 'candidate', 'baseline'), 1):

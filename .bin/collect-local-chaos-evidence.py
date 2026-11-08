@@ -50,6 +50,17 @@ def delivery_counts(root):
             "extra_successful_deliveries": len(deliveries) - len(set(deliveries))}
 
 
+def artifact_output(path, artifact_root, source_roots=()):
+    output = path.resolve()
+    if not output.is_relative_to(artifact_root.resolve()):
+        raise ValueError("Evidence output must stay inside the repository artifacts directory")
+    if output.suffix != ".json" or output.exists():
+        raise ValueError("Evidence output must be a new JSON file")
+    if any(output.is_relative_to(root.resolve()) for root in source_roots):
+        raise ValueError("Evidence output cannot alter an input campaign")
+    return output
+
+
 def collect(root):
     reports = {path.name: json.loads(path.read_text(encoding="utf-8"))
                for path in sorted(root.glob("report*.json"))}
@@ -71,9 +82,14 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("runs", type=Path, nargs="+")
     options = parser.parse_args()
+    try:
+        output = artifact_output(options.output, Path(__file__).resolve().parents[1] / "artifacts", options.runs)
+    except ValueError as error:
+        parser.error(str(error))
     result = {"schema": 1, "runs": [collect(root) for root in options.runs]}
-    options.output.parent.mkdir(parents=True, exist_ok=True)
-    options.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x", encoding="utf-8") as destination:
+        destination.write(json.dumps(result, indent=2) + "\n")
 
 
 if __name__ == "__main__":

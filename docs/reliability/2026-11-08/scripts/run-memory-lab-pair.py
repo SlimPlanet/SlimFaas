@@ -32,14 +32,13 @@ def sample(port):
         return {'port': port, 'error': str(error)}
 
 def monitor(stop, destination, phase):
-    with gzip.open(destination, 'wt', encoding='utf-8') as output:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
-            while not stop.is_set():
-                started = time.monotonic()
-                output.write(json.dumps({'utc': time.time(), 'phase': phase['current'],
-                    'nodes': list(pool.map(sample, (39121,39122,39123)))}) + '\n')
-                output.flush()
-                stop.wait(max(0, 1 - (time.monotonic() - started)))
+    with gzip.open(destination, 'wt', encoding='utf-8') as output, concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        while not stop.is_set():
+            started = time.monotonic()
+            output.write(json.dumps({'utc': time.time(), 'phase': phase['current'],
+                'nodes': list(pool.map(sample, (39121,39122,39123)))}) + '\n')
+            output.flush()
+            stop.wait(max(0, 1 - (time.monotonic() - started)))
 
 statuses = []
 for ordinal, variant in enumerate(('baseline', 'candidate', 'candidate', 'baseline'), 1):
@@ -62,7 +61,7 @@ for ordinal, variant in enumerate(('baseline', 'candidate', 'candidate', 'baseli
     try:
         campaign.start()
         chaos.wait_until('MemoryLab function ready',
-            lambda: chaos.request(campaign.entry, '/function/memory-function/health')[0] == 200, 180)
+            lambda campaign=campaign: chaos.request(campaign.entry, '/function/memory-function/health')[0] == 200, 180)
         thread.start()
         accepted_async = 0
         expected_digest = hashlib.sha256(bytes(ord('a') + i % 23 for i in range(4096))).hexdigest()
@@ -91,7 +90,7 @@ for ordinal, variant in enumerate(('baseline', 'candidate', 'candidate', 'baseli
                     report = json.loads((run / f'{label}-{stage}.json').read_text())['report']
                     accepted_async += sum(row['Completed'] for row in report['Operations'] if row['Operation'] == 'Async')
                     phase['current'] = label + '-' + stage + '-reconcile'
-                    def delivered():
+                    def delivered(campaign=campaign, accepted_async=accepted_async, expected_digest=expected_digest):
                         rows = [row for row in chaos.read_receipts(campaign.receipts)
                                 if row['event'] == 'completed' and 200 <= row['status'] < 300]
                         if any(row['bytes'] != 4096 or row['sha256'] != expected_digest or not row['element_id'] for row in rows):

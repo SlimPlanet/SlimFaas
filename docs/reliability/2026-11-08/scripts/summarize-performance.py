@@ -20,6 +20,37 @@ def file_id(path):
             'bytes': path.stat().st_size, 'sha256': digest.hexdigest()}
 
 
+def metric_values(text):
+    values = {}
+    for metric in text.splitlines():
+        key, raw = metric.rsplit(' ', 1)
+        value = float(raw)
+        if math.isfinite(value):
+            values[key] = value
+    return values
+
+
+def update_history(history, values):
+    for key, value in values.items():
+        previous = history.setdefault(key, {'first': value, 'last': value, 'minimum': value, 'maximum': value})
+        previous['last'] = value
+        previous['minimum'] = min(previous['minimum'], value)
+        previous['maximum'] = max(previous['maximum'], value)
+
+
+def record_resources(record, histories):
+    cluster_rss, count = [], 0
+    for node in record['nodes']:
+        if 'metrics' not in node:
+            continue
+        count += 1
+        values = metric_values(node['metrics'])
+        update_history(histories.setdefault(str(node['port']), {}), values)
+        if 'slimdata_process_working_set_bytes' in values:
+            cluster_rss.append(values['slimdata_process_working_set_bytes'])
+    return count, sum(cluster_rss) if len(cluster_rss) == 3 else None
+
+
 def resources(path, phase=None):
     nodes, peaks, count = {}, [], 0
     with gzip.open(path, 'rt') as source:
@@ -27,27 +58,10 @@ def resources(path, phase=None):
             record = json.loads(line)
             if phase and record.get('phase') != phase:
                 continue
-            cluster_rss = []
-            for node in record['nodes']:
-                if 'metrics' not in node:
-                    continue
-                count += 1
-                values = {}
-                for metric in node['metrics'].splitlines():
-                    key, raw = metric.rsplit(' ', 1)
-                    value = float(raw)
-                    if math.isfinite(value):
-                        values[key] = value
-                history = nodes.setdefault(str(node['port']), {})
-                for key, value in values.items():
-                    previous = history.setdefault(key, {'first': value, 'last': value, 'minimum': value, 'maximum': value})
-                    previous['last'] = value
-                    previous['minimum'] = min(previous['minimum'], value)
-                    previous['maximum'] = max(previous['maximum'], value)
-                if 'slimdata_process_working_set_bytes' in values:
-                    cluster_rss.append(values['slimdata_process_working_set_bytes'])
-            if len(cluster_rss) == 3:
-                peaks.append(sum(cluster_rss))
+            samples, peak = record_resources(record, nodes)
+            count += samples
+            if peak is not None:
+                peaks.append(peak)
     def counter(prefix):
         rows = [v for fields in nodes.values() for k, v in fields.items() if k.startswith(prefix)]
         return sum(v['last'] - v['first'] for v in rows) if rows else None

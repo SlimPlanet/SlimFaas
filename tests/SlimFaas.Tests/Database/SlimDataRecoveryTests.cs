@@ -101,8 +101,8 @@ public sealed class SlimDataRecoveryTests
     [InlineData("hash")]
     public async Task Read_retries_after_local_apply_timeout_and_recovers(string readKind)
     {
-        using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
-        await using var fixture = await Fixture.CreateAsync(handler);
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
         using CancellationTokenSource cleanup = new();
         var attempts = 0;
         fixture.Log.WaitForApply = token =>

@@ -190,6 +190,48 @@ bytes outside their durability contract is not accepted as a fix. An older
 retained SDK run passed with a 120-second budget after an initial failed run;
 its maximum accepted Stream latency was 89.812 seconds, not a 30-second guarantee.
 
+### Additional WAL strategy controls
+
+Three later isolated Native runs on the same fixes-1–10 binary passed the complete
+SDK matrix, offline retention, successive crashes and full restart with unchanged
+120-second request budgets. Explicit strategies were Private / Shared / Private.
+The four initial concurrent 2 MiB Stream acceptance latencies were:
+
+| Strategy/run | Seconds per accepted publication | Final confirmed / unknown |
+|---|---|---:|
+| Private 1 | 1.688 / 6.828 / 8.469 / 10.782 | 66 / 6 |
+| Shared control | 15.390 / 49.312 / 71.828 / 73.484 | 58 / 10 |
+| Private 2 | 1.531 / 11.219 / 14.297 / 14.297 | 68 / 4 |
+
+Unknowns include the intentionally injected later crashes. See
+[the complete profiles](reliability/2026-11-08/wal-strategy-profiles.json).
+These controls show substantial strategy sensitivity and intermittent behavior;
+they do not erase the earlier failures or prove that this setting alone fixes
+them. The runtime's strategy default was not changed by these experiments.
+
+The exact upstream implementation performs synchronous mapped-page flushes and
+additional Windows metadata/disk flushes for SharedMemory, while PrivateMemory
+uses private buffers with asynchronous write-through writes. This is consistent
+with the latency difference, rather than proof of a unique cause.
+See [the page implementation](https://github.com/dotnet/dotNext/blob/7b9f968209bfc1dd1cabed9c2b54327cb0ac0980/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.Page.cs).
+
+The original follower-hour state still failed the 300-second startup budget with
+both Native/private and managed/private controls. A managed triage dump near the
+deadline showed a thread inside `WriteAheadLog.AnonymousPageManager` construction.
+One node retained **313,803 data-page files / 1,285,337,088 logical bytes**. The
+[upstream loader](https://github.com/dotnet/dotNext/blob/7b9f968209bfc1dd1cabed9c2b54327cb0ac0980/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.PageManagement.cs)
+eagerly populates existing pages. This identifies startup I/O as an investigation
+path; permanent data corruption is not established. The managed diagnostic
+included a roughly three-second triage dump near its deadline. Its original
+source-commit annotation is corrected in a separate artifact; the DLL's embedded
+revision and SHA identify fixes 1–10.
+
+A separate 1,800-second cold-start diagnostic is in progress. Its larger budget
+does not change or pass any original 300-second recovery criterion. Existing WAL
+chunk geometry must remain unchanged for an existing WAL, according to the
+[upstream options contract](https://github.com/dotnet/dotNext/blob/7b9f968209bfc1dd1cabed9c2b54327cb0ac0980/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.Options.cs);
+no chunk-size change or data reset was used to force recovery.
+
 ## Performance evidence
 
 The existing Local benchmark and MemoryLab drivers are reused. The final paired
