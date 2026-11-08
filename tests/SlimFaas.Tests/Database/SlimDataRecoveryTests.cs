@@ -125,9 +125,9 @@ public sealed class SlimDataRecoveryTests
     [Fact]
     public async Task Hashset_read_waits_for_the_leaders_read_barrier_before_observing_local_state()
     {
-        using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
-        await using var fixture = await Fixture.CreateAsync(handler);
-        var barrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
+        TaskCompletionSource barrier = new(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
             .Returns((ReadBarrierType _, CancellationToken token) => new ValueTask(barrier.Task.WaitAsync(token)));
 
@@ -149,9 +149,9 @@ public sealed class SlimDataRecoveryTests
     [Fact]
     public async Task Persistent_local_apply_timeout_is_reported_as_unavailable()
     {
-        using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
-        await using var fixture = await Fixture.CreateAsync(handler);
-        using var cleanup = new CancellationTokenSource();
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
+        using CancellationTokenSource cleanup = new();
         fixture.Log.WaitForApply = token => StallApplyAsync(token, cleanup.Token);
 
         try
