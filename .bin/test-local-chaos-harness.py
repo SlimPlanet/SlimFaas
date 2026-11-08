@@ -3,12 +3,13 @@
 
 import importlib.util
 import io
+import itertools
 import json
 from pathlib import Path
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
 
 def load(name, path):
@@ -24,6 +25,23 @@ FIXTURE = load("chaos_function", ROOT / "tests/SlimFaas.Tests/Local/chaos_functi
 
 
 class CampaignSafetyTests(unittest.TestCase):
+    def test_lease_probe_failure_resumes_the_owned_follower_and_propagates(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.client = Mock()
+            clock = itertools.count()
+            with patch.object(campaign, "leader", return_value=0), \
+                    patch.object(campaign, "node_pid", return_value=111), \
+                    patch.object(HARNESS.time, "monotonic", side_effect=lambda: next(clock)), \
+                    patch.object(HARNESS.time, "sleep"), \
+                    patch.object(HARNESS, "suspend") as change_state, \
+                    patch.object(campaign, "require_mutation", side_effect=[None] * 4 + [AssertionError("probe failed")]) as send:
+                with self.assertRaisesRegex(AssertionError, "probe failed"):
+                    campaign.lease_burst()
+            self.assertEqual(5, send.call_count)
+            self.assertEqual([call(111, True), call(111, False)], change_state.call_args_list)
+            self.assertFalse(campaign.suspended)
+
     def test_fault_pid_uses_supervisor_output_after_optional_node_log_loses_a_restart(self):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)

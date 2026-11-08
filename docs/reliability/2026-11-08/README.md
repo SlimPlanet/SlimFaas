@@ -21,6 +21,9 @@ interpreting a passing field or an empty missing-ID list.
 - `validation.json`: test totals and hashes of raw verification logs.
 - `wal-strategy-profiles.json`: later Private/Shared/Private Native controls,
   including their original reports and failure/unknown accounting.
+- `follower-long-and-lease.json`: retained follower volumes eventually pass a
+  larger-budget diagnostic, preserving original bounded failures, plus baseline
+  silent-follower burst probes. This does not pass the original 300-second gate.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

@@ -324,12 +324,22 @@ File content is disk-backed; metadata is cluster-consistent. A receiving node an
 
 SlimData uses Raft through DotNext. Nodes retain applied state in memory and persist commands in a write-ahead log. A healthy quorum is needed for replicated writes; local snapshots of status and metadata do not by themselves establish that every peer is caught up.
 
-SlimData uses DotNext 6.11.1. This retains upstream fixes for a full replication
+SlimData uses DotNext 6.12.0. This retains upstream fixes for a full replication
 queue silently losing a member response and for rejecting an election candidate
 whose log is shorter but whose last term is newer. These are stabilization fixes;
 they do not establish the cause of a particular operational incident. The
 SlimData command protocol, snapshot payload format and AppendEntries commit-index
 guard are preserved.
+
+Version 6.12.0 also corrects an empty-heartbeat response that could delay leader
+lease renewal after a write burst when one voter stops responding despite a
+healthy majority. The fix applies to the HTTP transport; see
+[upstream issue 309](https://github.com/dotnet/dotNext/issues/309) and its
+[fix](https://github.com/dotnet/dotNext/pull/311). The Local `lease-burst` campaign
+records actual write latency while a follower is suspended. This upstream defect
+has not been established as the cause of all recorded Windows publication or
+recovery failures. Existing WAL chunk geometry and SlimData payload formats are
+unchanged; do not reset state or assume rollback safety from a forward replay.
 
 The upgrade must preserve live member re-addition, legacy WAL metadata pages
 on hosts with system pages larger than 4 KiB, and compatibility with legacy
@@ -339,7 +349,7 @@ before upgrading existing state. Do not infer safe rollback from a forward-upgra
 
 ### SlimData recovery
 
-DotNext 6.11.1 chooses the synchronization path internally. SlimFaas supplies
+DotNext 6.12.0 chooses the synchronization path internally. SlimFaas supplies
 `warmupRounds` (100 by default): a restarted member first attempts WAL
 backtracking and can fall back to DotNext snapshot recovery when the gap is
 larger than the configured search window. There is no public API in this

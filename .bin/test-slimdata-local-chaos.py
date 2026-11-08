@@ -1010,6 +1010,52 @@ class Campaign:
     def websocket_timeout(self):
         asyncio.run(WebSocketCampaign(self).owner_timeout())
 
+    def lease_burst(self):
+        """Keep a majority writable when a silent follower follows a write burst."""
+        self.phase = "leader-lease-burst"
+        leader = self.leader()
+        if leader is None:
+            raise AssertionError("No leader before the lease burst")
+        follower = next(node for node in range(3) if node != leader)
+        pid = self.node_pid(follower)
+        path = f"/data/sets/lease-burst-{uuid.uuid4().hex}"
+
+        def burst():
+            until = time.monotonic() + 3
+            count = 0
+            while time.monotonic() < until:
+                value = payload(256, uuid.uuid4().hex)
+                self.require_mutation("set", path, value, port=self.ports[leader])
+                self.expected[path] = sha256(value)
+                count += 1
+                time.sleep(.1)
+            return count
+
+        healthy_writes = burst()
+        suspend(pid, True)
+        self.suspended.add(pid)
+        self.client.append({"event": "lease-follower-suspended", "node": follower, "pid": pid})
+        try:
+            silent_writes = burst()
+            # An idle heartbeat following a burst exercises a different lease
+            # path from continuous traffic. Do not retry the following write.
+            time.sleep(1)
+            value = payload(256, uuid.uuid4().hex)
+            started = time.monotonic()
+            self.require_mutation("set", path, value, port=self.ports[leader], timeout=15)
+            probe_seconds = time.monotonic() - started
+            self.expected[path] = sha256(value)
+        finally:
+            suspend(pid, False)
+            self.suspended.remove(pid)
+            self.client.append({"event": "lease-follower-resumed", "node": follower, "pid": pid})
+        self.ready()
+        self.verify()
+        self.results.append({"phase": self.phase, "leader": leader, "silent_follower": follower,
+                             "healthy_writes": healthy_writes, "silent_writes": silent_writes,
+                             "probe_seconds": probe_seconds, "probe_budget_seconds": 15, "passed": True})
+        print(json.dumps(self.results[-1]), flush=True)
+
     def startup_jobs(self):
         self.phase = "startup-job-configuration"
         identifier = uuid.uuid4().hex
@@ -1389,7 +1435,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1426,6 +1472,7 @@ def main():
              "streams": campaign.stream_contracts,
              "websocket": campaign.websocket,
              "websocket-timeout": campaign.websocket_timeout,
+             "lease-burst": campaign.lease_burst,
              "startup-jobs": campaign.startup_jobs,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
              "diskfull": campaign.disk_full, "restarts": campaign.restarts}[scenario]()

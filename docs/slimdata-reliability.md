@@ -50,6 +50,7 @@ binaries outside the build directory when rebuilding another version on Windows.
 | `schedules` | Create a dynamic UTC cron schedule, read it through every node, preserve it across full persistent restart, observe a real scheduled process and delete it on every node |
 | `streams` | Two real independent HTTP consumers, concurrent append order across paginated history, contiguous ACKs, length/age retention with explicit 410 boundaries and gap counters, then persistent restart |
 | `websocket-timeout` | Suspend the owning node beyond an eight-second delivery timeout, keep the default retry statuses and verify a real 2 MiB delivery after owner recovery |
+| `lease-burst` | Send a write burst, suspend one follower during another burst, pause the producer for one second and submit one unretried write while the majority remains healthy; retain its latency and verify the final value on every node |
 | `chaos` | Independent producers for Sync, Async, Streams, Files, Sets, HashSets, atomic counters and jobs while a follower, leader or both followers are suspended |
 | `restarts` | Successive abrupt follower/leader crashes with supervisor restart, followed by a full supervisor/cluster restart using original state |
 | `partitions` | Linux packet drops on every Raft link while HTTP traffic continues, followed by quorum restoration and reconciliation |

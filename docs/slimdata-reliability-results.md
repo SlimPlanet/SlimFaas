@@ -14,7 +14,7 @@ accounting rules, Linux fault isolation and CI entry points.
 ## Versions and evidence
 
 The baseline is `496e8739e5f7b4326f64520fe4caa4e0e23f8d06` (v0.88.0).
-The final Windows Native binary includes fixes 1–10 and was built from
+The Windows Native binary used for the paired benchmarks includes fixes 1–10 and was built from
 `7920d9f99d36ef0c68a0b497d4ee4c3526d2a979`:
 
 | Native runtime | SHA-256 |
@@ -226,11 +226,41 @@ included a roughly three-second triage dump near its deadline. Its original
 source-commit annotation is corrected in a separate artifact; the DLL's embedded
 revision and SHA identify fixes 1–10.
 
-A separate 1,800-second cold-start diagnostic is in progress. Its larger budget
-does not change or pass any original 300-second recovery criterion. Existing WAL
+A separate 1,800-second cold-start diagnostic completed with the original volumes,
+managed fixes 1–10 and `PrivateMemory`. Startup plus the initial confirmed-ledger
+verification completed before the first metrics capture at **619.698 seconds**;
+the harness did not record an independent readiness timestamp for that historical
+attempt. The API scenario and final reconciliation passed, with **4,938 accepted /
+2,521 unknown** operations in the cumulative ledger, in **833.270 seconds** overall.
+This resumption did not repeat the hour-long outage. Its larger budget does not
+change or pass any original 300-second recovery criterion. Supplemental parameters,
+historical failures and raw hashes are in
+[follower-long-and-lease.json](reliability/2026-11-08/follower-long-and-lease.json).
+Existing WAL
 chunk geometry must remain unchanged for an existing WAL, according to the
 [upstream options contract](https://github.com/dotnet/dotNext/blob/7b9f968209bfc1dd1cabed9c2b54327cb0ac0980/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.Options.cs);
 no chunk-size change or data reset was used to force recovery.
+
+## Upstream leader-lease maintenance
+
+The candidate now updates the central DotNext dependency from 6.11.1 to 6.12.0,
+published on 6 November. Its
+[release notes](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/CHANGELOG.md)
+include the HTTP-compatible fix for
+[issue 309](https://github.com/dotnet/dotNext/issues/309): empty heartbeats after a
+write burst could delay lease renewal behind one silent voter despite a healthy
+majority. This is a confirmed upstream defect, not an established explanation for
+all of this report's Windows failures. The separate TCP framing fix is not evidence
+of an HTTP framing defect in SlimData.
+
+A new `lease-burst` Local scenario suspends one follower during a three-second
+write burst, stops the producer for one second, and sends one unretried write
+within a 15-second request budget. Its final baseline 6.11.1 Native attempt passed
+with a **6.969-second** probe; this did not reproduce the upstream catastrophic
+stall. An earlier diagnostic also passed but inserted a slow metrics capture before
+the probe and is retained separately. The first candidate checks, Native publication,
+retained-state replay and dependency compliance are under validation. All earlier
+benchmark and endurance outcomes remain tied to their original runtime hashes.
 
 ## Performance evidence
 
@@ -280,13 +310,17 @@ phases; zero or absent samples cannot certify zero resource cost.
   MCP 106, Kafka 11, .NET client 39). The final style-only adjustment also passed
   all nine selected recovery/read-barrier tests.
 - Python SDK: **37 passed**, including actual WebSocket frame-limit cases.
-- Harness safety/accounting: **13 passed**; Windows process ownership: **3 passed**.
+- Harness safety/accounting: **14 passed**; evidence exporter path/overwrite safety:
+  **4 passed**; Windows process ownership: **3 passed**.
 - Native AOT publication succeeded. Existing aggregate third-party trim/AOT
   warnings from MemoryPack.Core/System.Configuration.ConfigurationManager remain
   visible; this is not a zero-warning publish claim.
 - Final official Native release bundle passed the empty-PATH three-node smoke:
   dashboard, four real functions, Sync, file and actual job.
-- No dependency or lockfile change. No new project-wide warning suppression.
+- Central DotNext dependency update to 6.12.0; no lockfile change or new
+  project-wide warning suppression. Distribution inspection of the six DotNext
+  packages found MIT declarations and DLL/XML/metadata assets, with no bundled
+  test/example source. Transitive-package and FOSSA validation remain required.
 
 Earlier native builds, Sonar, FOSSA and DCO successes are revision-specific;
 current PR checks remain the authority for merge readiness. Quick Linux/Windows
