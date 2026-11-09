@@ -85,7 +85,11 @@ read from every node through the API and checked by checksum. Wrong values and
 server errors fail immediately; only missing values may wait within a single
 bounded convergence deadline. Confirmed Async/Stream publications and jobs must
 execute. Counter responses must be unique and all nodes must converge to a value
-between confirmed increments and confirmed plus unknown increments. A direct
+between confirmed increments and confirmed plus unknown increments. Sequential
+node reads can overlap a still-running unknown increment. The campaign journals
+each observation and requires convergence within the existing phase deadline;
+out-of-bounds or regressing values, duplicate confirmed results and server errors
+fail immediately. A direct
 write to the minority must not be acknowledged before quorum restoration.
 
 Process suspension is a real stopped-process/communication outage. On POSIX it

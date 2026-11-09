@@ -466,7 +466,7 @@ class Campaign:
                 status, _, _ = request(port, path, timeout=5)
                 if status != 404:
                     raise AssertionError(f"Confirmed deletion is visible on {port}{path}: HTTP {status}")
-        self.verify_counters()
+        self.verify_counters(deadline)
 
     def verify_value(self, path, expected, deadline):
         for port in self.ports:
@@ -482,21 +482,46 @@ class Campaign:
                 return True
             wait_until(f"node {port} {path}", check, max(.001, deadline - time.monotonic()))
 
-    def verify_counters(self):
+    def verify_counters(self, deadline=None):
         unknown_counters = sum(record["kind"] == "counter" for record in self.unknown.values())
         if not self.counter_results and not unknown_counters:
             return
         # Unknown responses may have committed; never retry the mutation.
         lower = len(self.counter_results)
         upper = lower + unknown_counters
-        values = [request(port, "/data/sets/chaos-mixed-counter") for port in self.ports]
-        if lower == 0 and all(status == 404 for status, _, _ in values):
-            return
-        if any(status != 200 for status, _, _ in values):
-            raise AssertionError("Mixed counter is unavailable after recovery")
-        numbers = [int(value) for _, _, value in values]
-        if len(set(numbers)) != 1 or not lower <= numbers[0] <= upper or len(set(self.counter_results)) != lower:
-            raise AssertionError(f"Mixed counter invariant: {numbers}, confirmed={lower}, possible={upper}")
+        deadline = deadline if deadline is not None else time.monotonic() + self.options.recovery_timeout
+        previous = None
+        def converged():
+            nonlocal previous
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise AssertionError("Mixed counter convergence exceeded phase deadline")
+            values = []
+            for port in self.ports:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise AssertionError("Mixed counter convergence exceeded phase deadline")
+                values.append(request(port, "/data/sets/chaos-mixed-counter", timeout=min(5, remaining)))
+            if lower == 0 and all(status == 404 for status, _, _ in values):
+                return True
+            if any(status != 200 for status, _, _ in values):
+                raise AssertionError("Mixed counter is unavailable after recovery")
+            numbers = [int(value) for _, _, value in values]
+            self.client.append({"event": "counter-observation", "phase": self.phase,
+                                "values": numbers, "confirmed": lower, "possible": upper})
+            if (len(set(self.counter_results)) != lower or any(not lower <= number <= upper for number in numbers)
+                    or previous is not None and any(now < before for now, before in zip(numbers, previous))):
+                raise AssertionError(f"Mixed counter invariant: {numbers}, confirmed={lower}, possible={upper}")
+            previous = numbers
+            if len(set(numbers)) == 1:
+                return True
+            if not unknown_counters:
+                raise AssertionError(f"Mixed counter invariant without outstanding unknown writes: {numbers}")
+            # A timed-out increment can commit between these sequential reads.
+            # Observe convergence within the existing phase budget; never submit
+            # the increment again or excuse an invalid/regressing value.
+            return False
+        wait_until("mixed counter convergence", converged, max(.001, deadline - time.monotonic()))
 
     def payloads(self):
         self.phase = "payloads"

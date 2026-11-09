@@ -54,6 +54,13 @@ interpreting a passing field or an empty missing-ID list.
   fix and the three-cycle after-fix recovery. The final run verifies a terminal
   job checkpoint across full supervisor restart and retains the same volume for
   the subsequent crashes/restart. Raw images and their archives remain local.
+- `leader-event-evidence.json`: failed original and token-only leader-route
+  controls, the passing managed leader-generation/owner-timeout regressions,
+  exact runtime/harness attribution and the 1,996-test validation logs.
+- `counter-archive-replay.json`: the original failed Native quorum report and
+  archive hash, 25 converged observations after cold replay with its original
+  executable, and before/after harness regression log hashes. This diagnostic
+  does not change the failed endurance result.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

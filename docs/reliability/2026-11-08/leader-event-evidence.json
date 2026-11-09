@@ -1,0 +1,601 @@
+{
+  "schema": 1,
+  "candidate_commit": "4e80c9a19f3f5e2a633f23ad00b510e8b25676dc",
+  "dotnet_tests": {
+    "total": 1996,
+    "SlimData": 304,
+    "SlimFaas": 1536,
+    "SlimFaasMcp": 106,
+    "SlimFaasKafka": 11,
+    "dotnet_client": 39
+  },
+  "focused_recovery_tests": 13,
+  "note": "Source-local managed validation; Native AOT and later CI results are separate evidence. Failed attempts are retained.",
+  "runs": [
+    {
+      "directory": "leader-route-before-b002",
+      "parameters": {
+        "started_utc": 1794180683.594281,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "b00224c5831b918f426b44e0fcbda8edfa2c5494",
+        "runtime_sha256": "a46a56615beb98ddd48a7b54627a976c708c9ba669fa58551af6886630e4f36d",
+        "slimdata_sha256": null,
+        "harness_sha256": "106aa49ac7e84844c8ad081809a5064f23c66143c8ee95bd309465b84bdeca41",
+        "arguments": {
+          "runtime": "artifacts\\slimdata-lts\\job-journal-recovery-aot\\SlimFaas.exe",
+          "dotnet": "dotnet",
+          "source_commit": "b00224c5831b918f426b44e0fcbda8edfa2c5494",
+          "output": "artifacts\\slimdata-lts\\leader-route-before-b002",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 40020,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 15.0,
+          "recovery_timeout": 120.0,
+          "scenarios": "leader-route",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError('set 747db260ae6d4694ab965ebc64c2264e: HTTP None, None')",
+        "results": [],
+        "accepted": 1,
+        "unknown": 1,
+        "missing": [],
+        "finished_utc": 1794180705.5394955
+      },
+      "notable_events": [
+        {
+          "id": "dd653ec75276409bb79eb1ff41b10fb4",
+          "kind": "set",
+          "path": "/data/sets/leader-route-cb9df681bc464389a9454e63299501a9",
+          "bytes": 6,
+          "sha256": "c6cf1309cd700e5a84e18d0b1d5877b9a608141037ac40445d484398256fc56c",
+          "phase": "stale-leader-http-route",
+          "port": 40023,
+          "chunked": false,
+          "method": "POST",
+          "event": "accepted",
+          "status": 200,
+          "headers": {
+            "Connection": "close",
+            "Content-Type": "application/json; charset=utf-8",
+            "Date": "Sun, 08 Nov 2026 23:31:28 GMT",
+            "Server": "Kestrel",
+            "Transfer-Encoding": "chunked"
+          },
+          "response": "\"leader-route-cb9df681bc464389a9454e63299501a9\"",
+          "seconds": 0.015999999945051968,
+          "utc": 1794180689.0498352,
+          "monotonic": 856840.156
+        },
+        {
+          "id": "747db260ae6d4694ab965ebc64c2264e",
+          "kind": "set",
+          "path": "/data/sets/leader-route-cb9df681bc464389a9454e63299501a9",
+          "bytes": 14,
+          "sha256": "b160ed979ab9ebca449eb94566a7a549e23e6c6c94b520a3446466f6889ce3d8",
+          "phase": "stale-leader-http-route",
+          "port": 40023,
+          "chunked": false,
+          "method": "POST",
+          "event": "unknown",
+          "error": "TimeoutError('timed out')",
+          "seconds": 15.0,
+          "utc": 1794180704.0847135,
+          "monotonic": 856855.187
+        }
+      ],
+      "raw_files": {
+        "parameters.json": {
+          "bytes": 1257,
+          "sha256": "b65efe6b2d2411120662529ba7f1deb6f254ab4416f87a673a3c425c5b99d188"
+        },
+        "report.json": {
+          "bytes": 220,
+          "sha256": "1474527fc78f6d07ede8387bc6a734dde2ecf99d7597ef89b18100692a899367"
+        },
+        "client.jsonl": {
+          "bytes": 38960,
+          "sha256": "9eb3cc779e589d786eb0db99e62065d46ac9344bbbf8799080274423f411ec61"
+        }
+      }
+    },
+    {
+      "directory": "leader-route-after-ac30",
+      "parameters": {
+        "started_utc": 1794181462.3711383,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "ac30f4ddab55ade9cfcebdc34dc034c87b6fe226",
+        "runtime_sha256": "b86ef4f4040ccd1935c15b6d60101000c05c42dd738d9857adbb91f8263cb875",
+        "slimdata_sha256": "05fb3b39801c21f18fe6999ba28fd705b4bc7aaabd46464ee27bb895622d2a03",
+        "harness_sha256": "106aa49ac7e84844c8ad081809a5064f23c66143c8ee95bd309465b84bdeca41",
+        "arguments": {
+          "runtime": "artifacts\\slimdata-lts\\leader-epoch-portable\\SlimFaas.dll",
+          "dotnet": "artifacts/dotnet-10.0.403/dotnet.exe",
+          "source_commit": "ac30f4ddab55ade9cfcebdc34dc034c87b6fe226",
+          "output": "artifacts\\slimdata-lts\\leader-route-after-ac30",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 40020,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 15.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "leader-route,api,restarts",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError('set c786bb0ec93b4695b844d8a4ec59e5b7: HTTP None, None')",
+        "results": [],
+        "accepted": 1,
+        "unknown": 1,
+        "missing": [],
+        "finished_utc": 1794181490.587971
+      },
+      "notable_events": [
+        {
+          "id": "4bea32ac05624f908423df0132862eea",
+          "kind": "set",
+          "path": "/data/sets/leader-route-06262044b36f4d43a6adc43cb23d8444",
+          "bytes": 6,
+          "sha256": "c6cf1309cd700e5a84e18d0b1d5877b9a608141037ac40445d484398256fc56c",
+          "phase": "stale-leader-http-route",
+          "port": 40021,
+          "chunked": false,
+          "method": "POST",
+          "event": "accepted",
+          "status": 200,
+          "headers": {
+            "Connection": "close",
+            "Content-Type": "application/json; charset=utf-8",
+            "Date": "Sun, 08 Nov 2026 23:44:32 GMT",
+            "Server": "Kestrel",
+            "Transfer-Encoding": "chunked"
+          },
+          "response": "\"leader-route-06262044b36f4d43a6adc43cb23d8444\"",
+          "seconds": 0.0470000000204891,
+          "utc": 1794181472.9872723,
+          "monotonic": 857624.093
+        },
+        {
+          "id": "c786bb0ec93b4695b844d8a4ec59e5b7",
+          "kind": "set",
+          "path": "/data/sets/leader-route-06262044b36f4d43a6adc43cb23d8444",
+          "bytes": 14,
+          "sha256": "b160ed979ab9ebca449eb94566a7a549e23e6c6c94b520a3446466f6889ce3d8",
+          "phase": "stale-leader-http-route",
+          "port": 40021,
+          "chunked": false,
+          "method": "POST",
+          "event": "unknown",
+          "error": "TimeoutError('timed out')",
+          "seconds": 15.01500000001397,
+          "utc": 1794181488.0359273,
+          "monotonic": 857639.14
+        }
+      ],
+      "raw_files": {
+        "parameters.json": {
+          "bytes": 1359,
+          "sha256": "225118a7d4ac5029c81ef65d8eed776a5d8e0e756bb1d41da93ac6185a9ae882"
+        },
+        "report.json": {
+          "bytes": 219,
+          "sha256": "c93acd944d990ab5e5d8a8cf4ccce911365e7edfa6ab064ae6a8f56e5a8f1a2d"
+        },
+        "client.jsonl": {
+          "bytes": 38867,
+          "sha256": "039ebbe123945bb7c7ec0f0dbe4b5a306af33fe8786d793f6fba4dfd972dddeb"
+        }
+      }
+    },
+    {
+      "directory": "leader-route-after-4e80",
+      "parameters": {
+        "started_utc": 1794182492.142257,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "4e80c9a19f3f5e2a633f23ad00b510e8b25676dc",
+        "runtime_sha256": "741c5dbfb26085e57a28edcd9c874b0bfc60e3f996797ca564501e5473dd1299",
+        "slimdata_sha256": "284b0e099e4009affe6d6ca1ce9e88ed5d292ada359a606991bfa4ace27cef49",
+        "harness_sha256": "106aa49ac7e84844c8ad081809a5064f23c66143c8ee95bd309465b84bdeca41",
+        "arguments": {
+          "runtime": "artifacts\\slimdata-lts\\leader-event-portable\\SlimFaas.dll",
+          "dotnet": "artifacts/dotnet-10.0.403/dotnet.exe",
+          "source_commit": "4e80c9a19f3f5e2a633f23ad00b510e8b25676dc",
+          "output": "artifacts\\slimdata-lts\\leader-route-after-4e80",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 40020,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 15.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "leader-route,api,restarts",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "stale-leader-http-route",
+            "ingress_node": 0,
+            "old_leader": 2,
+            "seconds": 6.155999999959022,
+            "passed": true
+          },
+          {
+            "phase": "api-smoke",
+            "passed": true
+          },
+          {
+            "phase": "full-persistent-restart",
+            "passed": true
+          }
+        ],
+        "accepted": 138,
+        "unknown": 8,
+        "missing": [],
+        "finished_utc": 1794182556.6360936
+      },
+      "notable_events": [
+        {
+          "id": "44f998a9d5ac4d75a7b7e39110e4bfc3",
+          "kind": "set",
+          "path": "/data/sets/leader-route-246a3ead34b849bca2e3fdfd0d841b06",
+          "bytes": 6,
+          "sha256": "c6cf1309cd700e5a84e18d0b1d5877b9a608141037ac40445d484398256fc56c",
+          "phase": "stale-leader-http-route",
+          "port": 40021,
+          "chunked": false,
+          "method": "POST",
+          "event": "accepted",
+          "status": 200,
+          "headers": {
+            "Connection": "close",
+            "Content-Type": "application/json; charset=utf-8",
+            "Date": "Mon, 09 Nov 2026 00:01:40 GMT",
+            "Server": "Kestrel",
+            "Transfer-Encoding": "chunked"
+          },
+          "response": "\"leader-route-246a3ead34b849bca2e3fdfd0d841b06\"",
+          "seconds": 0.06299999996554106,
+          "utc": 1794182501.6425567,
+          "monotonic": 858652.75
+        },
+        {
+          "id": "48f948c32ab240a5b1962f902702ec68",
+          "kind": "set",
+          "path": "/data/sets/leader-route-246a3ead34b849bca2e3fdfd0d841b06",
+          "bytes": 14,
+          "sha256": "b160ed979ab9ebca449eb94566a7a549e23e6c6c94b520a3446466f6889ce3d8",
+          "phase": "stale-leader-http-route",
+          "port": 40021,
+          "chunked": false,
+          "method": "POST",
+          "event": "accepted",
+          "status": 200,
+          "headers": {
+            "Connection": "close",
+            "Content-Type": "application/json; charset=utf-8",
+            "Date": "Mon, 09 Nov 2026 00:01:46 GMT",
+            "Server": "Kestrel",
+            "Transfer-Encoding": "chunked"
+          },
+          "response": "\"leader-route-246a3ead34b849bca2e3fdfd0d841b06\"",
+          "seconds": 5.953000000095926,
+          "utc": 1794182507.6353443,
+          "monotonic": 858658.734
+        }
+      ],
+      "raw_files": {
+        "parameters.json": {
+          "bytes": 1358,
+          "sha256": "f9383b8554aea7308a263686bc21d17dbd32daddf71b19787cd1bbad0eb785cf"
+        },
+        "report.json": {
+          "bytes": 468,
+          "sha256": "631da22cfd1b1144df28e5122d0e98a59aefdf84f4b94adf1ea76f9a15450179"
+        },
+        "client.jsonl": {
+          "bytes": 179935,
+          "sha256": "7abfcf1cb9a43392a01526f1a8f7093dfa3e33357eaa36735096b3080c763a98"
+        }
+      }
+    },
+    {
+      "directory": "b002-native-owner-timeout",
+      "parameters": {
+        "started_utc": 1794179866.796449,
+        "platform": "Windows-11-10.0.26300-SP0",
+        "python": "3.12.11 (main, Aug 18 2025, 19:17:54) [MSC v.1944 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "b00224c5831b918f426b44e0fcbda8edfa2c5494",
+        "runtime_sha256": "a46a56615beb98ddd48a7b54627a976c708c9ba669fa58551af6886630e4f36d",
+        "slimdata_sha256": null,
+        "harness_sha256": "df5ed91201a335b5c4b8ca007ea28aff8f027607135cc8074a9f4c74bcedd2dd",
+        "arguments": {
+          "runtime": "artifacts\\slimdata-lts\\job-journal-recovery-aot\\SlimFaas.exe",
+          "dotnet": "dotnet",
+          "source_commit": "b00224c5831b918f426b44e0fcbda8edfa2c5494",
+          "output": "artifacts\\slimdata-lts\\b002-native-owner-timeout",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 39920,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket-timeout",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError('Timed out: function receipt 7b65563258a34b9c80e81756288c89c8; last transport error: None')",
+        "results": [],
+        "accepted": 1,
+        "unknown": 0,
+        "missing": [],
+        "finished_utc": 1794180299.840097
+      },
+      "notable_events": [
+        {
+          "event": "owner-suspended",
+          "node": 0,
+          "pid": 23748,
+          "utc": 1794179872.73457,
+          "monotonic": 856023.828
+        },
+        {
+          "id": "7b65563258a34b9c80e81756288c89c8",
+          "kind": "async",
+          "path": "/async-function/chaos-ws-51d5065c3ce54c238743507f5f972510/consume",
+          "bytes": 2097152,
+          "sha256": "6db10a73451c16988cefe505203b8126946303bd6b9c5572fc993ceb0df12cba",
+          "phase": "websocket-owner-timeout",
+          "port": 39922,
+          "chunked": false,
+          "method": "POST",
+          "event": "accepted",
+          "status": 202,
+          "headers": {
+            "Content-Length": "0",
+            "Connection": "close",
+            "Date": "Sun, 08 Nov 2026 23:19:36 GMT",
+            "Server": "Kestrel",
+            "SlimFaas-Element-Id": "84725632-7267-457e-92c0-1334cf5484c8"
+          },
+          "response": "",
+          "seconds": 99.60900000005495,
+          "utc": 1794179977.285121,
+          "monotonic": 856128.39
+        },
+        {
+          "event": "owner-resumed",
+          "node": 0,
+          "pid": 23748,
+          "seconds_after_acceptance": 20.0,
+          "utc": 1794179997.2955465,
+          "monotonic": 856148.39
+        }
+      ],
+      "raw_files": {
+        "parameters.json": {
+          "bytes": 1249,
+          "sha256": "6a178c47a9a3f5e385847a8118e14087fc89eaa19301b10c455c92d12e36c65f"
+        },
+        "report.json": {
+          "bytes": 254,
+          "sha256": "3d3d76546513278979227f3069c57ab1db962ed2a0ff01ff97a8c360dbfe7df0"
+        },
+        "client.jsonl": {
+          "bytes": 38788,
+          "sha256": "762a1cdc60b59d0d5ffdba4ad3d57bfecd7938a91aec813baf0a78ede11fb398"
+        }
+      }
+    },
+    {
+      "directory": "owner-timeout-after-4e80",
+      "parameters": {
+        "started_utc": 1794182557.7453947,
+        "platform": "Windows-11-10.0.26300-SP0",
+        "python": "3.12.11 (main, Aug 18 2025, 19:17:54) [MSC v.1944 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "4e80c9a19f3f5e2a633f23ad00b510e8b25676dc",
+        "runtime_sha256": "741c5dbfb26085e57a28edcd9c874b0bfc60e3f996797ca564501e5473dd1299",
+        "slimdata_sha256": "284b0e099e4009affe6d6ca1ce9e88ed5d292ada359a606991bfa4ace27cef49",
+        "harness_sha256": "106aa49ac7e84844c8ad081809a5064f23c66143c8ee95bd309465b84bdeca41",
+        "arguments": {
+          "runtime": "artifacts\\slimdata-lts\\leader-event-portable\\SlimFaas.dll",
+          "dotnet": "artifacts/dotnet-10.0.403/dotnet.exe",
+          "source_commit": "4e80c9a19f3f5e2a633f23ad00b510e8b25676dc",
+          "output": "artifacts\\slimdata-lts\\owner-timeout-after-4e80",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 39920,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket-timeout",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "websocket-owner-timeout",
+            "passed": true,
+            "delivery_timeout_seconds": 8,
+            "owner_absence_after_acceptance_seconds": 20,
+            "id": "d9e527243c6d44de84a5b119f19338ea",
+            "default_retry_statuses": true
+          }
+        ],
+        "accepted": 1,
+        "unknown": 0,
+        "missing": [],
+        "finished_utc": 1794182594.906656
+      },
+      "notable_events": [
+        {
+          "event": "owner-suspended",
+          "node": 0,
+          "pid": 13388,
+          "utc": 1794182567.7911448,
+          "monotonic": 858718.89
+        },
+        {
+          "id": "d9e527243c6d44de84a5b119f19338ea",
+          "kind": "async",
+          "path": "/async-function/chaos-ws-2684310fe20e4fbe89196014f7759c3f/consume",
+          "bytes": 2097152,
+          "sha256": "b39bb0948c5696dd80589a221217b67ee74cf552f93d900832346aa18f2e100a",
+          "phase": "websocket-owner-timeout",
+          "port": 39922,
+          "chunked": false,
+          "method": "POST",
+          "event": "accepted",
+          "status": 202,
+          "headers": {
+            "Content-Length": "0",
+            "Connection": "close",
+            "Date": "Mon, 09 Nov 2026 00:02:50 GMT",
+            "Server": "Kestrel",
+            "SlimFaas-Element-Id": "9806cbe8-06a5-4f99-81b1-9d2833f65aba"
+          },
+          "response": "",
+          "seconds": 2.73499999998603,
+          "utc": 1794182570.5505557,
+          "monotonic": 858721.656
+        },
+        {
+          "event": "owner-resumed",
+          "node": 0,
+          "pid": 13388,
+          "seconds_after_acceptance": 20.0,
+          "utc": 1794182590.556808,
+          "monotonic": 858741.656
+        }
+      ],
+      "raw_files": {
+        "parameters.json": {
+          "bytes": 1338,
+          "sha256": "dc729f02b8c15cac9253e14b20d116cc62e0942a5ce57138e67204c81d0dd661"
+        },
+        "report.json": {
+          "bytes": 411,
+          "sha256": "12e86108d53106fb463279460c686ecce10ff624a0f403fb0e110c6ce3233286"
+        },
+        "client.jsonl": {
+          "bytes": 38450,
+          "sha256": "129a63e7816fddf3690390d1b0b94222a1f0d5cd8b95a93ce5e24d91b0158b67"
+        }
+      }
+    }
+  ],
+  "raw_logs": {
+    "leader-change-event-after-tests-03.log": {
+      "bytes": 799,
+      "sha256": "bb59f809d58f8ac9c3b152fbb9036d49ce8e0fcfa3544f406d70b50ceea0e773"
+    },
+    "leader-event-full-tests.log": {
+      "bytes": 3218,
+      "sha256": "5dabfd28251e96a691f229f14435c453886e90e7f8b233d90ee36fc302d270db"
+    },
+    "leader-event-portable-publish.log": {
+      "bytes": 468,
+      "sha256": "cc26bb80d6838c41fe90e2f35ff9a63ed2c1d3b6929af159a8e73ea78eb812a1"
+    }
+  }
+}

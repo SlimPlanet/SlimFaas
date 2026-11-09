@@ -25,6 +25,70 @@ FIXTURE = load("chaos_function", ROOT / "tests/SlimFaas.Tests/Local/chaos_functi
 
 
 class CampaignSafetyTests(unittest.TestCase):
+    def test_unknown_counter_can_commit_between_sequential_node_reads(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.counter_results = [1]
+            campaign.unknown = {str(index): {"kind": "counter"} for index in range(2)}
+            replies = [(200, {}, str(number).encode()) for number in (2, 3, 3, 3, 3, 3)]
+            with patch.object(HARNESS, "request", side_effect=replies) as send:
+                campaign.verify_counters()
+            self.assertEqual(6, send.call_count)
+            observations = [json.loads(line) for line in campaign.client.path.read_text().splitlines()]
+            self.assertEqual([[2, 3, 3], [3, 3, 3]], [row["values"] for row in observations])
+
+    def test_counter_divergence_without_unknown_writes_fails_immediately(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.counter_results = [1]
+            with patch.object(HARNESS, "request", side_effect=[(200, {}, value) for value in (b"1", b"2", b"2")]) as send:
+                with self.assertRaisesRegex(AssertionError, "Mixed counter invariant"):
+                    campaign.verify_counters()
+            self.assertEqual(3, send.call_count)
+
+    def test_counter_bounds_and_duplicate_confirmed_results_fail_immediately(self):
+        for confirmed, value in (([1, 2], b"1"), ([1], b"3"), ([1, 1], b"2")):
+            with self.subTest(confirmed=confirmed, value=value), tempfile.TemporaryDirectory() as output:
+                campaign = self.campaign(output)
+                campaign.counter_results = confirmed
+                campaign.unknown = {"unknown": {"kind": "counter"}}
+                with patch.object(HARNESS, "request", return_value=(200, {}, value)) as send:
+                    with self.assertRaisesRegex(AssertionError, "Mixed counter invariant"):
+                        campaign.verify_counters()
+                self.assertEqual(3, send.call_count)
+
+    def test_counter_regression_is_not_hidden_by_unknown_writes(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.counter_results = [1]
+            campaign.unknown = {str(index): {"kind": "counter"} for index in range(2)}
+            replies = [(200, {}, str(number).encode()) for number in (2, 3, 3, 1, 3, 3)]
+            with patch.object(HARNESS, "request", side_effect=replies) as send:
+                with self.assertRaisesRegex(AssertionError, "Mixed counter invariant"):
+                    campaign.verify_counters()
+            self.assertEqual(6, send.call_count)
+
+    def test_counter_must_converge_within_the_existing_phase_deadline(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.counter_results = [1]
+            campaign.unknown = {"unknown": {"kind": "counter"}}
+            campaign.options.recovery_timeout = .005
+            replies = itertools.cycle([(200, {}, value) for value in (b"1", b"2", b"2")])
+            with patch.object(HARNESS, "request", side_effect=replies):
+                with self.assertRaisesRegex(AssertionError, "mixed counter convergence|phase deadline"):
+                    campaign.verify_counters()
+
+    def test_counter_server_errors_fail_immediately(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.counter_results = [1]
+            campaign.unknown = {"unknown": {"kind": "counter"}}
+            with patch.object(HARNESS, "request", return_value=(503, {}, b"unavailable")) as send:
+                with self.assertRaisesRegex(AssertionError, "Mixed counter is unavailable"):
+                    campaign.verify_counters()
+            self.assertEqual(3, send.call_count)
+
     def test_lease_probe_failure_resumes_the_owned_follower_and_propagates(self):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)

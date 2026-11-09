@@ -503,9 +503,42 @@ stalled response body. The existing consumer retries identical batch identity an
 content, preserving deduplication if the prior leader committed before its reply
 was interrupted. HTTP deadlines are unchanged. Two regressions with an infinite
 test-client timeout fail before the fix in Global and PartitionedByKey modes.
-The token-only version passed **11** focused recovery tests. Additional cases now
-cover a leader change while the consensus token remains live in both batching
-modes. Real Local after-fix validation and final benchmark attribution are pending.
+The token-only version passed **11** focused recovery tests. The complete correction
+(`4e80c9a1`) passes **13** focused recovery tests and **1,996** total .NET tests.
+Real Local now completes the same leader-route case in **6.156 seconds**, then
+passes API checks and persistent restarts. Its separate owner-timeout regression
+accepts publication in **2.735 seconds** and delivers after the unchanged
+eight-second timeout and 20-second owner absence. Native publication and final
+benchmark attribution remain separate gates. Exact parameters and failed attempts
+are retained in [leader-event evidence](reliability/2026-11-08/leader-event-evidence.json).
+
+## Sequential counter observations with outstanding unknown increments
+
+Native Windows quorum endurance on `b00224c5` stopped after its 300-second absence
+with sequential counter values `[2, 3, 3]`, one confirmed increment and 173 unknown
+increments. The original run remains failed. Its complete archive has SHA-256
+`e95687b272dc8b88c5a83dc220f17550a260b5f97f69b10c1fb0950f32e65c1f`.
+A fresh archive copy, using that archive's original Native executable and runtime
+assets, cold-started with **25 consecutive `[3, 3, 3]` observations** and verified
+all confirmed data. No API mutation was submitted by this diagnostic. An initial
+setup attempt omitted the executable's required appsettings file and is excluded;
+its separate logs and directory remain retained.
+
+An unknown HTTP outcome does not cancel a queued increment. Such an increment can
+commit between sequential node reads, so comparing all three as one atomic
+observation was invalid. The archived result is consistent with this overlap;
+the replay does not reconstruct its exact original read/commit interleaving.
+The campaign now records every counter observation and requires convergence
+within the **existing shared recovery deadline** when unknown increments remain.
+Every value must stay within the confirmed/possible bounds and must not regress
+on a node. Duplicate confirmed increment results, out-of-range values, server
+errors and divergence without unknown writes still fail immediately. Persistent
+divergence still fails the original deadline. No mutation is retried. The new
+overlap regression fails before this harness correction; all **20** accounting
+and safety tests pass afterwards. A new real endurance matrix is required;
+archive replay does not turn the old failed run into a passing campaign.
+Original results, replay observations and raw-file hashes are in
+[counter archive evidence](reliability/2026-11-08/counter-archive-replay.json).
 
 ## Performance evidence
 
