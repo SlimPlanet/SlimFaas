@@ -3,11 +3,12 @@
 **Verdict: not ready to certify SlimFaas 1.0 LTS.** Sixteen confirmed defects have
 corrections and regression evidence across the recorded revisions. Real three-node
 Local campaigns demonstrate substantial recovery coverage, including all six
-Linux/Native Windows long-absence roles on the snapshot revision. Final Native
+Linux/Native Windows long-absence roles on the final runtime code. Final Native
 API/short-outage, official SDK, owner-timeout and empty-PATH bundle checks now pass
-on `a95d49e8`. The subsequent endurance matrix and controlled performance comparison
-remain separate gates. Historical failures and incomplete
-fault coverage still block certification. A passing campaign on one revision or
+on `a95d49e8`. The complete six-role workflow on `571728a9` is green and its
+counter observations pass the stronger ledger audit. Performance non-regression
+remains inconclusive, and incomplete durability/fault coverage still blocks
+certification. Historical failures remain recorded. A passing campaign on one revision or
 OS does not override a failed campaign on another.
 
 Tracking: [issue #505](https://github.com/SlimPlanet/SlimFaas/issues/505),
@@ -94,7 +95,7 @@ work cannot be reconstructed by upgrading.
 
 These diagnoses do not explain every large-body failure. Earlier Windows Native
 SDK runs failed concurrent large Stream publication. Later complete Native SDK
-campaigns pass on `7e1f20a6` and `b00224c5`, but observed large Stream latency remains
+campaigns pass on `7e1f20a6`, `b00224c5` and final `a95d49e8`, but observed large Stream latency remains
 a performance gate.
 
 ## Confirmed defects and regressions
@@ -179,13 +180,13 @@ evidence that no confirmed work was lost.
 | Area | Executed successful evidence | Remaining coverage or failures |
 |---|---|---|
 | Sync | Real checksum/status, mixed concurrency, wake 0→1→0, timeout with later execution, leader/follower/quorum faults | Exhaustive cancellation and deterministic crash exactly within a selected request |
-| Async | Six sizes × two encodings × concurrency four; Native 8/16 MiB; retries, DLQ repair/requeue, SDK callbacks, owner timeout, crash/restart | Latest Windows CI also timed out during payload publication; not every final-revision combination is green |
-| Streams | Two real independent HTTP consumers, concurrent append, paginated order, contiguous ACK, length/age retention, 410 boundary/gap counters, offline SDK retention/reconnect and restart | Windows Native concurrent 2 MiB failure; advanced manual reserve/ACK and long-absence retention combinations remain incomplete |
-| Files | Zero/one/4/16 MiB, all-node checksums, concurrent mixed traffic, interrupted upload, TTL/delete | Repeated ENOSPC post-ready read failed with 503; permanent originating-volume loss and deterministic mid-transfer crash are not proven |
+| Async | Six sizes × two encodings × concurrency four; Native 8/16 MiB; retries, DLQ repair/requeue, SDK callbacks, owner timeout, crash/restart; final Native and latest Linux/Windows CI pass | Large-body tail latency and performance non-regression remain unresolved; historical failures are retained |
+| Streams | Two real independent HTTP consumers, concurrent append, paginated order, contiguous ACK, length/age retention, 410 boundary/gap counters, offline SDK retention/reconnect and restart; final concurrent Native 2 MiB publication passes | Earlier Native publication failures and variable latency; advanced manual reserve/ACK and long-absence retention combinations remain incomplete |
+| Files | Zero/one/4/16 MiB, all-node checksums, concurrent mixed traffic, interrupted upload, TTL/delete; original unavailable CI file cold-replays on all nodes | Earlier post-ready 503 remains failed; permanent originating-volume loss and deterministic mid-transfer crash are not proven |
 | Sets / HashSets | CRUD, TTL, deletion on all nodes, concurrent INCR/DECR, INCRBY/DECRBY/INCRBYFLOAT, explicit limit, mixed-fault convergence | Not an exhaustive linearizability history/model check |
 | Jobs / DLQ | Actual concurrent job processes/arguments, retry expiry policy, DLQ body/repair/requeue, bootstrap and real cron across full restart/deletion | Cron scheduling during prolonged outages and every job crash window remain incomplete |
 | Packet faults | Linux isolated bidirectional Raft drops at 1/5/10/30/60 seconds; CI netem 25 ms and restart | Asymmetric partitions and additional latency/loss profiles not executed; WSL lacks netem support |
-| Disk full | Real marked 128 MiB ext4 exhaustion; an earlier campaign recovered in 22.767 s; latest repeated run passed one cycle in 99.140 s | Second latest cycle failed strict post-ready file verification with HTTP 503; third cycle/restarts never ran |
+| Disk full | Real marked 128 MiB ext4 exhaustion; final targeted job-journal ENOSPC survives three cycles in 9.076/9.038/8.026 s, confirms all accepted work and restarts on its retained volume | Earlier general ENOSPC campaigns failed later file reads; targeted journal success does not erase them or establish arbitrary device-I/O guarantees |
 | Persistence | Successive abrupt crashes, full original-volume restart, observed WAL/snapshot progress and replay-counter gates | Crashes were not synchronized to exact WAL-write/snapshot-install/compaction instruction windows; other targeted I/O faults not executed |
 
 CI [42501124569](https://github.com/SlimPlanet/SlimFaas/actions/runs/42501124569)
@@ -215,7 +216,7 @@ contain 96 successful deliveries for 91 distinct IDs: five extra successes acros
 two IDs, allowed by at-least-once delivery. Two-consumer fanout is counted by
 `(message ID, function)` so legitimate fanout is not mislabeled duplication.
 
-## Unresolved Windows large Stream publication
+## Historical Windows large Stream failures and latency controls
 
 On a fresh Windows Native run with fixes 1–9, all twelve SDK Async size/encoding
 cases passed. Four concurrent 2 MiB Stream appends then produced three accepted
@@ -355,9 +356,9 @@ errors propagate. Existing state is preserved if snapshot decoding fails.
 The full suite passes **1,983 tests**, including **nine** new snapshot cases,
 historical 6.6.0 persistence compatibility and byte-for-byte snapshot transfer
 across 64 KiB buffer boundaries. No Raft/WAL page or snapshot payload format was
-changed. The adapted lifecycle carries its upstream MIT notice. Real retained-state
-repair, Native publication and fresh benchmarks remain under validation; paired
-benchmarking is deferred until the durability regression has passed end to end. See
+changed. The adapted lifecycle carries its upstream MIT notice. At that revision,
+retained-state and Native verification were pending; the completed follow-up
+controls and final comparisons are reported below. See
 [windows-default-trial.json](reliability/2026-11-08/windows-default-trial.json).
 
 The dependency update also resolves four System.* packages from 10.0.13 to
@@ -383,12 +384,13 @@ while the distributed queue had already acknowledged the creation.
 Local now flushes a job plan before returning creation success, records execution
 transitions and deletions atomically, and reloads unfinished and terminal runs.
 Interrupted attempts can replay with the same identity under at-least-once delivery.
-Unwritable or malformed storage is explicit, and a failed journal transition stops
-the supervisor rather than silently losing its monitor. The managed after-fix
+Unwritable or malformed storage is explicit. This initial implementation stopped
+the supervisor on a failed journal transition; fix 15 below replaces that behavior
+with retained dirty-state reconciliation. The managed after-fix
 `job-environments,job-recovery,api,restarts` campaign passed with **143 accepted /
 eight unknown / no missing receipts**, including another full persistent restart.
 The full .NET suite passed **1,989 tests** before the subsequent WebSocket race
-correction. Native after-fix verification remains pending.
+correction. The final Native job-recovery controls below also pass.
 
 The initial gated test also exposed an independent Native AOT job defect: an
 accepted job containing an environment list stayed queued because the trimmed
@@ -479,8 +481,9 @@ the forced journal/quorum fault (**9.038 s**, including terminal checkpoint
 verification across full supervisor restart), a second ordinary ENOSPC (**8.026 s**),
 successive crashes and full restart. Logs explicitly show failed journal writes
 and subsequent recovery. The full suite still passes **1,992 tests**. The original
-failed image was archived before further replay. Native publication and fresh
-benchmarks on this revision are pending; the 300-second recovery gate is unchanged.
+failed image was archived before further replay. Later Native publication,
+original-image recovery and comparisons are recorded below; the 300-second
+recovery gate is unchanged.
 
 ## Six-role endurance after transactional snapshot recovery
 
@@ -502,6 +505,35 @@ individual job results. This runtime predates later Local job/WebSocket fixes.
 Original reports, parameters, runtime attribution and complete ZIP hashes are in
 [six-role-endurance-df03.json](reliability/2026-11-08/six-role-endurance-df03.json).
 Later-revision matrices remain separate evidence.
+
+## Final six-role endurance and stronger counter audit
+
+Workflow [42538554797](https://github.com/SlimPlanet/SlimFaas/actions/runs/42538554797)
+is **entirely green** on `571728a9`: both OS quick jobs and all six dedicated
+endurance roles. Runtime C# is identical to the validated `a95d49e8` executable;
+subsequent changes strengthen the counter/resume harness and documentation.
+Every role retains its volumes through 30/60/300/900/1800/3600-second absences,
+continuous mixed API traffic, successive crashes and full persistent restart.
+
+| Runtime / role | Full recovery after one-hour absence | Final accepted / unknown |
+| --- | ---: | ---: |
+| Linux follower | 28.362 s | 23,237 / 30 |
+| Linux leader | 28.552 s | 22,761 / 33 |
+| Linux quorum | 17.615 s | 164 / 26,168 |
+| Windows Native follower | 95.938 s | 22,043 / 24 |
+| Windows Native leader | 60.718 s | 22,865 / 21 |
+| Windows Native quorum | 84.844 s | 142 / 26,346 |
+
+Leader replacement is observed in **4.642 s** on Linux and **4.359 s** on Native
+Windows during the hour-long leader absence. Unknown outcomes are not confirmed
+losses; the minority cannot acknowledge a new write before quorum restoration.
+The original client journals also pass **66** post-hoc counter observations
+against the highest confirmed increment response, possible unknown increments,
+unique confirmed results, per-node monotonicity and final convergence. This
+read-only audit strengthens the original oracle without rewriting a run's result.
+All eight original ZIPs, reports, parameters and hashes are retained in
+[six-role-endurance-571.json](reliability/2026-11-08/six-role-endurance-571.json);
+the audit is in [final-571-counter-audit.json](reliability/2026-11-08/final-571-counter-audit.json).
 
 ## An ordered producer remained attached to an unavailable old leader
 
@@ -537,8 +569,8 @@ The token-only version passed **11** focused recovery tests. The complete correc
 Real Local now completes the same leader-route case in **6.156 seconds**, then
 passes API checks and persistent restarts. Its separate owner-timeout regression
 accepts publication in **2.735 seconds** and delivers after the unchanged
-eight-second timeout and 20-second owner absence. Native publication and final
-benchmark attribution remain separate gates. Exact parameters and failed attempts
+eight-second timeout and 20-second owner absence. Final Native functional controls
+also pass; performance remains a separate gate below. Exact parameters and failed attempts
 are retained in [leader-event evidence](reliability/2026-11-08/leader-event-evidence.json).
 
 ## Sequential counter observations with outstanding unknown increments
@@ -595,49 +627,79 @@ for each counter exercise and restores each completed exercise's confirmed float
 checkpoint from the client ledger. The old key and value remain in the verification
 set. Both regressions fail before their fixes; all **22** harness tests pass after.
 The next resume passes the API exercise and full persistent restart on that same
-original image. Runtime and harness failures remain separate recorded outcomes.
+original image: **291 accepted / 130 unknown / zero missing receipts**. One job
+has two execution receipts, an allowed and measured replay of the acknowledged
+unfinished plan. Runtime and harness failures remain separate recorded outcomes.
+
+A separate focused replay uses a fresh verified copy of the old failed Linux CI
+file image. The original file, previously unavailable through its 300-second
+deadline but found intact offline on node 2, is fetched from all three APIs with
+its 1,024-byte SHA-256 verified in **8.679 seconds**. Confirmed immutable state
+also passes. The diagnostic submits GETs only; normal runtime recovery writes the
+copied state. It does not reconcile historical job receipts or turn the original
+failed campaign into a pass. Details, pre/post image hashes and original parameters
+are in [Linux replay and traffic evidence](reliability/2026-11-08/linux-retained-replay-and-traffic.json).
 
 ## Performance evidence
 
-The existing Local benchmark and MemoryLab drivers are reused. The final paired
-Native comparison uses the preserved baseline and fixes-1–10 executables on the
-same Windows host, in ABBA order, with no concurrent builds or chaos campaigns.
-The matrix has six exact sizes, concurrency 1/4, two-second warmup and five-second
-measurement per latency case, plus the original 200-message scaling scenario.
-This is screening evidence, not statistical proof of non-regression or controlled
-production capacity. Two complete runs per binary were planned.
+The existing Local HTTP/scaling driver and MemoryLab are reused on the same
+Windows host, with frozen benchmark scripts and no concurrent compilation or
+other workload campaign. The final Native candidate is `a95d49e8`; every runtime,
+manifest, driver and orchestrator is attributed by content hash. Measurements
+last ten seconds after two-second warmups. These are short screening comparisons,
+not statistical proof or maximum production capacity.
 
-The replacement candidate benchmark failed to drain the Async warmup queue within
-180 seconds at **1 MiB/concurrency four**, without an injected fault. No final
-report/scaling verdict exists for that attempt; its partial CSV, metrics and logs
-are retained. Completed results therefore provide two baseline runs and only one
-fully successful candidate run. The earlier post-driver Bash error is excluded
-separately. This failure also blocks a performance non-regression verdict.
+The complete six-size HTTP/scaling **ABBA** has two baseline failures and two
+complete candidate successes. Both `496e8739` baseline attempts miss the unchanged
+**180-second Async queue-drain deadline at 1 MiB/concurrency four**, without an
+injected fault; logs show leader unavailability. Both corrected runs finish every
+size/encoding and scaling, draining the 200-message burst in **27.148 s / 25.765 s**.
+The second candidate still records a **14.233-second** Async request at
+1 MiB/concurrency one. With no complete fresh full-profile baseline, full-matrix
+performance non-regression cannot be certified. The partial baseline logs and
+volumes remain retained in [current performance evidence](reliability/2026-11-08/performance-current.md).
 
-The initial comparison is excluded: surviving runtime/target descendants
-contaminated later cases. Its failed scaling phases and raw results are retained.
-The Windows launcher now assigns the process tree to an owned kill-on-close Job
-Object before resuming execution, and rejects occupied ports before startup or
-cleanup. Three real lifecycle regressions pass.
+A separate matched **2 MB / 2 MiB ABBA** completes all four runs using the same
+driver and configuration on both versions. It preserves the failed full workload
+as separate evidence. Raw median Sync throughput changes are **−11.7%** at
+2 MiB/concurrency one and **−25.1%** at concurrency four. The existing normalized
+comparer fails its Sync guardrails for both candidates against baseline 01 and
+passes them against baseline 04. At 2 MiB/concurrency four, the normalized rate
+changes are **−28.59% / −31.93%** against the first baseline and **+8.63% / +3.54%**
+against the second. All four comparer invocations separately miss the configured
+**40% optimization target**; missing that improvement target is not itself a
+non-regression failure. The observed variability and tail-latency gates remain
+unresolved, with no unsupported causal explanation. See the absolute p50/p95/p99,
+throughput, CPU/message, RSS, delivery/duplicate counts, scaling and raw comparer
+reports in [the targeted comparison](reliability/2026-11-08/performance-2mb.md).
 
-Final measurements and limitations are recorded in the
-[performance report](reliability/2026-11-08/performance.md) and its versioned JSON.
-The corrected MemoryLab ABBA comparison passed all 16 measured loads and 16
-warmups, including all-node state validation and **2,585** actual Async deliveries
-reconciled by distinct element ID and 4 KiB checksum across warmups/measurements.
-Median throughput changes were **−12.8% / −0.4%** for Set at concurrency 12/48,
-and **−6.8% / +8.7%** for mixed operations. This does not establish non-regression.
+Fresh MemoryLab **ABBA** passes all **16 measured loads and 16 warmups**, with
+all-node state validation and actual Async element-ID/checksum reconciliation.
+Median throughput changes are **−3.052% / −4.987%** for Set at concurrency 12/48,
+and **+1.201% / +3.057%** for mixed operations. The configuration forces snapshots
+every 50 entries or 8 MiB. Per-phase CPU, RSS, allocations, generation-labelled GC
+counters, pauses and WAL/snapshot gauges are retained in
+[performance-current.json](reliability/2026-11-08/performance-current.json).
 
-The existing normalized comparer also fails its guardrails against both complete
-baselines. At Sync 2 MiB/concurrency four, the proxy-to-direct throughput ratio
-changed by **−53.8% / −43.1%**. These observed regressions remain release gates;
-they are not dismissed as noise, and their cause is not established. Raw HTTP
-samples provide throughput and p50/p95/p99; one-second metric
-captures provide available CPU/RAM/allocation/GC and WAL/snapshot observations.
-Application byte rate and WAL growth are not wire replication bandwidth. Actual
-network replication byte throughput was not instrumented and must not be inferred
-as a measured value. Resource gauges update less frequently than some short
-phases; zero or absent samples cannot certify zero resource cost.
+An additional real Linux Local **ABBA** observes TCP payload on the three Raft
+listeners. Every run publishes **24** checksum-verified Async bodies totaling
+**38,670,848 application bytes**. The first capture attempt loses 315 packets in
+one baseline and 113 in one candidate; those byte measurements are excluded,
+while their functional successes remain recorded. With a larger observer socket
+buffer, all four new workloads and all four **zero-drop** gates pass. They observe
+**88.81–93.21 MB of TCP payload**, at **3.849–4.551 MiB/s** over complete runs.
+This includes internal HTTP framing, control traffic, snapshots and retransmits
+on loopback, rather than physical-wire bandwidth or maximum steady-state
+replication capacity. Per-second counters, original failed captures, exact
+parameters and hashes are in [replication traffic](reliability/2026-11-08/replication-traffic.md).
+
+Sampled resource gauges can miss phase boundaries; missing/reset counter deltas
+remain unmeasured. Logical WAL sizes, WAL-since-snapshot and last-snapshot gauges
+are not allocated physical disk growth or network byte rate. Historical five-second
+comparisons on fixes 1–10, their guardrail failures, the excluded post-driver Bash
+editing error and the earlier contaminated process-tree run remain separately
+recorded in [performance.md](reliability/2026-11-08/performance.md). Their outcomes
+are not relabelled by later successful campaigns.
 
 ## Validation and release gates
 
@@ -648,17 +710,23 @@ phases; zero or absent samples cannot certify zero resource cost.
   MCP 106, Kafka 11, .NET client 39). The final style-only adjustment also passed
   all nine selected recovery/read-barrier tests.
 - Python SDK: **37 passed**, including actual WebSocket frame-limit cases.
-- Earlier harness safety/accounting: **14 passed**; evidence exporter path/overwrite safety:
-  **4 passed**; Windows process ownership: **3 passed**.
-- Earlier Native AOT publications succeeded. Existing aggregate third-party trim/AOT
+- Evidence exporter path/overwrite safety: **4 passed**; final Windows process
+  ownership/capacity checks: **5 passed**. Earlier harness totals are historical.
+- Final Native AOT publication and the empty-PATH three-node tutorial bundle pass,
+  including dashboard, four real functions, Sync, file and an actual job. The
+  final official SDK and API/short-outage campaigns also pass. Existing aggregate third-party trim/AOT
   warnings from MemoryPack.Core/System.Configuration.ConfigurationManager remain
   visible; this is not a zero-warning publish claim.
-- The earlier fix-10 official Native release bundle passed the empty-PATH three-node smoke:
-  dashboard, four real functions, Sync, file and actual job.
+- Latest dedicated workflow: both quick OS jobs and all six endurance roles pass;
+  **66** original counter observations pass the stronger read-only ledger audit.
 - DotNext 6.11.1 → 6.12.0 and patched central System.* pins are documented in the
   dependency evidence. Direct/transitive distributions were inspected; FOSSA
   License Compliance passes on `a95d49e8`. No lockfile or persisted-format change
   or new project-wide warning suppression was introduced.
+- Final documentation build: **23 pages, 1,657 local links/assets and 394 search
+  entries** checked. A separate check resolves the technical reports' relative
+  links. [Final validation evidence](reliability/2026-11-08/validation-final.json)
+  records log hashes and the runtime source-equivalence check.
 
 Earlier native builds, Sonar, FOSSA and DCO successes are revision-specific;
 current PR checks remain the authority for merge readiness. Quick Linux/Windows
@@ -685,6 +753,8 @@ resumptions are not claimed as autonomous recovery. Subsequent publications
 disabled graph generation; no runtime volume was deleted or compressed to force
 a passing result.
 
-Certification requires successful bounded Windows recovery and large-publication
-investigation, repeated disk-full recovery, the outstanding coverage above, a
-final-revision endurance matrix, and an acceptable performance comparison.
+The bounded Linux/Native Windows outage matrix, repeated journal/disk-full recovery
+and final Native functional controls now pass. Certification still requires a
+repeatable acceptable performance comparison and the outstanding durability/fault
+coverage above. Neither historical data loss nor unverified power-loss or
+permanent-volume-loss guarantees are repaired by relabelling passing tests.
