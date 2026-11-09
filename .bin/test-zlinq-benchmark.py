@@ -4,6 +4,7 @@ import hashlib
 from contextlib import redirect_stderr
 import importlib.util
 import io
+import os
 from pathlib import Path
 import tempfile
 import types
@@ -23,6 +24,14 @@ TRACE_SPEC.loader.exec_module(TRACE)
 
 
 class ArchiveTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows process I/O API")
+    def test_windows_io_counters_can_read_an_owned_process(self):
+        with patch.object(BENCHMARK, "NODE_PIDS", [os.getpid()]):
+            rows = BENCHMARK.io_counters()
+        self.assertEqual(rows[0]["pid"], os.getpid())
+        self.assertGreaterEqual(rows[0]["read_bytes"], 0)
+        self.assertGreaterEqual(rows[0]["write_bytes"], 0)
+
     def test_trace_rejects_arbitrary_executable_paths_before_starting_a_process(self):
         with patch("sys.argv", ["trace", "--runtime", "untrusted.exe", "--output", "unused"]), \
              patch.object(TRACE.subprocess, "Popen") as process, redirect_stderr(io.StringIO()):

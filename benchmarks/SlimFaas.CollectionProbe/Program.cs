@@ -20,12 +20,14 @@ namespace SlimFaas.CollectionProbe;
 public static class Program
 {
     private static long _sink;
+    private static bool _smoke;
     private static readonly long Now = new DateTime(2026, 11, 9, 12, 0, 0, DateTimeKind.Utc).Ticks;
     private static readonly CountType[] All = [CountType.Available, CountType.Running, CountType.WaitingForRetry];
     private static readonly CountType[] Available = [CountType.Available];
 
     public static void Main(string[] args)
     {
+        _smoke = args.Contains("--smoke", StringComparer.Ordinal);
         var results = new List<Measurement>();
         foreach (int count in new[] { 0, 200, 2000 })
         foreach (int runningPercent in new[] { -1, 0, 25, 100 })
@@ -104,10 +106,13 @@ public static class Program
         }, state).Status;
     }
 
-    private static long Count(ImmutableArray<QueueElement> queue, CountType[] types, int maximum)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance",
+        Justification = "Preserve SlimDataService's IList dispatch in both revisions of the probe.")]
+    private static long Count(ImmutableArray<QueueElement> queue, IList<CountType> types, int maximum)
     {
-#if PR504_BASELINE
+        // DoListCountAsync has this guard before either revision's count path.
         if (queue.IsDefaultOrEmpty) return 0;
+#if PR504_BASELINE
         long count = 0;
         if (types.Contains(CountType.Available)) count += queue.GetQueueAvailableElement(Now, maximum).Length;
         if (types.Contains(CountType.Running)) count += queue.GetQueueRunningElement(Now).Length;
@@ -160,16 +165,17 @@ public static class Program
         {
             string name = "s" + index.ToString("D8", CultureInfo.InvariantCulture);
             definitions.Add(DurableStreamStore.DefinitionPrefix + name, Encode(
-                new DurableStreamDefinition { Name = name, Visibility = "Public", Revision = index }));
+                new DurableStreamDefinition { Name = name, Generation = "generation-" + name, Visibility = "Public", Revision = index }));
             string id = "g_" + (index + 1).ToString("D20", CultureInfo.InvariantCulture);
             messages.Add(id, Encode(new DurableStreamMessage { Id = id, Sequence = index + 1, ContentType = "application/json", AppendedAtTicks = Now }));
             pending.Add(id, Encode(new DurableStreamDelivery
             {
-                MessageId = id, Function = "billing", SubscriptionGeneration = "sub", Replica = "r" + index % 4,
+                Stream = "orders", MessageId = id, ElementId = id, Owner = "node", Attempt = 1,
+                Function = "billing", SubscriptionGeneration = "sub", Replica = "r" + index % 4,
                 State = index % 2 == 0 ? "Running" : "WaitingForCallback", DeadlineTicks = Now + TimeSpan.TicksPerMinute
             }));
             name = "f" + index.ToString("D8", CultureInfo.InvariantCulture);
-            subscriptions.Add(name, Encode(new DurableStreamSubscription { Function = name, Generation = "sub" }));
+            subscriptions.Add(name, Encode(new DurableStreamSubscription { Function = name, Generation = name, NextSequence = 1 }));
         }
         definitions.Add(DurableStreamStore.DefinitionPrefix + "orders", Encode(definition));
         subscriptions.Add("billing", Encode(subscription));
@@ -178,6 +184,7 @@ public static class Program
             KeyValues = definitions.ToImmutable(), Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty,
             Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty
                 .Add("\0stream:messages:orders", messages.ToImmutable()).Add("\0stream:pending:orders:billing", pending.ToImmutable())
+                .Add("\0stream:deliveries:orders:billing", pending.ToImmutable()).Add("\0stream:attempts", pending.ToImmutable())
                 .Add("\0stream:active-attempts", pending.ToImmutable()).Add("\0stream:subscriptions:orders", subscriptions.ToImmutable())
         }, definition, subscription);
     }
@@ -195,6 +202,11 @@ public static class Program
     private static void Measure(List<Measurement> results, string name, Func<long> operation)
     {
         long result = operation();
+        if (_smoke)
+        {
+            results.Add(new(name, 0, 1, result, 0, 0, 0, 0, 0));
+            return;
+        }
         long sink = 0;
         var timer = Stopwatch.StartNew();
         int iterations = 0;
@@ -207,9 +219,11 @@ public static class Program
             for (int index = 0; index < iterations; index++) sink += operation();
             double elapsed = Stopwatch.GetElapsedTime(started).TotalNanoseconds;
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            int collected0 = GC.CollectionCount(0) - gen0, collected1 = GC.CollectionCount(1) - gen1,
+                collected2 = GC.CollectionCount(2) - gen2;
             if (operation() != result) throw new InvalidOperationException("Probe result changed: " + name);
             results.Add(new(name, sample, iterations, result, elapsed / iterations, (double)allocated / iterations,
-                GC.CollectionCount(0) - gen0, GC.CollectionCount(1) - gen1, GC.CollectionCount(2) - gen2));
+                collected0, collected1, collected2));
         }
         Volatile.Write(ref _sink, sink);
     }

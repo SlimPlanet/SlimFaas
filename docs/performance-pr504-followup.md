@@ -60,6 +60,10 @@ Each case calibrates for 100 ms and takes exactly three samples at that fixed
 invocation count. Repeat each version/mode twice, reversing the variant order
 on the second round. Preserve every sample, unfavorable result and failed
 attempt. Report managed bytes/op separately from time, GC and process RSS.
+Before timing, `--smoke` executes each of the 69 cases once without a timer;
+baseline/candidate results must agree. The count probe preserves the real
+reader's `IList<CountType>` dispatch and empty-queue guard; consensus/read
+barriers are outside this method-cost measurement.
 Queue cases cover 0/200/2,000 elements and 0/25/100% running plus mixed
 Available/Running/WaitingForRetry/Finished states; page cases use
 1/25-row limits with 0/200/2,000 definitions/subscriptions.
@@ -67,6 +71,17 @@ Batch-pop cases execute the real composite-command result path on fresh states;
 reservation cases execute the state machine on fresh states with active leases.
 Their costs include cloning, validation, serialization and mutation as well as
 the targeted reads, so they are reported separately from pure count queries.
+The page population is N generated definitions/subscriptions plus the populated
+`orders`/`billing` fixture outside the requested cursor. Count zero is an empty
+page with that off-page fixture, rather than a completely empty catalog.
+
+The local runner records per-node GC metrics and Windows process I/O counters,
+as well as CPU and summed runtime RSS. Windows I/O counters include cached,
+device and network transfers; they do not identify physical disk traffic or
+thread wait stacks. Verified file cycles retain upload/read p95/p99 separately.
+The diagnostic correlates HTTP receipts, queue IDs, byte-verified deliveries,
+runtime logs and 500 ms file-presence observations. Short-lived files can be
+missed by polling, and disappearance is not a timestamped deletion syscall.
 
 ```powershell
 dotnet publish benchmarks/SlimFaas.CollectionProbe -c Release -r win-x64 `

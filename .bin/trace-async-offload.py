@@ -145,6 +145,8 @@ functions:
                         raise TimeoutError("Cluster readiness exceeded 180 s") from None
                     time.sleep(.25)
 
+            CAMPAIGN.record_processes(args.output, process, runtime.parent.parent)
+
             def sample():
                 previous_files = set()
                 while not finished.wait(.5):

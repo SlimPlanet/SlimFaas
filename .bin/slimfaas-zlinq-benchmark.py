@@ -28,6 +28,7 @@ REPO = Path(__file__).resolve().parent.parent
 HARNESS_SOURCE = (REPO / ".bin" / "slimfaas-zlinq-benchmark.py").read_bytes()
 NODES = [f"http://127.0.0.1:{port}" for port in range(31021, 31024)]
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+NODE_PIDS = []
 
 
 def runtime_binary(root, variant):
@@ -37,6 +38,54 @@ def runtime_binary(root, variant):
 def get(url):
     with HTTP.open(url, timeout=5) as response:
         return response.read().decode()
+
+
+def io_counters():
+    """Windows process I/O includes cached/device/network transfers, not just physical disk."""
+    if os.name != "nt" or not NODE_PIDS:
+        return None
+    import ctypes
+    from ctypes import wintypes
+
+    class Counters(ctypes.Structure):
+        _fields_ = [(name, ctypes.c_ulonglong) for name in (
+            "read_operations", "write_operations", "other_operations", "read_bytes", "write_bytes", "other_bytes")]
+
+    api = ctypes.WinDLL("kernel32", use_last_error=True)
+    api.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    api.OpenProcess.restype = wintypes.HANDLE
+    api.GetProcessIoCounters.argtypes = [wintypes.HANDLE, ctypes.POINTER(Counters)]
+    api.GetProcessIoCounters.restype = wintypes.BOOL
+    api.CloseHandle.argtypes = [wintypes.HANDLE]
+    api.CloseHandle.restype = wintypes.BOOL
+    rows = []
+    for pid in NODE_PIDS:
+        handle = api.OpenProcess(0x1000, False, pid)
+        if not handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            counters = Counters()
+            if not api.GetProcessIoCounters(handle, ctypes.byref(counters)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            rows.append(dict(pid=pid, **{name: getattr(counters, name) for name, _ in Counters._fields_}))
+        finally:
+            api.CloseHandle(handle)
+    return rows
+
+
+def record_processes(directory, supervisor, publish_root):
+    if os.name == "nt":
+        processes = json.loads(subprocess.check_output(["powershell", "-NoProfile", "-Command",
+            "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json"], text=True))
+        selected = [row for row in processes if str(publish_root).lower() in (row.get("CommandLine") or "").lower()]
+        save(directory / "processes.json", selected)
+        NODE_PIDS[:] = [row["ProcessId"] for row in selected if row["ParentProcessId"] == supervisor.pid]
+        if len(NODE_PIDS) != 3:
+            raise RuntimeError(f"Expected three runtime nodes for I/O accounting; found {NODE_PIDS}")
+    else:
+        processes = subprocess.check_output(["ps", "-axo", "pid,ppid,command"], text=True)
+        (directory / "processes.txt").write_text("\n".join(
+            line for line in processes.splitlines() if str(publish_root) in line) + "\n")
 
 
 def resources():
@@ -58,6 +107,7 @@ def resources():
         nodes = list(executor.map(read_node, NODES))
     return {"cpu_seconds": sum(row[0] for row in nodes), "rss_bytes": sum(row[1] for row in nodes),
             "runtime_counters_by_node": [row[2] for row in nodes],
+            "windows_io_by_node": io_counters(),
             "host_load_average": os.getloadavg() if hasattr(os, "getloadavg") else None}
 
 
@@ -304,6 +354,7 @@ def verified_files_case(args, directory):
 
 
 def benchmark(args, variant, round_number):
+    NODE_PIDS.clear()
     binary = runtime_binary(args.publish_root, variant)
     directory = args.output / f"round-{round_number}-{variant}"
     directory.mkdir()
@@ -345,16 +396,7 @@ def benchmark(args, variant, round_number):
         save(directory / "startup.json", {"ready_seconds": time.monotonic() - started})
         time.sleep(5)
         save(directory / "idle.json", resources())
-        if os.name == "nt":
-            processes = subprocess.check_output(["powershell", "-NoProfile", "-Command",
-                "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json"], text=True)
-            process_rows = json.loads(processes)
-            save(directory / "processes.json", [row for row in process_rows
-                if str(args.publish_root).lower() in (row.get("CommandLine") or "").lower()])
-        else:
-            processes = subprocess.check_output(["ps", "-axo", "pid,ppid,command"], text=True)
-            (directory / "processes.txt").write_text("\n".join(
-                line for line in processes.splitlines() if str(args.publish_root) in line) + "\n")
+        record_processes(directory, process, args.publish_root)
         if not args.skip_http:
             run(["dotnet", REPO / "benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll",
              "run", "--profile", "async-queue", "--duration", args.duration, "--warmup", args.warmup,
