@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
@@ -27,13 +28,13 @@ public static class Program
     {
         var results = new List<Measurement>();
         foreach (int count in new[] { 0, 200, 2000 })
-        foreach (int runningPercent in new[] { 0, 25, 100 })
+        foreach (int runningPercent in new[] { -1, 0, 25, 100 })
         {
-            var queue = Enumerable.Range(0, count).Select(index => new QueueElement(new byte[] { 1 }, "item", Now, 30, [],
-                index % 100 < runningPercent ? [new QueueHttpTryElement(Now, reservedIp: "replica")] : [], [])).ToImmutableArray();
+            var queue = Enumerable.Range(0, count).Select(index => QueueItem(index, runningPercent)).ToImmutableArray();
             Measure(results, $"count-all/{count}/{runningPercent}", () => Count(queue, All, int.MaxValue));
             Measure(results, $"count-available-10/{count}/{runningPercent}", () => Count(queue, Available, 10));
             Measure(results, $"dispatch/{count}/{runningPercent}", () => SlimDataService.BuildQueueDispatchState(queue, Now).TotalPending);
+            Measure(results, $"batch-pop/{count}/{runningPercent}", () => Pop(queue));
         }
         foreach (int count in new[] { 0, 200, 2000 })
         {
@@ -43,6 +44,7 @@ public static class Program
             var context = new DefaultHttpContext();
             Measure(results, $"counters/{count}", () => DurableStreamStore.Counters(payload, definition, subscription).PendingCount);
             Measure(results, $"replica-ranking/{count}", () => Rank(payload));
+            Measure(results, $"reservation/{count}", () => Reserve(payload));
             foreach (int limit in new[] { 1, 25 })
             {
                 Measure(results, $"catalog-page-{limit}/{count}", () => Catalog(service, context, payload, limit));
@@ -51,6 +53,55 @@ public static class Program
         }
         File.WriteAllText(args[0], JsonSerializer.Serialize(results, ProbeJsonContext.Default.ListMeasurement));
         Console.WriteLine(FormattableString.Invariant($"Wrote {results.Count} samples; sink={Volatile.Read(ref _sink)}"));
+    }
+
+    private static QueueElement QueueItem(int index, int runningPercent)
+    {
+        ImmutableArray<QueueHttpTryElement> tries = [];
+        if (runningPercent == -1)
+        {
+            tries = (index % 4) switch
+            {
+                0 => [new(Now, "selected", reservedIp: "r0")],
+                1 => [new(Now - 2 * TimeSpan.TicksPerSecond, "other")],
+                2 => [new(Now - 1, "other", Now, 200)],
+                _ => []
+            };
+        }
+        else if (index % 100 < runningPercent)
+            tries = [new(Now, index % 2 == 0 ? "selected" : "other", reservedIp: "r0")];
+        return new(new byte[] { 1 }, index.ToString(CultureInfo.InvariantCulture), Now,
+            runningPercent == -1 ? 1 : 30, [10], tries, [503]);
+    }
+
+    private static long Pop(ImmutableArray<QueueElement> queue)
+    {
+        var state = new SlimDataState(ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+            ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty.Add("queue", queue));
+        var context = new SlimDataCommandBatchContext();
+        var request = new SlimDataCommandBatchRequest
+        {
+            ProducerId = "producer", GenerationId = "generation", Sequence = 1, RequestId = "request",
+            Operations = [new() { Kind = SlimDataBatchOperationKind.ListRightPop, Key = "queue", RequestId = "pop",
+                TransactionId = "selected", NowTicks = Now, Count = 0 }]
+        };
+        var command = new ExecuteBatchCommand
+        {
+            Payload = SlimDataRaftBatchEnvelopeCodec.Serialize(new() { Requests = [request] })
+        };
+        SlimDataInterpreter.DoExecuteBatchAsync(command, state, context).AsTask().GetAwaiter().GetResult();
+        return context.Responses[0].Results[0].QueueItems?.Length ?? 0;
+    }
+
+    private static long Reserve(SlimDataPayload payload)
+    {
+        var state = new SlimDataState(payload.Hashsets, payload.KeyValues, payload.Queues);
+        return DurableStreamStore.Apply(new()
+        {
+            Action = DurableStreamAction.Reserve, Stream = "orders", Function = "billing", NewId = "attempt",
+            Owner = "node", Replica = "r0", MaximumParallel = int.MaxValue, MaximumPerReplica = int.MaxValue, NowTicks = Now
+        }, state).Status;
     }
 
     private static long Count(ImmutableArray<QueueElement> queue, CountType[] types, int maximum)
@@ -108,18 +159,20 @@ public static class Program
         for (int index = 0; index < count; index++)
         {
             string name = "s" + index.ToString("D8", CultureInfo.InvariantCulture);
-            definitions.Add(DurableStreamStore.DefinitionPrefix + name, MemoryPackSerializer.Serialize(
+            definitions.Add(DurableStreamStore.DefinitionPrefix + name, Encode(
                 new DurableStreamDefinition { Name = name, Visibility = "Public", Revision = index }));
             string id = "message-" + index.ToString(CultureInfo.InvariantCulture);
-            messages.Add(id, MemoryPackSerializer.Serialize(new DurableStreamMessage { Id = id, Sequence = index + 1, ContentType = "application/json" }));
-            pending.Add(id, MemoryPackSerializer.Serialize(new DurableStreamDelivery
+            messages.Add(id, Encode(new DurableStreamMessage { Id = id, Sequence = index + 1, ContentType = "application/json" }));
+            pending.Add(id, Encode(new DurableStreamDelivery
             {
                 MessageId = id, Function = "billing", SubscriptionGeneration = "sub", Replica = "r" + index % 4,
-                State = index % 2 == 0 ? "Running" : "WaitingForCallback"
+                State = index % 2 == 0 ? "Running" : "WaitingForCallback", DeadlineTicks = Now + TimeSpan.TicksPerMinute
             }));
             name = "f" + index.ToString("D8", CultureInfo.InvariantCulture);
-            subscriptions.Add(name, MemoryPackSerializer.Serialize(new DurableStreamSubscription { Function = name, Generation = "sub" }));
+            subscriptions.Add(name, Encode(new DurableStreamSubscription { Function = name, Generation = "sub" }));
         }
+        definitions.Add(DurableStreamStore.DefinitionPrefix + "orders", Encode(definition));
+        subscriptions.Add("billing", Encode(subscription));
         return (new SlimDataPayload
         {
             KeyValues = definitions.ToImmutable(), Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty,
@@ -129,8 +182,19 @@ public static class Program
         }, definition, subscription);
     }
 
+    private static byte[] Encode<T>(T value) where T : IMemoryPackable<T>
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using var optionalState = MemoryPackWriterOptionalStatePool.Rent(null);
+        var writer = new MemoryPackWriter<ArrayBufferWriter<byte>>(ref buffer, optionalState);
+        writer.WritePackable(value);
+        writer.Flush();
+        return buffer.WrittenSpan.ToArray();
+    }
+
     private static void Measure(List<Measurement> results, string name, Func<long> operation)
     {
+        long result = operation();
         long sink = 0;
         var timer = Stopwatch.StartNew();
         int iterations = 0;
@@ -143,7 +207,8 @@ public static class Program
             for (int index = 0; index < iterations; index++) sink += operation();
             double elapsed = Stopwatch.GetElapsedTime(started).TotalNanoseconds;
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-            results.Add(new(name, sample, iterations, elapsed / iterations, (double)allocated / iterations,
+            if (operation() != result) throw new InvalidOperationException("Probe result changed: " + name);
+            results.Add(new(name, sample, iterations, result, elapsed / iterations, (double)allocated / iterations,
                 GC.CollectionCount(0) - gen0, GC.CollectionCount(1) - gen1, GC.CollectionCount(2) - gen2));
         }
         Volatile.Write(ref _sink, sink);
@@ -157,7 +222,7 @@ public static class Program
     }
 }
 
-public sealed record Measurement(string Case, int Sample, int Iterations, double Nanoseconds, double Bytes,
+public sealed record Measurement(string Case, int Sample, int Iterations, long Result, double Nanoseconds, double Bytes,
     int Gen0, int Gen1, int Gen2);
 
 [JsonSerializable(typeof(List<Measurement>))]

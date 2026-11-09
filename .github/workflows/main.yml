@@ -92,6 +92,9 @@ jobs:
       - name: Test peer polling benchmark with coverage
         run: python .bin/test-status-stream-benchmark.py --coverage status-stream-coverage.xml
 
+      - name: Test benchmark provenance and file validation
+        run: python .bin/test-zlinq-benchmark.py
+
       - name: Build and analyze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

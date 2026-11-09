@@ -45,16 +45,21 @@ repeat of the Apple M4 results are outside this host's capabilities.
 Before timed execution, build all variants sequentially. The standalone
 `benchmarks/SlimFaas.CollectionProbe` uses the same instrumentation for both
 revisions. `PR504_BASELINE` selects the original count/projection/ranking calls;
-all product source remains at the stated revision. A friend-assembly entry in
-the baseline is instrumentation only. Measure self-contained untrimmed JIT and
+all product source remains at the stated revision. Friend-assembly entries in
+both baseline projects are instrumentation only. Measure self-contained untrimmed JIT and
 actual NativeAOT executables separately.
 
 Each case calibrates for 100 ms and takes exactly three samples at that fixed
 invocation count. Repeat each version/mode twice, reversing the variant order
 on the second round. Preserve every sample, unfavorable result and failed
 attempt. Report managed bytes/op separately from time, GC and process RSS.
-Queue cases cover 0/200/2,000 elements and 0/25/100% running; page cases use
+Queue cases cover 0/200/2,000 elements and 0/25/100% running plus mixed
+Available/Running/WaitingForRetry/Finished states; page cases use
 1/25-row limits with 0/200/2,000 definitions/subscriptions.
+Batch-pop cases execute the real composite-command result path on fresh states;
+reservation cases execute the state machine on fresh states with active leases.
+Their costs include cloning, validation, serialization and mutation as well as
+the targeted reads, so they are reported separately from pure count queries.
 
 ```powershell
 dotnet publish benchmarks/SlimFaas.CollectionProbe -c Release -r win-x64 `

@@ -42,17 +42,22 @@ def get(url):
 def resources():
     def read_node(url):
         metrics = {}
+        runtime = {}
         for line in get(url + "/metrics").splitlines():
             if line.startswith(("process_cpu_seconds_total ", "process_working_set_bytes ")):
                 name, value = line.split()
                 metrics[name] = float(value)
                 if not math.isfinite(metrics[name]) or metrics[name] < 0:
                     raise ValueError(f"Invalid resource metric: {name}={value}")
-        return metrics["process_cpu_seconds_total"], metrics["process_working_set_bytes"]
+            elif line.startswith(("dotnet_", "process_num_threads", "process_open_handles")):
+                name, value = line.rsplit(" ", 1)
+                runtime[name] = float(value)
+        return metrics["process_cpu_seconds_total"], metrics["process_working_set_bytes"], runtime
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         nodes = list(executor.map(read_node, NODES))
     return {"cpu_seconds": sum(row[0] for row in nodes), "rss_bytes": sum(row[1] for row in nodes),
+            "runtime_counters_by_node": [row[2] for row in nodes],
             "host_load_average": os.getloadavg() if hasattr(os, "getloadavg") else None}
 
 
@@ -224,6 +229,7 @@ def stream_case(args, directory):
 def verified_files_case(args, directory):
     """Isolated cross-node cycles with changing content and no request retries."""
     directory.mkdir()
+    failed_modes = []
     for mode in ("reused", "unique"):
         prefix = "verify-" + uuid.uuid4().hex
         before = resources()
@@ -283,7 +289,7 @@ def verified_files_case(args, directory):
         rows = [row for result in results for row in result[0]]
         errors = [error for result in results for error in result[1]]
         summary = {"mode": mode, "elapsed_seconds": elapsed, "completed": len(rows),
-                   "rate": len(rows) / elapsed, "errors": errors, "sampling_errors": sampling_errors,
+                   "rate": len(rows) / elapsed if elapsed else None, "errors": errors, "sampling_errors": sampling_errors,
                    "cpu_seconds": after["cpu_seconds"] - before["cpu_seconds"],
                    "peak_rss_bytes": max(item["rss_bytes"] for item in samples + [after])}
         for field in ("upload_ms", "download_ms", "cycle_ms"):
@@ -292,7 +298,9 @@ def verified_files_case(args, directory):
                               "p99": values[int(.99 * (len(values) - 1))] if values else None}
         save(directory / (mode + ".json"), {"summary": summary, "receipts": rows, "resources": samples})
         if errors or sampling_errors or not rows:
-            raise RuntimeError(f"Verified {mode}-ID file case failed; see {directory}")
+            failed_modes.append(mode)
+    if failed_modes:
+        raise RuntimeError(f"Verified file cases failed: {', '.join(failed_modes)}; see {directory}")
 
 
 def benchmark(args, variant, round_number):
@@ -340,10 +348,13 @@ def benchmark(args, variant, round_number):
         if os.name == "nt":
             processes = subprocess.check_output(["powershell", "-NoProfile", "-Command",
                 "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json"], text=True)
+            process_rows = json.loads(processes)
+            save(directory / "processes.json", [row for row in process_rows
+                if str(args.publish_root).lower() in (row.get("CommandLine") or "").lower()])
         else:
             processes = subprocess.check_output(["ps", "-axo", "pid,ppid,command"], text=True)
-        (directory / "processes.txt").write_text("\n".join(
-            line for line in processes.splitlines() if str(args.publish_root) in line) + "\n")
+            (directory / "processes.txt").write_text("\n".join(
+                line for line in processes.splitlines() if str(args.publish_root) in line) + "\n")
         if not args.skip_http:
             run(["dotnet", REPO / "benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll",
              "run", "--profile", "async-queue", "--duration", args.duration, "--warmup", args.warmup,
@@ -387,6 +398,8 @@ def main():
     parser.add_argument("--variants", default="baseline-jit,candidate-jit,candidate-aot,baseline-aot")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--skip-http", action="store_true", help="Run isolated data/file investigations without the HTTP matrix")
+    parser.add_argument("--continue-after-failure", action="store_true",
+                        help="Record failures and execute remaining planned attempts without retrying failed attempts")
     parser.add_argument("--verified-file-duration", type=int, default=0,
                         help="Seconds per reused/unique-ID file case; every GET is compared byte-for-byte")
     args = parser.parse_args()
@@ -474,6 +487,7 @@ def main():
         before, after = "baseline-" + mode, "candidate-" + mode
         if before in variants and after in variants and limits.get(before, args.rounds) != limits.get(after, args.rounds):
             parser.error(f"Unbalanced before/after analysis counts: {mode}")
+    failures = []
     for round_index in range(args.rounds):
         order = variants if round_index % 2 == 0 else list(reversed(variants))
         if round_index > 1:
@@ -489,7 +503,17 @@ def main():
                 continue
             if args.resume and directory.exists():
                 directory.rename(directory.with_name(directory.name + ".incomplete-" + str(time.time_ns())))
-            benchmark(args, variant, round_index + 1)
+            try:
+                benchmark(args, variant, round_index + 1)
+            except Exception as error:
+                failure = {"variant": variant, "round": round_index + 1, "error": str(error)}
+                failures.append(failure)
+                save(directory / "failed.json", failure)
+                if not args.continue_after_failure:
+                    raise
+    if failures:
+        save(args.output / "failures.json", failures)
+        raise RuntimeError(f"{len(failures)} planned attempts failed; no automatic retries were performed")
 
 
 if __name__ == "__main__":

@@ -28,6 +28,9 @@ jobs:
         run: npm test
       - name: Test peer polling benchmark
         run: python .bin/test-status-stream-benchmark.py
+
+      - name: Test benchmark provenance and file validation
+        run: python .bin/test-zlinq-benchmark.py
       - name: Build dashboard and reproducible scenarios
         working-directory: src/SlimFaas/ClientApp
         run: |
