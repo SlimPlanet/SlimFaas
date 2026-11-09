@@ -155,14 +155,14 @@ public static class Program
         var pending = ImmutableDictionary.CreateBuilder<string, ReadOnlyMemory<byte>>();
         var subscriptions = ImmutableDictionary.CreateBuilder<string, ReadOnlyMemory<byte>>();
         var definition = new DurableStreamDefinition { Name = "orders", Generation = "g", Tail = count, Visibility = "Public" };
-        var subscription = new DurableStreamSubscription { Function = "billing", Generation = "sub" };
+        var subscription = new DurableStreamSubscription { Function = "billing", Generation = "sub", NextSequence = count + 1 };
         for (int index = 0; index < count; index++)
         {
             string name = "s" + index.ToString("D8", CultureInfo.InvariantCulture);
             definitions.Add(DurableStreamStore.DefinitionPrefix + name, Encode(
                 new DurableStreamDefinition { Name = name, Visibility = "Public", Revision = index }));
-            string id = "message-" + index.ToString(CultureInfo.InvariantCulture);
-            messages.Add(id, Encode(new DurableStreamMessage { Id = id, Sequence = index + 1, ContentType = "application/json" }));
+            string id = "g_" + (index + 1).ToString("D20", CultureInfo.InvariantCulture);
+            messages.Add(id, Encode(new DurableStreamMessage { Id = id, Sequence = index + 1, ContentType = "application/json", AppendedAtTicks = Now }));
             pending.Add(id, Encode(new DurableStreamDelivery
             {
                 MessageId = id, Function = "billing", SubscriptionGeneration = "sub", Replica = "r" + index % 4,

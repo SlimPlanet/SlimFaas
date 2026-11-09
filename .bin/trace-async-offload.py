@@ -5,6 +5,7 @@ Diagnostic workload, not a replacement for the common .NET performance target.
 It preserves the persistent cluster state and every receipt/error after 300 s drain.
 """
 import argparse
+import base64
 import concurrent.futures
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -39,6 +40,7 @@ def main():
     observations = {}
     deliveries = []
     samples = []
+    file_observations = []
     errors = []
     finished = threading.Event()
     manifest = args.output / "local.yaml"
@@ -136,9 +138,26 @@ functions:
                     time.sleep(.25)
 
             def sample():
+                previous_files = set()
                 while not finished.wait(.5):
                     try:
                         samples.append(dict(time_ns=time.time_ns(), **CAMPAIGN.resources()))
+                        current_files = set()
+                        for path in (args.output / "state").rglob("*.bin"):
+                            encoded = path.name[:-4]
+                            try:
+                                identifier = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)).decode()
+                            except (ValueError, UnicodeError):
+                                continue
+                            if not identifier.startswith("sf-internal-"):
+                                continue
+                            current_files.add((str(path.relative_to(args.output)), identifier))
+                        now = time.time_ns()
+                        file_observations.extend({"time_ns": now, "event": "appeared", "path": path, "file_id": identifier}
+                                                 for path, identifier in current_files - previous_files)
+                        file_observations.extend({"time_ns": now, "event": "disappeared", "path": path, "file_id": identifier}
+                                                 for path, identifier in previous_files - current_files)
+                        previous_files = current_files
                     except Exception as error:
                         errors.append({"stage": "metrics", "error": str(error)})
 
@@ -178,6 +197,7 @@ functions:
                 time.sleep(.25)
             summary = {
                 "accepted": len(accepted), "observed": len(accepted) - len(missing), "missing_ids": missing,
+                "observed_without_202": sorted(observations.keys() - accepted),
                 "duplicates": {key: value for key, value in observations.items() if value > 1},
                 "body_mismatches": [row for row in deliveries if row["sha256"] != expected_hash or row["bytes"] != len(body)],
                 "http_errors": [row for row in receipts if row.get("status") != 202], "sampling_errors": errors,
@@ -194,6 +214,8 @@ functions:
         server.shutdown()
         server.server_close()
         CAMPAIGN.save(args.output / "resources.json", samples)
+        CAMPAIGN.save(args.output / "file-observations.json", {"samples": file_observations,
+            "poll_seconds": .5, "note": "Positive observations only; files with shorter lifetimes can be missed. Disappearance is not a timestamped delete syscall."})
 
 
 if __name__ == "__main__":
