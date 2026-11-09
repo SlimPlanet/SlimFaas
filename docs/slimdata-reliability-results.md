@@ -88,6 +88,12 @@ Native SDK run described below still fails concurrent large Stream publication.
 | 8 | Internal HashSet reads lacked a leader commit barrier | Native DELETE 204 followed by stale cron schedule on another node; deterministic read-blocking regression fails before and passes after; real retained-volume scenario passes |
 | 9 | Default Async lease policy omitted 504 | Real 2 MiB owner-timeout before failure; managed and Native after success; actual policy/interpreter regression |
 | 10 | Terminal DotNext WAL failure left a live but unrecoverable runtime | Linux ENOSPC CI retained the poisoned-WAL trace; diagnostics now logs critically and rethrows so the host stops and Local can restart it; terminal/transient worker regressions pass; later CI observed this stop and recovered its first disk-full cycle in 4.908 s, but failed a later file read during restarts |
+| 11 | Interrupted snapshot transfer could publish a truncated file and state/index | Real Native snapshot 765,436 bytes versus 15,350,868 on peers; transactional installation and nine real-WAL snapshot regressions; archive replay verifies confirmed data while retaining two missing historical job receipts |
+| 12 | Native job environment shapes lacked rooted MemoryPack formatters | Accepted real Native job repeatedly failed formatter construction; explicit registrations and actual literal/Kubernetes-reference payload campaign pass |
+| 13 | Acknowledged Local jobs existed only in supervisor memory | Gated acknowledged job disappears after full supervisor restart before the fix; durable plan journal, same-identity replay and real managed/Native recovery pass |
+| 14 | A cancelled WebSocket attempt waiting for the send lock could retain an impossible callback reservation | Original CI accepted ID has no send and never executes; blocked-send regression fails before; unsent release, failed-active-send abort and complete Native SDK campaigns pass |
+| 15 | ENOSPC while persisting a Local job exit could terminate supervision | Forced real job journal failure exits the before-fix supervisor; periodic dirty-transition reconciliation survives three storage-fault cycles, confirms all accepted work and preserves the terminal job checkpoint across restart |
+| 16 | An ordered producer waited for the old leader's 100-second HTTP timeout after a new leader was available | Real original/token-only leader-route controls fail at 15 seconds; consensus plus observed-leader epochs pass in 6.156 seconds, with 13 focused tests and the unchanged 8-second/20-second owner-timeout regression |
 
 The suspected formatter publication window is an inference from the CI trace and
 matching deterministic regressions, not an upstream formal proof. Generated
@@ -530,11 +536,12 @@ observation was invalid. The archived result is consistent with this overlap;
 the replay does not reconstruct its exact original read/commit interleaving.
 The campaign now records every counter observation and requires convergence
 within the **existing shared recovery deadline** when unknown increments remain.
-Every value must stay within the confirmed/possible bounds and must not regress
+Every value must stay within the confirmed/possible bounds, remain at least the
+highest confirmed increment response, and must not regress
 on a node. Duplicate confirmed increment results, out-of-range values, server
 errors and divergence without unknown writes still fail immediately. Persistent
 divergence still fails the original deadline. No mutation is retried. The new
-overlap regression fails before this harness correction; all **20** accounting
+overlap regression fails before this harness correction; all **21** accounting
 and safety tests pass afterwards. A new real endurance matrix is required;
 archive replay does not turn the old failed run into a passing campaign.
 Original results, replay observations and raw-file hashes are in

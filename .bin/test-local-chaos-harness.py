@@ -57,6 +57,16 @@ class CampaignSafetyTests(unittest.TestCase):
                         campaign.verify_counters()
                 self.assertEqual(3, send.call_count)
 
+    def test_counter_cannot_fall_below_the_highest_confirmed_increment_response(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.counter_results = [1, 3]
+            campaign.unknown = {"unknown": {"kind": "counter"}}
+            with patch.object(HARNESS, "request", return_value=(200, {}, b"2")) as send:
+                with self.assertRaisesRegex(AssertionError, "Mixed counter invariant"):
+                    campaign.verify_counters()
+            self.assertEqual(3, send.call_count)
+
     def test_counter_regression_is_not_hidden_by_unknown_writes(self):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)

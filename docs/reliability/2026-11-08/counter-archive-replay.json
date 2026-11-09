@@ -418,6 +418,19 @@
     "inspect-b002-quorum-replay-02.log": {
       "bytes": 1707,
       "sha256": "f7e046b89f7e2edeb7becea7719498191e5ad499c20825c3da41a869fd722c31"
+    },
+    "counter-confirmed-floor-before-tests.log": {
+      "bytes": 773,
+      "sha256": "10a3a93feaf414fdcc86039c262ef5758a825de32422a10dcc5d8781a6dca789"
+    },
+    "counter-confirmed-floor-after-tests.log": {
+      "bytes": 125,
+      "sha256": "aa9c1fdca3bc37ca0cc50ade8651b10d327f8f909d899ca03da1df1b3ca2e65a"
     }
+  },
+  "counter_confirmed_floor_regression": {
+    "before_failed": true,
+    "after_tests_passed": 21,
+    "note": "Recovered value must also be at least the maximum confirmed increment response; count alone is insufficient."
   }
 }

@@ -487,8 +487,9 @@ class Campaign:
         if not self.counter_results and not unknown_counters:
             return
         # Unknown responses may have committed; never retry the mutation.
-        lower = len(self.counter_results)
-        upper = lower + unknown_counters
+        confirmed = len(self.counter_results)
+        lower = max(confirmed, max(self.counter_results, default=0))
+        upper = confirmed + unknown_counters
         deadline = deadline if deadline is not None else time.monotonic() + self.options.recovery_timeout
         previous = None
         def converged():
@@ -508,8 +509,8 @@ class Campaign:
                 raise AssertionError("Mixed counter is unavailable after recovery")
             numbers = [int(value) for _, _, value in values]
             self.client.append({"event": "counter-observation", "phase": self.phase,
-                                "values": numbers, "confirmed": lower, "possible": upper})
-            if (len(set(self.counter_results)) != lower or any(not lower <= number <= upper for number in numbers)
+                                "values": numbers, "confirmed": confirmed, "minimum": lower, "possible": upper})
+            if (len(set(self.counter_results)) != confirmed or any(not lower <= number <= upper for number in numbers)
                     or previous is not None and any(now < before for now, before in zip(numbers, previous))):
                 raise AssertionError(f"Mixed counter invariant: {numbers}, confirmed={lower}, possible={upper}")
             previous = numbers
