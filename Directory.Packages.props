@@ -79,7 +79,7 @@
 
   <!-- Raft / DotNext -->
   <ItemGroup>
-    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.11.1" />
+    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.12.0" />
   </ItemGroup>
 
   <!-- Samples -->
