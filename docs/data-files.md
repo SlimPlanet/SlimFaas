@@ -397,12 +397,12 @@ The dashboard animates authorized API calls through SlimFaas to its logical stor
 
 ## Overwrites during active reads
 
-File and metadata readers allow atomic replacement and deletion on Windows.
+File and metadata readers share read, write and deletion access so Windows
+can replace a version while another request opens or finishes reading it.
 An already-open download stream retains its opened version while a later
 request can open the replacement. This prevents sharing-violation errors when
-an ID is overwritten while a replica is still reading it. Metadata reads are
-unbuffered, avoiding an extra read buffer for these small records. Existing
-Windows destinations use `File.Replace`; new files still use `File.Move`.
+an ID is overwritten while a replica is still reading it. Writes create a
+temporary file before replacing the version; they do not edit an open body.
 
 This Windows correctness fix is separate from the M4 throughput and async
 quorum investigations in [the PR 504 follow-up](performance-pr504-followup.md).

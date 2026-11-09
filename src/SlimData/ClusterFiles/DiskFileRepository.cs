@@ -8,6 +8,9 @@ namespace SlimData.ClusterFiles;
 public sealed class DiskFileRepository : IFileRepository
 {
     private const string MetaExt = ".meta.mp";
+    // Versions are written to temporary files. ReplaceFile temporarily retains
+    // write access to a replacement, so concurrent readers must share it too.
+    private const FileShare ReadSharing = FileShare.ReadWrite | FileShare.Delete;
     private readonly string _root;
     private readonly ILogger<DiskFileRepository> _logger;
     private readonly IFileCacheControl _cacheControl;
@@ -147,7 +150,7 @@ public sealed class DiskFileRepository : IFileRepository
     {
         var (filePath, _) = GetPaths(id);
 #pragma warning disable CA2000 // ownership is transferred to the returned FileCacheDroppingReadStream
-        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete,
+        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, ReadSharing,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
 #pragma warning restore CA2000
 
@@ -206,7 +209,7 @@ public sealed class DiskFileRepository : IFileRepository
         // Atomic replacement must remain possible while a reader finishes its
         // old file version. File.ReadAllBytesAsync does not share deletion on Windows.
         await using var stream = new FileStream(metaPath, FileMode.Open, FileAccess.Read,
-            FileShare.Read | FileShare.Delete, bufferSize: 1,
+            ReadSharing, bufferSize: 1,
             options: FileOptions.Asynchronous | FileOptions.SequentialScan);
         long length = stream.Length;
         if (length > Array.MaxLength)

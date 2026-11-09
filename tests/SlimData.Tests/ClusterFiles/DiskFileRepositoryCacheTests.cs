@@ -16,6 +16,23 @@ public sealed class DiskFileRepositoryCacheTests : IDisposable
     }
 
     [Fact]
+    public async Task Readers_can_open_a_version_while_replacement_retains_its_write_handle()
+    {
+        var sut = CreateRepository(new TrackingCacheControl());
+        using var content = new MemoryStream([1, 2, 3]);
+        var put = await sut.SaveAsync("id", content, "application/octet-stream", true, null, CancellationToken.None);
+        // ReplaceFile opens the replacement with write access. A concurrent
+        // reader must share that access until the replacement call closes it.
+        await using var replacementBody = new FileStream(Assert.Single(Directory.GetFiles(_directory, "*.bin")),
+            FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+        await using var replacementMetadata = new FileStream(Assert.Single(Directory.GetFiles(_directory, "*.meta.mp")),
+            FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+        await using var reader = await sut.OpenReadAsync("id", CancellationToken.None);
+        Assert.Equal(1, reader.ReadByte());
+        Assert.Equal(put.Sha256Hex, (await sut.TryGetMetadataAsync("id", CancellationToken.None))!.Sha256Hex);
+    }
+
+    [Fact]
     public async Task Open_readers_keep_their_version_when_the_id_is_replaced_and_deleted()
     {
         var sut = CreateRepository(new TrackingCacheControl());
