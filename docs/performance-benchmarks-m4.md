@@ -2,6 +2,10 @@
 
 ## Scope and host
 
+The [PR 504 follow-up](performance-pr504-followup.md) investigates additional
+count/projection costs and reliability on Windows, using this PR's final head
+as its incremental baseline. Its results are separate from this M4 comparison.
+
 This campaign rebuilds and measures the baseline on the new machine. Historical Windows/Ryzen results in [the earlier report](performance-benchmarks.md) are not used as its baseline.
 
 - Baseline: `496e8739e5f7b4326f64520fe4caa4e0e23f8d06` (PR base, without ZLinq).

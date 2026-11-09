@@ -128,10 +128,9 @@ public static class StreamEndpoints
         if (prefix.Length > 256 || !Paging(context, out int limit) || !Cursor(context, "catalog:" + prefix, out string? after))
             return Error(400, "Invalid pagination.");
         var payload = await service.ReadAsync(cancellationToken);
-        var rows = service.Summaries(context, payload).AsValueEnumerable().Where(item => item.Name.StartsWith(prefix, StringComparison.Ordinal) &&
-            (after is null || string.CompareOrdinal(item.Name, after) > 0)).Take(limit + 1).ToArray();
+        var rows = service.Summaries(context, payload, prefix, after, limit + 1);
         return TypedResults.Json(new StreamPage<StreamSummary>(rows.AsValueEnumerable().Take(limit).ToArray(),
-            rows.Length > limit ? EncodeCursor("catalog:" + prefix, rows[limit - 1].Name) : null,
+            rows.Count > limit ? EncodeCursor("catalog:" + prefix, rows[limit - 1].Name) : null,
             DateTimeOffset.UtcNow, rows.AsValueEnumerable().Select(static item => item.Revision).DefaultIfEmpty().Max()),
             StreamJsonContext.Default.StreamPageStreamSummary);
     }
@@ -139,7 +138,7 @@ public static class StreamEndpoints
     {
         var (payload, definition) = await Read(stream, context, service, cancellationToken);
         if (definition is null) return TypedResults.NotFound();
-        var summary = service.Summaries(context, payload).Single(item => item.Name == stream);
+        var summary = service.Summary(context, payload, definition);
         return TypedResults.Json(summary, StreamJsonContext.Default.StreamSummary);
     }
     private static async Task<IResult> Messages(string stream, HttpContext context, IStreamService service, CancellationToken cancellationToken)
@@ -197,10 +196,9 @@ public static class StreamEndpoints
         if (definition is null) return TypedResults.NotFound();
         string scope = stream + ":" + definition.Generation;
         if (!Paging(context, out int limit) || !Cursor(context, scope, out string? after)) return Error(400, "Invalid pagination.");
-        var rows = service.Functions(context, payload, definition).AsValueEnumerable().Where(item =>
-            after is null || string.CompareOrdinal(item.Function, after) > 0).Take(limit + 1).ToArray();
+        var rows = service.Functions(context, payload, definition, after, limit + 1);
         return TypedResults.Json(new StreamPage<StreamFunctionSummary>(rows.AsValueEnumerable().Take(limit).ToArray(),
-            rows.Length > limit ? EncodeCursor(scope, rows[limit - 1].Function) : null, DateTimeOffset.UtcNow, definition.Revision),
+            rows.Count > limit ? EncodeCursor(scope, rows[limit - 1].Function) : null, DateTimeOffset.UtcNow, definition.Revision),
             StreamJsonContext.Default.StreamPageStreamFunctionSummary);
     }
     private static async Task<IResult> Function(string stream, string function, HttpContext context,
@@ -208,7 +206,7 @@ public static class StreamEndpoints
     {
         var (payload, definition) = await Read(stream, context, service, cancellationToken);
         if (definition is null) return TypedResults.NotFound();
-        var row = service.Functions(context, payload, definition).FirstOrDefault(item => item.Function == function);
+        var row = service.FunctionSummary(context, payload, definition, function);
         return row is null ? TypedResults.NotFound() : TypedResults.Json(row, StreamJsonContext.Default.StreamFunctionSummary);
     }
     private static async Task<IResult> Subscribe(string stream, string function, HttpContext context,

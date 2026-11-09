@@ -617,14 +617,39 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             return 0;
         }
 
-        var nowTicks = DateTime.UtcNow.Ticks;
+        return CountQueueElements(value, countTypes, maximum, DateTime.UtcNow.Ticks);
+    }
+
+    internal static long CountQueueElements(
+        ImmutableArray<QueueElement> queue,
+        IList<CountType> countTypes,
+        int maximum,
+        long nowTicks)
+    {
+        bool availableRequested = countTypes.Contains(CountType.Available) && maximum > 0;
+        bool runningRequested = countTypes.Contains(CountType.Running);
+        bool retryRequested = countTypes.Contains(CountType.WaitingForRetry);
+        if (queue.IsDefaultOrEmpty || (!availableRequested && !runningRequested && !retryRequested))
+            return 0;
+
+        int available = 0;
         long count = 0;
-        if (countTypes.Contains(CountType.Available))
-            count += value.GetQueueAvailableElement(nowTicks, maximum).Length;
-        if (countTypes.Contains(CountType.Running))
-            count += value.GetQueueRunningElement(nowTicks).Length;
-        if (countTypes.Contains(CountType.WaitingForRetry))
-            count += value.GetQueueWaitingForRetryElement(nowTicks).Length;
+        foreach (QueueElement element in queue)
+        {
+            switch (element.GetState(nowTicks))
+            {
+                case QueueElementState.Available when availableRequested && available < maximum:
+                    available++;
+                    count++;
+                    if (available == maximum && !runningRequested && !retryRequested)
+                        return count;
+                    break;
+                case QueueElementState.Running when runningRequested:
+                case QueueElementState.WaitingForRetry when retryRequested:
+                    count++;
+                    break;
+            }
+        }
         return count;
     }
 
@@ -648,21 +673,18 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         var runningReservations = new List<QueueRunningReservation>();
         foreach (QueueElement element in queue)
         {
-            if (element.IsFinished(nowTicks))
-                continue;
-            if (element.IsRunning(nowTicks))
+            switch (element.GetState(nowTicks))
             {
-                runningReservations.Add(new QueueRunningReservation(
-                    element.Id,
-                    element.GetLastReservedIp()));
-                continue;
+                case QueueElementState.Running:
+                    runningReservations.Add(new QueueRunningReservation(element.Id, element.GetLastReservedIp()));
+                    break;
+                case QueueElementState.WaitingForRetry:
+                    waitingForRetry++;
+                    break;
+                case QueueElementState.Available:
+                    available++;
+                    break;
             }
-            if (element.IsWaitingForRetry(nowTicks))
-            {
-                waitingForRetry++;
-                continue;
-            }
-            available++;
         }
 
         return new QueueDispatchState(

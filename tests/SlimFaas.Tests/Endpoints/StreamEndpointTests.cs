@@ -24,12 +24,59 @@ namespace SlimFaas.Tests.Endpoints;
 
 public sealed class StreamEndpointTests
 {
+    [Fact]
+    public async Task Catalog_pages_preserve_ordinal_cursors_lookahead_revision_and_single_stream_projection()
+    {
+        var fixture = new Fixture(true);
+        foreach (string name in new[] { "z", "b", "a", "A" }) await fixture.Configure(name);
+        var definition = DurableStreamStore.Definition(fixture.Payload, "b")!;
+        definition.Revision = 77;
+        fixture.State.KeyValues = fixture.State.KeyValues.SetItem(DurableStreamStore.DefinitionPrefix + "b",
+            MemoryPack.MemoryPackSerializer.Serialize(definition));
+        await fixture.Service.MutateAsync(new() { Action = DurableStreamAction.Append, Stream = "z", Value = [1] }, CancellationToken.None);
+        string message = DurableStreamStore.Messages(fixture.Payload,
+            DurableStreamStore.Definition(fixture.Payload, "z")!, 0, 1).Single().Id;
+        fixture.State.Hashsets = fixture.State.Hashsets.SetItem("\0stream:messages:z",
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(message, new byte[] { 5 }));
+        using var host = await fixture.Start();
+        var client = host.GetTestClient();
+        using var page = JsonDocument.Parse(await client.GetStringAsync("http://localhost:5000/data/streams?limit=2"));
+        Assert.Equal(new[] { "A", "a" }, page.RootElement.GetProperty("Items").EnumerateArray().Select(item => item.GetProperty("Name").GetString()));
+        Assert.Equal(77, page.RootElement.GetProperty("Revision").GetInt64());
+        string cursor = page.RootElement.GetProperty("NextCursor").GetString()!;
+        fixture.State.Hashsets = fixture.State.Hashsets.Remove("\0stream:messages:z");
+        // The lookahead row contributes to Revision, as it did before pagination moved into the service.
+        using var next = JsonDocument.Parse(await client.GetStringAsync("http://localhost:5000/data/streams?limit=1&after=" + Uri.EscapeDataString(cursor)));
+        Assert.Equal("b", next.RootElement.GetProperty("Items")[0].GetProperty("Name").GetString());
+        using var metadata = await client.GetAsync("http://localhost:5000/data/streams/a/metadata");
+        Assert.Equal(HttpStatusCode.OK, metadata.StatusCode);
+    }
+
+    [Fact]
+    public async Task Function_pages_and_single_function_do_not_decode_off_page_pending_deliveries()
+    {
+        var fixture = new Fixture(true); await fixture.Configure("orders");
+        foreach (string function in new[] { "z", "b", "a" })
+            await fixture.Service.MutateAsync(new() { Action = DurableStreamAction.Subscribe, Stream = "orders", Function = function }, CancellationToken.None);
+        fixture.State.Hashsets = fixture.State.Hashsets.SetItem("\0stream:pending:orders:z",
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("corrupt", new byte[] { 5 }));
+        using var host = await fixture.Start(); var client = host.GetTestClient();
+        using var page = JsonDocument.Parse(await client.GetStringAsync("http://localhost:5000/data/streams/orders/functions?limit=1"));
+        Assert.Equal("a", page.RootElement.GetProperty("Items")[0].GetProperty("Function").GetString());
+        Assert.NotNull(page.RootElement.GetProperty("NextCursor").GetString());
+        using var single = await client.GetAsync("http://localhost:5000/data/streams/orders/functions/a");
+        Assert.Equal(HttpStatusCode.OK, single.StatusCode);
+        using var missing = await client.GetAsync("http://localhost:5000/data/streams/orders/functions/missing");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
     private sealed class Fixture
     {
         internal SlimDataState State { get; } = new(
             ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
             ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
             ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
+        internal SlimDataPayload Payload => new() { KeyValues = State.KeyValues, Hashsets = State.Hashsets, Queues = State.Queues };
         internal IStreamService Service { get; }
         internal SlimDataPayload? ObservationOverride { get; set; }
         internal NetworkActivityTracker Activity { get; } = new();

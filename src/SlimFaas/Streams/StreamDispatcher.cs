@@ -113,9 +113,10 @@ public sealed class StreamDispatcher(IStreamService service, ISupplier<SlimDataP
             ? registry.GetConnections(function.Deployment).AsValueEnumerable()
                 .Select(static connection => connection.ConnectionId).ToHashSet(StringComparer.Ordinal)
             : null;
+        var runningByReplica = DurableStreamStore.RunningByReplica(payload, function.Deployment);
         var candidates = function.Pods.AsValueEnumerable().Where(pod => pod.Ready == true && !string.IsNullOrEmpty(pod.Ip) &&
                 (localConnections is null || localConnections.Contains(pod.Ip)))
-            .OrderBy(pod => DurableStreamStore.Running(state.Invoke(), function.Deployment, Proxy.RoutingTarget(pod))).ToArray();
+            .OrderBy(pod => runningByReplica.GetValueOrDefault(Proxy.RoutingTarget(pod))).ToArray();
         foreach (var pod in candidates)
         {
             var connection = function.PodType == PodType.WebSocket

@@ -1039,11 +1039,9 @@ public static class SlimDataInterpreter
         if (!state.Queues.TryGetValue(operation.Key, out var queue))
             return [];
 
-        return queue
-            .GetQueueRunningElement(operation.NowTicks)
-            .AsValueEnumerable()
+        return queue.AsValueEnumerable()
             .Where(item =>
-                !item.RetryQueueElements.IsDefaultOrEmpty &&
+                item.IsRunning(operation.NowTicks) &&
                 item.RetryQueueElements[^1].IdTransaction == operation.TransactionId)
             .Select(static item => new QueueData(
                 item.Id,
