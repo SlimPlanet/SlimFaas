@@ -32,6 +32,7 @@ LOG_SETTINGS = {"Logging__Console__FormatterName": "simple",
                 "Logging__Console__FormatterOptions__TimestampFormat": "yyyy-MM-ddTHH:mm:ss.fffffffZ ",
                 "Logging__Console__FormatterOptions__UseUtcTimestamp": "true",
                 "Logging__Console__FormatterOptions__SingleLine": "true"}
+MINIMUM_FREE_DISK_BYTES = 4 * 1024 ** 3
 
 
 def main():
@@ -46,6 +47,12 @@ def main():
         parser.error("duration must be 1..3600 and clients 1..256")
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False)
+    free_disk_bytes = shutil.disk_usage(args.output).free
+    if free_disk_bytes < MINIMUM_FREE_DISK_BYTES:
+        CAMPAIGN.save(args.output / "not-started.json", {
+            "reason": "Insufficient disk headroom; no runtime or workload was started",
+            "free_disk_bytes": free_disk_bytes, "minimum_free_disk_bytes": MINIMUM_FREE_DISK_BYTES})
+        raise RuntimeError("Async tracing requires at least 4 GiB free for retained replicated bodies")
     body = bytes(index % 251 for index in range(2 * 1024 * 1024))
     expected_hash = hashlib.sha256(body).hexdigest()
     lock = threading.Lock()
@@ -132,6 +139,7 @@ functions:
         "duration": args.duration, "clients": args.clients, "payload_bytes": len(body), "payload_sha256": expected_hash,
         "dispatch_capacity": 16, "drain_timeout_seconds": 300, "warmup_seconds": 0,
         "platform": platform.platform(), "free_disk_bytes_at_start": shutil.disk_usage(args.output).free,
+        "minimum_free_disk_bytes": MINIMUM_FREE_DISK_BYTES,
         "trace_sha256": hashlib.sha256((CAMPAIGN.REPO / ".bin/trace-async-offload.py").read_bytes()).hexdigest(),
         "harness_sha256": hashlib.sha256(CAMPAIGN.HARNESS_SOURCE).hexdigest(),
         "log_settings": LOG_SETTINGS,

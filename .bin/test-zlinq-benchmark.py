@@ -26,6 +26,19 @@ TRACE_SPEC.loader.exec_module(TRACE)
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_async_trace_rejects_low_disk_before_binding_or_starting_a_runtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "trace"
+            with patch("sys.argv", ["trace", "--variant", "baseline-jit", "--output", str(output)]), \
+                 patch.object(TRACE.shutil, "disk_usage", return_value=types.SimpleNamespace(free=1)), \
+                 patch.object(TRACE, "ThreadingHTTPServer") as server, \
+                 patch.object(TRACE.CAMPAIGN, "start_local") as runtime:
+                with self.assertRaisesRegex(RuntimeError, "4 GiB"):
+                    TRACE.main()
+            server.assert_not_called()
+            runtime.assert_not_called()
+            self.assertTrue((output / "not-started.json").exists())
+
     @unittest.skipUnless(os.name == "nt", "Windows console control events")
     def test_hidden_console_shutdown_runs_the_owned_process_handler(self):
         command = [sys.executable, "-c", "import signal,sys\nsignal.signal(signal.SIGBREAK, lambda *args: sys.exit(0))\nprint('ready',flush=True)\nwhile True:\n    pass"]
