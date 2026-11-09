@@ -48,7 +48,8 @@ class ArchiveTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 TRACE.main()
         process.assert_not_called()
-        self.assertEqual(set(TRACE.RUNTIMES), {"baseline-jit", "candidate-jit", "baseline-aot", "candidate-aot"})
+        self.assertEqual(set(TRACE.RUNTIMES), {"baseline-jit", "candidate-jit", "baseline-aot", "candidate-aot",
+                                             "candidate-fixed-jit", "candidate-fixed-aot"})
 
     def test_initial_and_resumed_archives_match_the_hashed_fixed_source(self):
         with tempfile.TemporaryDirectory() as temporary:

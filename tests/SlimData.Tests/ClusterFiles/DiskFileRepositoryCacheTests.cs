@@ -16,6 +16,31 @@ public sealed class DiskFileRepositoryCacheTests : IDisposable
     }
 
     [Fact]
+    public async Task Open_readers_keep_their_version_when_the_id_is_replaced_and_deleted()
+    {
+        var sut = CreateRepository(new TrackingCacheControl());
+        using var original = new MemoryStream([1, 2, 3]);
+        await sut.SaveAsync("id", original, "application/octet-stream", true, null, CancellationToken.None);
+        await using var oldReader = await sut.OpenReadAsync("id", CancellationToken.None);
+        await using var oldMetadata = new FileStream(Assert.Single(Directory.GetFiles(_directory, "*.meta.mp")),
+            FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+
+        using var replacement = new MemoryStream([4, 5, 6, 7]);
+        var updated = await sut.SaveAsync("id", replacement, "application/octet-stream", true, null, CancellationToken.None);
+        Assert.Equal(updated.Sha256Hex, (await sut.TryGetMetadataAsync("id", CancellationToken.None))!.Sha256Hex);
+        await using var newReader = await sut.OpenReadAsync("id", CancellationToken.None);
+        await sut.DeleteAsync("id", CancellationToken.None);
+
+        using var oldBytes = new MemoryStream();
+        using var newBytes = new MemoryStream();
+        await oldReader.CopyToAsync(oldBytes);
+        await newReader.CopyToAsync(newBytes);
+        Assert.Equal(new byte[] { 1, 2, 3 }, oldBytes.ToArray());
+        Assert.Equal(new byte[] { 4, 5, 6, 7 }, newBytes.ToArray());
+        Assert.Null(await sut.TryGetMetadataAsync("id", CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Save_and_synchronous_read_dispose_drop_cache_once_each()
     {
         var cache = new TrackingCacheControl();

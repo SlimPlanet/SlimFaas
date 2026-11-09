@@ -23,6 +23,8 @@ CAMPAIGN = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CAMPAIGN)
 RUNTIMES = {variant: CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime", variant)
             for variant in ("baseline-jit", "candidate-jit", "baseline-aot", "candidate-aot")}
+RUNTIMES.update({"candidate-fixed-jit": CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime-filefix", "candidate-jit"),
+                 "candidate-fixed-aot": CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime-filefix", "candidate-aot")})
 
 
 def main():
