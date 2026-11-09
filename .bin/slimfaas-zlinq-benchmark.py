@@ -15,8 +15,10 @@ import signal
 import socket
 import statistics
 import subprocess
+import sys
 import threading
 import time
+import traceback
 import urllib.error
 import urllib.request
 import uuid
@@ -126,12 +128,44 @@ def run(command, log, **kwargs):
                        stderr=subprocess.STDOUT, check=True, **kwargs)
 
 
+def start_local(command, **kwargs):
+    if os.name == "nt":
+        startup = subprocess.STARTUPINFO()
+        startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startup.wShowWindow = 0
+        return subprocess.Popen(command, startupinfo=startup, creationflags=subprocess.CREATE_NEW_CONSOLE, **kwargs)
+    return subprocess.Popen(command, start_new_session=True, **kwargs)
+
+
 def stop(process):
     if process.poll() is None:
         if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-            process.wait(timeout=20)
+            # Send Ctrl+Break from a short-lived helper attached only to this
+            # supervisor's hidden console. Normal disposal removes ephemeral
+            # state; TerminateProcess would bypass that cleanup on Windows.
+            helper = r'''
+import ctypes, sys
+api = ctypes.WinDLL("kernel32", use_last_error=True)
+handler = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_uint)(lambda event: 1)
+api.FreeConsole()
+if not api.AttachConsole(int(sys.argv[1])):
+    raise ctypes.WinError(ctypes.get_last_error())
+api.SetConsoleCtrlHandler(handler, True)
+if not api.GenerateConsoleCtrlEvent(1, 0):
+    raise ctypes.WinError(ctypes.get_last_error())
+api.FreeConsole()
+'''
+            signal_result = subprocess.run([sys.executable, "-c", helper, str(process.pid)],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW, check=False)
+            try:
+                process.wait(timeout=20)
+            except subprocess.TimeoutExpired:
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                process.wait(timeout=20)
+                raise RuntimeError("Local supervisor required forced termination; ephemeral state may be retained. " + signal_result.stderr) from None
+            if signal_result.returncode and process.returncode:
+                raise RuntimeError("Local console shutdown failed: " + signal_result.stderr)
             return
         process.terminate()
         try:
@@ -156,14 +190,14 @@ def data_case(args, directory, scenario, warmup=False):
     samples = [dict(elapsed=0, **before)]
     errors = []
     finished = threading.Event()
-    started = time.monotonic()
+    started = time.perf_counter()
 
     def sample():
         try:
             while not finished.wait(0.5):
                 if phase.read_text().strip() != "load":
                     break
-                samples.append(dict(elapsed=time.monotonic() - started, **resources()))
+                samples.append(dict(elapsed=time.perf_counter() - started, **resources()))
         except Exception as error:
             errors.append(str(error))
 
@@ -227,7 +261,7 @@ def stream_case(args, directory):
 
     def publish(index):
         ticks = time.time_ns() // 100 + 621355968000000000
-        started = time.monotonic()
+        started = time.perf_counter()
         status, receipt = post(NODES[index % 3] + f"/publish-stream/{stream}/echo", body, {
             "Content-Type": "application/octet-stream",
             "X-SlimFaas-Benchmark-Run-Id": run_id,
@@ -236,24 +270,24 @@ def stream_case(args, directory):
         })
         if status != 202:
             raise RuntimeError(f"Unexpected append response: {status}")
-        return json.loads(receipt)["MessageId"], (time.monotonic() - started) * 1000
+        return json.loads(receipt)["MessageId"], (time.perf_counter() - started) * 1000
 
     sampler = threading.Thread(target=sample)
     sampler.start()
-    started = time.monotonic()
+    started = time.perf_counter()
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.data_concurrency) as executor:
             receipts = list(executor.map(publish, range(args.stream_messages)))
-        deadline = time.monotonic() + 300
+        deadline = time.perf_counter() + 300
         while True:
             delivery = json.loads(get(f"http://127.0.0.1:31080/benchmark/observations/{run_id}"))
             progress = json.loads(get(base + f"/data/streams/{stream}/functions/benchmark-latency"))
             if delivery["uniqueCount"] == args.stream_messages and progress["Lag"] == 0 and progress["PendingCount"] == 0:
                 break
-            if time.monotonic() >= deadline:
+            if time.perf_counter() >= deadline:
                 raise TimeoutError(f"Stream did not drain: {delivery}, {progress}")
             time.sleep(0.25)
-        elapsed = time.monotonic() - started
+        elapsed = time.perf_counter() - started
         after = resources()
     finally:
         finished.set()
@@ -286,7 +320,7 @@ def verified_files_case(args, directory):
         samples = [before]
         finished = threading.Event()
         sampling_errors = []
-        started = time.monotonic()
+        started = time.perf_counter()
         deadline = started + args.verified_file_duration
 
         def sample():
@@ -299,21 +333,23 @@ def verified_files_case(args, directory):
         def worker(index):
             rows, errors = [], []
             sequence = 0
-            while time.monotonic() < deadline:
+            while time.perf_counter() < deadline:
                 identifier = f"{prefix}-{index}" + (f"-{sequence}" if mode == "unique" else "")
                 token = hashlib.sha256(f"{prefix}-{index}-{sequence}".encode()).digest()
                 body = (token * ((args.file_bytes + len(token) - 1) // len(token)))[:args.file_bytes]
-                upload_started = time.monotonic()
+                upload_started = time.perf_counter()
                 try:
                     request = urllib.request.Request(NODES[index % 3] + f"/data/files?id={identifier}&ttl=120000",
                         data=body, headers={"Content-Type": "application/octet-stream"}, method="POST")
                     with HTTP.open(request, timeout=60) as response:
                         response.read()
-                    uploaded = time.monotonic()
+                    uploaded = time.perf_counter()
                     with HTTP.open(NODES[(index + 1) % 3] + f"/data/files/{identifier}", timeout=60) as response:
                         received = response.read()
-                    downloaded = time.monotonic()
+                    downloaded = time.perf_counter()
                     if received != body:
+                        with (directory / f"mismatch-{mode}-{index}-{sequence}.bin").open("wb") as evidence:
+                            evidence.write(received)
                         raise ValueError(f"Content mismatch: expected={hashlib.sha256(body).hexdigest()} "
                                          f"actual={hashlib.sha256(received).hexdigest()} bytes={len(received)}")
                     rows.append({"id": identifier, "sequence": sequence, "sha256": hashlib.sha256(body).hexdigest(),
@@ -331,7 +367,7 @@ def verified_files_case(args, directory):
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=args.data_concurrency) as executor:
                 results = list(executor.map(worker, range(args.data_concurrency)))
-            elapsed = time.monotonic() - started
+            elapsed = time.perf_counter() - started
             after = resources()
         finally:
             finished.set()
@@ -362,7 +398,7 @@ def benchmark(args, variant, round_number):
     if args.dispatch_parallelism != 256:
         manifest_args += ["-f", args.output / "dispatch-overlay.yaml"]
     for port in [31020, 31021, 31022, 31023, 31080, 3162, 3163, 3164]:
-        deadline = time.monotonic() + 20
+        deadline = time.perf_counter() + 20
         while True:
             try:
                 with socket.socket() as probe:
@@ -371,17 +407,17 @@ def benchmark(args, variant, round_number):
                     probe.bind(("127.0.0.1", port))
                 break
             except OSError:
-                if time.monotonic() >= deadline:
+                if time.perf_counter() >= deadline:
                     raise RuntimeError(f"Benchmark port {port} remains occupied") from None
                 time.sleep(0.1)
     run([binary, "local", "validate", *manifest_args],
         directory / "validate.log")
     local_log = (directory / "local.log").open("w")
-    started = time.monotonic()
-    process = subprocess.Popen([str(binary), "local", "up", *map(str, manifest_args), "--clean"],
-                               cwd=REPO, stdout=local_log, stderr=subprocess.STDOUT, start_new_session=True)
+    started = time.perf_counter()
+    process = start_local([str(binary), "local", "up", *map(str, manifest_args), "--clean"],
+                          cwd=REPO, stdout=local_log, stderr=subprocess.STDOUT)
     try:
-        deadline = time.monotonic() + 180
+        deadline = time.perf_counter() + 180
         while True:
             if process.poll() is not None:
                 raise RuntimeError(f"Local cluster exited: {directory / 'local.log'}")
@@ -390,10 +426,10 @@ def benchmark(args, variant, round_number):
                 get("http://127.0.0.1:31080/health")
                 break
             except (OSError, urllib.error.URLError):
-                if time.monotonic() >= deadline:
+                if time.perf_counter() >= deadline:
                     raise TimeoutError("Local cluster readiness exceeded 180 seconds") from None
                 time.sleep(0.25)
-        save(directory / "startup.json", {"ready_seconds": time.monotonic() - started})
+        save(directory / "startup.json", {"ready_seconds": time.perf_counter() - started})
         time.sleep(5)
         save(directory / "idle.json", resources())
         record_processes(directory, process, args.publish_root)
@@ -418,8 +454,11 @@ def benchmark(args, variant, round_number):
         save(directory / "complete.json", {"variant": variant, "round": round_number})
         print(f"COMPLETE round={round_number} variant={variant}", flush=True)
     finally:
-        stop(process)
-        local_log.close()
+        try:
+            stop(process)
+            save(directory / "shutdown.json", {"exit_code": process.returncode})
+        finally:
+            local_log.close()
 
 
 def main():
@@ -548,7 +587,8 @@ def main():
             try:
                 benchmark(args, variant, round_index + 1)
             except Exception as error:
-                failure = {"variant": variant, "round": round_index + 1, "error": str(error)}
+                failure = {"variant": variant, "round": round_index + 1, "error": str(error),
+                           "traceback": "".join(traceback.format_exception(error))}
                 failures.append(failure)
                 save(directory / "failed.json", failure)
                 if not args.continue_after_failure:

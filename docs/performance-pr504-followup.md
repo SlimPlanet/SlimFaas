@@ -82,6 +82,9 @@ thread wait stacks. Verified file cycles retain upload/read p95/p99 separately.
 The diagnostic correlates HTTP receipts, queue IDs, byte-verified deliveries,
 runtime logs and 500 ms file-presence observations. Short-lived files can be
 missed by polling, and disappearance is not a timestamped deletion syscall.
+Windows supervisors receive Ctrl+Break through their own hidden console, so
+normal disposal removes ephemeral benchmark state. Forced termination is a
+reported cleanup failure. Diagnostic offload state is persistent and retained.
 
 ```powershell
 dotnet publish benchmarks/SlimFaas.CollectionProbe -c Release -r win-x64 `

@@ -131,8 +131,8 @@ functions:
         with (args.output / "local.log").open("w") as log:
             subprocess.run([str(runtime), "local", "validate", "-f", str(manifest)],
                            cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT, check=True)
-            process = subprocess.Popen([str(runtime), "local", "up", "-f", str(manifest)],
-                                       cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT)
+            process = CAMPAIGN.start_local([str(runtime), "local", "up", "-f", str(manifest)],
+                                          cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT)
             ready_deadline = time.monotonic() + 180
             while True:
                 if process.poll() is not None:
@@ -219,13 +219,16 @@ functions:
         finished.set()
         if sampler is not None:
             sampler.join()
-        if process is not None:
-            CAMPAIGN.stop(process)
-        server.shutdown()
-        server.server_close()
-        CAMPAIGN.save(args.output / "resources.json", samples)
-        CAMPAIGN.save(args.output / "file-observations.json", {"samples": file_observations,
-            "poll_seconds": .5, "note": "Positive observations only; files with shorter lifetimes can be missed. Disappearance is not a timestamped delete syscall."})
+        try:
+            if process is not None:
+                CAMPAIGN.stop(process)
+                CAMPAIGN.save(args.output / "shutdown.json", {"exit_code": process.returncode})
+        finally:
+            server.shutdown()
+            server.server_close()
+            CAMPAIGN.save(args.output / "resources.json", samples)
+            CAMPAIGN.save(args.output / "file-observations.json", {"samples": file_observations,
+                "poll_seconds": .5, "note": "Positive observations only; files with shorter lifetimes can be missed. Disappearance is not a timestamped delete syscall."})
 
 
 if __name__ == "__main__":

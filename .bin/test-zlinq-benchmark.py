@@ -5,6 +5,8 @@ from contextlib import redirect_stderr
 import importlib.util
 import io
 import os
+import subprocess
+import sys
 from pathlib import Path
 import tempfile
 import types
@@ -24,6 +26,14 @@ TRACE_SPEC.loader.exec_module(TRACE)
 
 
 class ArchiveTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows console control events")
+    def test_hidden_console_shutdown_runs_the_owned_process_handler(self):
+        command = [sys.executable, "-c", "import signal,sys\nsignal.signal(signal.SIGBREAK, lambda *args: sys.exit(0))\nprint('ready',flush=True)\nwhile True:\n    pass"]
+        with BENCHMARK.start_local(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
+            self.assertEqual(process.stdout.readline().strip(), "ready")
+            BENCHMARK.stop(process)
+            self.assertEqual(process.returncode, 0)
+
     @unittest.skipUnless(os.name == "nt", "Windows process I/O API")
     def test_windows_io_counters_can_read_an_owned_process(self):
         with patch.object(BENCHMARK, "NODE_PIDS", [os.getpid()]):
