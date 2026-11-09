@@ -61,6 +61,10 @@ interpreting a passing field or an empty missing-ID list.
   archive hash, 25 converged observations after cold replay with its original
   executable, and before/after harness regression log hashes. This diagnostic
   does not change the failed endurance result.
+- `final-native-build.json`: exact final Native source/binary attribution,
+  successful compiler flags, failed-build log hashes and measured transient
+  staging capacity. It also identifies the verified inactive-symbol archive;
+  these build-environment results are separate from runtime recovery.
 
 Large raw logs, journals and persistent volumes remain outside Git under
 `artifacts/slimdata-lts/`, or inside the linked CI artifacts. A top-level file hash

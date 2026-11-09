@@ -3,9 +3,10 @@
 **Verdict: not ready to certify SlimFaas 1.0 LTS.** Sixteen confirmed defects have
 corrections and regression evidence across the recorded revisions. Real three-node
 Local campaigns demonstrate substantial recovery coverage, including all six
-Linux/Native Windows long-absence roles on the snapshot revision. Final Native,
-endurance and performance validation remain separate gates for the subsequent
-job, WebSocket and stale-leader corrections. Historical failures and incomplete
+Linux/Native Windows long-absence roles on the snapshot revision. Final Native
+API/short-outage, official SDK, owner-timeout and empty-PATH bundle checks now pass
+on `a95d49e8`. The subsequent endurance matrix and controlled performance comparison
+remain separate gates. Historical failures and incomplete
 fault coverage still block certification. A passing campaign on one revision or
 OS does not override a failed campaign on another.
 
@@ -29,11 +30,25 @@ The Windows Native binary used for the first paired benchmarks includes fixes 1�
 | Fixes 1–10 + DotNext 6.12.0 controls (before platform default change) | `8bd724a700b3f39eacbb22f104c482cc518235db0724fd401d5cfa6ab09f5627` |
 | Fixes 1–14 (`7e1f20a6`) | `4b68aa1831bc0b10d593798432139d108357877645331f713aedf1d6aec1bedd` |
 | Fixes 1–15 (`b00224c5`) | `a46a56615beb98ddd48a7b54627a976c708c9ba669fa58551af6886630e4f36d` |
+| Fixes 1–16 (`a95d49e8`) | `1f2ea78a7db8f945a0b69b86eeab616eb576fef78624f3f9f180b3b5dc8e05c4` |
 
 The complete stale-leader correction is in `4e80c9a1`; runtime C# is unchanged in
 `a95d49e8`, which strengthens the campaign's counter oracle. Managed validation
 passes 1,996 tests and the actual leader-route/owner-timeout regressions. Its final
-Native publication and fresh comparisons are tracked separately below.
+Native publication succeeds with optional DGML/mstat diagnostics disabled and
+single-threaded compilation. The source revision is confirmed by the executable's
+product version. Fresh Native/benchmark results are tracked separately below.
+
+Local publication encountered three compiler ENOSPC failures. A capacity trace
+captured free space dropping to **57,344 bytes** before recovering when compilation
+exited; post-exit free space alone had hidden this transient pressure. Changing
+output compression alone did not resolve it. The successful publication still
+reached only **65,773,568 bytes** free during its staging peak, so its initial
+4.3 GB margin must not be treated as a generally safe minimum. These are build
+environment results, separate from runtime recovery. Fifteen inactive PDBs were
+archived and verified before releasing redundant working copies; executables and
+campaign volumes remain retained. All build attempts, archive hashes and effective
+compiler flags are in [Native build evidence](reliability/2026-11-08/final-native-build.json).
 
 Historical `parameters.json` files record the checkout at execution time. For a
 preserved executable, its recorded runtime hash identifies its implementation;
@@ -555,6 +570,33 @@ archive replay does not turn the old failed run into a passing campaign.
 Original results, replay observations and raw-file hashes are in
 [counter archive evidence](reliability/2026-11-08/counter-archive-replay.json).
 
+## Final Native controls and original journal-volume recovery
+
+Native `a95d49e8` passes the full API/1–5–10-second fault campaign with **348
+accepted / 13 unknown / zero missing receipts**, the complete official SDK with
+**82 / five / zero**, and the separate owner-timeout regression. The latter
+accepts its 2 MiB publication in **2.563 seconds**, then observes delivery after
+the existing eight-second timeout and 20-second owner absence. The real
+leader-route regression completes in **5.922 seconds**. The official tutorial
+bundle passes with an empty PATH: three nodes, dashboard, four functions, Sync,
+file and job. Five Windows process-ownership/capacity tests and four exporter
+safety tests also pass.
+
+The four initial 2 MiB Native Stream appends take **1.516 / 15.484 / 23.375 /
+24.828 seconds**. These remain functional results inside the declared 120-second
+SDK budget, not acceptable-performance proof or a controlled improvement claim.
+
+The original failed job-journal ENOSPC image is resumed in place with the final
+portable runtime code, preserving its pre-repair archive and old reports. Initial
+confirmed-data verification succeeds. Its first subsequent API exercise fails
+because the harness reused a counter previously left at `32.5`; the API correctly
+rejects an integer increment with HTTP 409. The harness now uses a distinct key
+for each counter exercise and restores each completed exercise's confirmed float
+checkpoint from the client ledger. The old key and value remain in the verification
+set. Both regressions fail before their fixes; all **22** harness tests pass after.
+The next resume passes the API exercise and full persistent restart on that same
+original image. Runtime and harness failures remain separate recorded outcomes.
+
 ## Performance evidence
 
 The existing Local benchmark and MemoryLab drivers are reused. The final paired
@@ -601,7 +643,7 @@ phases; zero or absent samples cannot certify zero resource cost.
 
 - Latest runtime code (`4e80c9a1`, unchanged in `a95d49e8`): **1,996 .NET tests
   passed** (SlimData 304, SlimFaas 1,536, MCP 106, Kafka 11, .NET client 39), including
-  13 focused recovery cases. Current harness accounting/safety: **21 passed**.
+  13 focused recovery cases. Current harness accounting/safety: **22 passed**.
 - Full .NET suite after fix 10: **1,974 passed** (SlimData 295, SlimFaas 1,523,
   MCP 106, Kafka 11, .NET client 39). The final style-only adjustment also passed
   all nine selected recovery/read-barrier tests.

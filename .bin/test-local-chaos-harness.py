@@ -25,6 +25,26 @@ FIXTURE = load("chaos_function", ROOT / "tests/SlimFaas.Tests/Local/chaos_functi
 
 
 class CampaignSafetyTests(unittest.TestCase):
+    def test_counter_contracts_keep_retained_values_and_can_run_twice(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            original = "/data/sets/chaos-counter"
+            campaign.expected[original] = HARNESS.sha256(b"32.5")
+            replies, paths, gate = {}, set(), threading.Lock()
+            def submit(_kind, path, _body):
+                key, _operation = path.rsplit("/", 1)
+                with gate:
+                    self.assertNotEqual(original, key, "Counter exercise reused a retained float value")
+                    paths.add(key)
+                    values = replies.setdefault(key, iter(list(range(1, 33)) + list(range(31, -1, -1)) + [42, 32, 32.5]))
+                    return str(next(values)).encode(), "id"
+            with patch.object(campaign, "require_mutation", side_effect=submit):
+                campaign.counter_contracts()
+                campaign.counter_contracts()
+            self.assertEqual(2, len(paths))
+            self.assertEqual({original} | paths, set(campaign.expected))
+            self.assertEqual(HARNESS.sha256(b"32.5"), campaign.expected[original])
+
     def test_unknown_counter_can_commit_between_sequential_node_reads(self):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)
@@ -219,11 +239,14 @@ class CampaignSafetyTests(unittest.TestCase):
             campaign = self.campaign(output)
             with patch.object(HARNESS, "request", return_value=(200, {}, b'"value"')):
                 campaign.mutate("set", "/data/sets/value", b"confirmed")
+            with patch.object(HARNESS, "request", return_value=(200, {}, b"32.5")):
+                campaign.mutate("counter-check", "/data/sets/retained-counter/incrbyfloat?by=0.5", b"")
             (campaign.output / "parameters.json").write_text(json.dumps({"arguments": {"port_base": campaign.entry}}))
             (campaign.output / "report.json").write_text(json.dumps({"passed": False, "results": []}))
             campaign.options.resume = True
             resumed = HARNESS.Campaign(campaign.options)
             self.assertEqual(HARNESS.sha256(b"confirmed"), resumed.expected["/data/sets/value"])
+            self.assertEqual(HARNESS.sha256(b"32.5"), resumed.expected["/data/sets/retained-counter"])
             self.assertEqual(1, len(list(campaign.output.glob("report-before-resume-*.json"))))
             self.assertFalse(json.loads((campaign.output / "report.json").read_text())["passed"])
 

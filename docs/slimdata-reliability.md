@@ -45,6 +45,8 @@ results. Run controlled measurements after compilation and other campaigns stop.
 
 For a managed DLL, `--dotnet /absolute/path/to/dotnet` selects the host. Keep
 binaries outside the build directory when rebuilding another version on Windows.
+Resumed API exercises allocate fresh counter keys and retain previous completed
+counter checkpoints for verification; they do not reset the retained values.
 
 ## Workloads and invariants
 

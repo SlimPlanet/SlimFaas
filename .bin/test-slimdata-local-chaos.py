@@ -221,6 +221,11 @@ class Campaign:
             self.expected[f"/data/streams/{receipt['Stream']}/messages/{receipt['MessageId']}/body"] = record["sha256"]
         elif kind == "counter":
             self.counter_results.append(int(record["response"]))
+        elif kind == "counter-check" and urlsplit(record["path"]).path.endswith("/incrbyfloat"):
+            # This final sequential operation follows both completed concurrent
+            # phases. Retain its confirmed checkpoint when resuming the ledger.
+            key = urlsplit(record["path"]).path.rsplit("/", 1)[0]
+            self.expected[key] = sha256(record["response"])
         elif kind == "delete":
             self.expected.pop(record["path"], None)
             self.deleted.add(record["path"])
@@ -584,20 +589,21 @@ class Campaign:
         print(json.dumps(self.results[-1]), flush=True)
 
     def counter_contracts(self):
+        key = "/data/sets/chaos-counter-" + uuid.uuid4().hex
         with ThreadPoolExecutor(max_workers=self.options.concurrency) as pool:
-            increments = list(pool.map(lambda _: self.require_mutation("counter-check", "/data/sets/chaos-counter/incr", b"")[0], range(32)))
+            increments = list(pool.map(lambda _: self.require_mutation("counter-check", key + "/incr", b"")[0], range(32)))
         if sorted(int(x) for x in increments) != list(range(1, 33)):
             raise AssertionError(f"Nonatomic counter results: {increments}")
         with ThreadPoolExecutor(max_workers=self.options.concurrency) as pool:
-            decrements = list(pool.map(lambda _: self.require_mutation("counter-check", "/data/sets/chaos-counter/decr", b"")[0], range(32)))
+            decrements = list(pool.map(lambda _: self.require_mutation("counter-check", key + "/decr", b"")[0], range(32)))
         if sorted(int(x) for x in decrements) != list(range(32)):
             raise AssertionError(f"Nonatomic decrement results: {decrements}")
         for operation, result in (("incrby?by=42", b"42"), ("decrby?by=10", b"32"),
                                   ("incrbyfloat?by=0.5", b"32.5")):
-            actual, _ = self.require_mutation("counter-check", f"/data/sets/chaos-counter/{operation}", b"")
+            actual, _ = self.require_mutation("counter-check", f"{key}/{operation}", b"")
             if actual != result:
                 raise AssertionError(f"Counter {operation}: {actual!r}, expected {result!r}")
-        self.expected["/data/sets/chaos-counter"] = sha256(b"32.5")
+        self.expected[key] = sha256(b"32.5")
 
     def retries_dlq_jobs(self):
         self.phase = "retries-dlq-jobs"
