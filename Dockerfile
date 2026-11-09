@@ -1,6 +1,6 @@
 ARG TARGETARCH
 
-FROM --platform=$TARGETPLATFORM alpine:3.24.2 AS base
+FROM --platform=$TARGETPLATFORM alpine:3.24.3 AS base
 RUN apk update && apk upgrade
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
