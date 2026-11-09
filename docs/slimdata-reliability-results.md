@@ -1,14 +1,13 @@
-# SlimData reliability results — 8 November 2026
+# SlimData reliability results — 8–9 November 2026
 
-**Verdict: not ready to certify SlimFaas 1.0 LTS.** Ten defects have fixes and
-regressions, and real three-node Local campaigns demonstrate substantial recovery
-coverage. Windows recovery/large-publication failures and incomplete fault coverage
-still block certification. A passing campaign on one revision or OS does not
-override a failed campaign on another.
-
-A further confirmed defect has a transactional snapshot fix under validation:
-interrupted incoming snapshots could be published under their final index/term
-filename while still truncated.
+**Verdict: not ready to certify SlimFaas 1.0 LTS.** Sixteen confirmed defects have
+corrections and regression evidence across the recorded revisions. Real three-node
+Local campaigns demonstrate substantial recovery coverage, including all six
+Linux/Native Windows long-absence roles on the snapshot revision. Final Native,
+endurance and performance validation remain separate gates for the subsequent
+job, WebSocket and stale-leader corrections. Historical failures and incomplete
+fault coverage still block certification. A passing campaign on one revision or
+OS does not override a failed campaign on another.
 
 Tracking: [issue #505](https://github.com/SlimPlanet/SlimFaas/issues/505),
 [draft PR #506](https://github.com/SlimPlanet/SlimFaas/pull/506).
@@ -18,7 +17,7 @@ accounting rules, Linux fault isolation and CI entry points.
 ## Versions and evidence
 
 The baseline is `496e8739e5f7b4326f64520fe4caa4e0e23f8d06` (v0.88.0).
-The Windows Native binary used for the paired benchmarks includes fixes 1–10 and was built from
+The Windows Native binary used for the first paired benchmarks includes fixes 1–10 and was built from
 `7920d9f99d36ef0c68a0b497d4ee4c3526d2a979`:
 
 | Native runtime | SHA-256 |
@@ -28,6 +27,13 @@ The Windows Native binary used for the paired benchmarks includes fixes 1–10 a
 | Fixes 1–9 | `9be0f2927989de381f2bbc42e463db59ef449d672c825690063016962235a0d4` |
 | Fixes 1–10 | `15d7f7cf7dfa59ec3b5ca31a8541b1cd50407e666e3e65edaa0ac616917427e2` |
 | Fixes 1–10 + DotNext 6.12.0 controls (before platform default change) | `8bd724a700b3f39eacbb22f104c482cc518235db0724fd401d5cfa6ab09f5627` |
+| Fixes 1–14 (`7e1f20a6`) | `4b68aa1831bc0b10d593798432139d108357877645331f713aedf1d6aec1bedd` |
+| Fixes 1–15 (`b00224c5`) | `a46a56615beb98ddd48a7b54627a976c708c9ba669fa58551af6886630e4f36d` |
+
+The complete stale-leader correction is in `4e80c9a1`; runtime C# is unchanged in
+`a95d49e8`, which strengthens the campaign's counter oracle. Managed validation
+passes 1,996 tests and the actual leader-route/owner-timeout regressions. Its final
+Native publication and fresh comparisons are tracked separately below.
 
 Historical `parameters.json` files record the checkout at execution time. For a
 preserved executable, its recorded runtime hash identifies its implementation;
@@ -71,8 +77,10 @@ retains the runtime's default retry statuses. Explicit custom policies remain
 authoritative. Already persisted policies are not migrated; already discarded
 work cannot be reconstructed by upgrading.
 
-These diagnoses do not explain every large-body failure. The fresh Windows
-Native SDK run described below still fails concurrent large Stream publication.
+These diagnoses do not explain every large-body failure. Earlier Windows Native
+SDK runs failed concurrent large Stream publication. Later complete Native SDK
+campaigns pass on `7e1f20a6` and `b00224c5`, but observed large Stream latency remains
+a performance gate.
 
 ## Confirmed defects and regressions
 
@@ -591,25 +599,28 @@ phases; zero or absent samples cannot certify zero resource cost.
 
 ## Validation and release gates
 
+- Latest runtime code (`4e80c9a1`, unchanged in `a95d49e8`): **1,996 .NET tests
+  passed** (SlimData 304, SlimFaas 1,536, MCP 106, Kafka 11, .NET client 39), including
+  13 focused recovery cases. Current harness accounting/safety: **21 passed**.
 - Full .NET suite after fix 10: **1,974 passed** (SlimData 295, SlimFaas 1,523,
   MCP 106, Kafka 11, .NET client 39). The final style-only adjustment also passed
   all nine selected recovery/read-barrier tests.
 - Python SDK: **37 passed**, including actual WebSocket frame-limit cases.
-- Harness safety/accounting: **14 passed**; evidence exporter path/overwrite safety:
+- Earlier harness safety/accounting: **14 passed**; evidence exporter path/overwrite safety:
   **4 passed**; Windows process ownership: **3 passed**.
-- Native AOT publication succeeded. Existing aggregate third-party trim/AOT
+- Earlier Native AOT publications succeeded. Existing aggregate third-party trim/AOT
   warnings from MemoryPack.Core/System.Configuration.ConfigurationManager remain
   visible; this is not a zero-warning publish claim.
-- Final official Native release bundle passed the empty-PATH three-node smoke:
+- The earlier fix-10 official Native release bundle passed the empty-PATH three-node smoke:
   dashboard, four real functions, Sync, file and actual job.
-- Central DotNext dependency update to 6.12.0; no lockfile change or new
-  project-wide warning suppression. Distribution inspection of the six DotNext
-  packages found MIT declarations and DLL/XML/metadata assets, with no bundled
-  test/example source. Transitive-package and FOSSA validation remain required.
+- DotNext 6.11.1 → 6.12.0 and patched central System.* pins are documented in the
+  dependency evidence. Direct/transitive distributions were inspected; FOSSA
+  License Compliance passes on `a95d49e8`. No lockfile or persisted-format change
+  or new project-wide warning suppression was introduced.
 
 Earlier native builds, Sonar, FOSSA and DCO successes are revision-specific;
 current PR checks remain the authority for merge readiness. Quick Linux/Windows
-and manually dispatched three-role endurance workflows upload evidence even
+and manually dispatched Linux/Native Windows endurance workflows upload evidence even
 when the workload fails. The PR remains draft while release gates are open.
 
 The demonstrated guarantees are limited to the recorded successful histories:

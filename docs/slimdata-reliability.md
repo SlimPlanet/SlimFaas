@@ -4,7 +4,7 @@ The [1.0 LTS reliability tracker](https://github.com/SlimPlanet/SlimFaas/issues/
 records release evidence and outstanding scenarios. A successful short campaign
 establishes its recorded invariants for that run; it does not certify LTS readiness.
 
-The [8 November 2026 results](slimdata-reliability-results.md) include the executed
+The [8–9 November 2026 results](slimdata-reliability-results.md) include the executed
 absence/API matrix, 2 MB versus 2 MiB diagnosis, fixes, failed campaigns and the
 current LTS verdict. Compact evidence and raw archive hashes accompany the report.
 
@@ -28,10 +28,20 @@ Ports default to 35120–35180; `--port-base` reserves a different range.
 Use an independently published runtime to test Native AOT or a preserved baseline:
 
 ```bash
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r win-x64 \
+  -p:SkipClientAppBuild=true -p:IlcGenerateDgmlFile=false \
+  -p:IlcGenerateMstatFile=false -p:IlcSingleThreaded=true -o artifacts/native
 python .bin/test-slimdata-local-chaos.py \
   --runtime artifacts/native/SlimFaas.exe \
   --output artifacts/local-chaos/native --durations 1,5,10
 ```
+
+This Windows publication disables optional compiler diagnostics and serializes
+code generation to limit build staging pressure; record these flags with the
+runtime hash. The diagnostics are described in the [.NET Native AOT compiler
+guide](https://github.com/dotnet/runtime/blob/main/src/coreclr/nativeaot/docs/troubleshooting.md).
+Build failures and host-capacity interruptions are separate from runtime recovery
+results. Run controlled measurements after compilation and other campaigns stop.
 
 For a managed DLL, `--dotnet /absolute/path/to/dotnet` selects the host. Keep
 binaries outside the build directory when rebuilding another version on Windows.
