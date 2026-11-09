@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Check that campaign provenance copies only the fixed benchmark source."""
 import hashlib
+from contextlib import redirect_stderr
 import importlib.util
+import io
 from pathlib import Path
 import tempfile
 import types
@@ -15,9 +17,20 @@ SPEC.loader.exec_module(BENCHMARK)
 SUMMARY_SPEC = importlib.util.spec_from_file_location("collection_summary", SCRIPT.with_name("summarize-collection-probe.py"))
 SUMMARY = importlib.util.module_from_spec(SUMMARY_SPEC)
 SUMMARY_SPEC.loader.exec_module(SUMMARY)
+TRACE_SPEC = importlib.util.spec_from_file_location("offload_trace", SCRIPT.with_name("trace-async-offload.py"))
+TRACE = importlib.util.module_from_spec(TRACE_SPEC)
+TRACE_SPEC.loader.exec_module(TRACE)
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_trace_rejects_arbitrary_executable_paths_before_starting_a_process(self):
+        with patch("sys.argv", ["trace", "--runtime", "untrusted.exe", "--output", "unused"]), \
+             patch.object(TRACE.subprocess, "Popen") as process, redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                TRACE.main()
+        process.assert_not_called()
+        self.assertEqual(set(TRACE.RUNTIMES), {"baseline-jit", "candidate-jit", "baseline-aot", "candidate-aot"})
+
     def test_initial_and_resumed_archives_match_the_hashed_fixed_source(self):
         with tempfile.TemporaryDirectory() as temporary:
             for name in ("harness-as-run.py", "harness-resumed-123.py"):

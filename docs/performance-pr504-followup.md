@@ -37,6 +37,13 @@ the caller-selected campaign directory remains the intentional destination.
 No analyzer is suppressed. Confirmation requires a fresh analysis of the new
 head; the previous failure must not be described as cleared before that check.
 
+The first follow-up analysis (`5251820a`) clears those two S2083 findings but
+flags the new diagnostic's arbitrary executable-path CLI option with
+`pythonsecurity:S8701`. The diagnostic now selects from four fixed publication
+paths using `--variant`; command arguments remain separate and no shell is used.
+This also prevents accidentally running a different executable than the
+published variant being recorded.
+
 ## Fixed measurement protocol
 
 Host: Windows x64, SDK 10.0.403, Release. Linux production validation and a

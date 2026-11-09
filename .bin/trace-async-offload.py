@@ -21,15 +21,18 @@ import uuid
 SPEC = importlib.util.spec_from_file_location("campaign", Path(__file__).with_name("slimfaas-zlinq-benchmark.py"))
 CAMPAIGN = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CAMPAIGN)
+RUNTIMES = {variant: CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime", variant)
+            for variant in ("baseline-jit", "candidate-jit", "baseline-aot", "candidate-aot")}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--runtime", type=Path, required=True)
+    parser.add_argument("--variant", choices=tuple(RUNTIMES), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--duration", type=int, default=20)
     parser.add_argument("--clients", type=int, default=16)
     args = parser.parse_args()
+    runtime = RUNTIMES[args.variant]
     if not 1 <= args.duration <= 3600 or not 1 <= args.clients <= 256:
         parser.error("duration must be 1..3600 and clients 1..256")
     args.output = args.output.resolve()
@@ -100,7 +103,8 @@ functions:
             row = {"request_id": identifier, "element_id": self.headers.get("SlimFaas-Element-Id"),
                    "time_ns": time.time_ns(), "bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
             with lock:
-                observations[identifier] = observations.get(identifier, 0) + 1
+                if row["bytes"] == len(body) and row["sha256"] == expected_hash:
+                    observations[identifier] = observations.get(identifier, 0) + 1
                 deliveries.append(row)
                 with (args.output / "deliveries.jsonl").open("a") as journal:
                     journal.write(json.dumps(row) + "\n")
@@ -111,7 +115,11 @@ functions:
     server = ThreadingHTTPServer(("127.0.0.1", 31080), Target)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     CAMPAIGN.save(args.output / "manifest.json", {
-        "runtime": str(args.runtime.resolve()), "runtime_sha256": hashlib.sha256(args.runtime.read_bytes()).hexdigest(),
+        "variant": args.variant, "runtime": str(runtime),
+        "runtime_files": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                          for path in [runtime, *(runtime.parent / name for name in (
+                              "SlimFaas.dll", "SlimData.dll", "ZLinq.dll", "SlimFaas.runtimeconfig.json", "SlimFaas.deps.json"))]
+                          if path.exists()},
         "duration": args.duration, "clients": args.clients, "payload_bytes": len(body), "payload_sha256": expected_hash,
         "dispatch_capacity": 16, "drain_timeout_seconds": 300, "warmup_seconds": 0,
         "note": "Diagnostic target hashes/journals each body; do not compare its throughput to the .NET target.",
@@ -121,9 +129,9 @@ functions:
     sampler = None
     try:
         with (args.output / "local.log").open("w") as log:
-            subprocess.run([str(args.runtime), "local", "validate", "-f", str(manifest)],
+            subprocess.run([str(runtime), "local", "validate", "-f", str(manifest)],
                            cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT, check=True)
-            process = subprocess.Popen([str(args.runtime), "local", "up", "-f", str(manifest)],
+            process = subprocess.Popen([str(runtime), "local", "up", "-f", str(manifest)],
                                        cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT)
             ready_deadline = time.monotonic() + 180
             while True:
