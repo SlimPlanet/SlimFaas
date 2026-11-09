@@ -23,8 +23,15 @@ import uuid
 
 
 REPO = Path(__file__).resolve().parent.parent
+# The archived program is a fixed repository resource, never an HTTP response or
+# a path supplied by a campaign manifest. Read it once before parsing CLI input.
+HARNESS_SOURCE = (REPO / ".bin" / "slimfaas-zlinq-benchmark.py").read_bytes()
 NODES = [f"http://127.0.0.1:{port}" for port in range(31021, 31024)]
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def runtime_binary(root, variant):
+    return root / variant / ("SlimFaas.exe" if os.name == "nt" else "SlimFaas")
 
 
 def get(url):
@@ -46,11 +53,15 @@ def resources():
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         nodes = list(executor.map(read_node, NODES))
     return {"cpu_seconds": sum(row[0] for row in nodes), "rss_bytes": sum(row[1] for row in nodes),
-            "host_load_average": os.getloadavg()}
+            "host_load_average": os.getloadavg() if hasattr(os, "getloadavg") else None}
 
 
 def save(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n")
+
+
+def archive_harness(destination):
+    shutil.copyfile(REPO / ".bin" / "slimfaas-zlinq-benchmark.py", destination)
 
 
 def run(command, log, **kwargs):
@@ -62,6 +73,11 @@ def run(command, log, **kwargs):
 
 def stop(process):
     if process.poll() is None:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            process.wait(timeout=20)
+            return
         process.terminate()
         try:
             process.wait(timeout=20)
@@ -205,8 +221,82 @@ def stream_case(args, directory):
     })
 
 
+def verified_files_case(args, directory):
+    """Isolated cross-node cycles with changing content and no request retries."""
+    directory.mkdir()
+    for mode in ("reused", "unique"):
+        prefix = "verify-" + uuid.uuid4().hex
+        before = resources()
+        samples = [before]
+        finished = threading.Event()
+        sampling_errors = []
+        started = time.monotonic()
+        deadline = started + args.verified_file_duration
+
+        def sample():
+            try:
+                while not finished.wait(0.5):
+                    samples.append(resources())
+            except Exception as error:
+                sampling_errors.append(str(error))
+
+        def worker(index):
+            rows, errors = [], []
+            sequence = 0
+            while time.monotonic() < deadline:
+                identifier = f"{prefix}-{index}" + (f"-{sequence}" if mode == "unique" else "")
+                token = hashlib.sha256(f"{prefix}-{index}-{sequence}".encode()).digest()
+                body = (token * ((args.file_bytes + len(token) - 1) // len(token)))[:args.file_bytes]
+                upload_started = time.monotonic()
+                try:
+                    request = urllib.request.Request(NODES[index % 3] + f"/data/files?id={identifier}&ttl=120000",
+                        data=body, headers={"Content-Type": "application/octet-stream"}, method="POST")
+                    with HTTP.open(request, timeout=60) as response:
+                        response.read()
+                    uploaded = time.monotonic()
+                    with HTTP.open(NODES[(index + 1) % 3] + f"/data/files/{identifier}", timeout=60) as response:
+                        received = response.read()
+                    downloaded = time.monotonic()
+                    if received != body:
+                        raise ValueError(f"Content mismatch: expected={hashlib.sha256(body).hexdigest()} "
+                                         f"actual={hashlib.sha256(received).hexdigest()} bytes={len(received)}")
+                    rows.append({"id": identifier, "sequence": sequence, "sha256": hashlib.sha256(body).hexdigest(),
+                                 "upload_ms": (uploaded - upload_started) * 1000,
+                                 "download_ms": (downloaded - uploaded) * 1000,
+                                 "cycle_ms": (downloaded - upload_started) * 1000})
+                except Exception as error:
+                    errors.append({"id": identifier, "sequence": sequence, "error": str(error)})
+                    break
+                sequence += 1
+            return rows, errors
+
+        sampler = threading.Thread(target=sample)
+        sampler.start()
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=args.data_concurrency) as executor:
+                results = list(executor.map(worker, range(args.data_concurrency)))
+            elapsed = time.monotonic() - started
+            after = resources()
+        finally:
+            finished.set()
+            sampler.join()
+        rows = [row for result in results for row in result[0]]
+        errors = [error for result in results for error in result[1]]
+        summary = {"mode": mode, "elapsed_seconds": elapsed, "completed": len(rows),
+                   "rate": len(rows) / elapsed, "errors": errors, "sampling_errors": sampling_errors,
+                   "cpu_seconds": after["cpu_seconds"] - before["cpu_seconds"],
+                   "peak_rss_bytes": max(item["rss_bytes"] for item in samples + [after])}
+        for field in ("upload_ms", "download_ms", "cycle_ms"):
+            values = sorted(row[field] for row in rows)
+            summary[field] = {"p95": values[int(.95 * (len(values) - 1))] if values else None,
+                              "p99": values[int(.99 * (len(values) - 1))] if values else None}
+        save(directory / (mode + ".json"), {"summary": summary, "receipts": rows, "resources": samples})
+        if errors or sampling_errors or not rows:
+            raise RuntimeError(f"Verified {mode}-ID file case failed; see {directory}")
+
+
 def benchmark(args, variant, round_number):
-    binary = args.publish_root / variant / "SlimFaas"
+    binary = runtime_binary(args.publish_root, variant)
     directory = args.output / f"round-{round_number}-{variant}"
     directory.mkdir()
     manifest_args = ["-f", REPO / "benchmarks/slimfaas.local.benchmark.yaml"]
@@ -247,14 +337,19 @@ def benchmark(args, variant, round_number):
         save(directory / "startup.json", {"ready_seconds": time.monotonic() - started})
         time.sleep(5)
         save(directory / "idle.json", resources())
-        processes = subprocess.check_output(["ps", "-axo", "pid,ppid,command"], text=True)
+        if os.name == "nt":
+            processes = subprocess.check_output(["powershell", "-NoProfile", "-Command",
+                "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json"], text=True)
+        else:
+            processes = subprocess.check_output(["ps", "-axo", "pid,ppid,command"], text=True)
         (directory / "processes.txt").write_text("\n".join(
             line for line in processes.splitlines() if str(args.publish_root) in line) + "\n")
-        run(["dotnet", REPO / "benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll",
+        if not args.skip_http:
+            run(["dotnet", REPO / "benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll",
              "run", "--profile", "async-queue", "--duration", args.duration, "--warmup", args.warmup,
              "--repetitions", "1", "--payload-bytes", args.payloads, "--concurrency", args.concurrency,
              "--async-drain-timeout", "300", "--scale-timeout", "180", "--output", directory],
-            directory / "http.log")
+                directory / "http.log")
         samples = directory / "latency-samples.csv"
         if samples.exists():
             with samples.open("rb") as source, gzip.open(str(samples) + ".gz", "wb", compresslevel=1) as target:
@@ -263,6 +358,8 @@ def benchmark(args, variant, round_number):
         for scenario in args.data_scenarios.split(",") if args.data_scenarios else []:
             data_case(args, directory / (scenario + "-warmup"), scenario, warmup=True)
             data_case(args, directory / scenario, scenario)
+        if args.verified_file_duration:
+            verified_files_case(args, directory / "verified-files")
         if args.stream_messages:
             stream_case(args, directory / "streams")
         save(directory / "complete.json", {"variant": variant, "round": round_number})
@@ -289,6 +386,9 @@ def main():
     parser.add_argument("--dispatch-parallelism", type=int, default=16)
     parser.add_argument("--variants", default="baseline-jit,candidate-jit,candidate-aot,baseline-aot")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--skip-http", action="store_true", help="Run isolated data/file investigations without the HTTP matrix")
+    parser.add_argument("--verified-file-duration", type=int, default=0,
+                        help="Seconds per reused/unique-ID file case; every GET is compared byte-for-byte")
     args = parser.parse_args()
     if min(args.rounds, args.duration, args.warmup, args.data_duration, args.data_concurrency) < 1:
         parser.error("rounds, duration, warmup, data-duration and data-concurrency must be positive")
@@ -298,14 +398,19 @@ def main():
         parser.error("file-bytes must be between 1 and 67108864")
     if not 1 <= args.dispatch_parallelism <= 1024:
         parser.error("dispatch-parallelism must be between 1 and 1024")
+    if not 0 <= args.verified_file_duration <= 3600:
+        parser.error("verified-file-duration must be between 0 and 3600")
     args.publish_root = args.publish_root.resolve()
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=True)
     variants = args.variants.split(",")
+    if len(set(variants)) != len(variants) or not set(variants) <= {
+            "baseline-jit", "candidate-jit", "baseline-aot", "candidate-aot"}:
+        parser.error("variants must be distinct baseline/candidate jit/aot names")
     binaries = {}
     dashboard_files = None
     for variant in variants:
-        binary = args.publish_root / variant / "SlimFaas"
+        binary = runtime_binary(args.publish_root, variant)
         dashboard = {}
         for asset in sorted((binary.parent / "wwwroot").rglob("*")):
             if asset.is_file():
@@ -328,7 +433,7 @@ def main():
         "candidate_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip(),
         "candidate_diff_sha256": hashlib.sha256(subprocess.check_output(["git", "diff", "HEAD"], cwd=REPO)).hexdigest(),
         "sdk": subprocess.check_output(["dotnet", "--version"], text=True).strip(),
-        "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "harness_sha256": hashlib.sha256(HARNESS_SOURCE).hexdigest(),
     }
     manifest_path = args.output / "manifest.json"
     if manifest_path.exists():
@@ -346,12 +451,12 @@ def main():
                 parser.error(f"Cannot resume: binary hashes differ for {variant}")
         suffix = str(time.time_ns())
         save(args.output / ("resume-manifest-" + suffix + ".json"), new_manifest)
-        (args.output / ("harness-resumed-" + suffix + ".py")).write_bytes(Path(__file__).read_bytes())
+        archive_harness(args.output / ("harness-resumed-" + suffix + ".py"))
     else:
         if args.resume:
             parser.error("Cannot resume: manifest.json does not exist")
         save(manifest_path, new_manifest)
-        (args.output / "harness-as-run.py").write_bytes(Path(__file__).read_bytes())
+        archive_harness(args.output / "harness-as-run.py")
     if args.dispatch_parallelism != 256:
         (args.output / "dispatch-overlay.yaml").write_text(
             "functions:\n  benchmark-latency:\n    annotations:\n"
