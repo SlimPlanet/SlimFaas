@@ -11,7 +11,10 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import json
+import os
 from pathlib import Path
+import platform
+import shutil
 import subprocess
 import threading
 import time
@@ -23,8 +26,12 @@ CAMPAIGN = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CAMPAIGN)
 RUNTIMES = {variant: CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime", variant)
             for variant in ("baseline-jit", "candidate-jit", "baseline-aot", "candidate-aot")}
-RUNTIMES.update({"candidate-fixed-jit": CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime-filefix", "candidate-jit"),
-                 "candidate-fixed-aot": CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime-filefix", "candidate-aot")})
+RUNTIMES.update({"candidate-fixed-jit": CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime-filefix-final", "candidate-jit"),
+                 "candidate-fixed-aot": CAMPAIGN.runtime_binary(CAMPAIGN.REPO / "artifacts" / "runtime-filefix-final", "candidate-aot")})
+LOG_SETTINGS = {"Logging__Console__FormatterName": "simple",
+                "Logging__Console__FormatterOptions__TimestampFormat": "yyyy-MM-ddTHH:mm:ss.fffffffZ ",
+                "Logging__Console__FormatterOptions__UseUtcTimestamp": "true",
+                "Logging__Console__FormatterOptions__SingleLine": "true"}
 
 
 def main():
@@ -124,6 +131,10 @@ functions:
                           if path.exists()},
         "duration": args.duration, "clients": args.clients, "payload_bytes": len(body), "payload_sha256": expected_hash,
         "dispatch_capacity": 16, "drain_timeout_seconds": 300, "warmup_seconds": 0,
+        "platform": platform.platform(), "free_disk_bytes_at_start": shutil.disk_usage(args.output).free,
+        "trace_sha256": hashlib.sha256((CAMPAIGN.REPO / ".bin/trace-async-offload.py").read_bytes()).hexdigest(),
+        "harness_sha256": hashlib.sha256(CAMPAIGN.HARNESS_SOURCE).hexdigest(),
+        "log_settings": LOG_SETTINGS,
         "note": "Diagnostic target hashes/journals each body; do not compare its throughput to the .NET target.",
     })
     receipts = []
@@ -134,13 +145,20 @@ functions:
             subprocess.run([str(runtime), "local", "validate", "-f", str(manifest)],
                            cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT, check=True)
             process = CAMPAIGN.start_local([str(runtime), "local", "up", "-f", str(manifest)],
-                                          cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT)
+                                          cwd=CAMPAIGN.REPO, stdout=log, stderr=subprocess.STDOUT,
+                                          env={**os.environ, **LOG_SETTINGS})
             ready_deadline = time.monotonic() + 180
             while True:
                 if process.poll() is not None:
                     raise RuntimeError("Local supervisor exited during startup")
                 try:
                     CAMPAIGN.get("http://127.0.0.1:31020/ready")
+                    # Readiness is setup only: all nodes must have discovered
+                    # the target before any of the measured requests are sent.
+                    for node in CAMPAIGN.NODES:
+                        status = json.loads(CAMPAIGN.get(node + "/status-function/benchmark-latency"))
+                        if status.get("NumberReady", status.get("numberReady", 0)) < 1:
+                            raise OSError("Function discovery is not ready")
                     break
                 except OSError:
                     if time.monotonic() >= ready_deadline:
@@ -153,7 +171,8 @@ functions:
                 previous_files = set()
                 while not finished.wait(.5):
                     try:
-                        samples.append(dict(time_ns=time.time_ns(), **CAMPAIGN.resources()))
+                        samples.append(dict(time_ns=time.time_ns(), free_disk_bytes=shutil.disk_usage(args.output).free,
+                                            **CAMPAIGN.resources()))
                         current_files = set()
                         for path in (args.output / "state").rglob("*.bin"):
                             encoded = path.name[:-4]
@@ -199,7 +218,8 @@ functions:
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=args.clients) as executor:
                 receipts = [row for rows in executor.map(worker, range(args.clients)) for row in rows]
-            accepted = {row["request_id"] for row in receipts if row.get("status") == 202}
+            accepted_receipts = {row["request_id"]: row for row in receipts if row.get("status") == 202}
+            accepted = set(accepted_receipts)
             drain_deadline = time.monotonic() + 300
             while True:
                 with lock:
@@ -207,15 +227,21 @@ functions:
                 if not missing or time.monotonic() >= drain_deadline:
                     break
                 time.sleep(.25)
+            finished.set()
+            sampler.join()
             summary = {
                 "accepted": len(accepted), "observed": len(accepted) - len(missing), "missing_ids": missing,
                 "observed_without_202": sorted(observations.keys() - accepted),
                 "duplicates": {key: value for key, value in observations.items() if value > 1},
                 "body_mismatches": [row for row in deliveries if row["sha256"] != expected_hash or row["bytes"] != len(body)],
-                "http_errors": [row for row in receipts if row.get("status") != 202], "sampling_errors": errors,
+                "http_errors": [row for row in receipts if row.get("status") != 202 or row.get("error")], "sampling_errors": errors,
+                "missing_queue_ids": [row for row in receipts if row.get("status") == 202 and not row.get("element_id")],
+                "queue_id_mismatches": [row for row in deliveries if row["request_id"] in accepted and
+                    row["element_id"] != accepted_receipts[row["request_id"]]["element_id"]],
             }
             CAMPAIGN.save(args.output / "summary.json", summary)
-            if missing or summary["duplicates"] or summary["body_mismatches"] or summary["http_errors"] or errors:
+            if (missing or summary["duplicates"] or summary["body_mismatches"] or summary["http_errors"] or errors or
+                    summary["missing_queue_ids"] or summary["queue_id_mismatches"]):
                 raise RuntimeError("Async trace failed correctness checks; all receipts and persistent state are retained")
     finally:
         finished.set()
