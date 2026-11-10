@@ -27,7 +27,7 @@ jobs:
     steps:
       # ── Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
@@ -47,23 +47,20 @@ jobs:
 
       # ── .NET SDK ──────────────────────────────────────────────────────────
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6.1.0
         with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
-            10.0.x
+          global-json-file: global.json
 
       # ── Restore ───────────────────────────────────────────────────────────
       - name: Restore
         working-directory: client/dotnet/SlimFaasClient
-        run: dotnet restore src/SlimFaasClient/SlimFaasClient.csproj
+        run: dotnet restore SlimFaasClient.sln
 
       # ── Build ─────────────────────────────────────────────────────────────
       - name: Build
         working-directory: client/dotnet/SlimFaasClient
         run: |
-          dotnet build src/SlimFaasClient/SlimFaasClient.csproj \
+          dotnet build SlimFaasClient.sln \
             --configuration Release \
             --no-restore \
             -p:Version=${{ steps.version.outputs.VERSION }}

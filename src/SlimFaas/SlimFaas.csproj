@@ -13,6 +13,8 @@
     <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
     <EventSourceSupport>false</EventSourceSupport>
     <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <!-- Metadata updates are disabled; do not emit .NET 11 browser Hot Reload assets. -->
+    <EnableHotReloadInRuntimeConfigDevFile>false</EnableHotReloadInRuntimeConfigDevFile>
     <StackTraceSupport>true</StackTraceSupport>
     <UseSystemResourceKeys>false</UseSystemResourceKeys>
     <UseNativeHttpHandler>false</UseNativeHttpHandler>

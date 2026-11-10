@@ -14,10 +14,10 @@ jobs:
     name: Dashboard build and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24'
+          node-version: '26.13.0'
           cache: npm
           cache-dependency-path: src/SlimFaas/ClientApp/package-lock.json
       - name: Install dashboard dependencies
@@ -39,10 +39,10 @@ jobs:
     name: MCP dashboard build and tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24'
+          node-version: '26.13.0'
           cache: npm
           cache-dependency-path: src/SlimFaasMcp/ClientApp/package-lock.json
       - name: Install MCP dashboard dependencies
@@ -59,15 +59,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24'
+          node-version: '26.13.0'
           cache: npm
           cache-dependency-path: src/SlimFaas/ClientApp/package-lock.json
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6.1.0
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
       - name: Install browser test dependencies
         working-directory: src/SlimFaas/ClientApp
         run: |
@@ -82,7 +82,7 @@ jobs:
         run: npm run test:e2e
       - name: Upload browser and runtime diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: traffic-e2e
           path: |
@@ -92,17 +92,20 @@ jobs:
   documentation:
     uses: ./.github/workflows/SiteBuild.yml
   websocket-clients:
-    name: WebSocket SDK configuration contracts
+    name: WebSocket SDK configuration contracts (Python ${{ matrix.python }})
+    strategy:
+      matrix:
+        python: ['3.10', '3.12']
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.1.0
         with:
-          dotnet-version: '10.0.x'
-      - uses: actions/setup-python@v5
+          global-json-file: global.json
+      - uses: actions/setup-python@v7.1.0
         with:
-          python-version: '3.12'
-      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+          python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@v10.3.3
       - name: Test .NET client
         run: dotnet test client/dotnet/SlimFaasClient/tests/SlimFaasClient.Tests/SlimFaasClient.Tests.csproj
       - name: Test Python client
