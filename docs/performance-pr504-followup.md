@@ -329,6 +329,117 @@ contains 634 original files with an internal SHA-256/length manifest;
 its SHA-256 is `af9006c937d1ed9fac6ca819069f4ecdf98c36e0653b6f8f523dd814be7edfd0`.
 The derived error analysis records its input hash and source separately.
 
+## Additional final-runtime campaigns after storage recovery
+
+On 10 November 2026, available space had fallen to about 2.7 GiB. A renewed,
+explicitly authorized attempt to remove an obsolete Codex cache was rejected
+by automatic tool policy (`blocked by policy`), before execution. No cache
+deletion was performed. Closed cache versions/copies and a closed Copilot
+history database were compressed instead, checking unchanged content hashes.
+The initial standard-compression pass reduced the observed reserve; that
+negative audit is retained locally. LZX compression subsequently recovered
+space. Observed whole-volume free space rose from 2,929,360,896 to
+6,459,047,936 bytes across the complete preparation, a net increase of about
+3.29 GiB. Conversations, credentials and measured executable/DLL contents
+were preserved. Whole-volume observations also include unrelated activity.
+
+Two new fixed campaigns compare baseline `999ca152` with the final runtime
+`dc7e4812`, rather than the earlier collection-only publication `5251820a`.
+The four frozen publications are exposed through NTFS hard-linked aliases;
+none is rebuilt or overwritten. The orchestration runs at report/helper head
+`0c901e7a`. Each campaign has exactly two rounds of all four JIT/NativeAOT
+variants, reversing order in round two, without retries or concurrent builds
+or compression. Every attempt requires at least 4 GiB free before startup.
+The common HTTP driver DLL identifies build commit `d843e59f`; the MemoryLab
+DLL identifies `c4cdf8cf`. Their exact hashes are recorded in the plan.
+The HTTP observer records 500 ms runtime GC/I/O/RSS samples and an emergency
+disk cutoff; no HTTP attempt triggers that cutoff.
+
+The [additional attempt tables](benchmark-results/pr504-windows-extra.md),
+[structured summaries and plans](benchmark-results/pr504-windows-extra.json)
+and [separate original-evidence archive](benchmark-results/pr504-windows-extra-evidence.zip)
+retain all failures and supplement the earlier evidence without replacing it.
+
+### Sets, mixed operations and warm files
+
+Each of the eight attempts runs five seconds of warmup and sixty seconds of
+load per scenario, with 16 workers, 4 KiB values and 256 KiB files. The four
+final-runtime attempts pass all three scenarios without operation errors.
+All four baseline attempts fail the file scenario: the JIT timed phases
+record HTTP 500 errors, while NativeAOT fails preparation/warmup before its
+timed file phase. The existing Windows replacement/sharing exception is
+reproduced despite adequate disk reserve. Missing timed phases remain marked
+not started. File throughput is therefore not a valid before/after comparison.
+
+All set/mixed phases complete. Descriptive medians, two repetitions per side:
+
+| Scenario | JIT before → after op/s | NativeAOT before → after op/s |
+|---|---:|---:|
+| Sets | 102.23 → 109.80 (+7.40%) | 97.06 → 116.11 (+19.63%) |
+| Mixed KV/hashset/async | 219.54 → 235.16 (+7.12%) | 205.83 → 236.12 (+14.72%) |
+
+These positive medians do not remove the earlier negative controls. NativeAOT
+baseline set repetitions range from 72.06 to 122.05/s, versus 114.80–117.42/s
+after; the new direction differs from the earlier −15.2%/−16.25% observations.
+The final file fix, storage preparation, host/leadership variability and two
+repetitions do not isolate a causal performance effect. The evidence establishes
+variable throughput, rather than a general service speedup or a demonstrated
+cache-induced fix for the previous regressions.
+
+### Common .NET target, 2 MiB and 16 clients
+
+All eight HTTP attempts complete using the original common .NET target and
+driver, 20 seconds of load, five seconds of warmup, dispatch capacity 16 and
+the unchanged 300-second delivery observation limit. The measured heavy-body
+phases record **4,799 accepted IDs and 4,799 observed IDs**, with no missing
+or duplicate delivery. The additional 4 KiB paced/burst phases accept and
+observe **8,800 messages**. Direct, sync, focused async and scale-to-zero/
+scale-out results remain available separately in the JSON and raw archive.
+
+The .NET target drains the complete HTTP body before recording an ID, but
+does not hash the body contents. The earlier byte-verified file/hash diagnostic
+remains distinct. This target, Error-level runtime logging and the extra
+resource observer differ from the Python HTTP/1.0/Debug diagnostic that had
+52 unobserved deliveries. The new successful attempts do not establish that
+those failures or the original M4 incidents have been fixed. Neither the
+Windows and M4 results nor the different diagnostic protocols are pooled.
+
+The minimum sampled HTTP free reserve is 4,485,509,120 bytes (about 4.18 GiB),
+with zero resource-sampling errors. All twenty additional supervisors shut
+down normally with exit code zero. The four valid final-runtime file phases
+complete **11,650 operations**; the two invalid JIT baseline phases retain
+7,866 successful operations and 18 errors. The two NativeAOT baseline timed
+file phases remain not started after preparation failed.
+
+### Native thread-state observations
+
+The separate four-attempt NativeAOT set-only diagnostic also completes,
+using the same 16 workers, 4 KiB values and sixty-second load, with five seconds
+of warmup. A capability preflight succeeds before any measured attempt.
+Across the four timed phases, **443 thread-state frames** are captured with
+zero thread-query errors. Both versions' samples are dominated by the Windows
+`UserRequest` and `EventPairLow` wait-reason labels. Idle runtime/GC/pool
+threads contribute, so these counts are not wait durations or evidence that
+a particular request is blocked on storage or network I/O.
+
+| Set-only diagnostic | Before repetitions | After repetitions |
+|---|---:|---:|
+| Throughput, op/s | 84.36 / 90.76 | 114.22 / 125.28 |
+| Runtime CPU, ms/op | 10.71 / 9.80 | 10.07 / 9.67 |
+| Sampled process read KiB/op | 9.91 / 11.76 | 11.88 / 11.88 |
+| Sampled process write KiB/op | 11.26 / 13.02 | 12.88 / 12.79 |
+
+These process I/O values include cache/network transfers and approximate
+sample boundaries. The observer has its own overhead; these are a separate
+diagnostic, not extra repetitions pooled into the preceding throughput table.
+The snapshots and modest CPU/op differences do not identify the remaining
+throughput-variance cause. WPR is installed but the current token is not
+elevated; no kernel/native wait stacks or elevation were attempted.
+
+The additional archive contains **688 byte-verified original files**, separate
+from the earlier 634-file archive. Its SHA-256 is
+`034214c41ad03544de3c7db0bd9ef5498959f8621fd3859614c319643d0f7927`.
+
 ## Reproduction on Windows
 
 Use SDK 10.0.403/runtime 10.0.14, Node 24 and Python 3.11. Keep builds, other
@@ -383,6 +494,26 @@ The local evidence archive includes the exact orchestration, publication flags,
 native-demo overlay, extraction program and raw source hashes. Replaying the
 commands creates new evidence; do not overwrite the retained campaigns.
 
+For the additional campaigns, extract the helper sources from the new ZIP's
+`artifacts/validation/` into that directory in a clean checkout. Prepare the
+original baseline publications under `artifacts/runtime/baseline-{jit,aot}`
+and final `dc7e4812` publications under
+`artifacts/runtime-filefix-final/candidate-{jit,aot}`, using the preceding
+publish commands/flags against their respective frozen worktrees. Prepare
+the common driver and MemoryLab before starting measurements. The source
+map and plan record the exact measured binaries and helper hashes.
+
+```powershell
+python artifacts/validation/prepare-final-comparison.py
+python artifacts/validation/run-extra-benchmarks.py
+python artifacts/validation/run-native-wait-profiles.py
+```
+
+These helpers require fresh output directories, fix repetition counts before
+execution, and retain unsuccessful attempts. The archive also includes the
+extraction source used for the original results; its storage-recovery audit
+inputs are private local metadata, summarized in the public JSON.
+
 ## Validation and remaining work
 
 - The full Release .NET suite passes **1,994 tests**, zero failed; the eight
@@ -398,13 +529,15 @@ commands creates new evidence; do not overwrite the retained campaigns.
   successful batch job pass. The first unprepared attempt, which lacked sample
   DLLs, is retained separately; both samples were then built with zero warnings
   or errors before the successful attempt. Shutdown exits zero.
-- SonarCloud analyzes helper head `da9413634fa47e1544dfcf69dc880685e2b28e44`
-  with Quality Gate OK and Security A at 2026-11-09 22:56:26 +01:00. The head's
+- SonarCloud analyzes report/helper head `0c901e7a01c77cbc5d49aec967c7d816ea796e99`
+  with Quality Gate OK and Security A at 2026-11-10 00:18:32 +01:00. The head's
   29 executed CI checks pass, including DCO and FOSSA; seven are conditionally
   skipped. Later report commits require a fresh head check.
 
-Open work is the async connection-abort/missing-delivery cause, the NativeAOT
-set slowdown, and the original M4 file/set/quorum investigation on that host
+Open work is the async connection-abort/missing-delivery cause, the earlier
+set slowdown and subsequent throughput variability, and the original M4
+file/set/quorum investigation on that host
 or a representative Linux production environment. The Windows sharing fix
 does not establish a solution to those separate incidents. No Linux production
-benchmark or native thread-wait trace was captured here.
+benchmark or native thread-wait stack trace was captured here; the additional
+Windows thread-state snapshots are explicitly scoped above.
