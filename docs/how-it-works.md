@@ -97,7 +97,11 @@ including the [Brotli security fix](https://github.com/advisories/GHSA-p3jp-9v83
 It also retains the compiler fix shipped in .NET `10.0.12` for Apple's linker
 assertion, `too many large addends`, which can
 affect SlimFaas's generated Kubernetes client code on macOS. Upgrade the SDK
-before publishing a native macOS build; no custom linker setting is required.
+before publishing a native macOS build. For `net11.0` / `osx-x64` AOT builds,
+`Directory.Build.targets` selects the modern Apple linker: Xcode 16's classic
+linker rejects unaligned GSS pointers in .NET 11's native security archive. The
+setting also applies to the standalone bundle's sample executables and does not
+affect other RIDs.
 The fix is documented in the [upstream .NET runtime backport](https://github.com/dotnet/runtime/pull/132171).
 
 ```bash
