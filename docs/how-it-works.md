@@ -64,6 +64,9 @@ Frontend tooling uses Node 26 LTS and pnpm 12.18.0. pnpm configuration, includin
 transitive overrides and explicitly allowed build scripts, lives in each
 package's `pnpm-workspace.yaml`.
 
+Mermaid remains pinned to 11.17.2: Mermaid 12 introduces EPL-2.0 `elkjs`, which
+is outside the CNCF license allowlist.
+
 ESLint and `@eslint/js` remain at 9.39.5 because the current React plugins do not
 support ESLint 10. The documentation site keeps TypeScript 6.0.3 because
 `typescript-eslint` cannot use the TypeScript 7 API; the Vite dashboards use
