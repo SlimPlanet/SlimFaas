@@ -754,7 +754,7 @@ static async Task<int> ValidateSlimDataStateAsync(
         failures.Count,
         nodeCount);
     foreach (var failure in failures.Take(20))
-        await Console.Error.WriteLineAsync($"validation failed: {failure}");
+        await Console.Error.WriteLineAsync($"validation failed: {failure}".AsMemory(), cancellationToken);
     return failures.Count;
 }
 
