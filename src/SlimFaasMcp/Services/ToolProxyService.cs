@@ -29,7 +29,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
 {
     // OpenAPI ignores header parameters with these names: the request already sets them.
     private static readonly HashSet<string> s_ignoredHeaderParameters =
-        new(StringComparer.OrdinalIgnoreCase) { "Accept", "Content-Type", "Authorization" };
+        [with(StringComparer.OrdinalIgnoreCase), "Accept", "Content-Type", "Authorization"];
 
     private static readonly SearchValues<char> s_invalidHeaderValueChars = SearchValues.Create("\r\n\0");
 

@@ -112,7 +112,7 @@ internal sealed class EvalContext
                     if (IsOutsideSelection(point.Timestamp, fromTs, isInstantSelector))
                         continue;
 
-                    selectedPoints ??= new SortedList<long, double>(points.Count - index);
+                    selectedPoints ??= [with(capacity: points.Count - index)];
                     selectedPoints[point.Timestamp] = point.Value;
                 }
 
@@ -198,7 +198,7 @@ internal sealed class EvalContext
     internal static bool TryParseMetricKey(string key, out string name, out Dictionary<string, string> labels)
     {
         name = key;
-        labels = new Dictionary<string, string>(StringComparer.Ordinal);
+        labels = [with(StringComparer.Ordinal)];
         var i = key.IndexOf('{', StringComparison.Ordinal);
         if (i < 0) return true;
 
