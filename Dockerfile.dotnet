@@ -10,7 +10,7 @@ USER appuser
 FROM --platform=$BUILDPLATFORM node:26.13.0-alpine3.24 AS clientapp
 WORKDIR /clientapp
 COPY src/SlimFaas/ClientApp/package.json src/SlimFaas/ClientApp/package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 COPY src/SlimFaas/ClientApp/ ./
 RUN npm run build
 

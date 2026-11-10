@@ -3,7 +3,7 @@ ARG TARGETARCH
 FROM --platform=$BUILDPLATFORM node:26.13.0-alpine3.24 AS clientapp
 WORKDIR /clientapp
 COPY src/SlimFaasMcp/ClientApp/package.json src/SlimFaasMcp/ClientApp/package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 COPY src/SlimFaasMcp/ClientApp/ ./
 RUN npm run build
 
@@ -21,7 +21,7 @@ EXPOSE 443
 FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:11.0.100-alpine3.24 AS sdk-amd64
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:11.0.100-alpine3.24 AS sdk-arm64
 FROM sdk-${TARGETARCH} AS publish
-RUN apk update && apk upgrade && apk add --no-cache clang build-base zlib-dev
+RUN apk update && apk upgrade && apk add --no-cache build-base clang zlib-dev
 WORKDIR /src
 # Build context is the repository root, including shared build settings.
 COPY Directory.Build.props Directory.Build.targets Directory.Packages.props global.json .editorconfig ./

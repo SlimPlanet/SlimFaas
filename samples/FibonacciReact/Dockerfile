@@ -3,7 +3,7 @@ FROM node:26.13.0-alpine3.24 AS build
 WORKDIR /app
 ENV NODE_ENV=development
 
-RUN npm install --global pnpm@12.18.0
+RUN npm install --global --ignore-scripts pnpm@12.18.0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 COPY . .
