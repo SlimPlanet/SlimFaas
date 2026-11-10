@@ -33,7 +33,7 @@ local defaults. Production runtime visibility defaults remain unchanged.
 
 ### Run the demo from a Git clone
 
-With the .NET 10 SDK (`10.0.403` or later), Node.js 24 or later, and npm installed, clone the repository and
+With the .NET 11 SDK (`11.0.100` or later), Node.js 26 or later, and npm installed, clone the repository and
 start the demo directly from its root:
 
 ```bash
@@ -580,3 +580,18 @@ curl http://127.0.0.1:30020/status-functions
 See [external autoscaling](autoscaling.md#external-metrics-and-opt-in-wake-up) for the
 opt-in flag, dependency behavior, rollout and rollback. This optional source-checkout
 demo requires Python 3.10+; the standard precompiled tutorial bundle is unchanged.
+
+## Automated migration smoke test
+
+After publishing the native runtime for the host RID, run the source demo smoke
+test from the repository root (macOS ARM64 shown):
+
+```bash
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 -o artifacts/native-local/runtime
+python3 .bin/test-native-local.py --runtime artifacts/native-local/runtime/SlimFaas
+```
+
+It validates the manifest, starts three nodes on ports 30020–30023, calls the
+real Fibonacci function, waits for a job, then restarts the cluster and verifies
+persisted data. Its temporary state is isolated from the normal demo directory;
+logs are kept in `artifacts/native-local`. The same check runs on pull requests.
