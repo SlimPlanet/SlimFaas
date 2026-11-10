@@ -60,6 +60,13 @@
     <InternalsVisibleTo Include="SlimFaas.Benchmarks" />
   </ItemGroup>
 
+  <!-- ASP.NET Core 11.0.0 has an incorrectly scoped Blazor substitutions resource.
+       Suppress only that framework assembly's XML-owner diagnostic; application
+       trim/AOT diagnostics remain errors. Remove when the upstream resource is fixed. -->
+  <ItemGroup Condition="'$(NETCoreSdkVersion)' == '11.0.100' And '$(PublishAot)' != 'true'">
+    <_ILLinkSuppressions Include="$(MSBuildThisFileDirectory)ILLink.FrameworkSuppressions.xml" />
+  </ItemGroup>
+
   <!-- Build Vite/React dashboard into wwwroot -->
   <PropertyGroup>
     <ClientAppDir>ClientApp</ClientAppDir>

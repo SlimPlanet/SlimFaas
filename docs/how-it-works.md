@@ -79,6 +79,16 @@ The Python client retains Python 3.10 support with websockets 16.x. Pygments
 OpenTelemetry Prometheus exporter remains at 1.20.1-beta.1 because there is no
 stable release of that package.
 
+### ASP.NET Core 11.0.0 trimming workaround
+
+SDK 11.0.100's `Microsoft.AspNetCore.Components.Endpoints` assembly embeds an
+`ILLink.Substitutions.xml` resource naming `Microsoft.AspNetCore.Components.Forms`
+instead of its own assembly. Managed trimmed SlimFaas publishes therefore fail
+with IL2101. A linker attribute file scopes an exception to IL2101 on that exact
+framework assembly for this SDK. Its Blazor Hot Reload substitution is unused by
+the React host. Application trimming/AOT analysis and warnings-as-errors remain
+enabled. Remove the workaround when the framework resource is corrected.
+
 ## Native build toolchain
 
 Source builds require .NET SDK `11.0.100` or a newer .NET 11 SDK, as selected

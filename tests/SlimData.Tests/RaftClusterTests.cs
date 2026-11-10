@@ -456,9 +456,18 @@ public class RaftClusterTests(ITestOutputHelper output)
         //await GetLocalClusterView(host1).ForceReplicationAsync();
         //Assert.Null(await databaseServiceSlave.GetAsync("key1"));
 
+        async Task SynchronizeHashReaderAsync()
+        {
+            using var timeout = new CancellationTokenSource(DefaultTimeout);
+            await GetLocalClusterView(host3).ApplyReadBarrierAsync(ReadBarrierType.Weak, timeout.Token);
+        }
+
         await databaseServiceSlave.HashSetAsync("hashsetKey1",
             new Dictionary<string, byte[]> { { "field1",MemoryPackSerializer.Serialize("value1") }, { "field2", MemoryPackSerializer.Serialize("value2") } });
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        // ForceReplicationAsync advances the leader; the follower can still have
+        // the previous commit index. Synchronize before asserting its local hash view.
+        await SynchronizeHashReaderAsync();
         IDictionary<string, byte[]> hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
 
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(hashGet["field1"]));
@@ -466,6 +475,7 @@ public class RaftClusterTests(ITestOutputHelper output)
 
         await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1", "field1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        await SynchronizeHashReaderAsync();
         hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
         Assert.Single(hashGet);
 
@@ -473,6 +483,7 @@ public class RaftClusterTests(ITestOutputHelper output)
             new Dictionary<string, byte[]> { { "field3",MemoryPackSerializer.Serialize("value3") } });
         await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        await SynchronizeHashReaderAsync();
         hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
         Assert.Empty(hashGet);
 
