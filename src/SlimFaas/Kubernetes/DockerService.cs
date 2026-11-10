@@ -997,7 +997,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             // 2) Pull; if it fails, throw with body for visibility
             string imageName = image;
             string tag = "latest";
-            int idx = image.LastIndexOf(':');
+            int idx = image.LastIndexOf(':', StringComparison.Ordinal);
             if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
@@ -1332,7 +1332,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
             string imageName = image;
             string tag = "latest";
-            int idx = image.LastIndexOf(':');
+            int idx = image.LastIndexOf(':', StringComparison.Ordinal);
             if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
@@ -1489,7 +1489,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         private static void ApplyCpuLimit(CreateContainer_HostConfig hc, string cpu)
         {
             // Accept "500m", "0.5", "1", "2"
-            if (cpu.EndsWith('m') || cpu.EndsWith('M'))
+            if (cpu.EndsWith('m', StringComparison.Ordinal) || cpu.EndsWith('M', StringComparison.Ordinal))
             {
                 string num = cpu[..^1];
                 if (double.TryParse(num, NumberStyles.Float, CultureInfo.InvariantCulture, out double milli))
@@ -1539,17 +1539,17 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 mul = 1024L * 1024 * 1024 * 1024;
                 value = value[..^2];
             }
-            else if (value.EndsWith('K') || value.EndsWith('k'))
+            else if (value.EndsWith('K', StringComparison.Ordinal) || value.EndsWith('k', StringComparison.Ordinal))
             {
                 mul = 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith('M') || value.EndsWith('m'))
+            else if (value.EndsWith('M', StringComparison.Ordinal) || value.EndsWith('m', StringComparison.Ordinal))
             {
                 mul = 1000L * 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith('G') || value.EndsWith('g'))
+            else if (value.EndsWith('G', StringComparison.Ordinal) || value.EndsWith('g', StringComparison.Ordinal))
             {
                 mul = 1000L * 1000 * 1000;
                 value = value[..^1];

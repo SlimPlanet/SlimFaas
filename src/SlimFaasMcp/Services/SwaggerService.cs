@@ -51,7 +51,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         JsonDocument doc;
 
         var trimmed = swaggerStr.TrimStart();
-        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
+        if (trimmed.StartsWith('{', StringComparison.Ordinal) || trimmed.StartsWith('[', StringComparison.Ordinal))
         {
             doc = JsonDocument.Parse(swaggerStr);
         }

@@ -202,7 +202,7 @@ internal sealed class EvalContext
         var i = key.IndexOf('{', StringComparison.Ordinal);
         if (i < 0) return true;
 
-        var j = key.LastIndexOf('}');
+        var j = key.LastIndexOf('}', StringComparison.Ordinal);
         if (j < i) return false;
 
         name = key[..i];

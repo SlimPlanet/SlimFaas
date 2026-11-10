@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
-slimfaas_dll="$repo_root/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll"
+slimfaas_dll="$repo_root/src/SlimFaas/bin/Release/net11.0/SlimFaas.dll"
 run_root="${RECOVERY_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-recovery/$(date -u +%Y%m%dT%H%M%SZ)}"
 timeout_seconds="${RECOVERY_TIMEOUT_SECONDS:-180}"
 traffic_interval="${RECOVERY_TRAFFIC_INTERVAL_MS:-25}"

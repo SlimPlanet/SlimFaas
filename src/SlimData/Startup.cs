@@ -272,7 +272,7 @@ public class Startup(IConfiguration configuration)
 
     private static string RemoveOrdinal(string hostLabel)
     {
-        var separator = hostLabel.LastIndexOf('-');
+        var separator = hostLabel.LastIndexOf('-', StringComparison.Ordinal);
         return separator > 0 && int.TryParse(hostLabel.AsSpan(separator + 1), out _)
             ? hostLabel[..separator]
             : hostLabel;

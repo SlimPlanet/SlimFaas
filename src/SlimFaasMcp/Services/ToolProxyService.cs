@@ -213,7 +213,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             callUrl = string.Join('/', segments);
         }
 
-        if (callUrl != null && !callUrl.StartsWith('/'))
+        if (callUrl != null && !callUrl.StartsWith('/', StringComparison.Ordinal))
         {
             callUrl = "/" + callUrl;
         }
