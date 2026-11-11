@@ -10,6 +10,7 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+import socket
 from pathlib import Path
 import threading
 import time
@@ -21,13 +22,16 @@ from urllib.parse import parse_qs, urlsplit
 class Journal:
     def __init__(self, directory):
         directory.mkdir(parents=True, exist_ok=True)
-        self.path = directory / f"receipts-{os.getpid()}-{uuid.uuid4().hex}.jsonl"
+        self.writer_id = uuid.uuid4().hex
+        self.path = directory / f"receipts-{os.getpid()}-{self.writer_id}.jsonl"
         self.lock = threading.Lock()
         self.remote = os.environ.get("CHAOS_RECEIPT_URL")
         self.http = build_opener(ProxyHandler({}))
 
     def append(self, value):
         encoded = (json.dumps(value | {"utc": time.time(), "pid": os.getpid(),
+                                      "writer_id": self.writer_id, "host": socket.gethostname(),
+                                      "pod_uid": os.environ.get("POD_UID"),
                                       "function": os.environ.get("CHAOS_FUNCTION", "")}) + "\n").encode()
         with self.lock, self.path.open("ab", buffering=0) as stream:
             stream.write(encoded)

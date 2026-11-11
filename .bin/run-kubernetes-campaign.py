@@ -42,7 +42,8 @@ def resources(options):
 
     def deployment(name, command, args, annotations=None, replicas=1, control_plane=False, env=None):
         container = {"name": "function", "image": options.controller_image, "imagePullPolicy": "IfNotPresent",
-            "command": command, "args": args, "env": [{"name": "PORT", "value": "5000"}] + (env or []),
+            "command": command, "args": args, "env": [{"name": "PORT", "value": "5000"},
+                {"name": "POD_UID", "valueFrom": {"fieldRef": {"fieldPath": "metadata.uid"}}}] + (env or []),
             "ports": [{"containerPort": 5000}], "volumeMounts": [{"name": "evidence", "mountPath": "/evidence"}],
             "resources": {"requests": {"cpu": "10m", "memory": "64Mi"}},
             "readinessProbe": {"httpGet": {"path": "/health", "port": 5000}, "periodSeconds": 1}}
@@ -73,6 +74,7 @@ def resources(options):
         "Resources": {"Requests": {"cpu": "100m", "memory": "100Mi"},
                       "Limits": {"cpu": "1000m", "memory": "256Mi"}},
         "Environments": [{"Name": "SLIMFAAS_VALIDATION_JOB", "Value": "1"},
+                         {"Name": "POD_UID", "FieldRef": {"FieldPath": "metadata.uid"}},
                          {"Name": "CHAOS_RECEIPT_URL", "Value": "http://receipts:8081/receipts"}]}}}
     environment = [{"name": "SlimFaas__BaseSlimDataUrl", "value": "http://{pod_name}.slimfaas.{namespace}.svc:3262"},
         {"name": "SlimData__Directory", "value": "/database"},

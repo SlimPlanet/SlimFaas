@@ -119,6 +119,9 @@ class PlatformTests(unittest.TestCase):
             second.append({"event": "job", "args": ["second"]})
             self.assertEqual(["first"], json.loads(first.path.read_text())["args"])
             self.assertEqual(["second"], json.loads(second.path.read_text())["args"])
+            self.assertNotEqual(json.loads(first.path.read_text())["writer_id"],
+                                json.loads(second.path.read_text())["writer_id"])
+            self.assertEqual(os.getpid(), json.loads(first.path.read_text())["pid"])
 
     def test_kubernetes_job_acknowledges_the_independent_receipt_sink(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -35,6 +35,12 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def runtime_hashes(path):
+    candidates = [path, path.with_suffix(".dll"), path.parent / "SlimData.dll",
+                  path.parent / "DotNext.Net.Cluster.dll"]
+    return {str(candidate): digest(candidate) for candidate in candidates if candidate.is_file()}
+
+
 def local_manifest(options):
     driver = executable(options.benchmark)
     annotations = {"SlimFaas/Function": "true", "SlimFaas/NumberParallelRequest": "256",
@@ -168,6 +174,7 @@ def run(options):
     receipts = Path(config["receipts_root"]) if config else options.output / "receipts"
     metadata = {"started_utc": time.time(), "arguments": {k: str(v) if isinstance(v, Path) else v for k, v in vars(options).items()},
                 "runtime_sha256": digest(options.runtime) if config is None else None,
+                "runtime_files": runtime_hashes(options.runtime) if config is None else None,
                 "controller_runtime_sha256": digest(options.runtime) if config else None,
                 "driver_sha256": digest(options.benchmark),
                 "memorylab_sha256": digest(options.memorylab), "backend": config or "Local", "pid_source": "Prometheus (PID not exported)"}

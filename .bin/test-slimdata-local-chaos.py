@@ -933,6 +933,9 @@ class Campaign:
         executions = {}
         for row in completed:
             executions[row["id"]] = executions.get(row["id"], 0) + 1
+        jobs = {identifier: sum(row["event"] == "job" and set(record["job_args"]).issubset(row["args"])
+                                for row in rows)
+                for identifier, record in self.accepted.items() if record["kind"] == "job"}
         unknowns = []
         deadline = time.monotonic() + self.options.recovery_timeout
         for identifier, record in self.unknown.items():
@@ -940,7 +943,9 @@ class Campaign:
             unknowns.append({"id": identifier, "kind": record["kind"], "outcome": outcome})
         report = {"accepted": len(self.accepted), "unknown": unknowns,
                   "completed_deliveries": len(completed), "distinct_delivered_ids": len(executions),
-                  "repeated_deliveries": {key: count for key, count in executions.items() if count > 1}}
+                  "repeated_deliveries": {key: count for key, count in executions.items() if count > 1},
+                  "job_executions": jobs,
+                  "repeated_job_executions": {key: count for key, count in jobs.items() if count > 1}}
         (self.output / "accounting.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         return report
 
