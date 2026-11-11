@@ -115,6 +115,13 @@ The Linux fault wrappers require root, `unshare`, `iproute2`, `iptables`, ext4 a
 loop-mount support. They isolate rules/mounts from the host. The disk wrapper
 creates a new resource directory and retains the image after unmounting it:
 
+When a wrapper is the entrypoint of a privileged Linux test container, it keeps
+PID 1 in the original network namespace and forks the isolated campaign. This
+lets the harness verify isolation against `/proc/1/ns/net` before applying any
+packet-drop or netem rule. The guard remains active inside containers. On
+SELinux-enforcing Podman hosts, label each dedicated evidence bind mount with
+`:Z`; retain the original state and disk image after a failed campaign.
+
 ```bash
 sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT" \
   bash .bin/run-local-network-chaos.sh \

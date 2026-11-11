@@ -10,6 +10,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import Mock, patch
 
@@ -105,10 +106,31 @@ class PlatformTests(unittest.TestCase):
                 (root / "receipts.jsonl").write_text("".join(json.dumps(row) + "\n" for row in lines))
                 if failure:
                     with self.assertRaises(AssertionError):
-                        WORKLOAD.verify_receipts(output, root)
+                        WORKLOAD.verify_receipts(output, root, timeout=0)
                 else:
-                    WORKLOAD.verify_receipts(output, root)
+                    WORKLOAD.verify_receipts(output, root, timeout=0)
                     self.assertTrue(json.loads(output.with_suffix(".receipts.json").read_text())["passed"])
+
+    def test_receipt_reconciliation_observes_a_real_late_delivery_and_ignores_partial_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "operations.json"
+            output.write_text(json.dumps({"report": {"KeyPrefix": "load", "PayloadBytes": 4}, "samples": [
+                {"operation": "Async", "Success": True, "Worker": 1, "Sequence": 2}]}))
+            receipt = {"event": "completed", "id": "load-async-1-2", "bytes": 4,
+                       "sha256": hashlib.sha256(b"abcd").hexdigest(), "status": 200}
+            path = root / "receipts.jsonl"
+            path.write_text('{"event":')
+            def deliver():
+                time.sleep(.02)
+                path.write_text(json.dumps(receipt) + "\n")
+            running = threading.Thread(target=deliver)
+            running.start()
+            try:
+                WORKLOAD.verify_receipts(output, root, timeout=1)
+            finally:
+                running.join()
+            self.assertTrue(json.loads(output.with_suffix(".receipts.json").read_text())["passed"])
 
     def test_same_pid_writers_never_share_a_receipt_file(self):
         with tempfile.TemporaryDirectory() as directory:

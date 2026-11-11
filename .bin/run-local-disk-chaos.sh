@@ -15,7 +15,13 @@ if [[ "${1:-}" != "--inside" ]]; then
   truncate -s 128M "$resources/disk.img"
   mkfs.ext4 -q -F "$resources/disk.img"
   mkdir "$resources/mount"
-  exec unshare --mount --net --propagation private -- bash "$0" --inside "$resources" "$@"
+  # A container PID 1 must retain its original network namespace so the
+  # independent isolation guard can verify the child's private namespace.
+  unshare --fork --kill-child=TERM --mount --net --propagation private -- bash "$0" --inside "$resources" "$@" &
+  child=$!
+  trap 'kill -TERM "$child" 2>/dev/null || true' TERM INT
+  wait "$child"
+  exit $?
 fi
 shift
 resources="$1"

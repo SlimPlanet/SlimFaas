@@ -137,22 +137,32 @@ def monitor(options, nodes, stop, phase):
             stop.wait(max(0, 1 - (time.monotonic() - started)))
 
 
-def verify_receipts(document_path, directory):
+def verify_receipts(document_path, directory, timeout=60):
     document = json.loads(document_path.read_text())
     report = document["report"]
     expected = {f"{report['KeyPrefix']}-async-{row['Worker']}-{row['Sequence']}" for row in document["samples"]
                 if row["operation"] == "Async" and row["Success"]}
     body = bytes(ord("a") + index % 23 for index in range(report["PayloadBytes"]))
     checksum = hashlib.sha256(body).hexdigest()
-    observations = {}
-    for path in directory.glob("*.jsonl"):
-        for line in path.read_text().splitlines():
-            row = json.loads(line)
-            if row.get("id") not in expected or row.get("event") != "completed":
-                continue
-            if row["bytes"] != len(body) or row["sha256"] != checksum or row["status"] >= 300:
-                raise AssertionError(f"Async receipt corruption: {row}")
-            observations[row["id"]] = 1 + observations.get(row["id"], 0)
+    deadline = time.monotonic() + timeout
+    while True:
+        observations = {}
+        for path in directory.glob("*.jsonl"):
+            for line in path.read_bytes().splitlines(keepends=True):
+                if not line.endswith(b"\n"):
+                    continue
+                row = json.loads(line)
+                if row.get("id") not in expected or row.get("event") != "completed":
+                    continue
+                if row["bytes"] != len(body) or row["sha256"] != checksum or row["status"] >= 300:
+                    raise AssertionError(f"Async receipt corruption: {row}")
+                observations[row["id"]] = 1 + observations.get(row["id"], 0)
+        if not expected - observations.keys() or time.monotonic() >= deadline:
+            break
+        # Queue diagnostics are sampled, so a zero gauge can precede the last
+        # real HTTP delivery. Wait only for read-only independent receipts;
+        # never retry a mutation or synthesize an observation.
+        time.sleep(min(.1, max(0, deadline - time.monotonic())))
     missing = sorted(expected - observations.keys())
     duplicates = {key: count for key, count in observations.items() if count > 1}
     result = {"accepted": len(expected), "observed": len(observations), "missing": missing, "duplicates": duplicates,
@@ -177,6 +187,8 @@ def run(options):
                 "runtime_files": runtime_hashes(options.runtime) if config is None else None,
                 "controller_runtime_sha256": digest(options.runtime) if config else None,
                 "driver_sha256": digest(options.benchmark),
+                "workload_sha256": digest(Path(__file__)),
+                "local_harness_sha256": digest(Path(LOCAL.__file__)),
                 "memorylab_sha256": digest(options.memorylab), "backend": config or "Local", "pid_source": "Prometheus (PID not exported)"}
     (options.output / "parameters.json").write_text(json.dumps(metadata, indent=2))
     process = None

@@ -8,7 +8,13 @@ if [[ "${1:-}" != "--inside" ]]; then
     echo "Run as root with unshare, iproute2 and iptables installed." >&2
     exit 2
   fi
-  exec unshare --net -- bash "$0" --inside "$@"
+  # Keep PID 1 in the original namespace when this wrapper is a container's
+  # entrypoint. The harness independently checks that its namespace differs.
+  unshare --fork --kill-child=TERM --net -- bash "$0" --inside "$@" &
+  child=$!
+  trap 'kill -TERM "$child" 2>/dev/null || true' TERM INT
+  wait "$child"
+  exit $?
 fi
 shift
 ip link set lo up

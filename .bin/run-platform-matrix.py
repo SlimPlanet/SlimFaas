@@ -3,6 +3,7 @@
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -129,8 +130,20 @@ def run_one(config, suite, scenario, concurrency, variant, ordinal, output):
         vm_directory = "/var/home/core/slimfaas-pr506/" + relative
         invoke(["podman", "machine", "ssh", "mkdir", "-p", vm_directory], log, check=True)
         invoke(["podman", "machine", "ssh", "chmod", "0777", vm_directory], log, check=True)
+        source = ROOT / ".bin/run-platform-workload.py"
+        source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+        vm_sources = "/var/home/core/slimfaas-pr506/images/sources/" + source_hash
+        vm_source = vm_sources + "/run-platform-workload.py"
+        exists = subprocess.run(["podman", "machine", "ssh", "test", "-f", vm_source]).returncode == 0
+        if not exists:
+            invoke(["podman", "machine", "ssh", "mkdir", "-p", vm_sources], log, check=True)
+            with source.open("rb") as stream:
+                invoke(["podman", "machine", "ssh", "cat > " + vm_source], log, check=True, stdin=stream)
+            invoke(["podman", "machine", "ssh", "chmod", "0444", vm_source], log, check=True)
+        write(output / "workload-source.json", {"sha256": source_hash, "vm_path": vm_source})
         command = ["podman", "run", "--name", name, "--rm", "--user", "1000:1000", "--memory", "8g",
-                   "--cpus", "6", "--volume", vm_directory + ":/evidence", "--entrypoint", "python3",
+                   "--cpus", "6", "--volume", vm_directory + ":/evidence:Z",
+                   "--volume", vm_source + ":/src/.bin/run-platform-workload.py:ro,Z", "--entrypoint", "python3",
                    config[variant], "/src/.bin/run-platform-workload.py", "--runtime", "/app/SlimFaas",
                    "--benchmark", "/tools/benchmark/SlimFaasBenchmark", "--memorylab", "/tools/memorylab/SlimFaas.MemoryLab",
                    "--output", "/evidence/workload"] + common
