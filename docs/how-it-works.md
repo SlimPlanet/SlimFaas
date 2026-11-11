@@ -7,6 +7,12 @@ monitoring and control sidecars from colliding with SlimFaas at startup. A
 single-container pod retains its declared TCP ports. With multiple containers,
 missing or ambiguous Raft-port ownership fails closed with an explicit diagnostic.
 
+Kubernetes function pods are associated with their exact controller identity.
+Deployment pods must reference a ReplicaSet whose controller name and UID match
+the Deployment; StatefulSet pods must reference that StatefulSet's current UID.
+This includes both ReplicaSets during a rollout and excludes orphaned or stale
+owners after a same-name recreation. Prefix matching is not used for routing.
+
 [Durable Streams](streams.md) persist definitions, subscriptions, message bodies,
 attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
 path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the

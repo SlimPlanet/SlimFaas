@@ -20,6 +20,7 @@ public sealed class FakeKubernetesCluster
     private long _resourceVersion;
 
     private readonly List<V1Deployment> _deployments = new();
+    private readonly List<V1ReplicaSet> _replicaSets = new();
     private readonly List<V1Pod> _pods = new();
     private readonly List<V1StatefulSet> _statefulSets = new();
     private readonly List<V1Job> _jobs = new();
@@ -56,6 +57,7 @@ public sealed class FakeKubernetesCluster
                 Metadata = new V1ObjectMeta
                 {
                     Name = name,
+                    Uid = name + "-uid",
                     NamespaceProperty = _namespace,
                     ResourceVersion = NextResourceVersion()
                 },
@@ -72,6 +74,14 @@ public sealed class FakeKubernetesCluster
                 }
             };
             _deployments.Add(deployment);
+            _replicaSets.Add(new V1ReplicaSet
+            {
+                Metadata = new V1ObjectMeta
+                {
+                    Name = name + "-replicaset", Uid = name + "-replicaset-uid", NamespaceProperty = _namespace,
+                    OwnerReferences = [new V1OwnerReference { Kind = "Deployment", Name = name, Uid = name + "-uid", Controller = true }]
+                }
+            });
             Emit("deployments", "ADDED", deployment);
         }
     }
@@ -92,7 +102,8 @@ public sealed class FakeKubernetesCluster
         lock (_gate)
         {
             var pod = BuildPod(podName, ip, ready);
-            pod.Metadata.OwnerReferences = [new V1OwnerReference { Name = $"{deploymentName}-replicaset", Kind = "ReplicaSet" }];
+            pod.Metadata.OwnerReferences = [new V1OwnerReference { Name = $"{deploymentName}-replicaset", Kind = "ReplicaSet",
+                Uid = deploymentName + "-replicaset-uid", Controller = true }];
             _pods.Add(pod);
             Emit("pods", "ADDED", pod);
         }
@@ -314,6 +325,7 @@ public sealed class FakeKubernetesCluster
     private IEnumerable<IKubernetesObject> CurrentObjectsOf(string resource) => resource switch
     {
         "deployments" => _deployments,
+        "replicasets" => _replicaSets,
         "statefulsets" => _statefulSets,
         "cronjobs" => _cronJobs,
         "jobs" => _jobs,
@@ -326,6 +338,7 @@ public sealed class FakeKubernetesCluster
         if (path.Contains("/cronjobs", StringComparison.Ordinal)) return "cronjobs";
         if (path.Contains("/jobs", StringComparison.Ordinal)) return "jobs";
         if (path.Contains("/deployments", StringComparison.Ordinal)) return "deployments";
+        if (path.Contains("/replicasets", StringComparison.Ordinal)) return "replicasets";
         if (path.Contains("/statefulsets", StringComparison.Ordinal)) return "statefulsets";
         if (path.Contains("/services", StringComparison.Ordinal)) return "services";
         if (path.Contains("/pods", StringComparison.Ordinal)) return "pods";
@@ -375,6 +388,7 @@ public sealed class FakeKubernetesCluster
             json = resource switch
             {
                 "deployments" => KubernetesJson.Serialize(new V1DeploymentList { Items = _deployments.ToList() }),
+                "replicasets" => KubernetesJson.Serialize(new V1ReplicaSetList { Items = _replicaSets.ToList() }),
                 "statefulsets" => KubernetesJson.Serialize(new V1StatefulSetList { Items = _statefulSets.ToList() }),
                 "services" => KubernetesJson.Serialize(new V1ServiceList { Items = [] }),
                 "cronjobs" => KubernetesJson.Serialize(new V1CronJobList { Items = _cronJobs.ToList() }),

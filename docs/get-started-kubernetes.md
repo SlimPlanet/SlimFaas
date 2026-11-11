@@ -25,6 +25,12 @@ Raft port. Ambiguous ownership is rejected rather than binding another container
 ports. Namespace RBAC must allow listing Services as well as Pods so peer service
 names can be discovered; the supplied service account grants both.
 
+Function routing follows the exact Pod → ReplicaSet → Deployment controller names
+and UIDs, or the direct StatefulSet controller. Names such as `api` and `api-admin`
+stay isolated during rolling updates. Grant `get` and `list` on `apps/replicasets`
+as in the supplied Role. A failed ownership LIST preserves the previous inventory;
+an unverified owner is never matched by a name prefix.
+
 The base manifests include [DLQ repair and durable Streams](guided-tour.md#repair-and-replay-a-dead-letter):
 `fibonacci1` captures terminal failures, both first functions subscribe to `orders`,
 and DLQ/Stream management is Public. The base job configuration also includes the
