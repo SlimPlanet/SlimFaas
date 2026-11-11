@@ -70,4 +70,100 @@ public class ToolProxyServiceTests
         Assert.Equal("""{ "pets": [] }""", json.Text);
         Assert.Equal(2, stub.CallCount); // 1 appel swagger + 1 appel endpoint
     }
+
+    private const string PetsOperation = """
+        "paths": { "/pets": { "get": { "summary": "List pets" } } }
+        """;
+
+    // Without base_url, the API is called at the base URL described by the document.
+    [Theory]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "https://other.example.com/base" } ], """ + PetsOperation + "}",
+        "https://other.example.com/base/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "/v1" } ], """ + PetsOperation + "}",
+        "https://api.example.com/v1/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "v1" } ], """ + PetsOperation + "}",
+        "https://api.example.com/docs/v1/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "https://{env}.example.com/{version}", "variables": { "env": { "default": "pets" }, "version": { "default": "v2" } } } ], """ + PetsOperation + "}",
+        "https://pets.example.com/v2/pets")]
+    [InlineData("""{ "openapi": "3.0.0", """ + PetsOperation + "}",
+        "https://api.example.com/pets")]
+    [InlineData("""{ "swagger": "2.0", "host": "pets.example.com", "basePath": "/api", "schemes": ["http"], """ + PetsOperation + "}",
+        "http://pets.example.com/api/pets")]
+    [InlineData("""{ "swagger": "2.0", "host": "pets.example.com", """ + PetsOperation + "}",
+        "https://pets.example.com/pets")]
+    [InlineData("""{ "swagger": "2.0", "basePath": "/api", """ + PetsOperation + "}",
+        "https://api.example.com/api/pets")]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Calls_The_Document_Base_Url(string swaggerJson, string expectedUrl)
+    {
+        var (svc, requestedUrls) = CreateWithDocument(swaggerJson);
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        // The MCP endpoint passes an empty base_url when the query string has none.
+        foreach (var baseUrl in new[] { null, "" })
+        {
+            var result = await svc.ExecuteToolAsync(DocumentUrl, "get_pets", argsDoc.RootElement, baseUrl);
+
+            Assert.Equal(200, result.StatusCode);
+            Assert.Equal(expectedUrl, requestedUrls[^1]);
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_BaseUrl_Takes_Precedence_Over_The_Document_Servers()
+    {
+        var (svc, requestedUrls) = CreateWithDocument(
+            """{ "openapi": "3.0.0", "servers": [ { "url": "https://other.example.com" } ], """ + PetsOperation + "}");
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        await svc.ExecuteToolAsync(DocumentUrl, "get_pets", argsDoc.RootElement, "https://pets.example.com/api");
+
+        Assert.Equal("https://pets.example.com/api/pets", requestedUrls[^1]);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Uses_The_Document_Scheme_For_A_Swagger2_Host_Without_Schemes()
+    {
+        const string documentUrl = "http://api.example.com/docs/openapi.json";
+        var (svc, requestedUrls) = CreateWithDocument(
+            """{ "swagger": "2.0", "host": "pets.example.com", """ + PetsOperation + "}", documentUrl);
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        await svc.ExecuteToolAsync(documentUrl, "get_pets", argsDoc.RootElement);
+
+        Assert.Equal("http://pets.example.com/pets", requestedUrls[^1]);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Rejects_A_Server_Url_With_An_Undefined_Variable()
+    {
+        var (svc, requestedUrls) = CreateWithDocument(
+            """{ "openapi": "3.0.0", "servers": [ { "url": "https://{env}.example.com" } ], """ + PetsOperation + "}");
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            svc.ExecuteToolAsync(DocumentUrl, "get_pets", argsDoc.RootElement));
+
+        Assert.Equal([DocumentUrl], requestedUrls);
+    }
+
+    private const string DocumentUrl = "https://api.example.com/docs/openapi.json";
+
+    private static (ToolProxyService svc, List<string> requestedUrls) CreateWithDocument(string swaggerJson,
+        string documentUrl = DocumentUrl)
+    {
+        var requestedUrls = new List<string>();
+        var stub = new StubHttpMessageHandler(req =>
+        {
+            var url = req.RequestUri!.AbsoluteUri;
+            requestedUrls.Add(url);
+            return url == documentUrl
+                ? new HttpResponseMessage(HttpStatusCode.OK)
+                  { Content = new StringContent(swaggerJson, Encoding.UTF8, "application/json") }
+                : new HttpResponseMessage(HttpStatusCode.OK)
+                  { Content = new StringContent("""{ "pets": [] }""", Encoding.UTF8, "application/json") };
+        });
+        var factory = new FakeHttpClientFactory(stub);
+        var swagger = new SwaggerService(factory, new MemoryCache(new MemoryCacheOptions()));
+        return (new ToolProxyService(swagger, factory, NullLogger<ToolProxyService>.Instance), requestedUrls);
+    }
 }
