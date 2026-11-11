@@ -6,6 +6,56 @@ namespace SlimFaas.Tests.Local;
 public sealed class LocalNodeManagerTests
 {
     [Fact]
+    public void NodeCommand_LeavesOtherPlatformsUnchanged()
+    {
+        string[] command = ["/runtime/SlimFaas", "argument with spaces", "$(touch forbidden)"];
+        Assert.Same(command, LocalNodeManager.BuildNodeCommand(command, isMacOS: false));
+    }
+
+    [Fact]
+    public void NodeCommand_OnMacPassesArgumentsOutsideTheShellScript()
+    {
+        string[] command = ["/runtime with spaces/SlimFaas", "$(touch forbidden)"];
+        IReadOnlyList<string> wrapped = LocalNodeManager.BuildNodeCommand(command, isMacOS: true);
+        Assert.Equal("/bin/sh", wrapped[0]);
+        Assert.Equal("-c", wrapped[1]);
+        Assert.Contains("\"$@\"", wrapped[2], StringComparison.Ordinal);
+        Assert.DoesNotContain(command[1], wrapped[2], StringComparison.Ordinal);
+        Assert.Equal(command, wrapped.Skip(4));
+    }
+
+    [Fact]
+    public async Task NodeCommand_SystemLauncherPreservesExitStatusAndLiteralArguments()
+    {
+        if (!OperatingSystem.IsMacOS())
+            return;
+
+        DirectoryInfo directory = Directory.CreateTempSubdirectory("slimfaas-node-launcher-");
+        string logPath = Path.Combine(directory.FullName, "launcher.log");
+        IReadOnlyList<string> command = LocalNodeManager.BuildNodeCommand(
+            ["/bin/sh", "-c", "printf '%s\\n' \"$1\"; exit 37", "test-node", "$(touch forbidden)"],
+            isMacOS: true);
+        try
+        {
+            int? exitCode;
+            await using (ManagedLocalProcess process = ManagedLocalProcess.Start(
+                             command, directory.FullName, new Dictionary<string, string>(), "node/test", logPath))
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await process.WaitForExitAsync(timeout.Token);
+                exitCode = process.ExitCode;
+            }
+            Assert.Equal(37, exitCode);
+            Assert.Contains("$(touch forbidden)", File.ReadAllText(logPath), StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(directory.FullName, "forbidden")));
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Snapshot_AdvertisesEachNodeMetricsEndpoint()
     {
         string root = Path.Combine(Path.GetTempPath(), "SlimFaas.Tests", Guid.NewGuid().ToString("N"));

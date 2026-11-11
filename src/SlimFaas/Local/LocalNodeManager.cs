@@ -125,7 +125,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
             if (node.Process is not null)
                 return;
 
-            IReadOnlyList<string> command = SelfCommand();
+            IReadOnlyList<string> command = BuildNodeCommand(SelfCommand(), OperatingSystem.IsMacOS());
             Dictionary<string, string> environment = BuildNodeEnvironment(node.Index);
 
             try
@@ -223,6 +223,24 @@ public sealed class LocalNodeManager : IAsyncDisposable
             if (ready)
                 node.ConsecutiveFailures = 0;
         }
+    }
+
+    internal static IReadOnlyList<string> BuildNodeCommand(IReadOnlyList<string> command, bool isMacOS)
+    {
+        if (!isMacOS)
+            return command;
+
+        // Darwin's stopped-child wait status can make the .NET 10 SIGCHLD reaper
+        // spin while holding its global Process lock. Keep the managed direct
+        // child running when a runtime node is suspended; /bin/sh reaps that
+        // node with the system wait implementation. Arguments are never shell code.
+        const string launcher = "\"$@\" &\n" +
+            "runtime_pid=$!\n" +
+            "printf 'runtime pid=%s\\n' \"$runtime_pid\"\n" +
+            "trap 'kill -TERM \"$runtime_pid\" 2>/dev/null; wait \"$runtime_pid\"; exit $?' TERM\n" +
+            "trap 'kill -INT \"$runtime_pid\" 2>/dev/null' INT\n" +
+            "wait \"$runtime_pid\"";
+        return new[] { "/bin/sh", "-c", launcher, "slimfaas-node" }.Concat(command).ToArray();
     }
 
     private static IReadOnlyList<string> SelfCommand()

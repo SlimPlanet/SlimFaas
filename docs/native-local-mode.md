@@ -13,6 +13,15 @@ The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
 loopback-only, token-authenticated supervisor.
 
+On macOS, each runtime node is started through the system `/bin/sh` wait
+implementation. This keeps a suspended node from blocking the .NET 10
+supervisor's child-process reaper and delaying unrelated Jobs. The shell passes
+the command arguments literally, forwards termination, and preserves the runtime
+exit status. Node logs distinguish `started pid=` (the owned launcher) from
+`runtime pid=` (the node to suspend during fault tests). Other platforms start
+nodes directly. The launcher uses only macOS system tools and also works in
+Native AOT bundles without a .NET SDK.
+
 For a ready-to-run demonstration without installing .NET or Node.js, use [Get Started in Local](get-started-local.md). That guide also provides the complete [Git clone, branch selection and npm/dotnet build workflow](get-started-local.md#run-from-a-git-clone). The commands below are a shorter path for development from a Git checkout.
 
 ## Quick start
