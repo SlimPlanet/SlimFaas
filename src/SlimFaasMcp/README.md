@@ -51,6 +51,8 @@ The upstream API receives this JSON body, without the MCP `body` wrapper:
 
 Path and query parameters are separate tool arguments next to `body`. For `PUT /pets/{id}`, the arguments `{"id":42,"body":{"name":"Milo"}}` call `PUT /pets/42` with the body `{"name":"Milo"}`. A Swagger 2.0 `in: body` parameter keeps its own name as the argument, such as `pet`, and its value is sent as the body in the same way.
 
+Parameters declared on a path item, next to its operations, are arguments of each of these operations. An operation parameter with the same name and location replaces the path item parameter. A parameter can be a `$ref` to `#/components/parameters` (OpenAPI 3) or `#/parameters` (Swagger 2.0).
+
 ## Path and query parameters
 
 Path and query argument values are percent-encoded. A path value always stays inside its segment of the operation's URL: for `GET /pets/{id}/toys`, `{"id":"a b/c?d"}` calls `GET /pets/a%20b%2Fc%3Fd/toys`, and `{"id":"../admin"}` calls `GET /pets/..%2Fadmin/toys`.
