@@ -175,4 +175,67 @@ paths:
         Assert.True(json.IsJsonContent);
         Assert.Equal("object", json.SchemaType);
     }
+
+    [Fact]
+    public void ParseEndpoints_Keeps_Query_Parameter_Serialization()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/pets": { "get": {
+                "parameters": [
+                  { "name": "ids", "in": "query", "schema": { "type": "array", "items": { "type": "integer" } } },
+                  { "name": "tags", "in": "query", "explode": false, "schema": { "type": "array", "items": { "type": "string" } } },
+                  { "name": "colors", "in": "query", "style": "pipeDelimited", "schema": { "type": "array", "items": { "type": "string" } } },
+                  { "name": "filter", "in": "query", "style": "deepObject", "explode": true, "schema": { "type": "object" } }
+                ]
+              } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        var ids = parameters.Single(p => p.Name == "ids");
+        Assert.Equal("form", ids.Style);
+        Assert.True(ids.Explode);
+        var tags = parameters.Single(p => p.Name == "tags");
+        Assert.Equal("form", tags.Style);
+        Assert.False(tags.Explode);
+        var colors = parameters.Single(p => p.Name == "colors");
+        Assert.Equal("pipeDelimited", colors.Style);
+        Assert.False(colors.Explode);
+        var filter = parameters.Single(p => p.Name == "filter");
+        Assert.Equal("deepObject", filter.Style);
+        Assert.True(filter.Explode);
+    }
+
+    [Theory]
+    [InlineData(null, "form", false)]
+    [InlineData("csv", "form", false)]
+    [InlineData("multi", "form", true)]
+    [InlineData("ssv", "spaceDelimited", false)]
+    [InlineData("pipes", "pipeDelimited", false)]
+    [InlineData("tsv", "tabDelimited", false)]
+    public void ParseEndpoints_Maps_Swagger2_CollectionFormat(string? collectionFormat, string expectedStyle,
+        bool expectedExplode)
+    {
+        var (svc, _) = Create();
+        var format = collectionFormat is null ? "" : $", \"collectionFormat\": \"{collectionFormat}\"";
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "swagger": "2.0",
+              "paths": { "/pets": { "get": {
+                "parameters": [
+                  { "name": "ids", "in": "query", "type": "array", "items": { "type": "integer" }{{format}} }
+                ]
+              } } }
+            }
+            """);
+
+        var ids = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.Equal(expectedStyle, ids.Style);
+        Assert.Equal(expectedExplode, ids.Explode);
+    }
 }

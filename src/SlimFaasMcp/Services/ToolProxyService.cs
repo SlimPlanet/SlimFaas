@@ -221,16 +221,18 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         string fullUrl = baseUrl + callUrl;
 
         // Query
-        IEnumerable<string> queryParams = parameters
-            .Where(p => p is { In: "query", Name: not null } && inputDict.ContainsKey(p.Name))
-            .Select(p =>
-            {
-                JsonElement value = inputDict[p.Name!];
-                return $"{p.Name}={Uri.EscapeDataString(ToParameterValue(value))}";
-            });
-        if (queryParams.Any())
+        List<string> queryPairs = [];
+        foreach (Parameter parameter in parameters.Where(p => p is { In: "query", Name: not null }))
         {
-            fullUrl += "?" + string.Join('&', queryParams);
+            if (inputDict.TryGetValue(parameter.Name!, out JsonElement value))
+            {
+                AddQueryPairs(queryPairs, parameter, value);
+            }
+        }
+
+        if (queryPairs.Count > 0)
+        {
+            fullUrl += "?" + string.Join('&', queryPairs);
         }
 
         // Headers: the headers forwarded by SlimFaasMcp (additionalHeaders) take precedence.
@@ -470,9 +472,11 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         }
     }
 
-    // Strings are sent without their JSON quotes; numbers and booleans as written in JSON ("42", "true").
+    // Strings are sent without their JSON quotes; numbers, booleans and nested values as compact JSON ("42", "true").
     private static string ToParameterValue(JsonElement value) =>
-        value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
+        value.ValueKind == JsonValueKind.String
+            ? value.GetString()!
+            : JsonSerializer.Serialize(value, AppJsonContext.Default.JsonElement);
 
     private static string CombineBaseUrl(string? baseUrl, string endpointUrl)
     {
@@ -505,6 +509,85 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return null;
     }
 
+    // OpenAPI serializes query parameters with the "form" style by default: an array [1,2] becomes "ids=1&ids=2", or
+    // "ids=1,2" without explode, and an object {"role":"admin","id":5} becomes "role=admin&id=5", or
+    // "filter=role,admin,id,5" without explode. The spaceDelimited and pipeDelimited styles join array values with a
+    // space or "|" instead of ",", and deepObject sends "filter[role]=admin&filter[id]=5". A parameter described with
+    // content application/json is sent as JSON. A null value, an empty array and an empty object send nothing.
+    private static void AddQueryPairs(List<string> pairs, Parameter parameter, JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        string name = Uri.EscapeDataString(parameter.Name!);
+
+        if (parameter.IsJsonContent)
+        {
+            pairs.Add($"{name}={Uri.EscapeDataString(JsonSerializer.Serialize(value, AppJsonContext.Default.JsonElement))}");
+            return;
+        }
+
+        string delimiter = parameter.Style switch
+        {
+            "spaceDelimited" => "%20",
+            "pipeDelimited" => "%7C",
+            "tabDelimited" => "%09",
+            _ => ","
+        };
+
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.Array:
+                List<string> items = value.EnumerateArray()
+                    .Select(item => Uri.EscapeDataString(ToParameterValue(item)))
+                    .ToList();
+                if (items.Count == 0)
+                {
+                    return;
+                }
+
+                if (parameter.Explode)
+                {
+                    pairs.AddRange(items.Select(item => $"{name}={item}"));
+                }
+                else
+                {
+                    pairs.Add($"{name}={string.Join(delimiter, items)}");
+                }
+
+                break;
+            case JsonValueKind.Object:
+                List<(string Key, string Value)> properties = value.EnumerateObject()
+                    .Select(property => (Uri.EscapeDataString(property.Name),
+                        Uri.EscapeDataString(ToParameterValue(property.Value))))
+                    .ToList();
+                if (properties.Count == 0)
+                {
+                    return;
+                }
+
+                if (parameter.Style == "deepObject")
+                {
+                    pairs.AddRange(properties.Select(property => $"{name}%5B{property.Key}%5D={property.Value}"));
+                }
+                else if (parameter.Explode)
+                {
+                    pairs.AddRange(properties.Select(property => $"{property.Key}={property.Value}"));
+                }
+                else
+                {
+                    pairs.Add($"{name}={string.Join(delimiter, properties.Select(property => $"{property.Key}{delimiter}{property.Value}"))}");
+                }
+
+                break;
+            default:
+                pairs.Add($"{name}={Uri.EscapeDataString(ToParameterValue(value))}");
+                break;
+        }
+    }
+
     // OpenAPI serializes header parameters with the "simple" style: an array [1,2] becomes "1,2", and an object
     // {"role":"admin","id":5} becomes "role,admin,id,5", or "role=admin,id=5" with explode. A parameter described
     // with content application/json is sent as JSON.
@@ -515,19 +598,14 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             return JsonSerializer.Serialize(value, AppJsonContext.Default.JsonElement);
         }
 
-        static string Primitive(JsonElement element) =>
-            element.ValueKind == JsonValueKind.String
-                ? element.GetString()!
-                : JsonSerializer.Serialize(element, AppJsonContext.Default.JsonElement);
-
         return value.ValueKind switch
         {
-            JsonValueKind.Array => string.Join(',', value.EnumerateArray().Select(Primitive)),
+            JsonValueKind.Array => string.Join(',', value.EnumerateArray().Select(ToParameterValue)),
             JsonValueKind.Object => string.Join(',', value.EnumerateObject().Select(property =>
                 parameter.Explode
-                    ? $"{property.Name}={Primitive(property.Value)}"
-                    : $"{property.Name},{Primitive(property.Value)}")),
-            _ => Primitive(value)
+                    ? $"{property.Name}={ToParameterValue(property.Value)}"
+                    : $"{property.Name},{ToParameterValue(property.Value)}")),
+            _ => ToParameterValue(value)
         };
     }
 
