@@ -16,6 +16,15 @@ cd SlimFaas
 
 All commands below run from the repository root. Check the selected context before applying the demo.
 
+When the SlimFaas pod has sidecars with declared TCP ports, declare the configured
+Raft TCP port on exactly one container: the SlimFaas runtime. SlimFaas opens that
+container's HTTP/WebSocket ports and leaves sidecar listeners alone. For example,
+keep `5000`, `5003` and `3262` on the runtime container, and a monitoring sidecar's
+port on the sidecar. A custom `SlimFaas__BaseSlimDataUrl` selects its corresponding
+Raft port. Ambiguous ownership is rejected rather than binding another container's
+ports. Namespace RBAC must allow listing Services as well as Pods so peer service
+names can be discovered; the supplied service account grants both.
+
 The base manifests include [DLQ repair and durable Streams](guided-tour.md#repair-and-replay-a-dead-letter):
 `fibonacci1` captures terminal failures, both first functions subscribe to `orders`,
 and DLQ/Stream management is Public. The base job configuration also includes the

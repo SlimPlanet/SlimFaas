@@ -205,7 +205,7 @@ switch (envOrConfig)
         {
             bool useKubeConfig = bool.Parse(configurationRoot["UseKubeConfig"] ?? "false");
             return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig,
-                slimFaasOptions.KubernetesSkipTlsVerify);
+                slimFaasOptions.KubernetesSkipTlsVerify, slimFaasOptions.BaseSlimDataUrl);
         });
         isKubernetesOrchestrator = true;
         break;

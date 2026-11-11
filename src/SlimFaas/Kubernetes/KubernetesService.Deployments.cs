@@ -24,7 +24,8 @@ public partial class KubernetesService
 
             await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, serviceListTask);
             V1DeploymentList? deploymentList = await deploymentListTask;
-            IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, await serviceListTask, _logger);
+            IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, await serviceListTask, _logger,
+                _baseSlimDataUrl, kubeNamespace);
             V1StatefulSetList? statefulSetList = await statefulSetListTask;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
@@ -406,7 +407,9 @@ public partial class KubernetesService
     private static List<PodInformation> MapPodInformations(
         V1PodList v1PodList,
         V1ServiceList? serviceList,
-        ILogger<KubernetesService> logger)
+        ILogger<KubernetesService> logger,
+        string? baseSlimDataUrl = null,
+        string? kubeNamespace = null)
     {
         List<PodInformation> result = new();
 
@@ -519,6 +522,10 @@ public partial class KubernetesService
                     AppFailureReason = appFailureReason,
                     AppFailureMessage = appFailureMessage
                 };
+
+                if (deploymentName == SlimfaasDeploymentName)
+                    podInformation = podInformation with { Ports = ResolveSlimFaasContainerPorts(
+                        containers, podInformation, baseSlimDataUrl, kubeNamespace) };
 
                 result.Add(podInformation);
             }

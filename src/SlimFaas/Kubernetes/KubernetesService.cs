@@ -58,6 +58,7 @@ public partial class KubernetesService : IKubernetesService, IDisposable
 
     // ── Shared state ──────────────────────────────────────────────────────────
     private readonly k8s.Kubernetes _client;
+    private readonly string? _baseSlimDataUrl;
 
     public void Dispose()
     {
@@ -80,9 +81,11 @@ public partial class KubernetesService : IKubernetesService, IDisposable
     // same connection pool) — see Watch/KubernetesWatcherWorker.
     internal k8s.Kubernetes Client => _client;
 
-    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig, bool skipTlsVerify = false)
+    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig, bool skipTlsVerify = false,
+        string? baseSlimDataUrl = null)
     {
         _logger = logger;
+        _baseSlimDataUrl = baseSlimDataUrl;
         // In-cluster: the CA projected into the pod is loaded and verified.
         // Kubeconfig: the file's own CA (or insecure-skip-tls-verify) applies.
         KubernetesClientConfiguration k8SConfig = !useKubeConfig

@@ -1,5 +1,12 @@
 # How SlimFaas Works
 
+In Kubernetes, SlimFaas identifies its listener container by the configured Raft
+TCP port when the pod contains multiple containers with declared ports. Its HTTP
+server opens only that container's TCP ports, excluding Raft itself. This keeps
+monitoring and control sidecars from colliding with SlimFaas at startup. A
+single-container pod retains its declared TCP ports. With multiple containers,
+missing or ambiguous Raft-port ownership fails closed with an explicit diagnostic.
+
 [Durable Streams](streams.md) persist definitions, subscriptions, message bodies,
 attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
 path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the
