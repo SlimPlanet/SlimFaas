@@ -43,7 +43,9 @@ public sealed class AsyncBenchmarkTests
                                """;
 
         Assert.Equal(12.5, BenchmarkRunner.ParseMetric(metrics, "metric"));
-        Assert.Equal(0, BenchmarkRunner.ParseMetric(metrics, "missing"));
+        Assert.True(double.IsNaN(BenchmarkRunner.ParseMetric(metrics, "missing")));
+        Assert.True(double.IsNaN(BenchmarkRunner.ParseMetric("metric invalid\n", "metric")));
+        Assert.Equal(0, BenchmarkRunner.ParseMetric("metric 0\n", "metric"));
     }
 
     [Fact]
@@ -168,6 +170,104 @@ public sealed class AsyncBenchmarkTests
         {
             File.Delete(path);
         }
+    }
+
+    [Fact]
+    public void Non_regression_accepts_unchanged_performance_without_optimization_gains()
+    {
+        BenchmarkReport report = CompleteReport();
+        BenchmarkComparisonReport comparison = BenchmarkComparer.BuildComparison(
+            "baseline", "candidate", report, report, criteria: "non-regression");
+
+        Assert.True(comparison.Passed);
+        Assert.Null(comparison.InconclusiveReason);
+        Assert.Equal("non-regression", comparison.Criteria);
+        Assert.False(BenchmarkComparer.BuildComparison("baseline", "candidate", report, report, "async").Passed);
+    }
+
+    [Theory]
+    [InlineData("cpu")]
+    [InlineData("memory")]
+    [InlineData("raft")]
+    [InlineData("sync")]
+    [InlineData("async")]
+    [InlineData("delivery")]
+    [InlineData("burst")]
+    public void Non_regression_enforces_both_profiles_and_resource_guards(string regression)
+    {
+        BenchmarkReport baseline = CompleteReport();
+        BenchmarkReport candidate = regression switch
+        {
+            "sync" => baseline with { SyncOverhead = [baseline.SyncOverhead[0] with { AddedP99Milliseconds = 2 }] },
+            "burst" => baseline with { AsyncWorkloads = baseline.AsyncWorkloads!.Select(row =>
+                row.LoadShape == "burst" ? row with { RatePerSecond = 5 } : row).ToArray() },
+            _ => baseline with { Latency = baseline.Latency.Select(row => row.Mode != "async" ? row : regression switch
+            {
+                "cpu" => row with { AsyncCpuMillisecondsPerMessage = 13 },
+                "memory" => row with { AsyncPeakWorkingSetBytes = 120 },
+                "raft" => row with { AsyncRaftEntriesPerMessage = 5 },
+                "async" => row with { P99Milliseconds = 300 },
+                _ => row with { AsyncMissing = 1 }
+            }).ToArray() }
+        };
+
+        BenchmarkComparisonReport comparison = BenchmarkComparer.BuildComparison(
+            "baseline", "candidate", baseline, candidate, "async", "non-regression");
+
+        Assert.False(comparison.Passed);
+        Assert.Null(comparison.InconclusiveReason);
+        Assert.NotEmpty(comparison.Failures);
+    }
+
+    [Theory]
+    [InlineData("resource")]
+    [InlineData("case")]
+    [InlineData("repetition")]
+    [InlineData("workload")]
+    [InlineData("scaling")]
+    [InlineData("baseline-failure")]
+    [InlineData("matrix")]
+    public void Non_regression_cannot_pass_incomplete_or_failed_reference_evidence(string missing)
+    {
+        BenchmarkReport report = CompleteReport();
+        BenchmarkReport incomplete = missing switch
+        {
+            "resource" => report with { Latency = report.Latency.Select(row =>
+                row.Mode == "async" ? row with { AsyncCpuMillisecondsPerMessage = null } : row).ToArray() },
+            "case" => report with { Latency = report.Latency.Where(row => row.Mode != "sync").ToArray() },
+            "repetition" => report with { LatencyRuns = report.LatencyRuns.Skip(1).ToArray() },
+            "workload" => report with { AsyncWorkloads = [] },
+            "scaling" => report with { Scaling = report.Scaling with { QueueDrainedMilliseconds = null } },
+            "matrix" => report with { Settings = report.Settings with { PayloadBytes = [] } },
+            _ => report with { Latency = report.Latency.Select(row => row with { Failed = 1 }).ToArray() }
+        };
+
+        BenchmarkComparisonReport comparison = BenchmarkComparer.BuildComparison(
+            "baseline", "candidate", incomplete, missing == "matrix" ? incomplete : report, criteria: "non-regression");
+
+        Assert.False(comparison.Passed);
+        Assert.NotNull(comparison.InconclusiveReason);
+        Assert.True(comparison.CandidateHasNoFailures);
+    }
+
+    private static BenchmarkReport CompleteReport()
+    {
+        LatencyAggregateResult async = Row(150, 100, 200, 220, 300, 200, 400, 450, 100, 10, 2, 100);
+        LatencyAggregateResult[] rows = [async with { Mode = "direct" }, async with { Mode = "sync" }, async];
+        var resources = new AsyncResourceUsage(10, 2, 100, 1, 1);
+        var delivery = new TargetObservationSummary("run", 100, 200, 400, 450, 200, 400, 450, 100);
+        return Report(async) with
+        {
+            Latency = rows,
+            LatencyRuns = rows.SelectMany(row => Enumerable.Range(1, 3).Select(repetition =>
+                new LatencyRunResult(row.Mode, row.PayloadBytes, row.Concurrency, repetition,
+                    100, 0, 10, 10, 100, 200, 220, 220, delivery, AsyncResources: resources))).ToArray(),
+            SyncOverhead = [new SyncOverheadResult(2 * 1024 * 1024, 1,
+                1, 2, 1, 100, 1, 2, 1, 100, 1, 2, 1, 100, 100, 90, 0.9)],
+            AsyncWorkloads = new[] { "paced", "burst" }.SelectMany(shape => Enumerable.Range(1, 3).Select(repetition =>
+                new AsyncWorkloadResult(shape, 4096, shape == "paced" ? 1 : 64, repetition,
+                    100, 100, 0, 0, 0, 10, 10, 150, 100, 200, 220, delivery, resources))).ToArray()
+        };
     }
 
     private static BenchmarkReport Report(LatencyAggregateResult row)

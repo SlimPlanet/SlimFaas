@@ -127,9 +127,11 @@ internal sealed record BenchmarkComparisonReport(
     ScalingComparison Scaling,
     string Profile = "sync",
     AsyncAcceptanceCriteria? AsyncCriteria = null,
-    IReadOnlyList<AsyncWorkloadComparisonRow>? AsyncWorkloads = null);
+    IReadOnlyList<AsyncWorkloadComparisonRow>? AsyncWorkloads = null,
+    string Criteria = "optimization",
+    string? InconclusiveReason = null);
 
-internal static class BenchmarkComparer
+internal static partial class BenchmarkComparer
 {
     private const double SmallPayloadMinimumReductionPercent = 20d;
     private const double LargePayloadMinimumReductionPercent = 40d;
@@ -158,6 +160,7 @@ internal static class BenchmarkComparer
         string profile = arguments.Get("profile", "sync").ToLowerInvariant();
         if (profile is not ("sync" or "async"))
             throw new ArgumentException("--profile must be 'sync' or 'async'.");
+        string criteria = arguments.Get("criteria", "optimization").ToLowerInvariant();
 
         BenchmarkReport baseline = await ReadReportAsync(baselinePath);
         BenchmarkReport candidate = await ReadReportAsync(candidatePath);
@@ -168,7 +171,8 @@ internal static class BenchmarkComparer
             Path.GetFullPath(candidatePath),
             baseline,
             candidate,
-            profile);
+            profile,
+            criteria);
 
         Directory.CreateDirectory(outputDirectory);
         await File.WriteAllTextAsync(
@@ -178,11 +182,13 @@ internal static class BenchmarkComparer
             Path.Combine(outputDirectory, "comparison.md"),
             BuildMarkdown(comparison));
 
-        Console.WriteLine(comparison.Passed
-            ? $"PASS: the {profile} optimization met every comparison criterion."
-            : $"FAIL: one or more {profile} optimization criteria were not met.");
+        Console.WriteLine(comparison.InconclusiveReason is not null
+            ? $"INCONCLUSIVE: {comparison.InconclusiveReason}"
+            : comparison.Passed
+                ? $"PASS: the {criteria} comparison met every criterion."
+                : $"FAIL: one or more {criteria} criteria were not met.");
         Console.WriteLine($"Comparison artifacts: {outputDirectory}");
-        return comparison.Passed ? 0 : 1;
+        return comparison.InconclusiveReason is not null ? 2 : comparison.Passed ? 0 : 1;
     }
 
     internal static BenchmarkComparisonReport BuildComparison(
@@ -190,8 +196,13 @@ internal static class BenchmarkComparer
         string candidatePath,
         BenchmarkReport baseline,
         BenchmarkReport candidate,
-        string profile = "sync")
+        string profile = "sync",
+        string criteria = "optimization")
     {
+        if (criteria == "non-regression")
+            return BuildNonRegressionComparison(baselinePath, candidatePath, baseline, candidate);
+        if (criteria != "optimization")
+            throw new ArgumentException("--criteria must be 'optimization' or 'non-regression'.", nameof(criteria));
         var failures = new List<string>();
         bool asyncProfile = string.Equals(profile, "async", StringComparison.OrdinalIgnoreCase);
         SyncComparisonRow[] syncRows = baseline.SyncOverhead
@@ -658,15 +669,26 @@ internal static class BenchmarkComparer
     private static string BuildMarkdown(BenchmarkComparisonReport report)
     {
         var builder = new StringBuilder();
-        builder.AppendLine(CultureInfo.InvariantCulture, $"# SlimFaas {report.Profile} optimization comparison");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"# SlimFaas {report.Profile} {report.Criteria} comparison");
         builder.AppendLine();
-        builder.AppendLine(CultureInfo.InvariantCulture, $"Overall verdict: **{(report.Passed ? "PASS" : "FAIL")}**.");
+        string verdict = report.InconclusiveReason is not null ? "INCONCLUSIVE" : report.Passed ? "PASS" : "FAIL";
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Overall verdict: **{verdict}**.");
         builder.AppendLine();
         builder.AppendLine("## Acceptance criteria");
         builder.AppendLine();
         builder.AppendLine("| criterion | observed | target | verdict |");
         builder.AppendLine("|---|---:|---:|:---:|");
-        if (report.Profile == "async" && report.AsyncCriteria is { } asyncCriteria)
+        if (report.Criteria == "non-regression")
+        {
+            builder.AppendLine("| optimization gains | reported below | informational | INFO |");
+            if (report.AsyncCriteria is { } guardrails)
+            {
+                builder.AppendLine(CultureInfo.InvariantCulture, $"| async p99 and throughput guardrails | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(guardrails.TailAndThroughputGuardrailsPassed ? "PASS" : "FAIL")} |");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"| paced / burst guardrails | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(guardrails.WorkloadGuardrailsPassed ? "PASS" : "FAIL")} |");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"| CPU / memory / Raft guardrails | {FormatResources(guardrails)} | +{MaximumCpuRegressionPercent:F0}% / +{MaximumMemoryRegressionPercent:F0}% / x{MaximumRaftEntryRatio:F0} | {(guardrails.ResourceGuardrailsPassed ? "PASS" : "FAIL")} |");
+            }
+        }
+        else if (report.Profile == "async" && report.AsyncCriteria is { } asyncCriteria)
         {
             AppendCriterion(builder, "Async median HTTP p95 reduction",
                 asyncCriteria.MedianHttpP95ReductionPercent, AsyncHttpP95MinimumReductionPercent,

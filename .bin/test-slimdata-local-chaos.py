@@ -34,6 +34,8 @@ from urllib.request import build_opener, HTTPRedirectHandler, ProxyHandler, Requ
 ROOT = Path(__file__).resolve().parents[1]
 SIZES = [65536, 262144, 1048576, 2000000, 2097152, 4194304]
 HTTP = build_opener(ProxyHandler({}))
+ENDPOINTS = {}
+WEBSOCKET_ENDPOINTS = {}
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -76,9 +78,13 @@ def manifest_yaml(mapping, indent=0):
     return "\n".join(lines)
 
 
+def endpoint(port):
+    return ENDPOINTS.get(port, f"http://127.0.0.1:{port}")
+
+
 def request(port, path, method="GET", data=None, headers=None, timeout=8, chunked=False, redirects=True):
     body = iter(data[i:i + 65536] for i in range(0, len(data), 65536)) if chunked else data
-    req = Request(f"http://127.0.0.1:{port}{path}", data=body,
+    req = Request(endpoint(port) + path, data=body,
                   headers=headers or {}, method=method)
     try:
         with (HTTP if redirects else DIRECT_HTTP).open(req, timeout=timeout) as response:
@@ -125,7 +131,7 @@ def read_receipts(directory):
         # A final partial line is still being written; only complete lines count.
         lines = path.read_bytes().splitlines(keepends=True)
         receipts.extend(json.loads(line) for line in lines if line.endswith(b"\n"))
-    return receipts
+    return sorted(receipts, key=lambda receipt: receipt.get("utc", 0))
 
 
 def suspend(pid, paused):
@@ -301,7 +307,7 @@ class Campaign:
     def ready(self):
         started = time.monotonic()
         def check():
-            if self.process.poll() is not None:
+            if self.process is not None and self.process.poll() is not None:
                 raise AssertionError(f"Local supervisor exited with code {self.process.returncode}; inspect logs")
             return all(request(port, "/ready", timeout=2)[0] == 200 for port in self.ports)
         wait_until("all three nodes ready", check, self.options.recovery_timeout)
@@ -320,7 +326,7 @@ class Campaign:
     def stop(self):
         while self.suspended:
             pid = next(iter(self.suspended))
-            suspend(pid, False)
+            self.pause(pid, False)
             self.suspended.remove(pid)
         self.stop_supervisor()
         wait_until("owned Local nodes release listening ports", self.ports_released, 30)
@@ -364,6 +370,12 @@ class Campaign:
                 pass
         return None
 
+    def pause(self, pid, paused):
+        suspend(pid, paused)
+
+    def kill_node(self, pid):
+        os.kill(pid, signal.SIGTERM if os.name == "nt" else signal.SIGKILL)
+
     def node_pid(self, node):
         # Optional logs live on the faulted filesystem and can miss a restart
         # while it is full. The supervisor's captured stdout lives with the
@@ -371,6 +383,12 @@ class Campaign:
         log = self.output / f"supervisor-{self.generation - 1}.log"
         matches = re.findall(rf"\[node/slimfaas-{node}\] started pid=(\d+)",
                              log.read_text(encoding="utf-8", errors="replace"))
+        # macOS launches the runtime behind the system wait implementation so
+        # stopping it does not block .NET's supervisor-wide child reaper.
+        runtime_matches = re.findall(rf"\[node/slimfaas-{node}\] runtime pid=(\d+)",
+                                     log.read_text(encoding="utf-8", errors="replace"))
+        if runtime_matches:
+            matches = runtime_matches
         if not matches:
             raise AssertionError(f"Owned node PID missing: {log}")
         return int(matches[-1])
@@ -453,12 +471,15 @@ class Campaign:
             if key.startswith(("slimdata_raft_command_size_violation_total", "slimdata_raft_command_format_violation_total",
                                "slimdata_raft_skipped_command_total")) and value > 0:
                 raise AssertionError(f"Raft command was skipped or rejected while applying: {key}={value}")
-        root = self.state_root / "data" / f"slimfaas-{node}"
+        root = self.node_state_directory(node)
         snapshots = [{"name": path.name, "bytes": path.stat().st_size,
                       "mtime": path.stat().st_mtime} for path in (root / "db").glob("*") if path.is_file()]
         wal_bytes = sum(path.stat().st_size for path in (root / "wal").rglob("*") if path.is_file())
         self.client.append({"event": "resource-sample", "phase": phase, "node": node,
                             "metrics": values, "snapshots": snapshots, "wal_disk_bytes": wal_bytes})
+
+    def node_state_directory(self, node):
+        return self.state_root / "data" / f"slimfaas-{node}"
 
     def verify(self):
         # All reads share a deadline; 404 is allowed only while catching up. Wrong
@@ -643,6 +664,32 @@ class Campaign:
         self.results.append({"phase": self.phase, "passed": True, "job_ids": job_ids, "dlq_id": dead_letter["Id"]})
         print(json.dumps(self.results[-1]), flush=True)
 
+    def job_during_node_stop(self):
+        self.phase = "job-during-node-stop"
+        leader = self.leader()
+        if leader is None:
+            raise AssertionError("A leader is required before the follower suspension")
+        follower = (leader + 1) % 3
+        pid = self.node_pid(follower)
+        identifier = uuid.uuid4().hex
+        self.pause(pid, True)
+        self.suspended.add(pid)
+        try:
+            started = time.monotonic()
+            self.require_mutation("job", "/job/chaos-job",
+                json.dumps({"Args": [identifier], "TtlSecondsAfterFinished": 3600}).encode(),
+                port=self.ports[leader], headers={"Content-Type": "application/json"}, expected_status=202)
+            wait_until("real job while follower is still stopped", lambda: any(
+                identifier in row.get("args", []) for row in read_receipts(self.receipts) if row["event"] == "job"),
+                min(15, self.options.recovery_timeout))
+            self.results.append({"phase": self.phase, "passed": True, "follower": follower,
+                                 "job_id": identifier, "seconds": time.monotonic() - started})
+            print(json.dumps(self.results[-1]), flush=True)
+        finally:
+            self.pause(pid, False)
+            self.suspended.discard(pid)
+        self.ready()
+
     def schedules(self):
         self.phase = "scheduled-job"
         identifier = uuid.uuid4().hex
@@ -787,7 +834,8 @@ class Campaign:
             print(json.dumps({"phase": self.phase, "bytes": size, "passed": True}), flush=True)
         identifier = uuid.uuid4().hex
         self.client.append({"event": "intent", "kind": "interrupted-upload", "id": identifier})
-        with socket.create_connection(("127.0.0.1", self.entry), timeout=3) as connection:
+        address = urlsplit(endpoint(self.entry))
+        with socket.create_connection((address.hostname, address.port or 80), timeout=3) as connection:
             connection.sendall((f"POST /data/files?id={identifier} HTTP/1.1\r\nHost: localhost\r\n"
                                 "Content-Type: application/octet-stream\r\nContent-Length: 1048576\r\n\r\n").encode() + payload(65536))
             connection.shutdown(socket.SHUT_WR)
@@ -950,7 +998,7 @@ class Campaign:
             traffic = pool.submit(self.traffic, stopping)
             try:
                 for pid in pids:
-                    suspend(pid, True)
+                    self.pause(pid, True)
                     self.suspended.add(pid)
                 self.client.append({"event": "suspended", "phase": self.phase, "nodes": nodes, "pids": pids})
                 # Direct minority write: a ready-gateway refusal alone does not
@@ -961,7 +1009,7 @@ class Campaign:
                 restoration_at = time.perf_counter()
                 resumed = time.monotonic()
                 for pid in pids:
-                    suspend(pid, False)
+                    self.pause(pid, False)
                     self.suspended.remove(pid)
                 self.client.append({"event": "resumed", "phase": self.phase, "actual_absence_seconds": resumed - started})
                 stopping.set()
@@ -1139,7 +1187,7 @@ class Campaign:
             return count
 
         healthy_writes = burst()
-        suspend(pid, True)
+        self.pause(pid, True)
         self.suspended.add(pid)
         self.client.append({"event": "lease-follower-suspended", "node": follower, "pid": pid})
         try:
@@ -1153,7 +1201,7 @@ class Campaign:
             probe_seconds = time.monotonic() - started
             self.expected[path] = sha256(value)
         finally:
-            suspend(pid, False)
+            self.pause(pid, False)
             self.suspended.remove(pid)
             self.client.append({"event": "lease-follower-resumed", "node": follower, "pid": pid})
         self.ready()
@@ -1174,7 +1222,7 @@ class Campaign:
         pid = self.node_pid(leader)
         started = time.monotonic()
         with ThreadPoolExecutor(max_workers=1) as pool:
-            suspend(pid, True)
+            self.pause(pid, True)
             self.suspended.add(pid)
             self.client.append({"event": "route-leader-suspended", "node": leader, "pid": pid})
             try:
@@ -1184,7 +1232,7 @@ class Campaign:
                     self.leader(excluded=(leader,)) is not None, self.options.recovery_timeout)
                 pending.result()
             finally:
-                suspend(pid, False)
+                self.pause(pid, False)
                 self.suspended.remove(pid)
         self.expected[path] = sha256(b"after-election")
         self.ready()
@@ -1313,7 +1361,7 @@ class Campaign:
                 if pause_raft:
                     for node in range(3):
                         pid = self.node_pid(node)
-                        suspend(pid, True)
+                        self.pause(pid, True)
                         paused.append(pid)
                         self.suspended.add(pid)
                     self.client.append({"event": "journal-fault-raft-paused", "pids": paused})
@@ -1345,7 +1393,7 @@ class Campaign:
                 self.client.append({"event": "disk-space-restored"})
                 for pid in paused:
                     try:
-                        suspend(pid, False)
+                        self.pause(pid, False)
                     except ProcessLookupError:
                         self.client.append({"event": "paused-node-exited-during-journal-fault", "pid": pid})
                     self.suspended.discard(pid)
@@ -1381,7 +1429,7 @@ class Campaign:
             with ThreadPoolExecutor(max_workers=1) as pool:
                 running = pool.submit(self.traffic, stopping)
                 try:
-                    os.kill(pid, signal.SIGTERM if os.name == "nt" else signal.SIGKILL)
+                    self.kill_node(pid)
                     self.client.append({"event": "killed", "node": node, "pid": pid})
                     wait_until("supervisor restarted owned node", lambda node=node, pid=pid: self.node_pid(node) != pid,
                                self.options.recovery_timeout)
@@ -1445,7 +1493,7 @@ class WebSocketCampaign:
 
     async def connect(self, node):
         campaign = self.campaign
-        client = self.client_type(f"ws://127.0.0.1:{campaign.ports[node]}/ws", self.config, reconnect_delay=.2)
+        client = self.client_type(WEBSOCKET_ENDPOINTS.get(campaign.ports[node], f"ws://127.0.0.1:{campaign.ports[node]}/ws"), self.config, reconnect_delay=.2)
         client.on_async_request(self.consume)
         client.on_stream_message(self.consume)
         client.on_sync_request(self.sync)
@@ -1521,7 +1569,7 @@ class WebSocketCampaign:
         identifier = uuid.uuid4().hex
         paused = False
         try:
-            suspend(pid, True)
+            campaign.pause(pid, True)
             paused = True
             campaign.suspended.add(pid)
             campaign.client.append({"event": "owner-suspended", "node": 0, "pid": pid})
@@ -1531,7 +1579,7 @@ class WebSocketCampaign:
                 payload(2097152, identifier), identifier=identifier, port=campaign.ports[1], expected_status=202)
             started = time.monotonic()
             await asyncio.sleep(20)
-            suspend(pid, False)
+            campaign.pause(pid, False)
             paused = False
             campaign.suspended.remove(pid)
             campaign.client.append({"event": "owner-resumed", "node": 0, "pid": pid,
@@ -1544,7 +1592,7 @@ class WebSocketCampaign:
             print(json.dumps(campaign.results[-1]), flush=True)
         finally:
             if paused:
-                suspend(pid, False)
+                campaign.pause(pid, False)
                 campaign.suspended.discard(pid)
             await self.disconnect(client, running)
 
@@ -1577,6 +1625,7 @@ def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", type=Path, default=ROOT / "src/SlimFaas/bin/Release/net10.0/SlimFaas.dll")
     parser.add_argument("--dotnet", default="dotnet")
+    parser.add_argument("--backend-config", type=Path, help="Owned Kubernetes campaign configuration; omit for Local")
     parser.add_argument("--source-commit", help="Exact source SHA when running an exported fixture outside a git checkout")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--state-directory", type=Path, help="Separate persistent storage, required for isolated disk-full tests")
@@ -1605,7 +1654,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "leader-route", "job-environments", "job-recovery", "startup-jobs", "chaos", "latency", "partitions", "diskfull", "job-diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "leader-route", "job-environments", "job-recovery", "startup-jobs", "job-during-node-stop", "chaos", "latency", "partitions", "diskfull", "job-diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1614,7 +1663,11 @@ def parse_arguments(argv=None):
 
 def main():
     options = parse_arguments()
-    campaign = Campaign(options)
+    if options.backend_config is None:
+        campaign = Campaign(options)
+    else:
+        from slimdata_kubernetes_backend import create_campaign
+        campaign = create_campaign(options, globals())
     metadata = {"started_utc": time.time(), "platform": platform.platform(), "python": sys.version,
                 "environment_overrides": {name: os.environ[name] for name in (
                     "SlimData__WalMemoryManagement", "SlimData__SnapshotIntervalEntries",
@@ -1653,6 +1706,7 @@ def main():
              "job-recovery": campaign.job_recovery,
              "job-environments": campaign.job_environments,
              "startup-jobs": campaign.startup_jobs,
+             "job-during-node-stop": campaign.job_during_node_stop,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
              "diskfull": campaign.disk_full,
              "job-diskfull": lambda: campaign.disk_full(pause_raft=True), "restarts": campaign.restarts}[scenario]()

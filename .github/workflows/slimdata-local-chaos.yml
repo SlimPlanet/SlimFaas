@@ -56,6 +56,10 @@ jobs:
           python .bin/test-local-chaos-evidence.py
       - name: Verify owned benchmark processes and occupied-port rejection
         run: python .bin/test-local-benchmark-host.py
+      - name: Verify platform receipts, process fencing and endpoint configuration
+        run: |
+          dotnet build tools/SlimFaas.MemoryLab -c Release
+          python .bin/test-platform-validation.py
       - name: Build runtime
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
       - name: Exercise real APIs, payload checksums, retries, DLQ and faults

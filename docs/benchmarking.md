@@ -70,6 +70,82 @@ Results are written below
 
 ## Compare an optimization with its baseline
 
+For release safety checks, add `--criteria non-regression` to the comparison
+command below. The default remains `optimization`. Non-regression evaluates the
+complete sync, async, paced/burst and scaling evidence without requiring the
+20–50% optimization targets. It retains the existing 10% throughput/tail guardrails,
+20% CPU/message, 10% RSS and 2x Raft-entries/message limits. A missing measurement
+or failed reference produces **INCONCLUSIVE** (exit 2), never a passing result.
+
+### macOS, Linux ARM64 and Kubernetes campaigns
+
+Use `.bin/run-platform-workload.py` for one attributable run and
+`.bin/run-platform-matrix.py` for serial reference–candidate–candidate–reference
+blocks. Publish both revisions before starting measurements; use the same
+prebuilt benchmark and MemoryLab drivers for both. The full HTTP defaults are
+`async-queue`, 64/4096/65536/262144/1048576/2000000/2097152/4194304 bytes,
+concurrency 1/4/16, 2-second warmup, 10-second measurements and three repetitions.
+MemoryLab defaults are Set and mixed at concurrency 12/48, 30-second warmup and
+120-second load, with all-node reads and independent async SHA-256 receipts.
+Its safety limits remain 90% throughput, 120% p99 and 115% RSS, with zero errors.
+
+For example, save an environment configuration outside the source tree:
+
+```json
+{
+  "environment": "macos",
+  "before": "/absolute/path/baseline/SlimFaas",
+  "after": "/absolute/path/candidate/SlimFaas",
+  "benchmark": "/absolute/path/SlimFaasBenchmark.dll",
+  "memorylab": "/absolute/path/SlimFaas.MemoryLab.dll",
+  "compare_command": ["dotnet", "/absolute/path/SlimFaasBenchmark.dll"]
+}
+```
+
+```bash
+python3 .bin/run-platform-matrix.py --config artifacts/platform-macos.json \
+  --output artifacts/platform-macos
+```
+
+The matrix writes every run and all four cross-comparisons. Contradictory
+guardrails against the two surrounding references trigger one complete ABBA
+repeat for that block; both attempts remain available. `--resume` continues an
+interrupted matrix without overwriting completed or failed evidence. No builds,
+other measurements or fault campaigns may run concurrently with measurements.
+Low disk space stops a new phase; preserve state, WALs, snapshots and journals
+when reclaiming verified inactive build caches or images.
+
+The test-only `benchmarks/platform/Dockerfile` inherits the exact production
+runtime image and adds a common load driver, SDK fixtures and Linux fault tools.
+Build with `--build-arg RUNTIME_IMAGE=<source-built-runtime>`. Use `podman` in the
+matrix configuration, image names for `before`/`after`, and a unique `prefix`.
+State is stored on the VM's Linux filesystem, not a macOS bind mount. Podman
+measures a managed, trimmed ARM64 runtime with the current production Dockerfile;
+macOS Native AOT results are a separate comparison.
+
+For Kubernetes, use a dedicated four-node kind cluster (one control plane and
+three workers), an explicit kubeconfig and context `kind-slimfaas-pr506`. Verify
+[kind's rootless prerequisites](https://kind.sigs.k8s.io/docs/user/rootless/),
+including cgroup v2 delegation. The kind nodes need a VM-native `/evidence` mount
+from `/var/home/core/slimfaas-pr506`. Preload the runtime and common controller
+images. Set `environment` to `kubernetes`, `prefix` to `slimfaas-pr506-<campaign>`,
+and provide `kubeconfig`, `controller_image`, `before_commit` and `after_commit`.
+The launcher creates dedicated labelled namespaces, retained persistent volumes,
+three anti-affined StatefulSet nodes, actual function Deployments and Jobs.
+Generators and functions run inside the cluster through Services and pod DNS.
+Port-forwarding is unnecessary for measurements.
+
+The `normal` probe profile runs readiness and liveness checks. The `endurance`
+profile disables liveness replacement while explicitly suspending only the
+campaign runtime process; pod UID, PID and process start time fence every signal.
+Per-pod/per-restart receipts and logs are retained before scaling down. See the
+[reliability guide](slimdata-reliability.md) for fault and ledger invariants.
+
+Benchmark targets accept `--host 0.0.0.0` for container access (default remains
+loopback). MemoryLab accepts `--node-urls http://node-0:5000,http://node-1:5000,http://node-2:5000`;
+the existing local ports remain the default. URLs must be HTTP(S) origins without
+credentials, paths, queries or fragments.
+
 Run the standard profile before changing the runtime, then run the exact same
 matrix after the change. Compare the two structured reports with:
 

@@ -153,7 +153,12 @@ else
 fi
 
 echo "Starting local function"
-dotnet "$lab_dll" function --port 5050 >"$run_dir/function.log" 2>&1 &
+if [[ -n "${MEMORY_LAB_RECEIPTS:-}" ]]; then
+  PORT=5050 python3 "$repo_root/tests/SlimFaas.Tests/Local/chaos_function.py" \
+    --journal-directory "$MEMORY_LAB_RECEIPTS" >"$run_dir/function.log" 2>&1 &
+else
+  dotnet "$lab_dll" function --port 5050 >"$run_dir/function.log" 2>&1 &
+fi
 function_pid="$!"
 
 for attempt in $(seq 1 60); do

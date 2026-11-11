@@ -13,14 +13,18 @@ import os
 from pathlib import Path
 import threading
 import time
+import uuid
+from urllib.request import build_opener, ProxyHandler, Request
 from urllib.parse import parse_qs, urlsplit
 
 
 class Journal:
     def __init__(self, directory):
         directory.mkdir(parents=True, exist_ok=True)
-        self.path = directory / f"receipts-{os.getpid()}.jsonl"
+        self.path = directory / f"receipts-{os.getpid()}-{uuid.uuid4().hex}.jsonl"
         self.lock = threading.Lock()
+        self.remote = os.environ.get("CHAOS_RECEIPT_URL")
+        self.http = build_opener(ProxyHandler({}))
 
     def append(self, value):
         encoded = (json.dumps(value | {"utc": time.time(), "pid": os.getpid(),
@@ -28,6 +32,11 @@ class Journal:
         with self.lock, self.path.open("ab", buffering=0) as stream:
             stream.write(encoded)
             os.fsync(stream.fileno())
+        if self.remote:
+            request = Request(self.remote, data=encoded, headers={"Content-Type": "application/json"}, method="POST")
+            with self.http.open(request, timeout=10) as response:
+                if response.status != 204:
+                    raise RuntimeError("Independent receipt collector did not acknowledge the fsynced journal")
 
 
 def hash_body(stream, length=None, chunked=False):
@@ -121,6 +130,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--journal-directory", type=Path, required=True)
     parser.add_argument("--repair", type=Path)
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--job", action="store_true")
     parser.add_argument("args", nargs="*")
     options = parser.parse_args()
@@ -141,7 +151,7 @@ def main():
         journal.append({"event": "job", "args": options.args})
         return
     repair = options.repair or options.journal_directory / "repair"
-    server = ThreadingHTTPServer(("127.0.0.1", int(os.environ["PORT"])), handler(journal, repair))
+    server = ThreadingHTTPServer((options.host, int(os.environ["PORT"])), handler(journal, repair))
     server.serve_forever()
 
 

@@ -714,7 +714,10 @@ internal static class BenchmarkRunner
             }
         }));
         ClusterResourceSnapshot[] available = nodes.Where(node => node is not null).Cast<ClusterResourceSnapshot>().ToArray();
-        if (available.Length == 0)
+        if (available.Length != nodeUrls.Count || available.Length == 0 ||
+            available.Any(node => !double.IsFinite(node.CpuSeconds) || node.CpuSeconds < 0 ||
+                !double.IsFinite(node.RaftEntries) || node.RaftEntries < 0 ||
+                !double.IsFinite(node.WorkingSetBytes) || node.WorkingSetBytes <= 0))
             return null;
         return new ClusterResourceSnapshot(
             available.Sum(node => node.CpuSeconds),
@@ -731,9 +734,9 @@ internal static class BenchmarkRunner
             ReadOnlySpan<char> raw = line.AsSpan(metricName.Length + 1).Trim();
             return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
                 ? value
-                : 0;
+                : double.NaN;
         }
-        return 0;
+        return double.NaN;
     }
 
     private static AsyncResourceUsage? BuildResourceUsage(
