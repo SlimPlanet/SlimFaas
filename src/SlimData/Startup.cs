@@ -5,6 +5,7 @@ using DotNext.Net.Cluster.Consensus.Raft.Http;
 using DotNext.Net.Cluster.Consensus.Raft.Membership;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SlimData.ClusterFiles;
 using SlimData.ClusterFiles.Http;
 using SlimData.Commands;
@@ -170,13 +171,15 @@ public class Startup(IConfiguration configuration)
                 .AddOptions()
                 .AddRouting();
 
-        services
-            .UseStateMachine<SlimPersistentState>(new WriteAheadLog.Options
-            {
-                Location = walPath,
-                MemoryManagement = GetWalMemoryManagement(configuration)
-            })
-            .AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
+        var walOptions = new WriteAheadLog.Options
+        {
+            Location = walPath,
+            MemoryManagement = GetWalMemoryManagement(configuration)
+        };
+        services.UseStateMachine<SlimPersistentState>(walOptions);
+        services.Replace(ServiceDescriptor.Singleton<IPersistentState>(sp =>
+            new DurableWriteAheadLog(walOptions, sp.GetRequiredService<IStateMachine>())));
+        services.AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
 
         if (!string.IsNullOrWhiteSpace(path))
         {

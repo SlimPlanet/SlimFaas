@@ -12,6 +12,17 @@ merely by freeing disk space. Linux memory-mapped writes may terminate directly
 when their backing filesystem is exhausted. Preserve those failures and all
 confirmed/unknown operation records when testing recovery.
 
+Raft Append responses now wait for the WAL flush and recovery checkpoint before
+the leader can count a peer's copy toward a quorum. Buffered append completion
+alone is insufficient: a retained disk-full CI history acknowledged a Stream
+message, then recovered two peers with a different committed entry at the same
+index. Its original filesystem and failed verdict are preserved. The durability
+barrier covers local, indexed and batched appends; flush failure or cancellation
+does not become an acknowledgment. It preserves both WAL memory strategies and
+the persisted formats. Each data read also waits for local application after the
+leader read barrier, including the weak-barrier fast path; its existing five-second
+budget remains unchanged.
+
 The [8–9 November 2026 results](slimdata-reliability-results.md) include the executed
 absence/API matrix, 2 MB versus 2 MiB diagnosis, fixes, failed campaigns and the
 current LTS verdict. Compact evidence and raw archive hashes accompany the report.

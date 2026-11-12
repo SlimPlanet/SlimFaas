@@ -140,6 +140,11 @@ guardrails retain their existing definition, while an unplanned runtime/control
 OOM fails the controlled recovery campaign even if the process restarts. See the
 [Linux socket-memory controls](slimdata-reliability.md#linux-socket-memory-controls).
 
+Runtime comparisons include the durable Raft append and local read-application
+barriers described in [the architecture](how-it-works.md). Keep them enabled:
+an acknowledgment from a volatile replica cannot be counted as equivalent to
+a persisted quorum copy when comparing performance.
+
 The platform runner preserves every latency sample in `latency-samples.csv.gz`.
 The common driver compresses completed case samples between timed cases, using
 `--samples-format csv.gz`; ordinary manual runs still default to CSV. Comparison

@@ -373,6 +373,21 @@ they do not establish the cause of a particular operational incident. The
 SlimData command protocol, snapshot payload format and AppendEntries commit-index
 guard are preserved.
 
+SlimData's WAL adapter waits for the append's flush/recovery checkpoint before
+returning to the Raft transport. DotNext's buffered append can otherwise return
+before its background flusher persists the newly received tail. Under disk
+exhaustion and process failure, that volatile acknowledgment can leave a quorum
+without a previously accepted entry. The adapter keeps the same WAL layout and
+memory strategy, propagates flush failure/cancellation, and allows the existing
+flusher to coalesce concurrent writes. See the versioned
+[append implementation](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.cs)
+and [flush/checkpoint implementation](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.Flusher.cs).
+
+Read paths additionally wait for the local state machine to apply the visible
+commit after the leader barrier. This covers DotNext's weak-leader fast path,
+which may return before that local application. The existing read timeout still
+bounds the complete operation.
+
 Version 6.12.0 also corrects an empty-heartbeat response that could delay leader
 lease renewal after a write burst when one voter stops responding despite a
 healthy majority. The fix applies to the HTTP transport; see

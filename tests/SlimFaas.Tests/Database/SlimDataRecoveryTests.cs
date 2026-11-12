@@ -195,6 +195,29 @@ public sealed class SlimDataRecoveryTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Completed_weak_leader_barrier_does_not_expose_state_before_local_application(bool hashset)
+    {
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
+        TaskCompletionSource applied = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        fixture.Log.WaitForApply = token => new ValueTask(applied.Task.WaitAsync(token));
+        Task read = hashset ? fixture.Service.HashGetAllAsync("recovery") : fixture.Service.GetAsync("recovery");
+        try
+        {
+            Assert.False(read.IsCompleted);
+        }
+        finally
+        {
+            applied.TrySetResult();
+            await read.WaitAsync(TestDeadline);
+        }
+    }
+
     [Fact]
     public async Task Persistent_local_apply_timeout_is_reported_as_unavailable()
     {
@@ -284,7 +307,7 @@ public sealed class SlimDataRecoveryTests
             Cluster.SetupGet(c => c.Leader).Returns(member.Object);
             Cluster.SetupGet(c => c.AuditTrail).Returns(Log);
             Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
-                .Returns((ReadBarrierType _, CancellationToken token) => Log.WaitForApply(token));
+                .Returns(ValueTask.CompletedTask);
             // Follower reads do not need a leader lease after local application.
             Cluster.SetupGet(c => c.LeadershipToken).Returns(new CancellationToken(true));
             var compatibility = new Mock<ISlimDataProtocolCompatibility>();

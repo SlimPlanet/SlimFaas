@@ -546,6 +546,12 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             // completed SetAsync is already committed before it returns.
             await _cluster.ApplyReadBarrierAsync(ReadBarrierType.Weak, timeout.Token)
                 .ConfigureAwait(false);
+            // DotNext's weak leader fast path can return once its write barrier
+            // is committed, while the local state-machine applier is behind.
+            // Do not capture local values until the visible commit is applied.
+            var log = _cluster.AuditTrail;
+            await log.WaitForApplyAsync(log.LastCommittedEntryIndex, timeout.Token)
+                .ConfigureAwait(false);
             await MasterWaitForLeaseToken(timeout.Token).ConfigureAwait(false);
         }
         catch (QuorumUnreachableException ex)
