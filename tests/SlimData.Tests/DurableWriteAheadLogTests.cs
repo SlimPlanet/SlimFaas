@@ -46,6 +46,90 @@ public sealed class DurableWriteAheadLogTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
+    public async Task Commit_and_explicit_flush_share_the_pending_append_flush_observer(int variant)
+    {
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try
+        {
+            await using SlimPersistentState state = new(root);
+            await state.RestoreAsync(deadline.Token);
+            await using var wal = new DurableWriteAheadLog(new WriteAheadLog.Options
+            {
+                Location = Path.Combine(root, "wal")
+            }, state, token =>
+            {
+                entered.TrySetResult();
+                return release.Task.WaitAsync(token);
+            });
+            IPersistentState raftLog = wal;
+            Task append = AppendAsync(raftLog, 0, deadline.Token);
+            await entered.Task.WaitAsync(deadline.Token);
+            Task observer = variant == 0 ? raftLog.CommitAsync(1, deadline.Token).AsTask() : wal.FlushAsync(deadline.Token);
+            try
+            {
+                // An append observer already owns the single-consumer completion.
+                // A commit can need that same completion even for an earlier entry.
+                Assert.False(observer.IsCompleted);
+            }
+            finally
+            {
+                release.TrySetResult();
+                await Task.WhenAll(append, observer);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(WriteAheadLog.MemoryManagementStrategy.SharedMemory)]
+    [InlineData(WriteAheadLog.MemoryManagementStrategy.PrivateMemory)]
+    public async Task Appending_committing_and_flushing_a_busy_log_can_overlap(WriteAheadLog.MemoryManagementStrategy strategy)
+    {
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        try
+        {
+            await using SlimPersistentState state = new(root);
+            await state.RestoreAsync(deadline.Token);
+            await using var wal = new DurableWriteAheadLog(new WriteAheadLog.Options
+            {
+                Location = Path.Combine(root, "wal"),
+                MemoryManagement = strategy
+            }, state);
+            IPersistentState raftLog = wal;
+            var payload = new byte[65536];
+            Task[] producers = Enumerable.Range(0, 4).Select(async _ =>
+            {
+                for (int i = 0; i < 128; i++)
+                {
+                    await raftLog.AppendAsync(new LogEntry<AddKeyValueCommand>
+                    {
+                        Term = 1,
+                        Command = new AddKeyValueCommand { Key = "busy", Value = payload, Operation = KeyValueOperation.Set }
+                    }, deadline.Token);
+                    await raftLog.CommitAsync(raftLog.LastEntryIndex, deadline.Token);
+                    await wal.FlushAsync(deadline.Token);
+                }
+            }).ToArray();
+            await Task.WhenAll(producers);
+            Assert.Equal(512, wal.LastCommittedEntryIndex);
+            await wal.WaitForApplyAsync(512, deadline.Token);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
     [InlineData(2)]
     public async Task Raft_append_cannot_acknowledge_before_the_durability_barrier(int variant)
     {

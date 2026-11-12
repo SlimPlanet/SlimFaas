@@ -380,8 +380,9 @@ exhaustion and process failure, that volatile acknowledgment can leave a quorum
 without a previously accepted entry. The adapter keeps the same WAL layout and
 memory strategy, propagates flush failure/cancellation, and allows the existing
 flusher to coalesce concurrent writes. Flush-completion observation is serialized
-because the underlying completion source supports one waiter; appends remain
-concurrent. See the versioned
+because the underlying completion source supports one waiter. Commit and explicit
+flush calls share the same observer gate, including calls through Raft interfaces;
+appends remain concurrent. See the versioned
 [append implementation](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.cs)
 and [flush/checkpoint implementation](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.Flusher.cs).
 

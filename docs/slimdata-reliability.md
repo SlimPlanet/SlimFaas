@@ -18,7 +18,8 @@ alone is insufficient: a retained disk-full CI history acknowledged a Stream
 message, then recovered two peers with a different committed entry at the same
 index. Its original filesystem and failed verdict are preserved. The durability
 barrier covers local, indexed and batched appends; flush failure or cancellation
-does not become an acknowledgment. It preserves both WAL memory strategies and
+does not become an acknowledgment. Append, commit and explicit flush calls share
+one completion observer, as required by the underlying WAL. It preserves both WAL memory strategies and
 the persisted formats. Each data read also waits for local application after the
 leader read barrier, including the weak-barrier fast path; its existing five-second
 budget remains unchanged.

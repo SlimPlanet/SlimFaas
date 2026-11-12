@@ -18,7 +18,7 @@ internal sealed class DurableWriteAheadLog : WriteAheadLog, IPersistentState
     internal DurableWriteAheadLog(Options options, IStateMachine stateMachine,
         Func<CancellationToken, Task>? flush) : base(options, stateMachine)
     {
-        _flush = flush ?? FlushAsync;
+        _flush = flush ?? base.FlushAsync;
     }
 
     // DotNext's buffered Append completes before its background flusher writes
@@ -47,10 +47,28 @@ internal sealed class DurableWriteAheadLog : WriteAheadLog, IPersistentState
         await FlushAppendedAsync(token).ConfigureAwait(false);
     }
 
+    public new async ValueTask<long> CommitAsync(long endIndex, CancellationToken token = default)
+    {
+        // Base CommitAsync can wait for an unflushed tail too. It must share
+        // the append observer's gate, including calls through IAuditTrail.
+        await _flushGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            return await base.CommitAsync(endIndex, token).ConfigureAwait(false);
+        }
+        finally
+        {
+            _flushGate.Release();
+        }
+    }
+
+    public new Task FlushAsync(CancellationToken token = default)
+        => FlushAppendedAsync(token).AsTask();
+
     private async ValueTask FlushAppendedAsync(CancellationToken token)
     {
         // The underlying flush-completion ValueTask source supports one waiter.
-        // Keep appends concurrent, but serialize observers of that completion;
+        // Keep appends concurrent, but serialize append/commit/flush observers;
         // the flusher can still persist their entries together.
         await _flushGate.WaitAsync(token).ConfigureAwait(false);
         try
