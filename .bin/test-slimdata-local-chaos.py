@@ -701,11 +701,15 @@ class Campaign:
         self.pause(stopped, True)
         self.suspended.add(stopped)
         try:
+            crashed_at = time.monotonic()
             self.kill_node(previous)
             self.client.append({"event": "leader-crashed-with-silent-follower", "node": leader,
                                 "pid": previous, "follower": follower})
             wait_until("owned leader process restarts", lambda: self.node_pid(leader) != previous,
                        self.options.recovery_timeout)
+            wait_until("restarted runtime opens its HTTP listener", lambda:
+                request(self.ports[leader], "/health", timeout=1)[0] == 200,
+                self.options.recovery_timeout)
             started = time.monotonic()
             wait_until("remaining majority becomes ready despite a silent protocol endpoint", lambda:
                 all(request(port, "/ready", timeout=1)[0] == 200
@@ -719,6 +723,7 @@ class Campaign:
             self.expected[path] = sha256(b"healthy-majority")
             self.results.append({"phase": self.phase, "passed": True, "suspended_follower": follower,
                                  "restarted_leader": leader, "ready_and_write_seconds": time.monotonic() - started})
+            self.results[-1]["restart_to_listener_seconds"] = started - crashed_at
             print(json.dumps(self.results[-1]), flush=True)
         finally:
             self.pause(stopped, False)

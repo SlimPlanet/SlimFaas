@@ -79,6 +79,26 @@ class WorkerLog:
             time.sleep(.05)
 
 
+def wait_for_function(nodes, function, timeout=120):
+    deadline = time.monotonic() + timeout
+    while True:
+        ready = True
+        for node in nodes:
+            try:
+                healthy, _, _ = request(node, "/ready")
+                code, _, status = request(node, "/status-functions")
+                available = healthy == 200 and code == 200 and any(
+                    row["Name"] == function and row["NumberReady"] > 0 for row in json.loads(status))
+            except OSError:
+                available = False
+            ready = ready and available
+        if ready:
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError("The .NET virtual function did not become ready on every node")
+        time.sleep(.1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--function", required=True)
@@ -102,19 +122,8 @@ def main():
             os.fsync(stream.fileno())
 
     try:
-        deadline = time.monotonic() + 120
         nodes = options.node_urls.split(",")
-        while True:
-            ready = True
-            for node in nodes:
-                code, _, status = request(node, "/status-functions")
-                if code != 200 or not any(row["Name"] == options.function and row["NumberReady"] > 0 for row in json.loads(status)):
-                    ready = False
-            if ready:
-                break
-            if time.monotonic() >= deadline:
-                raise AssertionError("The .NET virtual function did not become ready on every node")
-            time.sleep(.1)
+        wait_for_function(nodes, options.function)
         for size in SIZES:
             for chunked in (False, True):
                 for node in nodes:

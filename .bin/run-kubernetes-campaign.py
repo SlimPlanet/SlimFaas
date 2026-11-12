@@ -100,6 +100,8 @@ def resources(options):
         "ports": [{"containerPort": port} for port in (5000, 5003, 3262)], "readinessProbe": probe,
         "resources": {"requests": {"cpu": "250m", "memory": "256Mi"}, "limits": {"memory": "1Gi"}}}
     if options.probes == "normal":
+        runtime["startupProbe"] = {"httpGet": {"path": "/health", "port": 5000},
+                                   "periodSeconds": 2, "timeoutSeconds": 2, "failureThreshold": 150}
         runtime["livenessProbe"] = {"httpGet": {"path": "/health", "port": 5000},
                                     "initialDelaySeconds": 10, "periodSeconds": 10, "timeoutSeconds": 8}
     init = {"name": "initialize-owned-storage", "image": options.controller_image, "imagePullPolicy": "IfNotPresent",

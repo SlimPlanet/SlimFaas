@@ -106,6 +106,14 @@ spec:
         - name: slimfaas
           image: axaguildev/slimfaas:latest
           imagePullPolicy: Always
+          # Retained-state recovery can outlast the regular liveness budget.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 150
           livenessProbe:
             httpGet:
               path: /health

@@ -135,11 +135,24 @@ three anti-affined StatefulSet nodes, actual function Deployments and Jobs.
 Generators and functions run inside the cluster through Services and pod DNS.
 Port-forwarding is unnecessary for measurements.
 
-The `normal` probe profile runs readiness and liveness checks. The `endurance`
+Long rootless campaigns also consume the Linux user's session-key quota. Inspect
+`/proc/key-users` and `sysctl kernel.keys.maxkeys kernel.keys.maxbytes` in the
+dedicated VM. If OCI startup reports `unable to create session key: disk quota
+exceeded`, raise that VM's quota (for example, `sudo sysctl -w
+kernel.keys.maxkeys=20000 kernel.keys.maxbytes=2000000`) and retain the original
+failed attempt. This is unrelated to filesystem capacity.
+
+The `normal` probe profile runs readiness and liveness checks with a 300-second
+startup allowance for retained-state recovery. The `endurance`
 profile disables liveness replacement while explicitly suspending only the
 campaign runtime process; pod UID, PID and process start time fence every signal.
 Per-pod/per-restart receipts and logs are retained before scaling down. See the
 [reliability guide](slimdata-reliability.md) for fault and ledger invariants.
+The protocol-probe regression reports crash-to-listener time separately from
+majority recovery after the listener opens; the latter keeps its 15-second
+deadline. The existing membership announcement can consume 200 seconds before
+the restarted listener opens when its first peer is silent. Retain that startup
+time in the report, even when the subsequent majority check succeeds.
 
 Benchmark targets accept `--host 0.0.0.0` for container access (default remains
 loopback). MemoryLab accepts `--node-urls http://node-0:5000,http://node-1:5000,http://node-2:5000`;

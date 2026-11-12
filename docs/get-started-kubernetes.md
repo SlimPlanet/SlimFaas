@@ -117,6 +117,11 @@ Use `/ready` on port 5000 for the readiness probe and `/health` for the liveness
 probe, as in the demo. `/ready` returns 503 while the node lacks a leader,
 consensus, protocol compatibility or completed snapshot restoration. `/health`
 can still return 200: the process must remain alive to participate in recovery.
+The demo also allows 300 seconds for the `/health` startup probe before enabling
+liveness checks. Retained-state initialization can wait for the existing
+200-second membership announcement deadline when a peer is silent. Set the
+startup allowance to cover your restoration budget; liveness must not repeatedly
+replace a recovering process before its HTTP listener opens.
 
 The two Services have different purposes:
 

@@ -35,6 +35,16 @@ DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
 
 
 class PlatformTests(unittest.TestCase):
+    def test_dotnet_probe_retries_only_readiness_during_runtime_startup(self):
+        responses = [ConnectionRefusedError(), (503, {}, b""), (503, {}, b""), (200, {}, b""),
+                     (200, {}, b'[{"Name":"owned","NumberReady":1}]')]
+        with patch.object(DOTNET_PROBE, "request", side_effect=responses) as request_mock, \
+                patch.object(DOTNET_PROBE.time, "sleep"):
+            DOTNET_PROBE.wait_for_function(["http://owned:5000"], "owned")
+        self.assertEqual(5, request_mock.call_count)
+        self.assertTrue(all(call.args in [("http://owned:5000", "/ready"), ("http://owned:5000", "/status-functions")]
+                            for call in request_mock.call_args_list))
+
     def test_dotnet_worker_log_waits_for_complete_lines_and_keeps_duplicate_observations(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "supervisor.log"
