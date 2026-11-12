@@ -48,6 +48,7 @@ public sealed class SlimDataDiagnosticsWorker(
         {
             try
             {
+                await CheckWalHealthAsync(stoppingToken).ConfigureAwait(false);
                 RecordMetrics();
                 await Task.Delay(Interval, stoppingToken).ConfigureAwait(false);
             }
@@ -55,10 +56,10 @@ public sealed class SlimDataDiagnosticsWorker(
             {
                 break;
             }
-            catch (UnreachableException ex)
+            catch (Exception ex) when (ex is UnreachableException or WriteAheadLog.InternalException)
             {
-                // DotNext marks its WAL terminal after a failed state-machine
-                // application. That instance cannot resume after space returns.
+                // DotNext marks its WAL terminal after a failed background
+                // flush or application. That instance cannot resume after space returns.
                 // Let the host stop and its supervisor restart retained storage.
                 logger.LogTerminalSlimDataWalFailure(ex);
                 throw;
@@ -68,6 +69,23 @@ public sealed class SlimDataDiagnosticsWorker(
                 logger.LogUnableToRecordSlimDataDiagnostics(ex);
                 await Task.Delay(Interval, stoppingToken).ConfigureAwait(false);
             }
+        }
+    }
+
+    private async Task CheckWalHealthAsync(CancellationToken stoppingToken)
+    {
+        // Index getters are atomic reads and do not expose DotNext's terminal
+        // background error. This read-only wait checks it even at index zero.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(1));
+        try
+        {
+            IPersistentState wal = cluster.AuditTrail;
+            await wal.WaitForApplyAsync(wal.LastCommittedEntryIndex, deadline.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
+        {
+            // Normal follower catch-up may exceed this diagnostics budget.
         }
     }
 

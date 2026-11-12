@@ -4,6 +4,14 @@ The [1.0 LTS reliability tracker](https://github.com/SlimPlanet/SlimFaas/issues/
 records release evidence and outstanding scenarios. A successful short campaign
 establishes its recorded invariants for that run; it does not certify LTS readiness.
 
+Disk-full recovery requires the original volumes and a process restart policy.
+The runtime monitors DotNext's terminal background WAL error with a bounded
+read-only barrier and stops the host so its supervisor can reopen retained
+storage. A slow follower remains running; a terminal WAL instance cannot heal
+merely by freeing disk space. Linux memory-mapped writes may terminate directly
+when their backing filesystem is exhausted. Preserve those failures and all
+confirmed/unknown operation records when testing recovery.
+
 The [8–9 November 2026 results](slimdata-reliability-results.md) include the executed
 absence/API matrix, 2 MB versus 2 MiB diagnosis, fixes, failed campaigns and the
 current LTS verdict. Compact evidence and raw archive hashes accompany the report.

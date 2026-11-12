@@ -482,6 +482,16 @@ SlimData__SnapshotIntervalBytes=33554432
 
 `WalMemoryManagement` accepts only `PrivateMemory` and `SharedMemory`, case-insensitively. Snapshot intervals must be strictly positive. Invalid values stop startup with a configuration error. Changing the memory strategy does not change the WAL format and does not require a data migration.
 
+A failed background WAL flush or application leaves the current DotNext WAL
+instance terminal, even after disk space returns. The diagnostics worker checks
+that state through a bounded, read-only application barrier and stops the host
+on `WriteAheadLog.InternalException`. Configure a supervisor or Kubernetes
+restart policy and retain the original volumes. Atomic index gauges alone do
+not detect this failure. Ordinary catch-up delays remain observable and do not
+stop the host. On Linux, exhausting the filesystem backing `SharedMemory` can
+also terminate a memory-mapped writer immediately; the restart must still use
+the retained WAL and snapshots.
+
 The current byte window and the cause of the latest snapshot request are exposed as `slimdata_wal_bytes_since_snapshot` and `slimdata_snapshot_last_trigger{cause="bytes|entries|incompatible"}`.
 
 ### Snapshot layout and reserved pod IPs
