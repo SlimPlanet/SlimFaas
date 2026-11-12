@@ -39,18 +39,18 @@ internal static class WebSocketPeerFrames
             System.Net.WebSockets.WebSocketMessageType.Binary, true, cancellationToken).AsTask();
 
     internal static async Task SendBodyAsync(System.Net.WebSockets.WebSocket socket, string correlationId,
-        Stream? body, CancellationToken cancellationToken)
+        Stream? body, CancellationToken readToken, CancellationToken frameToken)
     {
         if (body is not null)
         {
             var buffer = new byte[32 * 1024];
             int read;
-            while ((read = await body.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+            while ((read = await body.ReadAsync(buffer, readToken).ConfigureAwait(false)) > 0)
                 await SendAsync(socket, WebSocketMessageType.SyncRequestChunk, correlationId,
-                    buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    buffer.AsMemory(0, read), frameToken).ConfigureAwait(false);
         }
         await SendAsync(socket, WebSocketMessageType.SyncRequestEnd, correlationId, ReadOnlyMemory<byte>.Empty,
-            cancellationToken).ConfigureAwait(false);
+            frameToken).ConfigureAwait(false);
     }
 }
 

@@ -291,10 +291,10 @@ public class WebSocketSendClient : IWebSocketSendClient
                     int read;
                     while ((read = await requestBodyStream.ReadAsync(buffer, uploadCancellation.Token)) > 0)
                         await connection.SendBinaryAsync(BinaryFrame.Encode(WebSocketMessageType.SyncRequestChunk,
-                            correlationId, buffer.AsSpan(0, read)), uploadCancellation.Token);
+                            correlationId, buffer.AsSpan(0, read)), responseTimeoutCts.Token);
                 }
                 await connection.SendBinaryAsync(BinaryFrame.Encode(WebSocketMessageType.SyncRequestEnd, correlationId,
-                    BinaryFrame.FlagEndOfStream), uploadCancellation.Token);
+                    BinaryFrame.FlagEndOfStream), responseTimeoutCts.Token);
                 _logger.LogSyncRequestStreamSentToCorrelationId(functionName, connection.ConnectionId, correlationId);
             }
             catch (Exception exception)
@@ -311,12 +311,16 @@ public class WebSocketSendClient : IWebSocketSendClient
             if (Interlocked.Exchange(ref cleaned, 1) != 0) return;
             bool completed = pendingStream.ResponseEndTcs.Task.IsCompletedSuccessfully;
             await uploadCancellation.CancelAsync();
-            await pendingStream.CancelAsync();
+            // Finish an already dispatched frame before normal completion
+            // cancels its send token; canceling WebSocket.SendAsync aborts the
+            // shared transport and unrelated requests. Reads stop immediately.
+            if (!completed) await pendingStream.CancelAsync();
             pendingStream.ResponseChunks.Writer.TryComplete(completed ? null : new IOException("Synchronous WebSocket delivery ended."));
             try { await upload; }
             catch (OperationCanceledException) when (uploadCancellation.IsCancellationRequested) { }
             catch (Exception exception) when (exception is IOException or System.Net.WebSockets.WebSocketException)
             { _logger.LogWebSocketSyncCleanupFailed(exception, functionName); }
+            if (completed) await pendingStream.CancelAsync();
             if (!completed && connection.IsAlive)
             {
                 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3));

@@ -68,6 +68,13 @@ Events remain best effort: `204` is acceptance, not delivery confirmation, and
 partial fan-out is not automatically resent. Disconnect removes the route;
 crashes expire the lease, and reconnect creates a new connection identity.
 
+An early successful sync response stops further request-body reads while an
+already dispatched frame finishes within the existing 300-second delivery
+budget. Normal response completion must not cancel that frame or its response
+headers: canceling an active WebSocket send can abort the shared worker
+connection and interrupt unrelated deliveries. Caller cancellation and actual
+transport failures keep their existing cancellation and fencing behavior.
+
 Client libraries:
 
 - [.NET SlimFaasClient README](../client/dotnet/SlimFaasClient/README.md)
