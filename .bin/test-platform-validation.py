@@ -35,6 +35,20 @@ DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
 
 
 class PlatformTests(unittest.TestCase):
+    def test_dotnet_probe_waits_for_service_routing_as_well_as_direct_nodes(self):
+        service_attempts = []
+
+        def probe(origin, path):
+            if origin == "http://service:5000" and path == "/ready":
+                service_attempts.append(origin)
+                if len(service_attempts) == 1:
+                    raise ConnectionRefusedError()
+            return (200, {}, b'[{"Name":"owned","NumberReady":1}]')
+
+        with patch.object(DOTNET_PROBE, "request", side_effect=probe), patch.object(DOTNET_PROBE.time, "sleep"):
+            DOTNET_PROBE.wait_for_function(["http://pod:5000"], "owned", base_url="http://service:5000")
+        self.assertEqual(2, len(service_attempts))
+
     def test_dotnet_probe_retries_only_readiness_during_runtime_startup(self):
         responses = [ConnectionRefusedError(), (503, {}, b""), (503, {}, b""), (200, {}, b""),
                      (200, {}, b'[{"Name":"owned","NumberReady":1}]')]

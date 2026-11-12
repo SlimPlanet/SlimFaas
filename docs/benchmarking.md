@@ -181,6 +181,14 @@ python3 .bin/test-dotnet-sdk-payloads.py --function dotnet-payload-check \
   --worker-log artifacts/native-demo.log --output artifacts/dotnet-payload-check
 ```
 
+The probe waits for readiness and registration through every node and its base
+URL. On Kubernetes, also wait for the application Service from the worker pod's
+network namespace (for example, an init container polling `/ready`): direct pod
+readiness can precede that node's Service routing update. Processing-proof GETs
+may retry transport failures within their existing 180-second deadline; each
+failure is recorded as `proof-read-unavailable`. Function and job mutations are
+never resent by the probe.
+
 Use a fresh function name and output directory for another run. The 72 cases
 cover all six historical sizes through every node, Content-Length and chunked,
 sync response streaming and actual async callbacks. Sync checks hash the returned

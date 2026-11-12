@@ -79,11 +79,12 @@ class WorkerLog:
             time.sleep(.05)
 
 
-def wait_for_function(nodes, function, timeout=120):
+def wait_for_function(nodes, function, timeout=120, base_url=None):
     deadline = time.monotonic() + timeout
+    origins = list(dict.fromkeys(nodes + ([base_url] if base_url else [])))
     while True:
         ready = True
-        for node in nodes:
+        for node in origins:
             try:
                 healthy, _, _ = request(node, "/ready")
                 code, _, status = request(node, "/status-functions")
@@ -123,7 +124,7 @@ def main():
 
     try:
         nodes = options.node_urls.split(",")
-        wait_for_function(nodes, options.function)
+        wait_for_function(nodes, options.function, base_url=options.base_url)
         for size in SIZES:
             for chunked in (False, True):
                 for node in nodes:
@@ -154,13 +155,17 @@ def main():
                         else:
                             deadline = time.monotonic() + 180
                             while True:
-                                code, _, proof = request(options.base_url, "/data/sets/" + options.function + "-async")
+                                try:
+                                    code, _, proof = request(options.base_url, "/data/sets/" + options.function + "-async")
+                                except OSError as error:
+                                    journal(record | {"event": "proof-read-unavailable", "error": repr(error)})
+                                    code, proof = 0, b""
                                 if code == 200:
                                     proof = json.loads(proof)
                                     if proof.get("nonce") == nonce:
                                         assert proof["function"] == options.function and proof["result"] == 55
                                         break
-                                elif code != 404:
+                                elif code not in (0, 404):
                                     raise AssertionError(f"Processing proof read failed: HTTP {code}")
                                 if time.monotonic() >= deadline:
                                     raise AssertionError("No independent .NET processing proof for " + nonce)
