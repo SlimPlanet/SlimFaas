@@ -8,11 +8,13 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import threading
 import time
 import unittest
 from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +35,22 @@ MATRIX = load("platform_matrix", ROOT / ".bin/run-platform-matrix.py")
 
 
 class PlatformTests(unittest.TestCase):
+    def test_websocket_profiles_keep_distinct_durable_registrations_and_restore_their_own_identity(self):
+        module = SimpleNamespace(SlimFaasClient=object,
+            SlimFaasClientConfig=lambda **values: SimpleNamespace(**values), SubscribeStreamConfig=lambda value: value)
+        with tempfile.TemporaryDirectory() as directory, patch.dict(sys.modules, {"slimfaas_client": module}):
+            root = Path(directory)
+            campaign = SimpleNamespace(output=root, receipts=root / "receipts", accepted={}, options=SimpleNamespace(concurrency=4))
+            default = WORKLOAD.LOCAL.WebSocketCampaign(campaign)
+            timeout = WORKLOAD.LOCAL.WebSocketCampaign(campaign, profile="timeout")
+            self.assertNotEqual(default.function, timeout.function)
+            self.assertEqual(default.function, WORKLOAD.LOCAL.WebSocketCampaign(campaign).function)
+            self.assertEqual(timeout.function, WORKLOAD.LOCAL.WebSocketCampaign(campaign, profile="timeout").function)
+            (root / "websocket-timeout.json").unlink()
+            campaign.accepted = {"old": {"kind": "async", "phase": "websocket-owner-timeout",
+                "path": "/async-function/chaos-ws-legacy/consume"}}
+            self.assertEqual("chaos-ws-legacy", WORKLOAD.LOCAL.WebSocketCampaign(campaign, profile="timeout").function)
+
     def test_memory_comparison_distinguishes_regression_failure_and_missing_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

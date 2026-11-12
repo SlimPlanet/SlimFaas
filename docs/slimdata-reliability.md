@@ -78,6 +78,11 @@ and deletion for Sets, HashSets and Files, including deletion visibility on all 
 
 The optional WebSocket scenario uses the existing locked client dependencies:
 
+`websocket` and `websocket-timeout` use distinct persisted virtual-function
+identities when combined: the timeout profile changes the delivery configuration,
+which cannot be registered under an existing durable function's name. Resume
+preserves each profile's own identity and confirmed-operation ledger.
+
 ```bash
 uv run --locked --project client/python/slimfaas-client python .bin/test-slimdata-local-chaos.py \
   --output artifacts/local-chaos/websocket --scenarios websocket \

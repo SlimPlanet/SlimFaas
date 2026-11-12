@@ -1097,7 +1097,7 @@ class Campaign:
         asyncio.run(WebSocketCampaign(self).run())
 
     def websocket_timeout(self):
-        asyncio.run(WebSocketCampaign(self).owner_timeout())
+        asyncio.run(WebSocketCampaign(self, profile="timeout").owner_timeout())
 
     def job_environments(self):
         self.phase = "job-environments"
@@ -1456,13 +1456,14 @@ class Campaign:
 class WebSocketCampaign:
     """Optional official SDK fixture; every mutation still uses the main ledger."""
 
-    def __init__(self, campaign):
+    def __init__(self, campaign, profile="default"):
         from slimfaas_client import SlimFaasClient, SlimFaasClientConfig, SubscribeStreamConfig
         self.campaign = campaign
         self.client_type = SlimFaasClient
-        config_path = campaign.output / "websocket.json"
+        config_path = campaign.output / ("websocket.json" if profile == "default" else "websocket-timeout.json")
         prior = next((record["path"].split("/")[2] for record in campaign.accepted.values()
-                      if record["kind"] == "async" and record["path"].startswith("/async-function/chaos-ws-")), None)
+                      if record["kind"] == "async" and record["path"].startswith("/async-function/chaos-ws-") and
+                      (record["phase"] == "websocket-owner-timeout") == (profile == "timeout")), None)
         self.function = prior or "chaos-ws-" + uuid.uuid4().hex
         if config_path.is_file():
             self.function = json.loads(config_path.read_text())["function"]

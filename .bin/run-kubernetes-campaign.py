@@ -189,6 +189,7 @@ def resources(options):
             "--state-directory", base + "/state", "--scenarios", options.scenarios,
             "--roles", options.roles, "--durations", options.durations, "--recovery-timeout", "300",
             "--traffic-interval", "2", "--source-commit", options.source_commit]
+        command += options.workload_args
     else:
         command = ["python3", "/src/.bin/run-platform-workload.py", "--suite", options.suite,
             "--runtime", "/app/SlimFaas", "--benchmark", "/tools/benchmark/SlimFaasBenchmark",
