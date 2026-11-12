@@ -90,7 +90,7 @@ class CampaignSafetyTests(unittest.TestCase):
                     patch.object(campaign, "leader", return_value=0), \
                     patch.object(campaign, "traffic", side_effect=traffic), \
                     patch.object(HARNESS.sys, "platform", "linux"), \
-                    patch.object(HARNESS.os, "geteuid", return_value=0), \
+                    patch.object(HARNESS.os, "geteuid", return_value=0, create=True), \
                     patch.object(HARNESS.os, "readlink", side_effect=lambda path: path), \
                     patch.object(HARNESS.subprocess, "run", side_effect=RuntimeError("Fault setup rejected")) as control:
                 thread = threading.Thread(target=exercise, daemon=True)
