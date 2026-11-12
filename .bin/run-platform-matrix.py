@@ -9,6 +9,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -221,12 +222,17 @@ def main():
     config = json.loads(options.config.read_text())
     if config["environment"] not in ("macos", "podman", "kubernetes"):
         parser.error("Unknown environment")
+    blocks = options.blocks.split(",")
+    if set(blocks) - {"http", "set-c12", "set-c48", "mixed-c12", "mixed-c48"}:
+        parser.error("Unknown measurement block")
+    if config["environment"] != "macos" and not re.fullmatch(r"slimfaas-pr506-[a-z0-9-]{1,20}", config["prefix"]):
+        parser.error("Use a dedicated short slimfaas-pr506-* campaign prefix")
     root = options.output.resolve()
     root.mkdir(parents=True, exist_ok=options.resume)
     write(root / "config.json", config)
     index = root / "matrix.json"
     results = json.loads(index.read_text()) if index.exists() else {"started": time.time(), "blocks": {}}
-    for block in options.blocks.split(","):
+    for block in blocks:
         if block in results["blocks"]:
             continue
         suite = "http" if block == "http" else "memory"
