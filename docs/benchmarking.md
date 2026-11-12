@@ -197,6 +197,36 @@ require its persisted processing proof. Partial stdout lines are never counted.
 The client journal is fsynced before each unretried request. Keep the returned
 Job ID and delete only that test Job after collecting evidence.
 
+To reproduce the in-cluster probe, build and preload the existing
+`samples/FibonacciBatch/Dockerfile` worker image alongside the source-built
+runtime/tools image. Use a fresh owned namespace for each probe:
+
+```bash
+campaign=slimfaas-pr506-sdk-check-01
+campaign_kubeconfig=artifacts/pr506/kubernetes/kubeconfig
+runtime_image=localhost/slimfaas-pr506:after-tools-websocket
+worker_image=localhost/slimfaas-pr506:dotnet-worker
+python3 .bin/run-kubernetes-campaign.py launch \
+  --kubeconfig "$campaign_kubeconfig" --namespace "$campaign" \
+  --output "artifacts/$campaign" --image "$runtime_image" \
+  --controller-image "$runtime_image" --source-commit HEAD \
+  --probes normal --scenarios api
+python3 .bin/run-kubernetes-campaign.py wait \
+  --kubeconfig "$campaign_kubeconfig" --namespace "$campaign" \
+  --output "artifacts/$campaign" --timeout 900
+python3 .bin/test-dotnet-sdk-kubernetes.py \
+  --kubeconfig "$campaign_kubeconfig" --namespace "$campaign" \
+  --image "$runtime_image" --worker-image "$worker_image" \
+  --output "artifacts/$campaign/sdk"
+```
+
+The SDK command requires a successful initial campaign, checks namespace ownership
+and the exact runtime image, and refuses existing SDK resources. It creates
+actual worker/probe Jobs, gates the worker on Service readiness, and reads the
+worker's logs from inside the cluster. It collects evidence before deleting only
+its worker Job and stopping the runtime StatefulSet. Original state and raw
+`/evidence/runs/<namespace>/dotnet-sdk/probe-output` remain on the VM.
+
 Run the standard profile before changing the runtime, then run the exact same
 matrix after the change. Compare the two structured reports with:
 

@@ -32,9 +32,50 @@ AGENT = load("platform_agent", ROOT / ".bin/slimdata_fault_agent.py")
 SINK = load("platform_sink", ROOT / ".bin/slimdata_receipt_sink.py")
 MATRIX = load("platform_matrix", ROOT / ".bin/run-platform-matrix.py")
 DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
+KUBERNETES_DOTNET = load("kubernetes_dotnet", ROOT / ".bin/test-dotnet-sdk-kubernetes.py")
 
 
 class PlatformTests(unittest.TestCase):
+    def test_kubernetes_sdk_worker_waits_for_service_in_its_own_network_namespace(self):
+        resources = KUBERNETES_DOTNET.probe_resources("slimfaas-pr506-owned-sdk", "runtime", "worker")
+        worker = next(item for item in resources["items"] if item["metadata"]["name"] == "dotnet-sdk-worker")
+        pod = worker["spec"]["template"]["spec"]
+        initialization = pod["initContainers"][0]["command"]
+        with patch("urllib.request.urlopen", side_effect=[ConnectionRefusedError(),
+                Mock(__enter__=Mock(return_value=SimpleNamespace(status=200)), __exit__=Mock(return_value=False))]) as request, \
+                patch("time.sleep"):
+            exec(compile(initialization[2], "wait-for-service.py", "exec"), {})
+        self.assertEqual(2, request.call_count)
+        self.assertEqual("http://slimfaas-http:5000/ready", request.call_args.args[0])
+        self.assertFalse(any("hostNetwork" in str(item) for item in resources["items"]))
+        config = next(item for item in resources["items"] if item["kind"] == "ConfigMap")
+        compile(config["data"]["entry.py"], "observer.py", "exec")
+
+    def test_kubernetes_sdk_refuses_an_unowned_namespace_before_any_mutation(self):
+        arguments = ["probe", "--kubeconfig", "isolated-config", "--namespace", "slimfaas-pr506-owned-sdk",
+                     "--image", "runtime", "--worker-image", "worker", "--output", "unused-output"]
+        response = SimpleNamespace(stdout=json.dumps({"metadata": {"labels": {}}}))
+        with patch.object(sys, "argv", arguments), \
+                patch.object(KUBERNETES_DOTNET.subprocess, "run", return_value=response) as command:
+            with self.assertRaisesRegex(RuntimeError, "unowned namespace"):
+                KUBERNETES_DOTNET.main()
+        self.assertEqual(1, command.call_count)
+        self.assertIn("get", command.call_args.args[0])
+        self.assertIn("kind-slimfaas-pr506", command.call_args.args[0])
+
+    def test_kubernetes_sdk_refuses_mismatched_runtime_before_any_mutation(self):
+        arguments = ["probe", "--kubeconfig", "isolated-config", "--namespace", "slimfaas-pr506-owned-sdk",
+                     "--image", "runtime", "--worker-image", "worker", "--output", "unused-output"]
+        records = [{"metadata": {"labels": {"slimfaas-campaign": "slimfaas-pr506-owned-sdk"}}},
+                   {"status": {"succeeded": 1}},
+                   {"spec": {"template": {"spec": {"containers": [{"name": "runtime", "image": "other"}]}}}}]
+        with patch.object(sys, "argv", arguments), \
+                patch.object(KUBERNETES_DOTNET.subprocess, "run",
+                             side_effect=[SimpleNamespace(stdout=json.dumps(row)) for row in records]) as command:
+            with self.assertRaisesRegex(RuntimeError, "match the campaign runtime"):
+                KUBERNETES_DOTNET.main()
+        self.assertTrue(all("get" in invocation.args[0] for invocation in command.call_args_list))
+
     def test_dotnet_probe_waits_for_service_routing_as_well_as_direct_nodes(self):
         service_attempts = []
 
