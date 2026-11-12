@@ -8,6 +8,7 @@ namespace SlimData;
 internal sealed class DurableWriteAheadLog : WriteAheadLog, IPersistentState
 {
     private readonly Func<CancellationToken, Task> _flush;
+    private readonly SemaphoreSlim _flushGate = new(1, 1);
 
     internal DurableWriteAheadLog(Options options, IStateMachine stateMachine)
         : this(options, stateMachine, null)
@@ -28,7 +29,7 @@ internal sealed class DurableWriteAheadLog : WriteAheadLog, IPersistentState
         where TEntry : IRaftLogEntry
     {
         long index = await base.AppendAsync(entry, token).ConfigureAwait(false);
-        await _flush(token).ConfigureAwait(false);
+        await FlushAppendedAsync(token).ConfigureAwait(false);
         return index;
     }
 
@@ -36,14 +37,55 @@ internal sealed class DurableWriteAheadLog : WriteAheadLog, IPersistentState
         CancellationToken token = default) where TEntry : IRaftLogEntry
     {
         await base.AppendAsync(entry, startIndex, token).ConfigureAwait(false);
-        await _flush(token).ConfigureAwait(false);
+        await FlushAppendedAsync(token).ConfigureAwait(false);
     }
 
     public new async ValueTask AppendAsync<TEntry>(ILogEntryProducer<TEntry> entries, long startIndex,
         bool skipCommitted = false, CancellationToken token = default) where TEntry : IRaftLogEntry
     {
         await base.AppendAsync(entries, startIndex, skipCommitted, token).ConfigureAwait(false);
-        await _flush(token).ConfigureAwait(false);
+        await FlushAppendedAsync(token).ConfigureAwait(false);
+    }
+
+    private async ValueTask FlushAppendedAsync(CancellationToken token)
+    {
+        // The underlying flush-completion ValueTask source supports one waiter.
+        // Keep appends concurrent, but serialize observers of that completion;
+        // the flusher can still persist their entries together.
+        await _flushGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            await _flush(token).ConfigureAwait(false);
+        }
+        finally
+        {
+            _flushGate.Release();
+        }
+    }
+
+    protected override async ValueTask DisposeAsyncCore()
+    {
+        try
+        {
+            await base.DisposeAsyncCore().ConfigureAwait(false);
+        }
+        finally
+        {
+            _flushGate.Dispose();
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        try
+        {
+            base.Dispose(disposing);
+        }
+        finally
+        {
+            if (disposing)
+                _flushGate.Dispose();
+        }
     }
 }
 #pragma warning restore CA2252
