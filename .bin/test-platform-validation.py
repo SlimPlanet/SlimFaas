@@ -33,9 +33,21 @@ SINK = load("platform_sink", ROOT / ".bin/slimdata_receipt_sink.py")
 MATRIX = load("platform_matrix", ROOT / ".bin/run-platform-matrix.py")
 DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
 KUBERNETES_DOTNET = load("kubernetes_dotnet", ROOT / ".bin/test-dotnet-sdk-kubernetes.py")
+KUBERNETES_BACKEND = load("kubernetes_backend", ROOT / ".bin/slimdata_kubernetes_backend.py")
 
 
 class PlatformTests(unittest.TestCase):
+    def test_recovered_runtime_oom_cannot_be_reported_as_successful_endurance(self):
+        owned = {"metadata": {"name": "slimfaas-2", "uid": "original-pod",
+                              "labels": {"slimfaas-campaign": "owned", "app": "slimfaas"}},
+                 "status": {"containerStatuses": [{"name": "runtime", "restartCount": 1,
+                    "lastState": {"terminated": {"reason": "OOMKilled", "finishedAt": "original-time"}}}]}}
+        with self.assertRaisesRegex(AssertionError, "Unexpected runtime/control OOM"):
+            KUBERNETES_BACKEND.assert_no_runtime_ooms([owned], "owned")
+        KUBERNETES_BACKEND.assert_no_runtime_ooms([owned], "different-campaign")
+        owned["status"]["containerStatuses"][0]["lastState"]["terminated"]["reason"] = "Error"
+        KUBERNETES_BACKEND.assert_no_runtime_ooms([owned], "owned")
+
     def test_kubernetes_sdk_worker_waits_for_service_in_its_own_network_namespace(self):
         resources = KUBERNETES_DOTNET.probe_resources("slimfaas-pr506-owned-sdk", "runtime", "worker")
         worker = next(item for item in resources["items"] if item["metadata"]["name"] == "dotnet-sdk-worker")

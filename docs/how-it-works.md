@@ -139,6 +139,16 @@ Each SlimFaas node serves requests and observes the cluster. `ReplicasSynchroniz
 
 SlimData holds replicated queue state, configuration and small values. `ClusterMembershipAnnounceWorker` announces a member to a leader; `SlimDataMembershipReconciliationWorker` reconciles membership with the orchestrator topology. Node readiness includes Raft recovery and protocol compatibility.
 
+Raft HTTP sockets release unsent data when a connection closes. This prevents
+cancelled large uploads to a silent peer from retaining TCP buffers across
+retries; it does not change the request/election deadlines or persisted Raft
+format. Successful connections remain pooled. The
+[.NET socket linger contract](https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.socket.lingerstate?view=net-10.0)
+explains the difference between waiting to transmit queued data and discarding
+it during socket closure. Linux cgroup socket memory is measured separately
+from process RSS in the [reliability controls](slimdata-reliability.md#linux-socket-memory-controls).
+
+
 Membership reconciliation uses one topology snapshot per cycle. A removal requires
 a positive requested replica count, exactly that many distinct eligible endpoints,
 and the local endpoint in the snapshot. Eligible pods have started and have an IP;

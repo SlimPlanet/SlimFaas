@@ -14,6 +14,22 @@ from urllib.parse import quote
 from urllib.request import build_opener, HTTPSHandler, ProxyHandler, Request
 
 
+def assert_no_runtime_ooms(pods, identifier):
+    """A recovered OOM still fails the controlled resource/availability campaign."""
+    failures = []
+    for pod in pods:
+        labels = pod["metadata"].get("labels", {})
+        if labels.get("slimfaas-campaign") != identifier or labels.get("app") != "slimfaas":
+            continue
+        for container in pod.get("status", {}).get("containerStatuses", []):
+            terminated = container.get("lastState", {}).get("terminated", {})
+            if terminated.get("reason") == "OOMKilled":
+                failures.append({"pod": pod["metadata"]["name"], "uid": pod["metadata"]["uid"],
+                                 "container": container["name"], "finished_at": terminated.get("finishedAt")})
+    if failures:
+        raise AssertionError("Unexpected runtime/control OOM: " + json.dumps(failures, sort_keys=True))
+
+
 def create_campaign(options, local):
     config = json.loads(options.backend_config.read_text())
     namespace = config["namespace"]
@@ -158,9 +174,11 @@ def create_campaign(options, local):
             self.capture_pod_logs(name)
             (self.output / f"{name}-runtime-identities.json").write_text(json.dumps(
                 [self.control(index) for index in range(3)], indent=2))
+            captured = {}
             for kind in ("pods", "events"):
-                (self.output / f"{name}-kubernetes-{kind}.json").write_text(
-                    json.dumps(self.api("GET", self.resource(kind)), indent=2))
+                captured[kind] = self.api("GET", self.resource(kind))
+                (self.output / f"{name}-kubernetes-{kind}.json").write_text(json.dumps(captured[kind], indent=2))
+            assert_no_runtime_ooms(captured["pods"]["items"], identifier)
             self.client.append({"event": "kubernetes-capture", "phase": name, "utc": time.time()})
 
     return KubernetesCampaign()

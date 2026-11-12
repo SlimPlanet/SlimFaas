@@ -135,6 +135,11 @@ three anti-affined StatefulSet nodes, actual function Deployments and Jobs.
 Generators and functions run inside the cluster through Services and pod DNS.
 Port-forwarding is unnecessary for measurements.
 
+Linux fault controls also inspect cgroup socket memory and OOM status. RSS
+guardrails retain their existing definition, while an unplanned runtime/control
+OOM fails the controlled recovery campaign even if the process restarts. See the
+[Linux socket-memory controls](slimdata-reliability.md#linux-socket-memory-controls).
+
 The platform runner preserves every latency sample in `latency-samples.csv.gz`.
 The common driver compresses completed case samples between timed cases, using
 `--samples-format csv.gz`; ordinary manual runs still default to CSV. Comparison

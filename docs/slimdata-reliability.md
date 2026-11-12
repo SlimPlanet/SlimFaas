@@ -159,6 +159,23 @@ resume a failed campaign, keep its port base, select the remaining scenarios and
 use `--resume`. The client ledger is reloaded and confirmed data is verified
 before additional faults. Previous reports and all persistent state are retained.
 
+## Linux socket-memory controls
+
+Process RSS does not include all memory charged to a Linux container. Record
+`memory.current`, `memory.stat` (especially `sock`) and `memory.events` alongside
+RSS during silent-peer campaigns. Cancelled large Raft uploads must release their
+queued TCP bytes; otherwise repeated retries can exhaust a cgroup while managed
+heap and RSS remain below its limit. Raft connections discard unsent bytes when
+closed, using an abortive socket linger policy. Request/election deadlines,
+committed storage and replay formats remain unchanged. Successful connections
+still use the normal HTTP pool.
+
+The Kubernetes adapter rejects an observed runtime or fault-agent `OOMKilled`
+status even if business reconciliation succeeds after restart. Preserve the
+original report, pod identity, termination reason and kernel/cgroup evidence;
+an automatic restart must not turn an uncontrolled resource failure into a
+successful controlled endurance run.
+
 ## Endurance matrix
 
 The `SlimData Local reliability` workflow runs quick checks on Linux and Windows
