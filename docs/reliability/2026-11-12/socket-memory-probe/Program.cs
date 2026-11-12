@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Globalization;
 using Microsoft.Extensions.Logging.Abstractions;
 using SlimData;
 using SlimData.Options;
@@ -18,6 +19,7 @@ var factory = new RaftClientHandlerFactory(
     NullLogger<RaftClientHandlerFactory>.Instance);
 using var client = new HttpClient(factory.CreateHandler("raftClient"));
 var bytes = new byte[8 * 1024 * 1024];
+long maximumSocketBytes = 0;
 for (var batch = 0; batch < 12; batch++)
 {
     await Parallel.ForEachAsync(Enumerable.Range(0, 10), new ParallelOptions { MaxDegreeOfParallelism = 4 },
@@ -39,6 +41,11 @@ for (var batch = 0; batch < 12; batch++)
         });
     var rows = await File.ReadAllLinesAsync("/sys/fs/cgroup/memory.stat");
     string socketMemory = rows.Single(row => row.StartsWith("sock ", StringComparison.Ordinal));
+    maximumSocketBytes = Math.Max(maximumSocketBytes, long.Parse(socketMemory.AsSpan(5), CultureInfo.InvariantCulture));
     string current = await File.ReadAllTextAsync("/sys/fs/cgroup/memory.current");
     Console.WriteLine($"batch={batch} cancelled={(batch + 1) * 10} {socketMemory} total={current.Trim()}");
 }
+const long socketBudgetBytes = 64 * 1024 * 1024;
+bool passed = maximumSocketBytes <= socketBudgetBytes;
+Console.WriteLine($"verdict={(passed ? "PASS" : "FAIL")} maximum_socket_bytes={maximumSocketBytes} budget_bytes={socketBudgetBytes}");
+Environment.ExitCode = passed ? 0 : 1;

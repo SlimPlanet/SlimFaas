@@ -6,6 +6,10 @@ adding a public product API. `server` listens without accepting or reading;
 `client` cancels 120 eight-MiB uploads in groups of ten, at concurrency four and
 a 100 ms cancellation deadline, then reports cgroup v2 socket/total memory.
 The buffers and deadline belong to this diagnostic, not to production defaults.
+The control fails if any sample exceeds 64 MiB of kernel socket memory. This
+budget permits transient in-flight data while rejecting the reproduced growth
+to more than 300 MiB. An OOM or a missing cgroup measurement also fails. The Linux
+Local reliability workflow runs this check in two separate Docker cgroups.
 
 Publish both copies before running the control. To build the same diagnostic
 against a preserved earlier implementation, pass an absolute `SlimDataProject`
@@ -24,7 +28,22 @@ dotnet publish docs/reliability/2026-11-12/socket-memory-probe/SocketMemoryProbe
 Copy each complete publication to its own directory on the Podman VM's native
 Linux filesystem. Use a tools image inheriting the same production runtime
 base. Run the receiver and sender in separate cgroups sharing one network
-namespace, so the sender's socket charge remains visible:
+namespace, so the sender's socket charge remains visible.
+
+On a Linux host with Docker and a glibc `linux-x64` publication, the reusable
+driver retains the logs, container inspections, executable hashes and verdict:
+
+```bash
+dotnet publish docs/reliability/2026-11-12/socket-memory-probe/SocketMemoryProbe.csproj \
+  -c Release -r linux-x64 --self-contained true -p:PublishAot=false \
+  -p:SkipClientAppBuild=true -o artifacts/socket-memory/publication
+python3 .bin/test-raft-socket-memory.py \
+  --publication artifacts/socket-memory/publication \
+  --output artifacts/socket-memory/result
+```
+
+For the macOS-hosted Podman VM, copy the musl publication first, then use the
+following commands with the VM-native path and Alpine tools image:
 
 ```bash
 variant=after
@@ -53,3 +72,9 @@ The original factory accumulated 316,686,336 socket bytes after 120 cancellation
 the corrected factory reported zero after every group. Total cgroup memory was
 342,867,968 versus 26,030,080 bytes in those retained observations. These are
 transport-resource controls, not throughput benchmarks or a durability proof.
+An earlier cross-platform unit test required the receiver to observe a TCP reset.
+Retained Windows and macOS failures showed that EOF can also be observed during
+teardown. The unit control now checks cancellation and owned-socket closure
+without requiring that particular TCP indication; the independent Linux cgroup
+regression remains the resource verdict. DNS connection reuse uses a dual-stack
+listener so `localhost` can resolve to either loopback family.

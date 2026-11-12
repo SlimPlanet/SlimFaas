@@ -10,6 +10,8 @@ on:
       - '.bin/*chaos*'
       - '.bin/run-local-benchmark-host.py'
       - '.bin/test-local-benchmark-host.py'
+      - '.bin/test-raft-socket-memory.py'
+      - 'docs/reliability/2026-11-12/socket-memory-probe/**'
       - '.bin/slimfaas-local-benchmark.sh'
       - '.github/workflows/slimdata-local-chaos.yml'
       - 'Directory.*'
@@ -62,6 +64,11 @@ jobs:
           python .bin/test-platform-validation.py
       - name: Build runtime
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
+      - name: Reject accumulated kernel socket memory after cancelled Raft uploads
+        if: runner.os == 'Linux'
+        run: |
+          dotnet publish docs/reliability/2026-11-12/socket-memory-probe/SocketMemoryProbe.csproj -c Release -r linux-x64 --self-contained true -p:PublishAot=false -p:SkipClientAppBuild=true -o artifacts/local-chaos/socket-publication
+          python .bin/test-raft-socket-memory.py --publication artifacts/local-chaos/socket-publication --output artifacts/local-chaos/socket-memory
       - name: Exercise real APIs, payload checksums, retries, DLQ and faults
         run: python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/quick --durations 1,5,10
       - name: Bootstrap job configuration before admitting requests after node restarts
