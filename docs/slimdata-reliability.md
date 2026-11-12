@@ -119,6 +119,11 @@ values, duplicate confirmed results and server errors
 fail immediately. A direct
 write to the minority must not be acknowledged before quorum restoration.
 
+A failed restoration/control action must also stop the continuous traffic
+producer before propagating the campaign failure. A stale process identity is
+never retargeted to a replacement process. Network/disk cleanup failures remain
+failures; they must not leave the executor waiting forever on live producers.
+
 Process suspension is a real stopped-process/communication outage. On POSIX it
 uses `SIGSTOP`/`SIGCONT`; Windows uses the native process suspension APIs. It is
 **not a network-only partition**, and it does not simulate a disk failure. Crash

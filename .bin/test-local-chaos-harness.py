@@ -25,6 +25,87 @@ FIXTURE = load("chaos_function", ROOT / "tests/SlimFaas.Tests/Local/chaos_functi
 
 
 class CampaignSafetyTests(unittest.TestCase):
+    def test_failed_resume_stops_continuous_traffic_before_propagating_identity_error(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            started, completed = threading.Event(), threading.Event()
+            stopping_events, failures = [], []
+
+            def traffic(stopping):
+                stopping_events.append(stopping)
+                started.set()
+                stopping.wait()
+
+            def monitor(*_args):
+                self.assertTrue(started.wait(2))
+
+            def pause(_pid, paused):
+                if not paused:
+                    raise RuntimeError("Stale runtime identity")
+
+            def exercise():
+                try:
+                    campaign.absence("follower", 0)
+                except BaseException as error:
+                    failures.append(error)
+                finally:
+                    completed.set()
+
+            with patch.object(campaign, "ready"), patch.object(campaign, "leader", return_value=0), \
+                    patch.object(campaign, "node_pid", return_value=111), \
+                    patch.object(campaign, "traffic", side_effect=traffic), \
+                    patch.object(campaign, "monitor_absence", side_effect=monitor), \
+                    patch.object(campaign, "pause", side_effect=pause):
+                thread = threading.Thread(target=exercise, daemon=True)
+                thread.start()
+                try:
+                    self.assertTrue(completed.wait(3), "Recovery error left the continuous traffic producer running")
+                    self.assertTrue(stopping_events[0].is_set())
+                    self.assertEqual(["Stale runtime identity"], [str(error) for error in failures])
+                finally:
+                    for event in stopping_events:
+                        event.set()
+                    thread.join(5)
+                self.assertFalse(thread.is_alive())
+
+    def test_failed_network_fault_setup_stops_continuous_traffic(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            completed = threading.Event()
+            stopping_events, failures = [], []
+
+            def traffic(stopping):
+                stopping_events.append(stopping)
+                stopping.wait()
+
+            def exercise():
+                try:
+                    campaign.partitions()
+                except BaseException as error:
+                    failures.append(error)
+                finally:
+                    completed.set()
+
+            with patch.object(campaign, "seed"), patch.object(campaign, "ready"), \
+                    patch.object(campaign, "leader", return_value=0), \
+                    patch.object(campaign, "traffic", side_effect=traffic), \
+                    patch.object(HARNESS.sys, "platform", "linux"), \
+                    patch.object(HARNESS.os, "geteuid", return_value=0), \
+                    patch.object(HARNESS.os, "readlink", side_effect=lambda path: path), \
+                    patch.object(HARNESS.subprocess, "run", side_effect=RuntimeError("Fault setup rejected")) as control:
+                thread = threading.Thread(target=exercise, daemon=True)
+                thread.start()
+                try:
+                    self.assertTrue(completed.wait(3), "Fault setup error left traffic running")
+                    self.assertTrue(stopping_events[0].is_set())
+                    self.assertEqual(["Fault setup rejected"], [str(error) for error in failures])
+                    self.assertEqual(1, control.call_count, "Do not remove a rule that was never installed")
+                finally:
+                    for event in stopping_events:
+                        event.set()
+                    thread.join(5)
+                self.assertFalse(thread.is_alive())
+
     def test_counter_contracts_keep_retained_values_and_can_run_twice(self):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)

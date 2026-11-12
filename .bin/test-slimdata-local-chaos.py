@@ -1054,12 +1054,16 @@ class Campaign:
             finally:
                 restoration_at = time.perf_counter()
                 resumed = time.monotonic()
-                for pid in pids:
-                    self.pause(pid, False)
-                    self.suspended.remove(pid)
-                self.client.append({"event": "resumed", "phase": self.phase, "actual_absence_seconds": resumed - started})
-                stopping.set()
-                traffic.result()
+                try:
+                    for pid in pids:
+                        self.pause(pid, False)
+                        self.suspended.remove(pid)
+                    self.client.append({"event": "resumed", "phase": self.phase, "actual_absence_seconds": resumed - started})
+                finally:
+                    # A stale process identity must fail without leaving the
+                    # producer alive while the executor waits for its threads.
+                    stopping.set()
+                    traffic.result()
         if minority:
             result, completed_at = minority.result()
             assert_minority_result(result, completed_at, restoration_at)
@@ -1311,18 +1315,20 @@ class Campaign:
             subprocess.run(["tc", "qdisc", "add", "dev", "lo", "root", "netem", "delay", "25ms"], check=True)
             started = time.monotonic()
             traffic = pool.submit(self.traffic, stopping)
-            self.client.append({"event": "network-latency", "delay_ms": 25})
             try:
+                self.client.append({"event": "network-latency", "delay_ms": 25})
                 while time.monotonic() - started < max(self.options.durations):
                     if traffic.done():
                         traffic.result()
                     stopping.wait(.2)
             finally:
-                subprocess.run(["tc", "qdisc", "del", "dev", "lo", "root"], check=True)
-                restored = time.monotonic()
-                self.client.append({"event": "network-latency-restored"})
-                stopping.set()
-                traffic.result()
+                try:
+                    subprocess.run(["tc", "qdisc", "del", "dev", "lo", "root"], check=True)
+                    restored = time.monotonic()
+                    self.client.append({"event": "network-latency-restored"})
+                finally:
+                    stopping.set()
+                    traffic.result()
         self.ready()
         self.verify()
         self.reconcile()
@@ -1353,11 +1359,13 @@ class Campaign:
                     result = self.mutate("minority-probe", f"/data/sets/partition-{uuid.uuid4().hex}",
                                          b"partition", port=self.ports[leader])
                     return result, time.perf_counter()
-                subprocess.run(["iptables", "-I"] + rule, check=True)
-                started = time.monotonic()
-                self.client.append({"event": "network-partition", "phase": self.phase, "raft_ports": [self.raft, self.raft + 2]})
-                probe = pool.submit(minority_write)
+                installed = False
                 try:
+                    subprocess.run(["iptables", "-I"] + rule, check=True)
+                    installed = True
+                    started = time.monotonic()
+                    self.client.append({"event": "network-partition", "phase": self.phase, "raft_ports": [self.raft, self.raft + 2]})
+                    probe = pool.submit(minority_write)
                     deadline = started + seconds
                     while time.monotonic() < deadline:
                         if traffic.done():
@@ -1368,11 +1376,14 @@ class Campaign:
                         stopping.wait(min(.2, max(0, deadline - time.monotonic())))
                 finally:
                     restoration_at = time.perf_counter()
-                    subprocess.run(["iptables", "-D"] + rule, check=True)
-                    resumed = time.monotonic()
-                    self.client.append({"event": "network-restored", "phase": self.phase})
-                    stopping.set()
-                    traffic.result()
+                    try:
+                        if installed:
+                            subprocess.run(["iptables", "-D"] + rule, check=True)
+                        resumed = time.monotonic()
+                        self.client.append({"event": "network-restored", "phase": self.phase})
+                    finally:
+                        stopping.set()
+                        traffic.result()
             result, completed_at = probe.result()
             assert_minority_result(result, completed_at, restoration_at)
             self.ready()
@@ -1432,19 +1443,21 @@ class Campaign:
                         traffic.result()
                     stopping.wait(.2)
             finally:
-                # This removes only the harness-created filler, never WAL,
-                # snapshots, uploaded artifacts or runtime state.
-                filler.unlink(missing_ok=True)
-                resumed = time.monotonic()
-                self.client.append({"event": "disk-space-restored"})
-                for pid in paused:
-                    try:
-                        self.pause(pid, False)
-                    except ProcessLookupError:
-                        self.client.append({"event": "paused-node-exited-during-journal-fault", "pid": pid})
-                    self.suspended.discard(pid)
-                stopping.set()
-                traffic.result()
+                try:
+                    # This removes only the harness-created filler, never WAL,
+                    # snapshots, uploaded artifacts or runtime state.
+                    filler.unlink(missing_ok=True)
+                    resumed = time.monotonic()
+                    self.client.append({"event": "disk-space-restored"})
+                    for pid in paused:
+                        try:
+                            self.pause(pid, False)
+                        except ProcessLookupError:
+                            self.client.append({"event": "paused-node-exited-during-journal-fault", "pid": pid})
+                        self.suspended.discard(pid)
+                finally:
+                    stopping.set()
+                    traffic.result()
         self.ready()
         self.verify()
         self.reconcile()
