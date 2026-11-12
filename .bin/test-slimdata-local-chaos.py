@@ -711,7 +711,11 @@ class Campaign:
                 all(request(port, "/ready", timeout=1)[0] == 200
                     for index, port in enumerate(self.ports) if index != follower), 15)
             path = "/data/sets/protocol-probe-" + uuid.uuid4().hex
-            self.require_mutation("set", path, b"healthy-majority", expected_status=200, timeout=15)
+            current = self.leader(excluded=(follower,))
+            if current is None:
+                raise AssertionError("No leader in the remaining majority")
+            self.require_mutation("set", path, b"healthy-majority", port=self.ports[current],
+                                  expected_status=200, timeout=15)
             self.expected[path] = sha256(b"healthy-majority")
             self.results.append({"phase": self.phase, "passed": True, "suspended_follower": follower,
                                  "restarted_leader": leader, "ready_and_write_seconds": time.monotonic() - started})
