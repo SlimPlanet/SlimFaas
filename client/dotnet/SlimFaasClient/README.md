@@ -93,6 +93,11 @@ await client.RunForeverAsync(cts.Token);
 ```
 
 If the handler throws before the response starts, the client sends a `500`.
+`Response.WriteAsync` accepts large buffers and sends them as ordered chunks of
+at most 64 KiB. This preserves streaming across another SlimFaas node, whose
+peer relay bounds complete frames at 256 KiB. Both Stream write overloads share
+this behavior, and cancellation stops before the next chunk. The wire format
+and application response bytes are unchanged.
 If it throws after the status and headers are sent, the status can no longer
 change, so the client cancels the stream and the caller gets a truncated
 response. See [sync streaming](../../../docs/clients.md#7-synchronous-http-over-websocket).

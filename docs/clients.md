@@ -313,6 +313,12 @@ If the WebSocket request times out server-side, SlimFaas returns `504` for that 
 
 ## 7. Synchronous HTTP-Over-WebSocket
 
+The .NET client's `Response.WriteAsync` splits large buffers into ordered chunks
+of at most 64 KiB, including the byte-array Stream overload. A single large write
+therefore remains below the 256 KiB complete-frame limit of cross-node peer
+relays. Cancellation stops further chunks; status, headers, body bytes and the
+existing wire protocol remain unchanged.
+
 Requests sent to:
 
 ```http

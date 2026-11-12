@@ -514,6 +514,7 @@ public class SlimFaasSyncRequest
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1710:Identifiers should have correct suffix", Justification = "Public API of the NuGet package; renaming would break consumers.")]
 public sealed class SyncResponseWriter : Stream
 {
+    private const int MaximumChunkBytes = 64 * 1024;
     private readonly Func<string, SlimFaasSyncResponse, CancellationToken, Task> _sendStart;
     private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task> _sendChunk;
     private readonly Func<string, CancellationToken, Task> _sendEnd;
@@ -586,20 +587,23 @@ public sealed class SyncResponseWriter : Stream
     public override void Write(byte[] buffer, int offset, int count)
         => WriteAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
 
-    public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-    {
-        if (_completed) throw new InvalidOperationException("Response already completed.");
-        if (!_started) await StartAsync(ct: cancellationToken).ConfigureAwait(false);
-        if (count > 0)
-            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
-    }
+    public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
 
     public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
         if (_completed) throw new InvalidOperationException("Response already completed.");
         if (!_started) await StartAsync(ct: cancellationToken).ConfigureAwait(false);
-        if (buffer.Length > 0)
-            await _sendChunk(_correlationId, buffer, cancellationToken).ConfigureAwait(false);
+        // Peer relays bound the complete binary frame at 256 KiB. A Stream
+        // write can be arbitrarily large, so preserve it as ordered, bounded
+        // chunks rather than sending one oversized protocol message.
+        while (!buffer.IsEmpty)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            int count = Math.Min(buffer.Length, MaximumChunkBytes);
+            await _sendChunk(_correlationId, buffer[..count], cancellationToken).ConfigureAwait(false);
+            buffer = buffer[count..];
+        }
     }
 }
 
