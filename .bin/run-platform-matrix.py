@@ -129,7 +129,18 @@ def export_vm(relative, output):
                         "/var/home/core/slimfaas-pr506/" + relative,
                         "-czf", "-", "workload"], stdout=stream, check=True)
     with tarfile.open(archive) as source:
-        source.extractall(output, filter="data")
+        for member in source:
+            parts = Path(member.name).parts
+            # These complete originals remain in the verified archive and on
+            # the VM. Comparers need only reports, not a second WAL/CSV copy.
+            if len(parts) > 1 and parts[1] in ("state", "latency-samples.csv", "latency-samples.csv.gz"):
+                continue
+            source.extract(member, output, filter="data")
+    with archive.open("rb") as stream:
+        archive_hash = hashlib.file_digest(stream, "sha256").hexdigest()
+    write(output / "raw-archive.json", {"archive": archive.name, "sha256": archive_hash,
+        "vm_original": "/var/home/core/slimfaas-pr506/" + relative,
+        "large_members_retained_in_archive": ["workload/state/", "workload/latency-samples.csv.gz"]})
     return output / "workload"
 
 

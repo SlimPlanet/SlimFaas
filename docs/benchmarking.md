@@ -140,6 +140,10 @@ The common driver compresses completed case samples between timed cases, using
 `--samples-format csv.gz`; ordinary manual runs still default to CSV. Comparison
 requires matching sample formats. Compression reduces evidence storage without
 sampling or dropping request observations.
+VM exports retain complete WALs and samples in `raw.tar.gz`, with its SHA-256 in
+`raw-archive.json`; comparers extract only the smaller reports and logs. The
+original VM state remains in place. Extract the archive when inspecting the
+large raw members rather than keeping an additional uncompressed copy.
 
 Long rootless campaigns also consume the Linux user's session-key quota. Inspect
 `/proc/key-users` and `sysctl kernel.keys.maxkeys kernel.keys.maxbytes` in the
