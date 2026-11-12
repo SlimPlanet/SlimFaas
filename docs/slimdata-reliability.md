@@ -28,6 +28,10 @@ The [8–9 November 2026 results](slimdata-reliability-results.md) include the e
 absence/API matrix, 2 MB versus 2 MiB diagnosis, fixes, failed campaigns and the
 current LTS verdict. Compact evidence and raw archive hashes accompany the report.
 
+Each cross-platform harness check runs in its own CI step, so a later successful
+command cannot hide an earlier failure on Windows. Linux network/disk controls
+retain their dedicated isolated namespaces and filesystems.
+
 ## Run the real Local campaign
 
 From the repository root, with .NET from `global.json` and Python 3.10+:

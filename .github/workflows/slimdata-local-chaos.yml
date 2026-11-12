@@ -53,15 +53,15 @@ jobs:
           python-version: '3.11'
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
       - name: Verify campaign failure and accounting invariants
-        run: |
-          python .bin/test-local-chaos-harness.py
-          python .bin/test-local-chaos-evidence.py
+        run: python .bin/test-local-chaos-harness.py
+      - name: Verify retained campaign evidence
+        run: python .bin/test-local-chaos-evidence.py
       - name: Verify owned benchmark processes and occupied-port rejection
         run: python .bin/test-local-benchmark-host.py
+      - name: Build the platform validation driver
+        run: dotnet build tools/SlimFaas.MemoryLab -c Release
       - name: Verify platform receipts, process fencing and endpoint configuration
-        run: |
-          dotnet build tools/SlimFaas.MemoryLab -c Release
-          python .bin/test-platform-validation.py
+        run: python .bin/test-platform-validation.py
       - name: Build runtime
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
       - name: Reject accumulated kernel socket memory after cancelled Raft uploads
