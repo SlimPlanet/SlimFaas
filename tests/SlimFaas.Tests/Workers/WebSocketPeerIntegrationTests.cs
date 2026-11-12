@@ -477,7 +477,8 @@ public sealed class WebSocketPeerIntegrationTests
                     }
                 }
             }
-            catch (Exception exception) when (_stop.IsCancellationRequested && exception is OperationCanceledException or WebSocketException or IOException) { }
+            // Intentional fixture shutdown can abort between the loop check and ReceiveAsync.
+            catch (Exception exception) when (_stop.IsCancellationRequested && exception is OperationCanceledException or WebSocketException or IOException or ObjectDisposedException) { }
         }
 
         private Task SendResponseStartAsync(string correlationId) =>
