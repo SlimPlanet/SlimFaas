@@ -146,6 +146,26 @@ loopback). MemoryLab accepts `--node-urls http://node-0:5000,http://node-1:5000,
 the existing local ports remain the default. URLs must be HTTP(S) origins without
 credentials, paths, queries or fragments.
 
+The real .NET SDK payload check uses the existing FibonacciBatch WebSocket job
+from the native demo. Start the demo with its supervisor output redirected to
+`artifacts/native-demo.log`, then create a unique worker:
+
+```bash
+curl --fail-with-body -H 'Content-Type: application/json' \
+  --data '{"Args":["--ws-mode","--function-name","dotnet-payload-check","--ws-url","ws://127.0.0.1:30022/ws"],"DependsOn":[],"BackoffLimit":0}' \
+  http://127.0.0.1:30020/job/fibonacci-ws
+python3 .bin/test-dotnet-sdk-payloads.py --function dotnet-payload-check \
+  --worker-log artifacts/native-demo.log --output artifacts/dotnet-payload-check
+```
+
+Use a fresh function name and output directory for another run. The 72 cases
+cover all six historical sizes through every node, Content-Length and chunked,
+sync response streaming and actual async callbacks. Sync checks hash the returned
+canonical JSON request; async checks hash the worker's logged decoded body and
+require its persisted processing proof. Partial stdout lines are never counted.
+The client journal is fsynced before each unretried request. Keep the returned
+Job ID and delete only that test Job after collecting evidence.
+
 Run the standard profile before changing the runtime, then run the exact same
 matrix after the change. Compare the two structured reports with:
 

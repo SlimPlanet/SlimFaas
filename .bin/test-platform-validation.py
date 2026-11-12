@@ -11,7 +11,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 import unittest
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
@@ -32,9 +31,28 @@ FIXTURE = load("platform_fixture", ROOT / "tests/SlimFaas.Tests/Local/chaos_func
 AGENT = load("platform_agent", ROOT / ".bin/slimdata_fault_agent.py")
 SINK = load("platform_sink", ROOT / ".bin/slimdata_receipt_sink.py")
 MATRIX = load("platform_matrix", ROOT / ".bin/run-platform-matrix.py")
+DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
 
 
 class PlatformTests(unittest.TestCase):
+    def test_dotnet_worker_log_waits_for_complete_lines_and_keeps_duplicate_observations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "supervisor.log"
+            path.write_bytes(b"")
+            observer = DOTNET_PROBE.WorkerLog(path)
+            body = b'{"nonce":"actual","padding":"payload"}'
+            line = b"[job/owned] [WS]   Corps     : " + body + b"\n"
+            path.write_bytes(line[:-5])
+            observer.read()
+            self.assertEqual(0, observer.position)
+            self.assertFalse(observer.observations)
+            path.write_bytes(line)
+            self.assertEqual([hashlib.sha256(body).hexdigest()], observer.observe("actual", timeout=0))
+            with path.open("ab") as stream:
+                stream.write(line)
+            observer.read()
+            self.assertEqual(2, len(observer.observations["actual"]))
+
     def test_websocket_profiles_keep_distinct_durable_registrations_and_restore_their_own_identity(self):
         module = SimpleNamespace(SlimFaasClient=object,
             SlimFaasClientConfig=lambda **values: SimpleNamespace(**values), SubscribeStreamConfig=lambda value: value)
@@ -139,15 +157,11 @@ class PlatformTests(unittest.TestCase):
                        "sha256": hashlib.sha256(b"abcd").hexdigest(), "status": 200}
             path = root / "receipts.jsonl"
             path.write_text('{"event":')
-            def deliver():
-                time.sleep(.02)
-                path.write_text(json.dumps(receipt) + "\n")
-            running = threading.Thread(target=deliver)
-            running.start()
-            try:
+            def deliver(_seconds):
+                FIXTURE.Journal(root).append(receipt)
+            with patch.object(WORKLOAD.time, "sleep", side_effect=deliver) as wait:
                 WORKLOAD.verify_receipts(output, root, timeout=1)
-            finally:
-                running.join()
+                wait.assert_called_once()
             self.assertTrue(json.loads(output.with_suffix(".receipts.json").read_text())["passed"])
 
     def test_same_pid_writers_never_share_a_receipt_file(self):
