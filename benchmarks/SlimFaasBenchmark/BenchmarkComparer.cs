@@ -490,6 +490,7 @@ internal static partial class BenchmarkComparer
                           baseline.ScaleConcurrency == candidate.ScaleConcurrency &&
                           baseline.ScaleTargetReplicas == candidate.ScaleTargetReplicas &&
                           baseline.Profile == candidate.Profile &&
+                          baseline.SamplesFormat == candidate.SamplesFormat &&
                           baseline.AsyncPacedMessages == candidate.AsyncPacedMessages &&
                           baseline.AsyncPacedIntervalMilliseconds == candidate.AsyncPacedIntervalMilliseconds &&
                           baseline.AsyncBurstMessages == candidate.AsyncBurstMessages &&

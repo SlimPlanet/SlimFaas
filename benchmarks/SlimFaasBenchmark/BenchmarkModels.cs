@@ -150,7 +150,8 @@ internal sealed record BenchmarkSettings(
     int AsyncPacedMessages = 0,
     int AsyncPacedIntervalMilliseconds = 0,
     int AsyncBurstMessages = 0,
-    int AsyncBurstConcurrency = 0);
+    int AsyncBurstConcurrency = 0,
+    string SamplesFormat = "csv");
 
 internal sealed record BenchmarkReport(
     DateTimeOffset StartedAtUtc,

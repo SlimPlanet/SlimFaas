@@ -234,6 +234,7 @@ def run(options):
                 "--payload-bytes", options.payload_bytes, "--concurrency", options.concurrency,
                 "--async-drain-timeout", "180", "--scale-messages", "200", "--scale-concurrency", "32",
                 "--scale-timeout", "120", "--output", str(options.output)]
+            command += ["--samples-format", "csv.gz"]
             with (options.output / "workload.log").open("w") as output:
                 code = subprocess.call(command, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT)
             statuses.append({"suite": "http", "exit_code": code})

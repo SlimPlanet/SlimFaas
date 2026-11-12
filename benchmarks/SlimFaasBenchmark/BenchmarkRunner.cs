@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -37,12 +38,8 @@ internal static class BenchmarkRunner
         await EnsureReadyAsync(client, options);
 
         var latencyRuns = new List<LatencyRunResult>();
-        string samplesPath = Path.Combine(options.OutputDirectory, "latency-samples.csv");
-        await using var samplesStream = new FileStream(
-            samplesPath,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.Read);
+        string samplesPath = Path.Combine(options.OutputDirectory, "latency-samples." + options.SamplesFormat);
+        await using Stream samplesStream = CreateSamplesStream(samplesPath, options.SamplesFormat);
         await using var samplesWriter = new StreamWriter(samplesStream, new UTF8Encoding(false));
         await samplesWriter.WriteLineAsync(
             "mode,payload_bytes,concurrency,repetition,success,latency_ms,error,request_id");
@@ -110,7 +107,8 @@ internal static class BenchmarkRunner
             options.AsyncPacedMessages,
             options.AsyncPacedIntervalMilliseconds,
             options.AsyncBurstMessages,
-            options.AsyncBurstConcurrency);
+            options.AsyncBurstConcurrency,
+            options.SamplesFormat);
         var report = new BenchmarkReport(
             startedAt,
             DateTimeOffset.UtcNow,
@@ -1261,6 +1259,22 @@ internal static class BenchmarkRunner
         double RaftEntries,
         double WorkingSetBytes);
 
+    internal static Stream CreateSamplesStream(string path, string format)
+    {
+        if (format is not ("csv" or "csv.gz"))
+            throw new ArgumentException("--samples-format must be 'csv' or 'csv.gz'.", nameof(format));
+        var file = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+        try
+        {
+            return format == "csv.gz" ? new GZipStream(file, CompressionLevel.Fastest) : file;
+        }
+        catch
+        {
+            file.Dispose();
+            throw;
+        }
+    }
+
     private sealed record RunnerOptions(
         Uri SlimFaasUrl,
         Uri DirectUrl,
@@ -1282,7 +1296,8 @@ internal static class BenchmarkRunner
         int AsyncPacedIntervalMilliseconds,
         int AsyncBurstMessages,
         int AsyncBurstConcurrency,
-        string OutputDirectory)
+        string OutputDirectory,
+        string SamplesFormat)
     {
         public static RunnerOptions Parse(CommandArguments arguments)
         {
@@ -1296,6 +1311,9 @@ internal static class BenchmarkRunner
             string profile = arguments.Get("profile", "standard").ToLowerInvariant();
             if (profile is not ("standard" or "async-queue"))
                 throw new ArgumentException("--profile must be 'standard' or 'async-queue'.");
+            string samplesFormat = arguments.Get("samples-format", "csv");
+            if (samplesFormat is not ("csv" or "csv.gz"))
+                throw new ArgumentException("--samples-format must be 'csv' or 'csv.gz'.");
             return new RunnerOptions(
                 slimFaasUrl,
                 directUrl,
@@ -1319,7 +1337,8 @@ internal static class BenchmarkRunner
                 arguments.GetInt("async-burst-concurrency", 64, 1, 1024),
                 Path.GetFullPath(arguments.Get(
                     "output",
-                    Path.Combine("artifacts", "slimfaas-local-benchmark", "manual"))));
+                    Path.Combine("artifacts", "slimfaas-local-benchmark", "manual"))),
+                samplesFormat);
         }
 
         private static Uri ParseBaseUri(string value) =>

@@ -101,6 +101,7 @@ internal static class BenchmarkCli
               [--node-urls http://127.0.0.1:31021,http://127.0.0.1:31022,http://127.0.0.1:31023]
               [--function benchmark-latency] [--scale-function benchmark-scale]
               [--duration 10] [--warmup 2] [--repetitions 3]
+              [--samples-format csv|csv.gz]
               [--payload-bytes 64,4096,262144,2097152]
               [--concurrency 1,16] [--async-drain-timeout 180]
               [--scale-messages 200] [--scale-concurrency 32]

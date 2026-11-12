@@ -135,6 +135,12 @@ three anti-affined StatefulSet nodes, actual function Deployments and Jobs.
 Generators and functions run inside the cluster through Services and pod DNS.
 Port-forwarding is unnecessary for measurements.
 
+The platform runner preserves every latency sample in `latency-samples.csv.gz`.
+The common driver compresses completed case samples between timed cases, using
+`--samples-format csv.gz`; ordinary manual runs still default to CSV. Comparison
+requires matching sample formats. Compression reduces evidence storage without
+sampling or dropping request observations.
+
 Long rootless campaigns also consume the Linux user's session-key quota. Inspect
 `/proc/key-users` and `sysctl kernel.keys.maxkeys kernel.keys.maxbytes` in the
 dedicated VM. If OCI startup reports `unable to create session key: disk quota

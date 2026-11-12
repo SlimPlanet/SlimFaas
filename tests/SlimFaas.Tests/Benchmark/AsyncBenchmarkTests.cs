@@ -1,11 +1,45 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.IO.Compression;
+using System.Text;
 using SlimFaasBenchmark;
 
 namespace SlimFaas.Tests.Benchmark;
 
 public sealed class AsyncBenchmarkTests
 {
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("csv.gz")]
+    public async Task Sample_writer_preserves_every_byte_and_completes_the_archive(string format)
+    {
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + "." + format);
+        byte[] samples = Encoding.UTF8.GetBytes("mode,latency_ms,error\nsync,1.25,\nasync,2.5,\"quoted, ü\"\n");
+        try
+        {
+            await using (Stream output = BenchmarkRunner.CreateSamplesStream(path, format))
+                await output.WriteAsync(samples);
+            await using FileStream input = File.OpenRead(path);
+            await using Stream decoded = format == "csv.gz" ? new GZipStream(input, CompressionMode.Decompress) : input;
+            using var bytes = new MemoryStream();
+            await decoded.CopyToAsync(bytes);
+            Assert.Equal(samples, bytes.ToArray());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Comparer_rejects_different_sample_formats()
+    {
+        BenchmarkReport baseline = CompleteReport();
+        BenchmarkReport candidate = baseline with { Settings = baseline.Settings with { SamplesFormat = "csv.gz" } };
+        Assert.Throws<InvalidOperationException>(() => BenchmarkComparer.BuildComparison(
+            "before", "after", baseline, candidate, criteria: "non-regression"));
+    }
+
     [Fact]
     public void Statistics_compute_interpolated_percentiles_and_mean_inputs()
     {
