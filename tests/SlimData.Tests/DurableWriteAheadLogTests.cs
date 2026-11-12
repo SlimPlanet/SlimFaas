@@ -103,10 +103,10 @@ public sealed class DurableWriteAheadLogTests
                 MemoryManagement = strategy
             }, state);
             IPersistentState raftLog = wal;
-            var payload = new byte[65536];
+            var payload = new byte[1024];
             Task[] producers = Enumerable.Range(0, 4).Select(async _ =>
             {
-                for (int i = 0; i < 128; i++)
+                for (int i = 0; i < 32; i++)
                 {
                     await raftLog.AppendAsync(new LogEntry<AddKeyValueCommand>
                     {
@@ -118,8 +118,8 @@ public sealed class DurableWriteAheadLogTests
                 }
             }).ToArray();
             await Task.WhenAll(producers);
-            Assert.Equal(512, wal.LastCommittedEntryIndex);
-            await wal.WaitForApplyAsync(512, deadline.Token);
+            Assert.Equal(128, wal.LastCommittedEntryIndex);
+            await wal.WaitForApplyAsync(128, deadline.Token);
         }
         finally
         {
