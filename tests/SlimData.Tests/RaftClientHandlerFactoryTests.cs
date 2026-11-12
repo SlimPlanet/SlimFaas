@@ -51,6 +51,9 @@ public sealed class RaftClientHandlerFactoryTests
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         using var listener = new TcpListener(IPAddress.Loopback, 0);
+        // Bound the advertised receive window before the handshake so every
+        // platform still has a backpressured upload when cancellation happens.
+        listener.Server.ReceiveBufferSize = 4096;
         listener.Start();
         var endpoint = (IPEndPoint)listener.LocalEndpoint;
         var factory = new RaftClientHandlerFactory(
@@ -64,7 +67,7 @@ public sealed class RaftClientHandlerFactoryTests
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         Task<HttpResponseMessage> sending = client.SendAsync(request, cancellation.Token);
         using Socket peer = await listener.AcceptSocketAsync(deadline.Token);
-        while (peer.Available < 65536)
+        while (peer.Available < 1024)
         {
             deadline.Token.ThrowIfCancellationRequested();
             await Task.Yield();
@@ -75,18 +78,19 @@ public sealed class RaftClientHandlerFactoryTests
         client.Dispose(); // Synchronize ownership teardown before observing the TCP peer.
 
         bool reset = false;
+        var receivedBytes = 0;
         var buffer = new byte[65536];
         try
         {
-            while (await peer.ReceiveAsync(buffer, SocketFlags.None, deadline.Token) != 0)
-            {
-            }
+            int count;
+            while ((count = await peer.ReceiveAsync(buffer, SocketFlags.None, deadline.Token)) != 0)
+                receivedBytes += count;
         }
         catch (SocketException error) when (error.SocketErrorCode == SocketError.ConnectionReset)
         {
             reset = true;
         }
 
-        Assert.True(reset, "A cancelled large request must release its queued TCP payload immediately.");
+        Assert.True(reset, $"A cancelled large request must release its queued TCP payload immediately (received {receivedBytes} wire bytes).");
     }
 }
