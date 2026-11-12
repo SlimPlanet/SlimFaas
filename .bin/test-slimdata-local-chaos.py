@@ -690,6 +690,38 @@ class Campaign:
             self.suspended.discard(pid)
         self.ready()
 
+    def protocol_timeout(self):
+        self.phase = "protocol-probe-with-silent-follower"
+        leader = self.leader()
+        if leader is None:
+            raise AssertionError("No leader before protocol-probe regression")
+        follower = (leader + 1) % 3
+        stopped = self.node_pid(follower)
+        previous = self.node_pid(leader)
+        self.pause(stopped, True)
+        self.suspended.add(stopped)
+        try:
+            self.kill_node(previous)
+            self.client.append({"event": "leader-crashed-with-silent-follower", "node": leader,
+                                "pid": previous, "follower": follower})
+            wait_until("owned leader process restarts", lambda: self.node_pid(leader) != previous,
+                       self.options.recovery_timeout)
+            started = time.monotonic()
+            wait_until("remaining majority becomes ready despite a silent protocol endpoint", lambda:
+                all(request(port, "/ready", timeout=1)[0] == 200
+                    for index, port in enumerate(self.ports) if index != follower), 15)
+            path = "/data/sets/protocol-probe-" + uuid.uuid4().hex
+            self.require_mutation("set", path, b"healthy-majority", expected_status=200, timeout=15)
+            self.expected[path] = sha256(b"healthy-majority")
+            self.results.append({"phase": self.phase, "passed": True, "suspended_follower": follower,
+                                 "restarted_leader": leader, "ready_and_write_seconds": time.monotonic() - started})
+            print(json.dumps(self.results[-1]), flush=True)
+        finally:
+            self.pause(stopped, False)
+            self.suspended.discard(stopped)
+        self.ready()
+        self.verify()
+
     def schedules(self):
         self.phase = "scheduled-job"
         identifier = uuid.uuid4().hex
@@ -1660,7 +1692,7 @@ def parse_arguments(argv=None):
         parser.error("absence durations must be positive")
     if set(options.roles.split(",")) - {"follower", "leader", "quorum"}:
         parser.error("roles must be follower, leader or quorum")
-    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "leader-route", "job-environments", "job-recovery", "startup-jobs", "job-during-node-stop", "chaos", "latency", "partitions", "diskfull", "job-diskfull", "restarts"}:
+    if set(options.scenarios.split(",")) - {"payloads", "api", "files", "wake", "retries", "streams", "schedules", "websocket", "websocket-timeout", "lease-burst", "leader-route", "protocol-timeout", "job-environments", "job-recovery", "startup-jobs", "job-during-node-stop", "chaos", "latency", "partitions", "diskfull", "job-diskfull", "restarts"}:
         parser.error("unknown scenario")
     if not 1024 <= options.port_base <= 65475:
         parser.error("port base must reserve 61 nonprivileged ports")
@@ -1713,6 +1745,7 @@ def main():
              "job-environments": campaign.job_environments,
              "startup-jobs": campaign.startup_jobs,
              "job-during-node-stop": campaign.job_during_node_stop,
+             "protocol-timeout": campaign.protocol_timeout,
              "chaos": campaign.chaos, "latency": campaign.network_latency, "partitions": campaign.partitions,
              "diskfull": campaign.disk_full,
              "job-diskfull": lambda: campaign.disk_full(pause_raft=True), "restarts": campaign.restarts}[scenario]()

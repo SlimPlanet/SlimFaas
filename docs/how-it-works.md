@@ -346,6 +346,14 @@ File content is disk-backed; metadata is cluster-consistent. A receiving node an
 
 ### Consensus and persistence
 
+Protocol probes have a two-second deadline covering connection, response headers
+and body. A silent or suspended member is classified as unavailable, so a newly
+elected leader can still check the remaining reachable members. Caller shutdown
+cancellation propagates. An explicit incompatible protocol still blocks writes,
+and ignoring an unreachable probe never replaces Raft's quorum/lease checks.
+This prevents an unbounded protocol HTTP read from holding a healthy majority
+unavailable after a leader change; request and async-drain deadlines are unchanged.
+
 SlimData uses Raft through DotNext. Nodes retain applied state in memory and persist commands in a write-ahead log. A healthy quorum is needed for replicated writes; local snapshots of status and metadata do not by themselves establish that every peer is caught up.
 
 SlimData uses DotNext 6.12.0. This retains upstream fixes for a full replication

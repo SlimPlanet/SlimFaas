@@ -70,6 +70,7 @@ counter checkpoints for verification; they do not reset the retained values.
 | `diskfull` | Exhaustion of a marked, separate 128 MiB filesystem; restore space by removing only the synthetic filler, then verify original state |
 | `job-diskfull` | Hold an acknowledged real job, suspend Raft so cleanup cannot free space, exhaust the marked filesystem with progressively smaller writes, complete the job, then verify its terminal checkpoint survives recovery and full supervisor restart |
 | `leader-route` | Warm a follower's leader HTTP route, suspend that leader and submit one unretried small mutation; require completion through the newly elected leader before the existing 15-second request budget |
+| `protocol-timeout` | Keep a follower suspended while crashing/restarting the leader; require the remaining majority's readiness within fifteen seconds and an unretried write, then verify all original nodes |
 
 `--scenarios` selects a comma-separated list. `--payload-sizes` accepts exact byte
 counts, up to the fixture's 20 MiB ceiling; it does not change runtime limits.
