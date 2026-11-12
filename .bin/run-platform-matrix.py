@@ -3,9 +3,11 @@
 
 import argparse
 import csv
+from functools import wraps
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -20,6 +22,34 @@ ORDER = ("before", "after", "after", "before")
 
 class WorkloadFailure(ValueError):
     pass
+
+
+def isolated_measurement(function):
+    @wraps(function)
+    def execute(*args, **kwargs):
+        artifacts = ROOT / "artifacts"
+        artifacts.mkdir(exist_ok=True)
+        marker = artifacts / "platform-measurement.json"
+        with (artifacts / "platform-measurement.lock").open("a+") as lock:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    if lock.seek(0, os.SEEK_END) == 0:
+                        lock.write("\0")
+                        lock.flush()
+                    lock.seek(0)
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError as error:
+                raise RuntimeError("Another platform measurement owns this host") from error
+            write(marker, {"pid": os.getpid(), "started": time.time(), "output": str(args[-1])})
+            try:
+                return function(*args, **kwargs)
+            finally:
+                marker.unlink(missing_ok=True)
+    return execute
 
 
 def write(path, value):
@@ -102,6 +132,7 @@ def export_vm(relative, output):
     return output / "workload"
 
 
+@isolated_measurement
 def run_one(config, suite, scenario, concurrency, variant, ordinal, output):
     if shutil.disk_usage(ROOT).free < 20 * 1024**3:
         raise RuntimeError("Mac free disk below 20 GiB; reclaim inactive caches outside measurements")
