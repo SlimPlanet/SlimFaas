@@ -106,6 +106,21 @@ class CampaignSafetyTests(unittest.TestCase):
                     thread.join(5)
                 self.assertFalse(thread.is_alive())
 
+    def test_failed_resume_still_stops_owned_supervisor_and_closes_its_log(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.suspended = {111}
+            campaign.log = Mock()
+            log = campaign.log
+            with patch.object(campaign, "pause", side_effect=RuntimeError("Recovery controller unavailable")), \
+                    patch.object(campaign, "stop_supervisor") as stop, \
+                    patch.object(campaign, "ports_released", return_value=True):
+                with self.assertRaisesRegex(RuntimeError, "Recovery controller unavailable"):
+                    campaign.stop()
+            stop.assert_called_once()
+            log.close.assert_called_once()
+            self.assertIsNone(campaign.log)
+
     def test_counter_contracts_keep_retained_values_and_can_run_twice(self):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)

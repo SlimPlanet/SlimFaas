@@ -77,16 +77,22 @@ def create_campaign(options, local):
                                     self.options.recovery_timeout)
 
         def stop(self):
-            while self.suspended:
-                handle = next(iter(self.suspended))
-                self.pause(handle, False)
-                self.suspended.remove(handle)
-            self.capture_pod_logs(f"before-stop-{self.generation}")
-            self.scale(0)
-            selector = quote("app=slimfaas,slimfaas-campaign=" + identifier, safe="")
-            local["wait_until"]("owned StatefulSet pods terminate", lambda:
-                not self.api("GET", self.resource("pods?labelSelector=" + selector))["items"],
-                self.options.recovery_timeout)
+            try:
+                while self.suspended:
+                    handle = next(iter(self.suspended))
+                    self.pause(handle, False)
+                    self.suspended.remove(handle)
+            finally:
+                try:
+                    self.capture_pod_logs(f"before-stop-{self.generation}")
+                finally:
+                    # Preserve the failed signal, but stop only this owned
+                    # StatefulSet even when its fault controller is unavailable.
+                    self.scale(0)
+                    selector = quote("app=slimfaas,slimfaas-campaign=" + identifier, safe="")
+                    local["wait_until"]("owned StatefulSet pods terminate", lambda:
+                        not self.api("GET", self.resource("pods?labelSelector=" + selector))["items"],
+                        self.options.recovery_timeout)
 
         def leader(self, excluded=()):
             for index in range(3):

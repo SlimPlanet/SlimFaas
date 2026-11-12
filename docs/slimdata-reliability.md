@@ -123,6 +123,8 @@ A failed restoration/control action must also stop the continuous traffic
 producer before propagating the campaign failure. A stale process identity is
 never retargeted to a replacement process. Network/disk cleanup failures remain
 failures; they must not leave the executor waiting forever on live producers.
+Final cleanup still stops the owned Local supervisor or labelled StatefulSet
+when a resume fails, preserves the error and retains the original volumes.
 
 Process suspension is a real stopped-process/communication outage. On POSIX it
 uses `SIGSTOP`/`SIGCONT`; Windows uses the native process suspension APIs. It is

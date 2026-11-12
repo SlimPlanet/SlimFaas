@@ -324,15 +324,19 @@ class Campaign:
                             "seconds": time.monotonic() - started})
 
     def stop(self):
-        while self.suspended:
-            pid = next(iter(self.suspended))
-            self.pause(pid, False)
-            self.suspended.remove(pid)
-        self.stop_supervisor()
-        wait_until("owned Local nodes release listening ports", self.ports_released, 30)
-        if self.log:
-            self.log.close()
-            self.log = None
+        try:
+            while self.suspended:
+                pid = next(iter(self.suspended))
+                self.pause(pid, False)
+                self.suspended.remove(pid)
+        finally:
+            try:
+                self.stop_supervisor()
+                wait_until("owned Local nodes release listening ports", self.ports_released, 30)
+            finally:
+                if self.log:
+                    self.log.close()
+                    self.log = None
 
     def stop_supervisor(self):
         if self.process is not None and self.process.poll() is None:
