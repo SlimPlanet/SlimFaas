@@ -134,6 +134,10 @@ The launcher creates dedicated labelled namespaces, retained persistent volumes,
 three anti-affined StatefulSet nodes, actual function Deployments and Jobs.
 Generators and functions run inside the cluster through Services and pod DNS.
 Port-forwarding is unnecessary for measurements.
+Each matrix phase keeps launcher manifests, ownership records and Kubernetes
+diagnostics under `controller/`, alongside its workload reports. The launcher
+requires this controller directory to be new; existing phase metadata must not
+be used as the controller output or overwritten during a resume.
 
 Linux fault controls also inspect cgroup socket memory and OOM status. RSS
 guardrails retain their existing definition, while an unplanned runtime/control

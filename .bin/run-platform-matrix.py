@@ -195,7 +195,9 @@ def run_one(config, suite, scenario, concurrency, variant, ordinal, output):
     else:
         name = config["prefix"] + "-" + output.parent.name + "-" + output.name
         base = [sys.executable, ROOT / ".bin/run-kubernetes-campaign.py"]
-        arguments = ["--kubeconfig", config["kubeconfig"], "--namespace", name, "--output", output]
+        # The phase already contains its metadata/log. The launcher requires
+        # a fresh directory so a previous controller cannot be overwritten.
+        arguments = ["--kubeconfig", config["kubeconfig"], "--namespace", name, "--output", output / "controller"]
         command = base + ["launch"] + arguments + ["--image", config[variant], "--controller-image",
             config["controller_image"], "--source-commit", config[variant + "_commit"],
             "--suite", suite, "--probes", "normal", "--variant", variant, "--ordinal", str(ordinal)]

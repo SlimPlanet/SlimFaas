@@ -37,6 +37,36 @@ KUBERNETES_BACKEND = load("kubernetes_backend", ROOT / ".bin/slimdata_kubernetes
 
 
 class PlatformTests(unittest.TestCase):
+    def test_matrix_keeps_kubernetes_controller_output_separate_from_existing_phase(self):
+        with tempfile.TemporaryDirectory() as directory:
+            phase = Path(directory) / "http-attempt-1" / "1-before"
+            phase.parent.mkdir()
+            configuration = {"environment": "kubernetes", "prefix": "slimfaas-pr506-test",
+                             "kubeconfig": "isolated-config", "before": "historical-runtime",
+                             "before_commit": "historical-source", "controller_image": "common-driver"}
+            launches = []
+
+            def command(arguments, _log, **_kwargs):
+                action = arguments[2]
+                destination = Path(arguments[arguments.index("--output") + 1])
+                if action == "launch":
+                    # The real launcher refuses an existing output directory
+                    # before applying any Kubernetes resource.
+                    destination.mkdir(parents=True, exist_ok=False)
+                    launches.append(destination)
+                else:
+                    self.assertEqual(launches[0], destination)
+                return 0
+
+            with patch.object(MATRIX.shutil, "disk_usage", return_value=SimpleNamespace(free=40 * 1024**3)), \
+                    patch.object(MATRIX.subprocess, "check_output", return_value=f"Avail\n{40 * 1024**3}\n"), \
+                    patch.object(MATRIX, "invoke", side_effect=command), \
+                    patch.object(MATRIX, "export_vm", return_value=phase / "workload"):
+                MATRIX.run_one.__wrapped__(configuration, "http", None, None, "before", 1, phase)
+            self.assertEqual([phase / "controller"], launches)
+            self.assertTrue((phase / "phase.json").is_file())
+            self.assertTrue((phase / "execution.json").is_file())
+
     def test_recovered_runtime_oom_cannot_be_reported_as_successful_endurance(self):
         owned = {"metadata": {"name": "slimfaas-2", "uid": "original-pod",
                               "labels": {"slimfaas-campaign": "owned", "app": "slimfaas"}},
