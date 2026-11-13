@@ -221,5 +221,29 @@
     }
   },
   "comparison_acceptance": "Pending complete retained ABBA matrices; hashes and successful correctness subsets do not establish non-regression.",
-  "raw_evidence_availability": "Original campaign volumes, journals and raw files remain on the validation host and dedicated VM. This provenance file does not publish or imply public download access to those files."
+  "raw_evidence_availability": "Original campaign volumes, journals and raw files remain on the validation host and dedicated VM. This provenance file does not publish or imply public download access to those files.",
+  "linux_runtime_core_parity": {
+    "shared_runtime_base_layers": 1,
+    "reference_layers": 5,
+    "candidate_layers": 3,
+    "layer_note": "Build layer grouping differs; file parity is checked directly.",
+    "runtime_core_sha256": {
+      "before": {
+        "/app/libcoreclr.so": "6ce41b51fc2cfb31d771212d6a077972aa9ceaee9ccd8b8fba91a983568ece87",
+        "/app/libclrgc.so": "58435b36e2bf95a65779e13e74268eb7976b97758de8036075dc805c40390d59",
+        "/app/libclrjit.so": "6f70d7ee33aca6cea2849671454664e3bb6fcf1c7329ae36ccbe0916dd6adc10",
+        "/etc/os-release": "63b1cebc6ff5789ebbe97686848877344fcfd091e7db206e612c48c8efb0636c",
+        "/lib/ld-musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793"
+      },
+      "after": {
+        "/app/libcoreclr.so": "6ce41b51fc2cfb31d771212d6a077972aa9ceaee9ccd8b8fba91a983568ece87",
+        "/app/libclrgc.so": "58435b36e2bf95a65779e13e74268eb7976b97758de8036075dc805c40390d59",
+        "/app/libclrjit.so": "6f70d7ee33aca6cea2849671454664e3bb6fcf1c7329ae36ccbe0916dd6adc10",
+        "/etc/os-release": "63b1cebc6ff5789ebbe97686848877344fcfd091e7db206e612c48c8efb0636c",
+        "/lib/ld-musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793"
+      }
+    },
+    "same_native_clr_gc_jit_os_and_libc": true,
+    "source": "a8e1b5fd5aeed535676dc3860d3adacc9159226a"
+  }
 }

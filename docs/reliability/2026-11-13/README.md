@@ -42,8 +42,9 @@ policies remain enabled. Existing dependency/license holds from PR #514 remain.
 | Harness, evidence, comparer and bundle helper tests | Passed; platform checks expanded to 21 tests |
 | Native AOT macOS reference, candidate, MCP and standalone SlimData | Published successfully |
 | Documentation production build | 23 pages, 1,672 local links/assets, 401 search entries before this report |
-| Native short API/recovery campaign | Passed, 187 confirmed operations, 12 unknown outcomes, zero missing |
-| Native stale-leader routing | 6.813 s, within the unchanged 15 s bound |
+| Initial integrated Native API/recovery campaign (`8cac1116`) | Passed, 187 confirmed operations, 12 unknown outcomes, zero missing |
+| Corrected Native API/recovery campaign (`a8e1b5fd`) | Passed, 172 confirmed operations, 12 unknown outcomes, zero missing |
+| Corrected Native stale-leader routing | 6.770 s, within the unchanged 15 s bound |
 | Official Python SDK/API live campaign | Passed |
 | Standalone native bundle with empty PATH | Passed, including actual functions and job |
 | Official .NET SDK live payload checks | 72 passed |
@@ -66,6 +67,14 @@ hotspots. The open findings concern validation tooling, its HTTP/WS deployment
 configuration and benchmark container configuration. No rule was disabled and
 no finding was dismissed to obtain acceptance. The successful scanner job does
 not mean the quality gate passed.
+
+On documentation head `b1a309f4`, Linux reliability and FOSSA also pass. The
+Windows run reaches SDK streaming before failing an async HTTP response
+deadline; its complete log is retained. The traffic-animation job initially
+reaches its twenty-minute CI budget during AOT compilation, before browser
+tests start. An unchanged [single-job rerun](https://github.com/SlimPlanet/SlimFaas/actions/runs/43410209967/job/131857197981)
+passes Native runtime/function publication and animations on three nodes.
+No test or deadline was changed for that replay.
 
 ## Renewed measurement protocol
 
@@ -90,6 +99,14 @@ provenance](provenance.json) identifies the new artifacts before timed work.
 Raw-result indexes and final per-environment verdicts require the renewed
 campaigns to complete. Raw host/VM data is retained locally; this link does not
 provide a public download of those original volumes or journals.
+
+The unchanged .NET 11 reference passes Native API setup and Kubernetes API setup
+using the same sidecar-port convention as the performance fixture. A separate
+control with a declared sidecar port reproduces its historical listener-binding
+failure; that Job was suspended using its exact UID and its state/logs are
+retained. Performance fixtures already omit that declaration for both revisions,
+as documented in the [benchmark guide](../../benchmarking.md). Direct hashes of
+the Linux CLR, GC, JIT, OS release and libc files match between both images.
 
 ## Heavy-body screening and completion regressions
 
@@ -136,11 +153,57 @@ mismatches, HTTP errors or sampling errors. Its executable SHA-256 is
 `a4c8ceacd7bc4c7c7c52c938f661b32808d179abe6d4f292744f9b7daf901fc3`.
 This passes the reproduction; final comparative performance remains pending.
 
+The deterministic control can be reproduced in a separate worktree with SDK
+11.0.100. The first test run is expected to fail the three new regressions:
+
+```bash
+git worktree add --detach ../SlimFaas-completion-repro a8e1b5fd5aeed535676dc3860d3adacc9159226a
+cd ../SlimFaas-completion-repro
+git restore --source=134868f8 -- src/SlimFaas/Workers/SlimQueuesWorker.cs
+dotnet test tests/SlimFaas.Tests/SlimFaas.Tests.csproj -c Release \
+  -p:SkipClientAppBuild=true --filter FullyQualifiedName~AsyncQueueWorkerTests
+```
+
+Restore the corrected worker and rerun the same tests; they must now pass:
+
+```bash
+git restore --source=a8e1b5fd5aeed535676dc3860d3adacc9159226a -- src/SlimFaas/Workers/SlimQueuesWorker.cs
+dotnet test tests/SlimFaas.Tests/SlimFaas.Tests.csproj -c Release \
+  -p:SkipClientAppBuild=true --filter FullyQualifiedName~AsyncQueueWorkerTests
+```
+
 A separate rolling upgrade from the final .NET 10 reliability runtime to this
 .NET 11 runtime passes: all three nodes reconcile 187 keys after rolling
 replacement, follower suspension, quorum interruption and complete restart using
 the original volumes. Both sides use command protocol SLDC/5. This does not
 establish rolling compatibility from the older SLDC/4 protocol.
+
+## Corrected .NET 11 endurance
+
+All three Native AOT roles on `a8e1b5fd` pass the complete
+30/60/300/900/1,800/3,600-second absence sequence, successive crashes and a full
+restart using the original volumes. All **45,987 confirmed operations** are
+reconciled, with zero confirmed loss or checksum corruption. Unknown client
+outcomes remain separate. Kubernetes endurance and comparative performance are
+still running or pending.
+
+| Native role | Confirmed | Unknown | Extra successful deliveries | Ready after 1 h absence | Full reconciliation |
+|---|---:|---:|---:|---:|---:|
+| Follower | 22,954 | 29 | 3 | 2.295 s | 86.825 s |
+| Leader | 22,888 | 37 | 1 | 0.433 s | 82.390 s |
+| Quorum loss | 145 | 26,028 | 0 | 0.420 s | 31.538 s |
+
+The four extra deliveries belong to explicit fault phases: follower absences of
+900, 1,800 and 3,600 seconds, and the 900-second leader absence. They remain
+counted under the permitted at-least-once fault behavior. Largest per-kind
+confirmed-write spacings are 19.521 s for follower and 19.829 s for leader;
+these observations include the mixed traffic cadence and remain distinct from
+the dedicated fifteen-second leader-route check.
+
+The [Native endurance evidence](native-endurance.json) retains every absence
+result and availability observation. Original volumes, receipts and client
+ledgers remain on the validation host. A passed endurance integrity check does
+not establish comparative performance or LTS guarantees.
 
 ## Preserved .NET 10 findings
 

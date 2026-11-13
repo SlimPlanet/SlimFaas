@@ -148,6 +148,13 @@ diagnostics under `controller/`, alongside its workload reports. The launcher
 requires this controller directory to be new; existing phase metadata must not
 be used as the controller output or overwritten during a resume.
 
+HTTP and MemoryLab fixtures omit the fault-agent sidecar's `containerPort`
+declaration for both revisions; its control socket still listens normally.
+The historical runtime also bound declared sidecar ports, which conflicts with
+that agent. The separate chaos fixture declares the sidecar port to exercise
+the corrected listener ownership. Keep this common performance convention when
+checking reference readiness; retain failed compatibility controls separately.
+
 Linux fault controls also inspect cgroup socket memory and OOM status. RSS
 guardrails retain their existing definition, while an unplanned runtime/control
 OOM fails the controlled recovery campaign even if the process restarts. See the
