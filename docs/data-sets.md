@@ -292,6 +292,15 @@ SlimData__WalMemoryManagement=PrivateMemory
 
 Only `PrivateMemory` and `SharedMemory` are accepted, case-insensitively. An invalid value prevents startup. Switching strategy does not alter the WAL format and does not require a data migration.
 
+New Windows WAL directories use 64 KiB data chunks to avoid creating and flushing
+hundreds of 4 KiB files for each large message. The `wal/slimdata-chunk-size` file
+records this geometry and must be preserved with the WAL. Existing unmarked WALs
+retain their original system-page chunk size; they are not migrated automatically.
+New Linux and macOS WALs retain their existing defaults. A recorded size is honored
+on every platform, and an invalid marker stops startup. Do not edit or remove it,
+or open a marked WAL with an older runtime that does not understand this marker.
+See the [Windows benchmark investigation](reliability/2026-11-13/windows-benchmark.md).
+
 Streaming state snapshots use a hybrid threshold. A snapshot is requested after 32 MiB of successfully applied WAL entries or 500 successfully applied entries, whichever occurs first. Both positive thresholds can be changed without altering the API:
 
 ```bash

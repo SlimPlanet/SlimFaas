@@ -174,7 +174,8 @@ public class Startup(IConfiguration configuration)
         var walOptions = new WriteAheadLog.Options
         {
             Location = walPath,
-            MemoryManagement = GetWalMemoryManagement(configuration)
+            MemoryManagement = GetWalMemoryManagement(configuration),
+            ChunkSize = WalChunkSize.Resolve(walPath, OperatingSystem.IsWindows())
         };
         services.UseStateMachine<SlimPersistentState>(walOptions);
         services.Replace(ServiceDescriptor.Singleton<IPersistentState>(sp =>
