@@ -28,6 +28,69 @@ public sealed class DurableStreamTests
     }
 
     [Fact]
+    public void Counter_presence_matches_the_generated_decoder_for_empty_null_legacy_unicode_and_corrupt_messages()
+    {
+        var state = Create(); Apply(state, DurableStreamAction.Configure); Apply(state, DurableStreamAction.Subscribe);
+        string id = Apply(state, DurableStreamAction.Append).MessageId!;
+        Apply(state, DurableStreamAction.Reserve);
+        byte[] valid = MemoryPackSerializer.Serialize(new DurableStreamMessage { Id = id, ContentType = "application/json" });
+        List<byte[]> values =
+        [
+            [], [255], [0], [1], [6], [5],
+            MemoryPackSerializer.Serialize(new DurableStreamMessage { Id = "é🚀", ContentType = "文" }),
+            MemoryPackSerializer.Serialize(new DurableStreamMessage { Id = null!, ContentType = null! }),
+            MemoryPackSerializer.Serialize(new DurableStreamMessage(), MemoryPackSerializerOptions.Utf16),
+            valid.Concat(new byte[] { 99 }).ToArray()
+        ];
+        for (int length = 1; length <= valid.Length; length++) values.Add(valid[..length]);
+        for (int index = 0; index < valid.Length; index++)
+        {
+            var corrupted = (byte[])valid.Clone(); corrupted[index] = 255; values.Add(corrupted);
+        }
+        foreach (byte[] value in values)
+        {
+            state.Hashsets = state.Hashsets.SetItem("\0stream:messages:orders",
+                ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(id, value));
+            var payload = state.CapturePayload();
+            Exception? expectedError = null;
+            bool present = false;
+            try { present = DurableStreamStore.Message(payload, "orders", id) is not null; }
+            catch (Exception error) { expectedError = error; }
+            if (expectedError is null)
+                Assert.Equal(present ? 1 : 0, Counts(state).PendingCount);
+            else
+                Assert.IsType(expectedError.GetType(), Record.Exception(() => Counts(state)));
+        }
+        state.Hashsets = state.Hashsets.Remove("\0stream:messages:orders");
+        Assert.Equal(0, Counts(state).PendingCount);
+        // A stale-generation delivery must not try to decode its corrupt message.
+        state.Hashsets = state.Hashsets.SetItem("\0stream:messages:orders",
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(id, new byte[] { 5 }));
+        var subscription = DurableStreamStore.Subscription(state.CapturePayload(), "orders", "billing")!;
+        subscription.Generation = "another-generation";
+        state.Hashsets = state.Hashsets.SetItem("\0stream:subscriptions:orders",
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("billing", MemoryPackSerializer.Serialize(subscription)));
+        Assert.Equal(0, Counts(state).PendingCount);
+    }
+
+    [Fact]
+    public void Replica_counts_match_global_counts_and_preserve_the_captured_snapshot()
+    {
+        var state = Create(); Apply(state, DurableStreamAction.Configure); Apply(state, DurableStreamAction.Subscribe);
+        Apply(state, DurableStreamAction.Append);
+        var delivery = Apply(state, DurableStreamAction.Reserve).Delivery!;
+        var payload = state.CapturePayload();
+        var counts = DurableStreamStore.RunningByReplica(payload, "billing");
+        Assert.Equal(DurableStreamStore.Running(payload, "billing"), counts.Values.Sum());
+        Assert.Equal(DurableStreamStore.Running(payload, "billing", "replica1"), counts["replica1"]);
+        Assert.Empty(DurableStreamStore.RunningByReplica(payload, "other-function"));
+        Apply(state, DurableStreamAction.Complete, element: delivery.ElementId);
+        Assert.Equal(1, counts["replica1"]);
+        Assert.Equal(1, DurableStreamStore.RunningByReplica(payload, "billing")["replica1"]);
+        Assert.Empty(DurableStreamStore.RunningByReplica(state.CapturePayload(), "billing"));
+    }
+
+    [Fact]
     public void Rejected_resubscription_preserves_the_capacity_of_in_flight_work()
     {
         var state = Create(); Apply(state, DurableStreamAction.Configure); Apply(state, DurableStreamAction.Subscribe);

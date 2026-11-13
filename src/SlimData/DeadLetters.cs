@@ -3,6 +3,8 @@ using System.Diagnostics.CodeAnalysis;
 using MemoryPack;
 using SlimData.Commands;
 
+using ZLinq;
+
 namespace SlimData;
 
 [MemoryPackable]
@@ -173,7 +175,7 @@ internal static class DeadLetterStateMachine
                 case "dead_letter_evicted": stats.Evicted++; break;
                 default: throw new InvalidDataException("Unknown DLQ transition.");
             }
-            stats.RecentTransitions = stats.RecentTransitions.TakeLast(127).Append(new DeadLetterTransition
+            stats.RecentTransitions = stats.RecentTransitions.AsValueEnumerable().TakeLast(127).Append(new DeadLetterTransition
             {
                 Revision = stats.Revision + 1, Type = type, Function = entry.Function, DeadLetterId = entry.Id,
                 OriginalElementId = entry.OriginalElementId, ElementId = elementId
@@ -205,14 +207,14 @@ internal static class DeadLetterStateMachine
         var snapshot = state.Capture();
         var queues = snapshot.Queues;
         if (queues.TryGetValue(key, out var queue))
-            queues = queues.SetItem(key, queue.Select(Clone).ToImmutableArray());
+            queues = queues.SetItem(key, queue.AsValueEnumerable().Select(Clone).ToImmutableArray());
         return new(snapshot.Hashsets, snapshot.KeyValues, queues);
     }
 
     private static QueueElement Clone(QueueElement original) =>
         new(original.Value, original.Id, original.InsertTimeStamp, original.HttpTimeoutSeconds,
             original.TimeoutRetriesSeconds,
-            original.RetryQueueElements.Select(attempt => new QueueHttpTryElement(attempt.StartTimeStamp,
+            original.RetryQueueElements.AsValueEnumerable().Select(static attempt => new QueueHttpTryElement(attempt.StartTimeStamp,
                 attempt.IdTransaction, attempt.EndTimeStamp, attempt.HttpCode, attempt.ReservedIp)).ToImmutableArray(),
             original.HttpStatusRetries);
 
@@ -432,16 +434,16 @@ internal static class DeadLetterStateMachine
     private static void Prune(SlimDataState state, string function, long now)
     {
         var policy = Read<DeadLetterPolicy>(state, DeadLetterKeys.Policy(function)) ?? new();
-        var entries = Get(state, DeadLetterKeys.Messages(function)).Values
-            .Select(bytes => MemoryPackPayload.Deserialize<DeadLetterEntry>(bytes.Span)!)
-            .OrderBy(entry => entry.FailedAtTicks).ThenBy(entry => entry.Id, StringComparer.Ordinal).ToList();
-        foreach (var entry in entries.Where(entry => entry.ExpiresAtTicks <= now))
+        var entries = Get(state, DeadLetterKeys.Messages(function)).Values.AsValueEnumerable()
+            .Select(static bytes => MemoryPackPayload.Deserialize<DeadLetterEntry>(bytes.Span)!)
+            .OrderBy(static entry => entry.FailedAtTicks).ThenBy(static entry => entry.Id, StringComparer.Ordinal).ToList();
+        foreach (var entry in entries.AsValueEnumerable().Where(entry => entry.ExpiresAtTicks <= now))
         {
             RemoveEntry(state, entry);
             Transition(state, entry, "dead_letter_expired");
         }
-        var live = entries.Where(entry => entry.ExpiresAtTicks > now).ToList();
-        foreach (var entry in live.Take(Math.Max(0, live.Count - policy.MaxLength)))
+        var live = entries.AsValueEnumerable().Where(entry => entry.ExpiresAtTicks > now).ToList();
+        foreach (var entry in live.AsValueEnumerable().Take(Math.Max(0, live.Count - policy.MaxLength)))
         {
             RemoveEntry(state, entry);
             Transition(state, entry, "dead_letter_evicted");

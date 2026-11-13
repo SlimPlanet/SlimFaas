@@ -41,6 +41,50 @@ public sealed class DeadLetterTests
         state.Hashsets.GetValueOrDefault(DeadLetterKeys.Messages("billing"))?.Values
             .Select(value => MemoryPackSerializer.Deserialize<DeadLetterEntry>(value.Span)!).ToArray() ?? [];
 
+    [Fact]
+    public async Task Staged_queue_preserves_order_and_shares_payloads_but_isolates_mutable_attempts()
+    {
+        var state = Create();
+        await Start(state, "first", [1, 2]);
+        await Start(state, "second");
+        var original = state.Queues["Queue:billing"];
+        var staged = DeadLetterStateMachine.StageQueue(state, "Queue:billing");
+        var cloned = staged.Queues["Queue:billing"];
+
+        Assert.Equal(original.Select(item => item.Id), cloned.Select(item => item.Id));
+        Assert.Same(state.Hashsets, staged.Hashsets);
+        Assert.Same(state.KeyValues, staged.KeyValues);
+        for (int index = 0; index < original.Length; index++)
+        {
+            Assert.NotSame(original[index], cloned[index]);
+            Assert.True(original[index].Value.Equals(cloned[index].Value));
+            Assert.Equal(original[index].TimeoutRetriesSeconds, cloned[index].TimeoutRetriesSeconds);
+            Assert.Same(original[index].HttpStatusRetries, cloned[index].HttpStatusRetries);
+            var originalAttempt = Assert.Single(original[index].RetryQueueElements);
+            var clonedAttempt = Assert.Single(cloned[index].RetryQueueElements);
+            Assert.NotSame(originalAttempt, clonedAttempt);
+            Assert.Equal(originalAttempt.IdTransaction, clonedAttempt.IdTransaction);
+            clonedAttempt.HttpCode = 503;
+            clonedAttempt.EndTimeStamp = Now + TimeSpan.TicksPerSecond;
+            Assert.Equal(0, originalAttempt.HttpCode);
+            Assert.Equal(0, originalAttempt.EndTimeStamp);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Staging_missing_or_empty_queues_preserves_the_snapshot(bool exists)
+    {
+        var state = Create();
+        if (exists) state.Queues = state.Queues.Add("Queue:empty", []);
+        var staged = DeadLetterStateMachine.StageQueue(state, "Queue:empty");
+        Assert.Equal(exists, staged.Queues.ContainsKey("Queue:empty"));
+        if (exists) Assert.Empty(staged.Queues["Queue:empty"]);
+        Assert.Same(state.Hashsets, staged.Hashsets);
+        Assert.Same(state.KeyValues, staged.KeyValues);
+    }
+
     [Theory]
     [InlineData(200, 0)]
     [InlineData(204, 0)]

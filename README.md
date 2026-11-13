@@ -199,6 +199,7 @@ Check out:
 
 - [Local three-node orchestrator](docs/local-orchestrator.md)
 - [Memory profiling](docs/memory-profiling.md)
+- [ZLinq JIT and Native AOT measurements on Apple M4 Pro](docs/performance-benchmarks-m4.md)
 - [Unified SlimData mutation batching](docs/slimdata-unified-batching.md)
 - [SlimData batch modes](docs/slimdata-batch-modes.md)
 - [Environment-variable breaking changes](docs/BREAKING_CHANGES_ENVIRONMENT_VARIABLES.md)

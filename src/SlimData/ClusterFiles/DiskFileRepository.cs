@@ -8,6 +8,9 @@ namespace SlimData.ClusterFiles;
 public sealed class DiskFileRepository : IFileRepository
 {
     private const string MetaExt = ".meta.mp";
+    // Versions are written to temporary files. ReplaceFile temporarily retains
+    // write access to a replacement, so concurrent readers must share it too.
+    private const FileShare ReadSharing = FileShare.ReadWrite | FileShare.Delete;
     private readonly string _root;
     private readonly ILogger<DiskFileRepository> _logger;
     private readonly IFileCacheControl _cacheControl;
@@ -147,7 +150,7 @@ public sealed class DiskFileRepository : IFileRepository
     {
         var (filePath, _) = GetPaths(id);
 #pragma warning disable CA2000 // ownership is transferred to the returned FileCacheDroppingReadStream
-        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, ReadSharing,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
 #pragma warning restore CA2000
 
@@ -183,7 +186,12 @@ public sealed class DiskFileRepository : IFileRepository
             throw new IOException($"File already exists: {dst}");
 
         Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
-        File.Move(tmp, dst, overwrite);
+        // On Windows MoveFileEx cannot overwrite an open destination, even when
+        // its readers share deletion. ReplaceFile preserves those readers' versions.
+        if (OperatingSystem.IsWindows() && overwrite && File.Exists(dst))
+            File.Replace(tmp, dst, destinationBackupFileName: null);
+        else
+            File.Move(tmp, dst, overwrite);
     }
 
     private void TryDelete(string path) => TryDelete(path, _logger);
@@ -198,7 +206,16 @@ public sealed class DiskFileRepository : IFileRepository
     {
         // Metadata is very small => full read is fine, and cancellation is supported.
         ct.ThrowIfCancellationRequested();
-        var bytes = await File.ReadAllBytesAsync(metaPath, ct).ConfigureAwait(false);
+        // Atomic replacement must remain possible while a reader finishes its
+        // old file version. File.ReadAllBytesAsync does not share deletion on Windows.
+        await using var stream = new FileStream(metaPath, FileMode.Open, FileAccess.Read,
+            ReadSharing, bufferSize: 1,
+            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+        long length = stream.Length;
+        if (length > Array.MaxLength)
+            throw new IOException("Metadata file exceeds the supported length.");
+        var bytes = GC.AllocateUninitializedArray<byte>((int)length);
+        await stream.ReadExactlyAsync(bytes, ct).ConfigureAwait(false);
         return MemoryPackPayload.Deserialize<FileMetadata>(bytes);
     }
 
@@ -217,7 +234,7 @@ public sealed class DiskFileRepository : IFileRepository
                 await stream.FlushAsync(ct).ConfigureAwait(false);
             }
 
-            File.Move(tmp, metaPath, overwrite: true);
+            MoveIntoPlace(tmp, metaPath, overwrite: true);
         }
         catch
         {

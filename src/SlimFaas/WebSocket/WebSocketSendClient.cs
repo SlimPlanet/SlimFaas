@@ -3,6 +3,8 @@ using System.Threading.Channels;
 using SlimFaas.Endpoints;
 // AppJsonContext est dans namespace SlimFaas - accessible via using implicite (même assembly)
 
+using ZLinq;
+
 namespace SlimFaas.WebSocket;
 
 /// <summary>
@@ -114,7 +116,8 @@ public class WebSocketSendClient : IWebSocketSendClient
                 Method = customRequest.Method,
                 Path = customRequest.Path,
                 Query = customRequest.Query,
-                Headers = customRequest.Headers.ToDictionary(h => h.Key, h => h.Values.Select(v => v ?? "").ToArray()),
+                Headers = customRequest.Headers.AsValueEnumerable().ToDictionary(static h => h.Key,
+                    static h => h.Values.AsValueEnumerable().Select(static v => v ?? "").ToArray()),
                 Body = customRequest.Body != null ? Convert.ToBase64String(customRequest.Body) : null,
                 IsLastTry = isLastTry,
                 TryNumber = tryNumber,
@@ -174,7 +177,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         string functionName, CustomRequest customRequest, string eventName, IReadOnlySet<string>? targetIds,
         string? activitySourcePod, string? activityCorrelationId, CancellationToken ct)
     {
-        var connections = _registry.GetConnections(functionName)
+        var connections = _registry.GetConnections(functionName).AsValueEnumerable()
             .Where(connection => targetIds is null || targetIds.Contains(connection.ConnectionId)).ToArray();
         if (targetIds is not null && connections.Length < targetIds.Count)
             _logger.LogWebSocketEventTargetsUnavailable(functionName, targetIds.Count - connections.Length);
@@ -186,7 +189,8 @@ public class WebSocketSendClient : IWebSocketSendClient
             Method = customRequest.Method,
             Path = customRequest.Path,
             Query = customRequest.Query,
-            Headers = customRequest.Headers.ToDictionary(h => h.Key, h => h.Values.Select(v => v ?? "").ToArray()),
+            Headers = customRequest.Headers.AsValueEnumerable().ToDictionary(static h => h.Key,
+                static h => h.Values.AsValueEnumerable().Select(static v => v ?? "").ToArray()),
             Body = customRequest.Body != null ? Convert.ToBase64String(customRequest.Body) : null,
         };
 
@@ -197,7 +201,9 @@ public class WebSocketSendClient : IWebSocketSendClient
             Payload = JsonSerializer.SerializeToElement(payload, AppJsonContext.Default.PublishEventPayload),
         };
 
-        await Task.WhenAll(connections.Select(c => SafeSendPublishEventAsync(functionName, c, envelope, activitySourcePod, activityCorrelationId, ct)));
+        var sends = connections.AsValueEnumerable()
+            .Select(c => SafeSendPublishEventAsync(functionName, c, envelope, activitySourcePod, activityCorrelationId, ct)).ToArray();
+        await Task.WhenAll(sends);
     }
 
     public async Task<(int StatusCode, Dictionary<string, string[]> Headers, ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>

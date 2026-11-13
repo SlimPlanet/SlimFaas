@@ -214,6 +214,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
     int payloadBytes = arguments.GetInt("payload-bytes", 4096, 0, 1_048_576);
     int fileBytes = arguments.GetInt("file-bytes", 262_144, 1, 64 * 1024 * 1024);
     int firstPort = arguments.GetInt("first-port", 30021, 1, 65535);
+    string function = arguments.Get("function", "memory-function");
     IReadOnlyList<Uri> nodeUrls = ParseNodeUrls(arguments, firstPort);
     int nodeCount = nodeUrls.Count;
     int keysPerWorker = arguments.GetInt("keys-per-worker", 16, 1, 10_000);
@@ -267,6 +268,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         .Select(worker => RunWorkerAsync(
             worker,
             scenario,
+            function,
             nodeUrls,
             client,
             payload,
@@ -329,6 +331,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
 static async Task RunWorkerAsync(
     int worker,
     string scenario,
+    string function,
     IReadOnlyList<Uri> nodeUrls,
     HttpClient client,
     byte[] payload,
@@ -364,6 +367,7 @@ static async Task RunWorkerAsync(
         {
             await ExecuteOperationAsync(
                 operation,
+                function,
                 worker,
                 node,
                 nodeUrls,
@@ -409,6 +413,7 @@ static async Task RunWorkerAsync(
 
 static async Task ExecuteOperationAsync(
     Operation operation,
+    string function,
     int worker,
     int node,
     IReadOnlyList<Uri> nodeUrls,
@@ -428,7 +433,7 @@ static async Task ExecuteOperationAsync(
         case Operation.Sync:
             await PostBytesAsync(
                 client,
-                new Uri(baseUri, "/function/memory-function/echo"),
+                new Uri(baseUri, $"/function/{Uri.EscapeDataString(function)}/echo"),
                 payload,
                 cancellationToken);
             break;
@@ -436,7 +441,7 @@ static async Task ExecuteOperationAsync(
         case Operation.Async:
         {
             using var request = new HttpRequestMessage(HttpMethod.Post,
-                new Uri(baseUri, "/async-function/memory-function/echo"));
+                new Uri(baseUri, $"/async-function/{Uri.EscapeDataString(function)}/echo"));
             request.Content = new ByteArrayContent(payload);
             request.Headers.Add("X-Chaos-Id", $"{keyPrefix}-async-{worker}-{sequence}");
             request.Headers.Add("X-Chaos-Sha256", expectedState.AsyncPayloadSha256);
@@ -1411,6 +1416,7 @@ static void PrintUsage()
                [--concurrency 12] [--payload-bytes 4096] [--file-bytes 262144]
                [--first-port 30021] [--nodes 3] [--node-urls http://node-0:5000,http://node-1:5000]
                [--keys-per-worker 16]
+               [--function memory-function]
                [--target-rps 0]
                [--target-rps-per-replica 0]
                [--key-prefix memory-lab] [--validate true]

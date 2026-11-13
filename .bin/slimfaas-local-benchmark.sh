@@ -9,7 +9,7 @@ run_root="${BENCHMARK_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-benchmark/$p
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
 slimfaas_project="$repo_root/src/SlimFaas/SlimFaas.csproj"
 benchmark_project="$repo_root/benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj"
-slimfaas_dll="${BENCHMARK_RUNTIME:-${BENCHMARK_SLIMFAAS_DLL:-$repo_root/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll}}"
+slimfaas_dll="${BENCHMARK_RUNTIME:-${BENCHMARK_RUNTIME_PATH:-${BENCHMARK_SLIMFAAS_DLL:-$repo_root/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll}}}"
 if [[ "$slimfaas_dll" == *.dll ]]; then
   slimfaas_command=(dotnet "$slimfaas_dll")
 else
@@ -78,6 +78,8 @@ fi
   echo "local_manifest_sha256=$(sha256sum "$manifest" | cut -d ' ' -f 1)"
   echo "runtime_sha256=$(sha256sum "$slimfaas_dll" | cut -d ' ' -f 1)"
   echo "host=$(uname -s)-$(uname -m)"
+  echo "runtime_path=$slimfaas_dll"
+  echo "runtime_mode=${BENCHMARK_RUNTIME_MODE:-jit}"
   echo "duration_seconds=$duration_seconds"
   echo "warmup_seconds=$warmup_seconds"
   echo "repetitions=$repetitions"

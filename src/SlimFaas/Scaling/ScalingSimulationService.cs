@@ -27,7 +27,7 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
                 throw new ScalingSimulationException(503, "Scaling context is not available.");
             var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
             var environment = service.CaptureSimulationEnvironment(now);
-            var function = environment.Deployments.Functions.FirstOrDefault(f => f.Deployment == request.Function)
+            var function = environment.Deployments.FindFunction(request.Function)
                 ?? throw new ScalingSimulationException(404, "Function not found.");
             var scale = function.Scale ?? new ScaleConfig();
             Validate(request, scale);

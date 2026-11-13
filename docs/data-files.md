@@ -399,3 +399,15 @@ Metadata follows the existing data visibility policy unless `SlimFaas__ExposeDat
 ### Live traffic visualization
 
 The dashboard animates authorized API calls through SlimFaas to its logical store, including reads, lists, writes and deletes. Set numeric operations are included. Store boxes show unexpired item counts and logical byte totals without exposing contents. See [Data API traffic and store counters](user-interface.md#data-api-traffic-and-store-counters) for metadata access and animation behavior.
+
+## Overwrites during active reads
+
+File and metadata readers share read, write and deletion access so Windows
+can replace a version while another request opens or finishes reading it.
+An already-open download stream retains its opened version while a later
+request can open the replacement. This prevents sharing-violation errors when
+an ID is overwritten while a replica is still reading it. Writes create a
+temporary file before replacing the version; they do not edit an open body.
+
+This Windows correctness fix is separate from the M4 throughput and async
+quorum investigations in [the PR 504 follow-up](performance-pr504-followup.md).

@@ -77,6 +77,11 @@
     <PackageVersion Include="KubernetesClient.Aot" Version="21.0.8" />
   </ItemGroup>
 
+  <!-- Allocation-free collection queries -->
+  <ItemGroup>
+    <PackageVersion Include="ZLinq" Version="1.6.1" />
+  </ItemGroup>
+
   <!-- Raft / DotNext -->
   <ItemGroup>
     <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.12.0" />

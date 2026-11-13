@@ -11,13 +11,6 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
 {
     readonly List<string> _runningFunctions = new();
     readonly object _lock = new();
-    private static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
-    {
-        DeploymentInformation? function =
-            replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
-        return function;
-    }
-
     public async Task WakeUpInBackgroundAsync(string functionName)
     {
         lock (_lock)
@@ -35,13 +28,13 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
                 var serviceProvider = scope.ServiceProvider;
                 var replicasService = serviceProvider.GetRequiredService<IReplicasService>();
                 var historyHttpService = serviceProvider.GetRequiredService<HistoryHttpMemoryService>();
-                DeploymentInformation? function = SearchFunction(replicasService, functionName);
+                DeploymentInformation? function = replicasService.Deployments.FindFunction(functionName);
                 if (function != null)
                 {
                     historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
                     logger.Log1WakingUpFunction(functionName, DateTime.UtcNow.Ticks);
                     await Task.Delay(1000);
-                    function = SearchFunction(replicasService, functionName);
+                    function = replicasService.Deployments.FindFunction(functionName);
                     if (function == null)
                     {
                         logger.LogFunctionNotFoundAfterDelay(functionName);
@@ -52,7 +45,7 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
                     {
                         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
                         logger.Log2WakingUpFunction(functionName, DateTime.UtcNow.Ticks);
-                        function = SearchFunction(replicasService, functionName);
+                        function = replicasService.Deployments.FindFunction(functionName);
                         if (function != null)
                         {
                             numberPods = function.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);

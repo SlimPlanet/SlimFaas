@@ -274,6 +274,11 @@ All GETs below are passive and never reserve work, acknowledge messages or wake
 functions. Pages contain `Items`, `NextCursor`, `CapturedAt` and `Revision`.
 Default page size is 100; maximum is 500.
 
+Catalog and function pages select accessible definitions/subscriptions before
+calculating metadata and counters. A page's lookahead row preserves next-page
+detection; catalog revision still includes that row. Single Stream metadata and
+single-function reads project only the requested resource from the read snapshot.
+
 | Route (GET) | Result |
 | --- | --- |
 | `/data/streams?prefix=ord&after=<cursor>&limit=100` | Accessible catalog |
