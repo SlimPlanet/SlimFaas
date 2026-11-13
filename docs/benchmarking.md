@@ -89,6 +89,15 @@ MemoryLab defaults are Set and mixed at concurrency 12/48, 30-second warmup and
 120-second load, with all-node reads and independent async SHA-256 receipts.
 Its safety limits remain 90% throughput, 120% p99 and 115% RSS, with zero errors.
 
+After integrating PR #504 and PR #514, build the candidate and comparison
+reference with SDK 11.0.100 and the same compilation mode. The .NET 11 reference
+is PR #514's `f36084643a75d803051a6918d2950d1a4f674ada`, before the collection
+and reliability changes. Keep the original `496e8739` .NET 10 reference and its
+observations as historical evidence; do not combine their performance samples
+with the .NET 11 comparison. Record both source SHAs and the common driver's
+hash in each new campaign configuration. Existing campaign directories and
+original persisted volumes must remain available after this toolchain change.
+
 For example, save an environment configuration outside the source tree:
 
 ```json

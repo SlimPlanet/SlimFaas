@@ -1,6 +1,6 @@
 # Test instrumentation inherits the exact runtime image under comparison.
 ARG RUNTIME_IMAGE
-FROM mcr.microsoft.com/dotnet/sdk:10.0.403-alpine3.24 AS tools
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100-alpine3.24 AS tools
 WORKDIR /source
 COPY . .
 RUN dotnet publish benchmarks/SlimFaasBenchmark -c Release -r linux-musl-arm64 \

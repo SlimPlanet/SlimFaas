@@ -14,7 +14,7 @@ def main():
     parser.add_argument('--publication', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--engine', choices=('docker', 'podman'), default='docker')
-    parser.add_argument('--image', default='mcr.microsoft.com/dotnet/runtime-deps:10.0')
+    parser.add_argument('--image', default='mcr.microsoft.com/dotnet/runtime-deps:11.0')
     options = parser.parse_args()
     publication = options.publication.resolve()
     if not (publication / 'SlimData.Tests').is_file():

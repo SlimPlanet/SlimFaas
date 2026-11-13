@@ -179,7 +179,7 @@ def data_case(args, directory, scenario, warmup=False):
     directory.mkdir()
     phase = directory / "phase"
     phase.write_text("load")
-    command = ["dotnet", REPO / "tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.MemoryLab.dll",
+    command = ["dotnet", REPO / "tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll",
                "load", "--scenario", scenario, "--function", "benchmark-latency",
                "--first-port", "31021", "--nodes", "3", "--concurrency", str(args.data_concurrency),
                "--duration", str(args.warmup if warmup else args.data_duration),
@@ -434,7 +434,7 @@ def benchmark(args, variant, round_number):
         save(directory / "idle.json", resources())
         record_processes(directory, process, args.publish_root)
         if not args.skip_http:
-            run(["dotnet", REPO / "benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll",
+            run(["dotnet", REPO / "benchmarks/SlimFaasBenchmark/bin/Release/net11.0/SlimFaasBenchmark.dll",
              "run", "--profile", "async-queue", "--duration", args.duration, "--warmup", args.warmup,
              "--repetitions", "1", "--payload-bytes", args.payloads, "--concurrency", args.concurrency,
              "--async-drain-timeout", "300", "--scale-timeout", "180", "--output", directory],

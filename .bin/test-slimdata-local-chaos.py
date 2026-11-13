@@ -1687,7 +1687,7 @@ class WebSocketCampaign:
 
 def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--runtime", type=Path, default=ROOT / "src/SlimFaas/bin/Release/net10.0/SlimFaas.dll")
+    parser.add_argument("--runtime", type=Path, default=ROOT / "src/SlimFaas/bin/Release/net11.0/SlimFaas.dll")
     parser.add_argument("--dotnet", default="dotnet")
     parser.add_argument("--backend-config", type=Path, help="Owned Kubernetes campaign configuration; omit for Local")
     parser.add_argument("--source-commit", help="Exact source SHA when running an exported fixture outside a git checkout")

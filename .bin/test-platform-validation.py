@@ -2,6 +2,7 @@
 """Exercise receipt integrity, process fencing and configurable benchmark endpoints."""
 
 import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import io
 import json
@@ -324,13 +325,52 @@ class PlatformTests(unittest.TestCase):
             self.assertEqual(409, request.reply.call_args.args[0])
 
     def test_memorylab_rejects_non_http_or_ambiguous_node_origins(self):
-        runtime = ROOT / "tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.MemoryLab.dll"
+        runtime = ROOT / "tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
         if not runtime.exists():
             self.skipTest("Build MemoryLab Release before running endpoint integration checks")
         for urls in ("file:///tmp", "http://user:password@localhost", "http://localhost/prefix", ","):
             result = subprocess.run(["dotnet", str(runtime), "load", "--node-urls", urls], capture_output=True, text=True)
             self.assertNotEqual(0, result.returncode)
             self.assertIn("node", result.stderr.lower())
+
+    def test_memorylab_custom_function_and_node_urls_preserve_async_integrity_headers(self):
+        runtime = ROOT / "tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
+        if not runtime.exists():
+            self.skipTest("Build MemoryLab Release before running endpoint integration checks")
+        receipts = []
+
+        class Target(BaseHTTPRequestHandler):
+            def do_POST(self):
+                body = self.rfile.read(int(self.headers["Content-Length"]))
+                receipts.append((self.path, dict(self.headers), body))
+                self.send_response(202)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, *_args):
+                pass
+
+        with ThreadingHTTPServer(("127.0.0.1", 0), Target) as server:
+            running = threading.Thread(target=server.serve_forever)
+            running.start()
+            try:
+                result = subprocess.run(["dotnet", str(runtime), "load", "--scenario", "async",
+                    "--node-urls", f"http://127.0.0.1:{server.server_port}",
+                    "--function", "custom function", "--duration", "1", "--concurrency", "1",
+                    "--payload-bytes", "64", "--target-rps", "5"],
+                    capture_output=True, text=True, timeout=15)
+            finally:
+                server.shutdown()
+                running.join()
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertTrue(receipts)
+        ids = []
+        for route, headers, body in receipts:
+            self.assertEqual("/async-function/custom%20function/echo", route)
+            self.assertEqual(64, len(body))
+            self.assertEqual(hashlib.sha256(body).hexdigest(), headers["X-Chaos-Sha256"])
+            ids.append(headers["X-Chaos-Id"])
+        self.assertEqual(len(ids), len(set(ids)))
 
 
 if __name__ == "__main__":
