@@ -16,6 +16,11 @@ Tracking: [issue #505](https://github.com/SlimPlanet/SlimFaas/issues/505),
 See the [campaign guide](slimdata-reliability.md) for executable commands,
 accounting rules, Linux fault isolation and CI entry points.
 
+The [13 November integration report](reliability/2026-11-13/README.md) tracks the
+subsequent macOS/Podman/Kubernetes work and the ordered integration of PR #504
+and PR #514. Its .NET 11 campaigns and preserved .NET 10 observations have
+separate source provenance and verdicts.
+
 ## Versions and evidence
 
 The baseline is `496e8739e5f7b4326f64520fe4caa4e0e23f8d06` (v0.88.0).
