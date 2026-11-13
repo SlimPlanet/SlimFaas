@@ -57,7 +57,8 @@ check pass. The Windows reliability job fails on a 1,048,576-byte chunked async
 request at its unchanged 15-second bound, before its SDK steps. That operation
 has an unknown client outcome; a later complete receipt has the matching SHA-256.
 Previous Windows Stream timeouts remain separate failures. Full macOS and
-Kubernetes endurance and performance verdicts still require their final evidence.
+Kubernetes endurance integrity checks now pass; comparative performance remains
+pending.
 
 The current [PR checks](https://github.com/SlimPlanet/SlimFaas/pull/506/checks)
 also retain a failed SonarCloud Code Analysis quality gate: new-code Security E,
@@ -184,8 +185,7 @@ All three Native AOT roles on `a8e1b5fd` pass the complete
 30/60/300/900/1,800/3,600-second absence sequence, successive crashes and a full
 restart using the original volumes. All **45,987 confirmed operations** are
 reconciled, with zero confirmed loss or checksum corruption. Unknown client
-outcomes remain separate. Kubernetes endurance and comparative performance are
-still running or pending.
+outcomes remain separate.
 
 | Native role | Confirmed | Unknown | Extra successful deliveries | Ready after 1 h absence | Full reconciliation |
 |---|---:|---:|---:|---:|---:|
@@ -204,6 +204,39 @@ The [Native endurance evidence](native-endurance.json) retains every absence
 result and availability observation. Original volumes, receipts and client
 ledgers remain on the validation host. A passed endurance integrity check does
 not establish comparative performance or LTS guarantees.
+
+All three Kubernetes roles also pass the same absence sequence, successive
+crashes and original-volume restart. All **45,443 confirmed operations** are
+reconciled with zero confirmed loss, checksum corruption or extra successful
+deliveries. Both environments together reconcile **91,430 confirmed operations**.
+
+| Kubernetes role | Confirmed | Unknown | Extra successful deliveries | Ready after 1 h absence | Full reconciliation |
+|---|---:|---:|---:|---:|---:|
+| Follower | 22,606 | 45 | 0 | 0.752 s | 57.213 s |
+| Leader | 22,667 | 30 | 0 | 1.050 s | 61.004 s |
+| Quorum loss | 170 | 8,918 | 0 | 2.965 s | 21.132 s |
+
+The [Kubernetes endurance evidence](kubernetes-endurance.json) includes all six
+absences and observations for eighteen pod/UID groups. The largest periodic
+memory sample is 965.77 MiB against a 1 GiB hard limit; this is not a strict peak
+bound. There are 1,543 memory-limit hits and 1,989 socket-throttling events, with
+zero observed OOM events or OOM kills and no unplanned container restarts. These
+results establish the observed integrity outcome under pressure, not an absence
+of memory pressure.
+
+Native and Kubernetes endurance workloads ran concurrently in separate campaign
+resources. Their recovery observations are correctness evidence; isolated
+comparative timing runs follow separately. All campaign controllers are now
+stopped and original persisted files were hashed after shutdown. The
+[correctness evidence manifest](correctness-evidence.json) identifies retained
+runs and hashes the [complete raw-result index](correctness-raw-index.json.gz).
+The index is lossless gzip-compressed JSON listing original files and their
+SHA-256 values; original data volumes remain local.
+
+The separate Kubernetes silent-follower protocol control passes its ready/write
+check in 0.729 s after the listener becomes available. Restart-to-listener takes
+201.645 s. That startup interval remains a limitation and is not covered by a
+claim that the whole restart completes within fifteen seconds.
 
 ## Preserved .NET 10 findings
 
