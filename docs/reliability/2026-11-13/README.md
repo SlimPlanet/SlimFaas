@@ -74,6 +74,45 @@ inspection, raw receipts, original persisted state and failed attempts are
 retained. Final image/executable hashes, raw-result indexes and per-environment
 verdicts will be added after the renewed campaigns complete.
 
+## Heavy-body screening and completion regressions
+
+The integrated `8cac1116` Native AOT screening completed nine measured async
+runs (2,000,000 / 2,097,152 / 4,194,304 bytes, concurrency 16, three repetitions).
+All 9,722 accepted IDs were observed within the unchanged bounds, with zero
+request failures and **16 extra deliveries** in the second 2,000,000-byte run.
+All six paced/burst cases completed; scaling reached four ready replicas in
+7.288 s and drained in 21.245 s. The screen's verdict is **FAIL**. Host monitoring
+recorded zero concurrent compiler/test observations.
+
+A retained 20-second Python receipt-target diagnostic then observed 2,110 of
+2,112 accepted IDs after 180 seconds, with no duplicates. Transport failures and
+all missing IDs remain archived. A second, 60-second diagnostic uses HTTP/1.1
+keepalive and a 512-connection accept backlog, with the same 16 clients,
+2,000,000-byte body, dispatch capacity 256 and 180-second drain. It observes all
+6,075 accepted IDs, **14 extra full-body deliveries** and four partial-body
+observations during canceled uploads. The strict diagnostic fails; those four
+partial observations remain separate from SHA-256-verified complete deliveries.
+Diagnostic-target rates are not performance comparisons with the .NET target.
+
+Duplicate receipts carry the same request and queue IDs, moving from attempt 0
+to attempt 1 approximately 124 seconds later. Logs record a Raft leader change
+and canceled in-flight sends. The worker checked leadership and cleared its
+tracking generation before draining already completed responses; its legacy
+batch path also discarded completed callbacks before persistence succeeded.
+A stale completion could additionally remove a newer local dispatch with the
+same queue ID before checking its generation.
+
+Three deterministic regressions fail against the original implementation and
+pass with the correction. They cover completion persistence across leadership
+loss, callback persistence failure without another application dispatch, and
+stale-generation capacity ownership. The implementation drains known responses
+first, retains uncommitted callback batches and their capacity, and releases only
+committed offloads. In-flight cancellation on leadership loss is still exercised
+by its existing regression. All 19 focused worker/offload tests and the full
+2,113-test Release suite pass, with zero skipped tests; the documentation site
+build passes again. Native reproduction and final comparisons for this correction
+are pending; no corrected performance verdict is claimed here.
+
 ## Preserved .NET 10 findings
 
 The final pre-integration runtime was

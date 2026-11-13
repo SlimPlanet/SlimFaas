@@ -244,6 +244,182 @@ public sealed class AsyncQueueWorkerTests
     }
 
     [Fact]
+    public async Task Completed_delivery_is_committed_before_leadership_loss_clears_tracking()
+    {
+        var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var snapshotEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSnapshot = new TaskCompletionSource<QueueDispatchState>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var committed = new TaskCompletionSource<ListQueueItemStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var signal = new SlimDataQueueSignal();
+        int master = 1, snapshots = 0;
+        CustomRequest request = new([], [1], "function", "/work", "POST", "");
+        var queue = new Mock<ISlimFaasQueue>();
+        queue.Setup(value => value.GetDispatchStateAsync("function")).Returns(async () =>
+        {
+            if (Interlocked.Increment(ref snapshots) == 2)
+            {
+                snapshotEntered.TrySetResult();
+                return await releaseSnapshot.Task;
+            }
+            return new QueueDispatchState(1, 0, 0, []);
+        });
+        queue.SetupSequence(value => value.DequeueAsync("function", It.IsAny<int>(), It.IsAny<IList<string>?>()))
+            .ReturnsAsync([new QueueData("item", MemoryPackSerializer.Serialize(request), 1, true, 0,
+                TimeSpan.FromSeconds(30).Ticks, "10.0.0.42")]).ReturnsAsync([]);
+        queue.Setup(value => value.ListCallbackAsync("function", It.IsAny<ListQueueItemStatus>()))
+            .Callback<string, ListQueueItemStatus>((_, statuses) => committed.TrySetResult(statuses))
+            .Returns(Task.CompletedTask);
+        var client = new Mock<ISendClient>();
+        client.Setup(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+            It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(() => { sent.TrySetResult(); return response.Task; });
+        using var worker = BuildWorker(queue.Object, signal, Task.CompletedTask, client.Object,
+            () => Volatile.Read(ref master) != 0, ready);
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            signal.Pulse();
+            await sent.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            signal.Pulse();
+            await snapshotEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            long version = signal.Version;
+            response.SetResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            Assert.True(await signal.WaitForChangeAsync(version, TimeSpan.FromSeconds(5), CancellationToken.None) > version);
+            Volatile.Write(ref master, 0);
+            releaseSnapshot.SetResult(QueueDispatchState.Empty);
+            ListQueueItemStatus callback = await committed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.NotNull(callback.Items);
+            Assert.Equal(204, Assert.Single(callback.Items).HttpCode);
+            Assert.Equal("item", Assert.Single(callback.Items).Id);
+            queue.Verify(value => value.DequeueAsync("function", It.IsAny<int>(), It.IsAny<IList<string>?>()), Times.Once);
+        }
+        finally
+        {
+            releaseSnapshot.TrySetResult(QueueDispatchState.Empty);
+            await worker.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public async Task Legacy_completion_retries_persistence_without_redispatching_application()
+    {
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var committed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var signal = new SlimDataQueueSignal();
+        var tracker = new NetworkActivityTracker();
+        var queue = new Mock<ISlimFaasQueue>();
+        int callbacks = 0;
+        queue.Setup(value => value.GetDispatchStateAsync("function")).ReturnsAsync(new QueueDispatchState(1, 0, 0, []));
+        CustomRequest request = new([], [1], "function", "/work", "POST", "");
+        queue.SetupSequence(value => value.DequeueAsync("function", It.IsAny<int>(), It.IsAny<IList<string>?>()))
+            .ReturnsAsync([new QueueData("item", MemoryPackSerializer.Serialize(request), 1, true, 0,
+                TimeSpan.FromSeconds(30).Ticks, "10.0.0.42")]).ReturnsAsync([]);
+        queue.Setup(value => value.ListCallbackAsync("function", It.IsAny<ListQueueItemStatus>())).Returns(() =>
+        {
+            if (Interlocked.Increment(ref callbacks) == 1)
+            {
+                failed.TrySetResult();
+                return Task.FromException(new IOException("Callback persistence unavailable"));
+            }
+            committed.TrySetResult();
+            return Task.CompletedTask;
+        });
+        var client = new Mock<ISendClient>();
+        client.Setup(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+            It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.NoContent));
+        using var worker = BuildWorker(queue.Object, signal, Task.CompletedTask, client.Object,
+            readyObserved: ready, tracker: tracker);
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            signal.Pulse();
+            await failed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.DoesNotContain(tracker.GetRecent(), item => item.Type == "request_end");
+            signal.Pulse();
+            await committed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => tracker.GetRecent().Any(item => item.Type == "request_end"));
+            Assert.Equal(2, callbacks);
+            client.Verify(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
+        }
+        finally { await worker.StopAsync(CancellationToken.None); }
+    }
+
+    [Fact]
+    public async Task Stale_completion_cannot_remove_a_replacement_dispatch_with_the_same_id()
+    {
+        var oldResponse = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replacementResponse = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var oldStarted = new TaskCompletionSource<CancellationTokenSource>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var replacementStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var signal = new SlimDataQueueSignal();
+        int master = 1, sends = 0, staleSnapshots = 0;
+        var queue = new Mock<ISlimFaasQueue>();
+        queue.Setup(value => value.GetDispatchStateAsync("function")).Returns(() =>
+        {
+            if (oldResponse.Task.IsCompleted)
+            {
+                if (Interlocked.Increment(ref staleSnapshots) == 1) signal.Pulse();
+                else settled.TrySetResult();
+            }
+            return Task.FromResult(new QueueDispatchState(1, 0, 0, []));
+        });
+        CustomRequest request = new([], [1], "function", "/work", "POST", "");
+        var message = new QueueData("item", MemoryPackSerializer.Serialize(request), 1, true, 0,
+            TimeSpan.FromSeconds(30).Ticks, "10.0.0.42");
+        queue.SetupSequence(value => value.DequeueAsync("function", It.IsAny<int>(), It.IsAny<IList<string>?>()))
+            .ReturnsAsync([message]).ReturnsAsync([message]).ReturnsAsync([message with { Id = "other" }]).ReturnsAsync([]);
+        var client = new Mock<ISendClient>();
+        client.Setup(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?, string?, string?>(
+                (_, _, _, cancellation, _, _, _, _, _, _, _) =>
+                {
+                    int call = Interlocked.Increment(ref sends);
+                    if (call == 1) oldStarted.TrySetResult(cancellation!);
+                    else replacementStarted.TrySetResult();
+                    return call == 1 ? oldResponse.Task : replacementResponse.Task;
+                });
+        using var worker = BuildWorker(queue.Object, signal, Task.CompletedTask, client.Object,
+            () => Volatile.Read(ref master) != 0, ready);
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            signal.Pulse();
+            CancellationTokenSource cancellation = await oldStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Volatile.Write(ref master, 0);
+            signal.Pulse();
+            await WaitUntilAsync(() => cancellation.IsCancellationRequested);
+            Volatile.Write(ref master, 1);
+            signal.Pulse();
+            await replacementStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            oldResponse.SetResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(2, Volatile.Read(ref sends));
+            queue.Verify(value => value.ListCallbackAsync(It.IsAny<string>(), It.IsAny<ListQueueItemStatus>()), Times.Never);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+            oldResponse.TrySetResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            replacementResponse.TrySetResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+        }
+    }
+
+    [Fact]
     public async Task Leadership_loss_cancels_long_running_dispatch()
     {
         var sendStarted = new TaskCompletionSource<CancellationTokenSource>(TaskCreationOptions.RunContinuationsAsynchronously);

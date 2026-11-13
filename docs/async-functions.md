@@ -61,6 +61,12 @@ sequenceDiagram
 
 ## Retry and concurrency
 
+The HTTP worker persists known final responses before clearing local tracking
+during a leadership transition. If persisting a queue callback fails, it retains
+the completion and its capacity reservation and retries the callback. Internal
+offload cleanup follows the committed callback. A completion from an earlier
+tracking generation cannot release a replacement dispatch's local slot.
+
 `SlimFaas/NumberParallelRequest` limits concurrent requests for the whole function;
 `SlimFaas/NumberParallelRequestPerPod` limits each replica. Dispatch waits for
 readiness, dependencies and capacity. A recipient's `202` continues occupying
