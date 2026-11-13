@@ -77,6 +77,19 @@ tests start. An unchanged [single-job rerun](https://github.com/SlimPlanet/SlimF
 passes Native runtime/function publication and animations on three nodes.
 No test or deadline was changed for that replay.
 
+On documentation head `20517328`, Linux reliability, Native publications,
+dashboards, documentation, three-node animations and FOSSA pass. The Windows
+quick campaign fails its unchanged fifteen-second async request deadline on a
+1,048,576-byte Content-Length request; that client outcome remains unknown.
+The Windows coverage job first fails a single-attempt write after re-election in
+`RaftMembershipRecoveryTests`. Its unchanged replay passes that test but fails
+`RaftClusterTests.MessageExchange`: the local follower still shows an available
+queue item immediately after its completion callback replicated on the leader.
+Both failed logs are retained. The fixture now applies the same follower read
+barrier already used for hash assertions before checking the local queue count.
+This changes the test's synchronization, with no runtime, request or test-timeout
+change. The updated CI result is required before calling that correction verified.
+
 ## Renewed measurement protocol
 
 The .NET 11 reference is the unchanged PR #514 source `f3608464`; the candidate
