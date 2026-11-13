@@ -34,13 +34,13 @@ policies remain enabled. Existing dependency/license holds from PR #514 remain.
 
 | Check | Observed result |
 |---|---|
-| Full Release solution tests | 2,110 passed, zero failed/skipped |
+| Full Release solution tests after the completion fix | 2,113 passed, zero failed/skipped |
 | Official Python client | 37 passed |
 | Full Release build, including dashboards | Passed, zero MSBuild warnings/errors; Vite chunk advisory retained |
 | MemoryLab and collection probe builds | Passed |
 | Common-source reference/candidate microbenchmark builds | Passed |
 | Harness, evidence, comparer and bundle helper tests | Passed; platform checks expanded to 21 tests |
-| Native AOT macOS reference, candidate and MCP | Published successfully |
+| Native AOT macOS reference, candidate, MCP and standalone SlimData | Published successfully |
 | Documentation production build | 23 pages, 1,672 local links/assets, 401 search entries before this report |
 | Native short API/recovery campaign | Passed, 187 confirmed operations, 12 unknown outcomes, zero missing |
 | Native stale-leader routing | 6.813 s, within the unchanged 15 s bound |
@@ -50,9 +50,22 @@ policies remain enabled. Existing dependency/license holds from PR #514 remain.
 
 Native publication retains the existing MemoryPack IL2104/IL3053,
 ConfigurationManager IL2104 and Apple debug-map warnings. Successful publication
-does not mean those upstream warning summaries disappeared. The Windows CI
-WebSocket campaign again times out reading a Stream; its failure remains open.
-Linux, macOS, Kubernetes, FOSSA and Sonar gates require their own final evidence.
+does not mean those upstream warning summaries disappeared. For runtime
+`a8e1b5fd`, the Linux reliability job, unit-test job and FOSSA License Compliance
+check pass. The Windows reliability job fails on a 1,048,576-byte chunked async
+request at its unchanged 15-second bound, before its SDK steps. That operation
+has an unknown client outcome; a later complete receipt has the matching SHA-256.
+Previous Windows Stream timeouts remain separate failures. Full macOS and
+Kubernetes endurance and performance verdicts still require their final evidence.
+
+The current [PR checks](https://github.com/SlimPlanet/SlimFaas/pull/506/checks)
+also retain a failed SonarCloud Code Analysis quality gate: new-code Security E,
+38 open vulnerability findings and seven closed findings. Reliability and
+maintainability are A; the gate reports 100% new-code coverage and reviewed
+hotspots. The open findings concern validation tooling, its HTTP/WS deployment
+configuration and benchmark container configuration. No rule was disabled and
+no finding was dismissed to obtain acceptance. The successful scanner job does
+not mean the quality gate passed.
 
 ## Renewed measurement protocol
 
@@ -68,11 +81,15 @@ files compile directly against each revision's project references; this requires
 no tracked edit to the reference checkout. Heavy-body screening is diagnostic and
 does not replace the complete matrix or its 180-second async drain bound.
 
-New artifacts use distinct `net11-01` names below `artifacts/pr506/`. Configuration
+Integration artifacts use distinct `net11-01` names below `artifacts/pr506/`;
+the corrected runtime and frozen comparison drivers use `net11-02`. Configuration
 files include both source SHAs and the SDK. Publications, container image
 inspection, raw receipts, original persisted state and failed attempts are
-retained. Final image/executable hashes, raw-result indexes and per-environment
-verdicts will be added after the renewed campaigns complete.
+retained. The [frozen source, executable, image and driver
+provenance](provenance.json) identifies the new artifacts before timed work.
+Raw-result indexes and final per-environment verdicts require the renewed
+campaigns to complete. Raw host/VM data is retained locally; this link does not
+provide a public download of those original volumes or journals.
 
 ## Heavy-body screening and completion regressions
 
@@ -110,8 +127,20 @@ first, retains uncommitted callback batches and their capacity, and releases onl
 committed offloads. In-flight cancellation on leadership loss is still exercised
 by its existing regression. All 19 focused worker/offload tests and the full
 2,113-test Release suite pass, with zero skipped tests; the documentation site
-build passes again. Native reproduction and final comparisons for this correction
-are pending; no corrected performance verdict is claimed here.
+build passes again.
+
+The exact 60-second diagnostic replay against corrected Native AOT runtime
+`a8e1b5fd5aeed535676dc3860d3adacc9159226a` observes **5,940 accepted IDs and
+5,940 verified deliveries**, with zero missing IDs, extra deliveries, body
+mismatches, HTTP errors or sampling errors. Its executable SHA-256 is
+`a4c8ceacd7bc4c7c7c52c938f661b32808d179abe6d4f292744f9b7daf901fc3`.
+This passes the reproduction; final comparative performance remains pending.
+
+A separate rolling upgrade from the final .NET 10 reliability runtime to this
+.NET 11 runtime passes: all three nodes reconcile 187 keys after rolling
+replacement, follower suspension, quorum interruption and complete restart using
+the original volumes. Both sides use command protocol SLDC/5. This does not
+establish rolling compatibility from the older SLDC/4 protocol.
 
 ## Preserved .NET 10 findings
 
