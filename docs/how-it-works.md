@@ -85,9 +85,9 @@ uses the same dedicated access policy rather than the public metric registry.
 
 ## Container build dependencies
 
-Dockerfiles pin the .NET 10 SDK to `10.0.403` and .NET runtime images to `10.0.14`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.2` for standalone Alpine images). Frontend build stages use Node.js `24.21.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.5` on Alpine 3.24.
+Dockerfiles pin the .NET 11 SDK to `11.0.100` and .NET runtime images to `11.0.0`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.4` for standalone Alpine images). Frontend build stages use Node.js `26.13.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.6` on Alpine 3.24.
 
-SDK `10.0.403` supplies Native AOT compiler `10.0.14`, which fixes [GHSA-p3jp-9v83-76w9](https://github.com/advisories/GHSA-p3jp-9v83-76w9). Older container SDK pins can fail restore with `NU1903` even when the host SDK is current; update the SDK image instead of disabling NuGet audit.
+The SDK and runtime pins must be upgraded together. NuGet audit checks all direct and transitive dependencies, including the Native AOT compiler; vulnerability warnings fail the build.
 
 The SlimFaas and MCP dashboards install dependencies with `npm ci`; the React demo uses pnpm with a frozen lockfile. Updating a dependency therefore requires its corresponding lockfile to be committed. Generated frontend assets and local test/demo artifacts are excluded from the Docker context. The MCP final image explicitly copies the freshly built dashboard into `wwwroot`, including on the first publish from a clean checkout. All .NET container builds use the repository root as their build context so central package versions, analyzers and AOT checks apply consistently:
 
@@ -99,15 +99,50 @@ docker build -f samples/FibonacciReact/Dockerfile -t fibonacci-react:local sampl
 
 See the [dependency update guidelines](../CONTRIBUTING.md#dependency-updates) for compatibility constraints, license checks and validation commands.
 
+### Dependency compatibility holds
+
+Frontend tooling uses Node 26 LTS and pnpm 12.18.0. pnpm configuration, including
+transitive overrides and explicitly allowed build scripts, lives in each
+package's `pnpm-workspace.yaml`.
+
+Mermaid remains pinned to 11.17.2: Mermaid 12 introduces EPL-2.0 `elkjs`, which
+is outside the CNCF license allowlist.
+
+ESLint and `@eslint/js` remain at 9.39.5 because the current React plugins do not
+support ESLint 10. The documentation site keeps TypeScript 6.0.3 because
+`typescript-eslint` cannot use the TypeScript 7 API; the Vite dashboards use
+TypeScript 7. Storybook's docgen plugin uses patched glob 14.0.4 or later through
+a scoped override. These constraints can be revisited when upstream supports
+the newer tooling.
+
+The Python client retains Python 3.10 support with websockets 16.x. Pygments
+2.19.2 is held until a newer distribution passes FOSSA. The existing
+OpenTelemetry Prometheus exporter remains at 1.20.1-beta.1 because there is no
+stable release of that package.
+
+### ASP.NET Core 11.0.0 trimming workaround
+
+SDK 11.0.100's `Microsoft.AspNetCore.Components.Endpoints` assembly embeds an
+`ILLink.Substitutions.xml` resource naming `Microsoft.AspNetCore.Components.Forms`
+instead of its own assembly. Managed trimmed SlimFaas publishes therefore fail
+with IL2101. A linker attribute file scopes an exception to IL2101 on that exact
+framework assembly for this SDK. Its Blazor Hot Reload substitution is unused by
+the React host. Application trimming/AOT analysis and warnings-as-errors remain
+enabled. Remove the workaround when the framework resource is corrected.
+
 ## Native build toolchain
 
-Source builds require .NET SDK `10.0.403` or a newer .NET 10 SDK, as selected
-by `global.json`. This selects the Native AOT compiler and runtime `10.0.14`,
+Source builds require .NET SDK `11.0.100` or a newer .NET 11 SDK, as selected
+by `global.json`. This selects the Native AOT compiler and runtime `11.0.0`,
 including the [Brotli security fix](https://github.com/advisories/GHSA-p3jp-9v83-76w9).
 It also retains the compiler fix shipped in .NET `10.0.12` for Apple's linker
 assertion, `too many large addends`, which can
 affect SlimFaas's generated Kubernetes client code on macOS. Upgrade the SDK
-before publishing a native macOS build; no custom linker setting is required.
+before publishing a native macOS build. For `net11.0` / `osx-x64` AOT builds,
+`Directory.Build.targets` selects the modern Apple linker: Xcode 16's classic
+linker rejects unaligned GSS pointers in .NET 11's native security archive. The
+setting also applies to the standalone bundle's sample executables and does not
+affect other RIDs.
 The fix is documented in the [upstream .NET runtime backport](https://github.com/dotnet/runtime/pull/132171).
 
 ```bash

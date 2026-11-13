@@ -787,7 +787,7 @@ static async Task<int> ValidateSlimDataStateAsync(
         failures.Count,
         nodeUrls.Count);
     foreach (var failure in failures.Take(20))
-        await Console.Error.WriteLineAsync($"validation failed: {failure}");
+        await Console.Error.WriteLineAsync($"validation failed: {failure}".AsMemory(), cancellationToken);
     return failures.Count;
 }
 
@@ -824,7 +824,7 @@ static double ReadMetric(string metrics, string metricName)
     {
         if (!line.StartsWith(metricName, StringComparison.Ordinal))
             continue;
-        var separator = line.LastIndexOf(' ');
+        var separator = line.LastIndexOf(' ', StringComparison.Ordinal);
         if (separator > 0 &&
             double.TryParse(
                 line.AsSpan(separator + 1),

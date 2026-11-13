@@ -29,7 +29,7 @@ public class OpenApiSchemaExpanderTests
         using var doc = JsonDocument.Parse(SwaggerSkeleton);
         var expander = new OpenApiSchemaExpander(doc.RootElement);
 
-        var refSchema = JsonDocument.Parse("""{ "$ref":"#/components/schemas/Pet" }""").RootElement;
+        var refSchema = JsonElement.Parse("""{ "$ref":"#/components/schemas/Pet" }""");
         var expanded  = expander.ExpandSchema(refSchema) as IDictionary<string, object>;
 
         Assert.NotNull(expanded);

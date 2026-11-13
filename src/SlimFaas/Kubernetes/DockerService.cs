@@ -744,7 +744,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                     status = JobStatus.ImagePullBackOff;
                 }
 
-                Dictionary<string, string> labels = new(StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, string> labels = [with(StringComparer.OrdinalIgnoreCase)];
                 if (c.Labels is not null)
                 {
                     foreach (KeyValuePair<string, string> kv in c.Labels)
@@ -997,7 +997,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             // 2) Pull; if it fails, throw with body for visibility
             string imageName = image;
             string tag = "latest";
-            int idx = image.LastIndexOf(':');
+            int idx = image.LastIndexOf(':', StringComparison.Ordinal);
             if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
@@ -1332,7 +1332,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
             string imageName = image;
             string tag = "latest";
-            int idx = image.LastIndexOf(':');
+            int idx = image.LastIndexOf(':', StringComparison.Ordinal);
             if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
@@ -1412,7 +1412,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             }
 
             string[] tokens = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            List<PathVisibility> list = new(tokens.Length);
+            List<PathVisibility> list = [with(capacity: tokens.Length)];
 
             foreach (string token in tokens)
             {
@@ -1453,7 +1453,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             }
 
             string[] tokens = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            List<SubscribeEvent> list = new(tokens.Length);
+            List<SubscribeEvent> list = [with(capacity: tokens.Length)];
 
             foreach (string token in tokens)
             {
@@ -1489,7 +1489,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         private static void ApplyCpuLimit(CreateContainer_HostConfig hc, string cpu)
         {
             // Accept "500m", "0.5", "1", "2"
-            if (cpu.EndsWith('m') || cpu.EndsWith('M'))
+            if (cpu.EndsWith('m', StringComparison.Ordinal) || cpu.EndsWith('M', StringComparison.Ordinal))
             {
                 string num = cpu[..^1];
                 if (double.TryParse(num, NumberStyles.Float, CultureInfo.InvariantCulture, out double milli))
@@ -1539,17 +1539,17 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 mul = 1024L * 1024 * 1024 * 1024;
                 value = value[..^2];
             }
-            else if (value.EndsWith('K') || value.EndsWith('k'))
+            else if (value.EndsWith('K', StringComparison.Ordinal) || value.EndsWith('k', StringComparison.Ordinal))
             {
                 mul = 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith('M') || value.EndsWith('m'))
+            else if (value.EndsWith('M', StringComparison.Ordinal) || value.EndsWith('m', StringComparison.Ordinal))
             {
                 mul = 1000L * 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith('G') || value.EndsWith('g'))
+            else if (value.EndsWith('G', StringComparison.Ordinal) || value.EndsWith('g', StringComparison.Ordinal))
             {
                 mul = 1000L * 1000 * 1000;
                 value = value[..^1];
@@ -1750,7 +1750,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 return new Dictionary<string, string>();
             }
 
-            Dictionary<string, Dictionary<string, string>> exposed = new(StringComparer.Ordinal);
+            Dictionary<string, Dictionary<string, string>> exposed = [with(StringComparer.Ordinal)];
 
             // 1) Conteneur: Config.ExposedPorts
             if (template.Config?.ExposedPorts is { Count: > 0 })
@@ -1850,7 +1850,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         private static Dictionary<string, List<CreateContainer_PortBinding>> BuildPublishedBindingsFromInspect(
             InspectContainerResponse insp)
         {
-            Dictionary<string, List<CreateContainer_PortBinding>> result = new(StringComparer.Ordinal);
+            Dictionary<string, List<CreateContainer_PortBinding>> result = [with(StringComparer.Ordinal)];
             Dictionary<string, List<Inspect_PortBinding>?>? ports = insp.NetworkSettings?.Ports;
             if (ports is null || ports.Count == 0)
             {
@@ -1869,7 +1869,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                     continue; // non publié
                 }
 
-                List<CreateContainer_PortBinding> mapped = new(list.Count);
+                List<CreateContainer_PortBinding> mapped = [with(capacity: list.Count)];
                 foreach (Inspect_PortBinding b in list)
                 {
                     mapped.Add(new CreateContainer_PortBinding { HostIp = b.HostIp, HostPort = b.HostPort });

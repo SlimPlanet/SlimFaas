@@ -64,7 +64,7 @@ public class SlimFaasPorts : ISlimFaasPorts
         {
             return "";
         }
-        if (url.EndsWith('/'))
+        if (url.EndsWith('/', StringComparison.Ordinal))
         {
             url = url.Substring(0, url.Length - 1);
         }

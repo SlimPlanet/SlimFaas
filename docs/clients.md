@@ -86,6 +86,17 @@ Client libraries:
 
 The built-in [Live Stream dashboard](user-interface.md#5-network-map) shows synchronous WebSocket dispatch/completion and publication fan-out to connected replicas. These are server-side observation events; client registration and binary/text WebSocket protocols are unchanged.
 
+## Runtime compatibility
+
+The .NET client targets **net11.0 only** and requires .NET 11. This removes the
+previous net8.0, net9.0 and net10.0 package assets. Applications using an older
+runtime must upgrade before taking this client version. Registration payloads,
+HTTP routes, WebSocket messages and sync streaming contracts remain compatible.
+
+The Python client supports **Python 3.10 or later**. It uses `websockets>=16.1.1,<17`
+because websockets 17 requires Python 3.11. Development dependencies retain
+`pygments==2.19.2` until a newer distribution passes the repository's FOSSA policy.
+
 ## A worker connects to SlimFaas
 
 The worker opens an outbound WebSocket and registers a virtual function. Callers continue to use the ordinary SlimFaas HTTP routes; SlimFaas transports requests and replies over the existing connection.

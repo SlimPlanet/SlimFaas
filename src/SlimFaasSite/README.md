@@ -42,7 +42,7 @@ page.
 
 ## Navigation, search and downloads
 
-Use Node.js 24 or later. The catalogue defines page sources and metadata; `DOCUMENTATION_GROUPS` defines navigation and previous/next order. Keep every public document except the homepage in exactly one group.
+Use Node.js 26 LTS and pnpm 12.18.0. The catalogue defines page sources and metadata; `DOCUMENTATION_GROUPS` defines navigation and previous/next order. Keep every public document except the homepage in exactly one group.
 
 `dev` and `build` first run `scripts/prepare-assets.mts` to generate `public/search-index.json`, copy local documentation images, and package `demo/bruno-slimfaas-demo` into `/downloads/slimfaas-demo.zip`. These generated files are ignored by Git. Restart the dev server to refresh search/downloads after editing Markdown or Bruno files. The build uses Node's built-in APIs and existing dependencies, with no external search service or ZIP package.
 

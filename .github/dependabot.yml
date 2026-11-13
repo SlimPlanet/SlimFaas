@@ -32,7 +32,7 @@ updates:
     #   - dependency-name: "*"
     #     update-types: ["version-update:semver-major"]
 
-  # ─────────────────────────────────── NuGet (.NET 9) ─────────────────────────
+  # ─────────────────────────────────── NuGet (.NET 11) ────────────────────────
   - package-ecosystem: nuget
     directory: "/"   # scanne tous les .csproj/.props/.targets
     schedule: { interval: weekly, day: monday, time: "07:20", timezone: "Europe/Paris" }

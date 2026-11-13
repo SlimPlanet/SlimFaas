@@ -1,4 +1,13 @@
 <div align="center">
+
+## Requirements and compatibility
+
+This version targets **net11.0 only** and requires .NET 11. The previous .NET 8,
+9 and 10 targets have been removed. Upgrade consuming applications to .NET 11
+before updating the package. HTTP/WebSocket protocols and public client method
+contracts are unchanged. Build from source with the SDK selected by the root
+`global.json` (11.0.100 or a newer stable .NET 11 SDK).
+
   <a href="https://slimfaas.dev/">
     <img src="https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/src/SlimFaasSite/public/slimfaas.svg" alt="SlimFaas" width="96" />
   </a>

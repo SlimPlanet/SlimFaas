@@ -15,7 +15,7 @@ namespace SlimData;
 
 public class Startup(IConfiguration configuration)
 {
-    private static readonly List<string> ClusterMembers = new(2);
+    private static readonly List<string> ClusterMembers = [with(capacity: 2)];
     private static Uri? LocalEndpoint;
     internal const string MembershipAnnounceResource = "/SlimData/members/announce";
     internal const string ProtocolResource = "/SlimData/protocol";
@@ -275,7 +275,7 @@ public class Startup(IConfiguration configuration)
 
     private static string RemoveOrdinal(string hostLabel)
     {
-        var separator = hostLabel.LastIndexOf('-');
+        var separator = hostLabel.LastIndexOf('-', StringComparison.Ordinal);
         return separator > 0 && int.TryParse(hostLabel.AsSpan(separator + 1), out _)
             ? hostLabel[..separator]
             : hostLabel;

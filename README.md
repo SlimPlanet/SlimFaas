@@ -16,6 +16,8 @@
 
 Choose [Kubernetes](docs/get-started-kubernetes.md), [native local processes](docs/get-started-local.md), or [Docker Compose](docs/get-started-docker-compose.md). Open the built-in dashboard and follow the [Guided Tour](docs/guided-tour.md) with cURL or the [Bruno collection](demo/bruno-slimfaas-demo). Find all runtime routes in the [API Reference](docs/api-reference.md).
 
+Source builds and the .NET client require **.NET SDK 11.0.100 or a newer stable .NET 11 SDK**. Frontend builds use **Node 26 LTS** and **pnpm 12.18.0** where applicable. The NuGet client now targets `net11.0` only; see [client compatibility](docs/clients.md#runtime-compatibility).
+
 The [precompiled local demo](docs/get-started-local.md) packages the dashboard, functions and jobs without requiring a .NET or Node installation. It requires a release containing the new `SlimFaas-Local-*` bundles; source-based development remains available in [Local Mode](docs/native-local-mode.md).
 
 ## 🌥️ Proud CNCF Landscape Project

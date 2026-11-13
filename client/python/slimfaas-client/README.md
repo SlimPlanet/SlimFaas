@@ -1,4 +1,9 @@
 <div align="center">
+
+Python 3.10 or later is supported. The client uses websockets 16.1.1 or a newer
+16.x release; websockets 17 requires Python 3.11. The development dependency
+Pygments remains at 2.19.2 pending FOSSA approval of a newer distribution.
+
   <a href="https://slimfaas.dev/">
     <img src="https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/src/SlimFaasSite/public/slimfaas.svg" alt="SlimFaas" width="96" />
   </a>

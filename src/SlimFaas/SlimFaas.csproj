@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <RootNamespace>SlimFaas</RootNamespace>
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
@@ -13,6 +13,8 @@
     <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
     <EventSourceSupport>false</EventSourceSupport>
     <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <!-- Metadata updates are disabled; do not emit .NET 11 browser Hot Reload assets. -->
+    <EnableHotReloadInRuntimeConfigDevFile>false</EnableHotReloadInRuntimeConfigDevFile>
     <StackTraceSupport>true</StackTraceSupport>
     <UseSystemResourceKeys>false</UseSystemResourceKeys>
     <UseNativeHttpHandler>false</UseNativeHttpHandler>
@@ -60,6 +62,13 @@
     <InternalsVisibleTo Include="SlimFaas.CollectionProbe" />
   </ItemGroup>
 
+  <!-- ASP.NET Core 11.0.0 has an incorrectly scoped Blazor substitutions resource.
+       Suppress only that framework assembly's XML-owner diagnostic; application
+       trim/AOT diagnostics remain errors. Remove when the upstream resource is fixed. -->
+  <ItemGroup Condition="'$(NETCoreSdkVersion)' == '11.0.100' And '$(PublishAot)' != 'true'">
+    <_ILLinkSuppressions Include="$(MSBuildThisFileDirectory)ILLink.FrameworkSuppressions.xml" />
+  </ItemGroup>
+
   <!-- Build Vite/React dashboard into wwwroot -->
   <PropertyGroup>
     <ClientAppDir>ClientApp</ClientAppDir>
@@ -69,7 +78,7 @@
   </PropertyGroup>
 
   <Target Name="NpmInstall" BeforeTargets="NpmBuild" Condition="'$(SkipClientAppBuild)' != 'true' AND !Exists('$(ClientAppDir)/node_modules')">
-    <Exec WorkingDirectory="$(ClientAppDir)" Command="npm install" />
+    <Exec WorkingDirectory="$(ClientAppDir)" Command="npm ci" />
   </Target>
 
   <Target Name="NpmBuild" BeforeTargets="BeforeBuild" Condition="'$(SkipClientAppBuild)' != 'true'">

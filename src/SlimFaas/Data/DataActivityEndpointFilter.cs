@@ -51,7 +51,7 @@ public sealed class DataActivityEndpointFilter(NetworkActivityTracker tracker, I
         {
             string path = remaining.Value?.TrimEnd('/') ?? string.Empty;
             if (path.Count(character => character == '/') == 2)
-                return path[(path.LastIndexOf('/') + 1)..].ToLowerInvariant();
+                return path[(path.LastIndexOf('/', StringComparison.Ordinal) + 1)..].ToLowerInvariant();
         }
         return "write";
     }

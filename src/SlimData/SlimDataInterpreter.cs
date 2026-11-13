@@ -816,7 +816,7 @@ public static class SlimDataInterpreter
                 end++;
             }
 
-            var items = new List<ListLeftPushBatchCommand.BatchItem>(end - i);
+            List<ListLeftPushBatchCommand.BatchItem> items = [with(capacity: end - i)];
             for (var index = i; index < end; index++)
             {
                 SlimDataBatchOperation operation = request.Operations[index];

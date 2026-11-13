@@ -52,10 +52,7 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             {
                 hosts[index] = await StartAsync(index, coldStart: index == 0);
                 if (index > 0)
-                {
-                    IHost leader = await LeaderAsync();
-                    Assert.True(await Coordinator(leader).AddMemberAsync(Cluster(hosts[index]!).LocalMemberAddress, token));
-                }
+                    await JoinAsync(hosts[index]!);
             }
 
             await AllMembersAsync(3);
@@ -174,6 +171,26 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
                 !Cluster(host).ConsensusToken.IsCancellationRequested &&
                 Cluster(host).TryGetLeaseToken(out CancellationToken lease) && !lease.IsCancellationRequested)) is not null);
             return leader!;
+        }
+
+        async Task JoinAsync(IHost member)
+        {
+            while (true)
+            {
+                IHost leader = await LeaderAsync();
+                try
+                {
+                    Assert.True(await Coordinator(leader).AddMemberAsync(Cluster(member).LocalMemberAddress, token));
+                    return;
+                }
+                catch (NotLeaderException) when (!token.IsCancellationRequested)
+                {
+                    // Catch-up can change the term under coverage. Membership addition is
+                    // idempotent; reselect the leader within the fixture's existing deadline.
+                    // Application writes and the recovery assertions remain single-attempt.
+                    Phase("bootstrap leadership changed; reselect leader");
+                }
+            }
         }
 
         Task AllMembersAsync(int count)
