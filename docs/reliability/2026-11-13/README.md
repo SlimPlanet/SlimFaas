@@ -88,7 +88,38 @@ is reported alongside the failed normalized check; it does not waive that check.
 An authorized inactive-cache cleanup overlaps the first attempt's third run;
 the evidence records that interval. Compiler monitoring observes no external
 compilation. The VS Code restart did not restart the campaign or its workloads.
-MemoryLab, microbenchmark and container comparisons remain in progress.
+Native MemoryLab results follow below; microbenchmark and container comparisons
+remain in progress.
+
+## Current-source native MemoryLab observations
+
+The [complete Set/mixed comparisons](native-memory-net11-03.json) retain three
+**PASS** blocks: Set at concurrency 12 and 48, and mixed at concurrency 12.
+Every bracket comparison passes their throughput, p99 and RSS thresholds. All
+warmups and 120-second loads pass workload checks, independent async receipt
+reconciliation and validation on all three nodes.
+
+Mixed at concurrency 48 is **FAIL**. Candidate ordinal two peaks at 208.84 MiB
+and passes against both references. Candidate ordinal three peaks at 244 MiB,
+versus reference peaks of 205.53 and 208.14 MiB: increases of **18.72% and
+17.23%**, above the unchanged 15% limit. Its throughput is 2,694.65 operations
+per second versus 2,676.12 and 2,667.55, and its p99 is 32.03 ms versus 35.82
+and 47.69 ms. Throughput, p99 and integrity pass. Both references agree on each
+candidate's verdict, so the contradictory-bracket repeat does not apply. The
+reported sampled peak is retained, without substituting a mean or total RSS.
+
+Disk protection prevents ordinal three from starting after the Mac drops below
+20 GiB. Ordinal two has already completed successfully. Outside measurements,
+closed build/package caches and 25 untagged non-campaign Podman images with no
+running or retained container references are removed. Tagged campaign images,
+installed SDKs, frozen publications, sources, sessions, persisted state and all
+campaign evidence remain intact; previously archived build caches are no longer
+restorable without rebuilding. Native executable/driver hashes are checked again.
+Free space returns to 31.95 GiB on the Mac and 60.38 GiB inside the VM before
+resuming the two remaining ordinals with the same configuration. The original
+isolation segment retains 5,667 samples, zero external compilation observations
+and an 8.020-second maximum sample gap. The cleanup interval and resumed segment
+remain distinct in the evidence.
 
 ## Current-source endurance
 
@@ -124,8 +155,9 @@ All correctness controllers are stopped, and the original persisted files are
 hashed before the first timed comparison. Discarding already unallocated blocks
 of the VM filesystem returns about 4.2 GiB to the Mac without removing any file,
 image, WAL, snapshot or volume. The fresh Native ABBA matrix is running with the
-corrected common driver; HTTP/MemoryLab non-regression and microbenchmark
-conclusions remain pending. Earlier failed or interrupted runs are retained.
+corrected common driver. Its completed HTTP and MemoryLab observations are
+reported above; microbenchmark and container conclusions remain pending.
+Earlier failed or interrupted runs are retained.
 
 ## Integrated sources
 
