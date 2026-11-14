@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 
@@ -182,6 +183,24 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
         if (_process.HasExited)
             return;
 
+        ProcessTreeSnapshot? snapshot = null;
+        Exception? snapshotFailure = null;
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                // Capture before the shutdown hook or Kill can remove intermediate parents.
+                snapshot = WindowsProcessTree.CaptureDescendants(_process.Id, _process.StartTime);
+            }
+            catch (Exception exception) when (
+                exception is Win32Exception or InvalidOperationException or ArgumentException)
+            {
+                // Still attempt termination, but never report an unverifiable tree as stopped.
+                snapshotFailure = exception;
+            }
+        }
+        using ProcessTreeSnapshot? descendants = snapshot;
+
         if (shutdownUri is not null)
         {
             try
@@ -211,19 +230,81 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
             }
         }
 
-        if (_process.HasExited)
-            return;
-
-        try
+        Exception? terminationFailure = null;
+        if (!_process.HasExited)
         {
-            _process.Kill(entireProcessTree: true);
-            await _process.WaitForExitAsync(cancellationToken);
+            try
+            {
+                _process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException) when (_process.HasExited)
+            {
+                // The process exited between the checks; its descendants still need waiting.
+            }
+            catch (Exception exception) when (OperatingSystem.IsWindows() && IsTerminationFailure(exception))
+            {
+                terminationFailure = exception;
+            }
         }
-        catch (InvalidOperationException)
+
+        if (OperatingSystem.IsWindows())
         {
-            // The process exited between the checks.
+            if (descendants is null)
+                throw new InvalidOperationException(
+                    $"Could not establish descendant termination for process {_process.Id}.",
+                    terminationFailure ?? snapshotFailure);
+
+            // A parent exiting is not proof that its descendants exited. Keep the
+            // pre-termination handles across every poll, including successful Kill calls.
+            await WaitForTreeExitAsync(
+                terminationFailure ?? new InvalidOperationException("The process tree did not finish stopping."),
+                _process.Id,
+                () => WindowsProcessTree.HasExited(_process.SafeHandle),
+                descendants.GetLiveDescendants,
+                timeout,
+                cancellationToken);
+        }
+
+        await _process.WaitForExitAsync(cancellationToken);
+    }
+
+    private static readonly TimeSpan TreeExitPollInterval = TimeSpan.FromMilliseconds(50);
+
+    internal static async Task WaitForTreeExitAsync(
+        Exception terminationFailure,
+        int processId,
+        Func<bool> hasExited,
+        Func<IReadOnlyCollection<ProcessTreeEntry>> liveDescendants,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        long startedAt = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            IReadOnlyCollection<ProcessTreeEntry>? remaining = hasExited() ? liveDescendants() : null;
+            if (remaining is { Count: 0 })
+                return;
+
+            if (Stopwatch.GetElapsedTime(startedAt) >= timeout)
+            {
+                string reason = remaining is null
+                    ? $"Process {processId} could not be terminated and did not exit within {timeout}."
+                    : $"Process {processId} exited but its descendant process(es) " +
+                      $"{string.Join(", ", remaining.Select(descendant => descendant.ProcessId))} " +
+                      $"could not be terminated and did not exit within {timeout}.";
+                throw new InvalidOperationException(reason, terminationFailure);
+            }
+
+            await Task.Delay(TreeExitPollInterval, cancellationToken);
         }
     }
+
+    private static bool IsTerminationFailure(Exception exception) =>
+        exception is Win32Exception ||
+        (exception is AggregateException aggregate &&
+         aggregate.InnerExceptions.Count > 0 &&
+         aggregate.InnerExceptions.All(inner => inner is Win32Exception));
 
     private void WriteLine(string tag, string? value)
     {
@@ -240,7 +321,7 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         if (!_process.HasExited)
-            await StopAsync(null, TimeSpan.Zero);
+            await StopAsync(null, TimeSpan.FromSeconds(5));
         _process.Dispose();
         lock (_outputGate)
             _log.Dispose();
