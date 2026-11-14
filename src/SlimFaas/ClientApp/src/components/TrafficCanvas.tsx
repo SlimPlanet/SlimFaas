@@ -8,6 +8,7 @@ import { drawSymbol } from '../lib/canvasSymbols.ts';
 
 interface Props {
   topology: Topology; events: NetworkActivityEvent[]; visibleEvents: NetworkActivityEvent[];
+  dataAvailable?: boolean;
   activitySession: number; speed: Speed; eventType: string; isolate: boolean; selected: string | null;
   onSelect: (id: string) => void; paused: boolean;
 }
@@ -24,9 +25,9 @@ export default function TrafficCanvas(props: Props) {
   current.current = props;
   useLayoutEffect(() => {
     playback.update(props.events, props.activitySession, props.paused || document.hidden, performance.now(), props.topology,
-      props.speed, props.eventType, props.selected, props.isolate);
+      props.speed, props.eventType, props.selected, props.isolate, props.dataAvailable);
     dirty.current = true;
-  }, [props.events, props.activitySession, props.paused, props.topology, props.speed, props.eventType, props.selected, props.isolate, props.visibleEvents]);
+  }, [props.events, props.activitySession, props.paused, props.topology, props.speed, props.eventType, props.selected, props.isolate, props.visibleEvents, props.dataAvailable]);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -45,11 +46,13 @@ export default function TrafficCanvas(props: Props) {
     const colors = {
       job: css.getPropertyValue('--job').trim(), function: css.getPropertyValue('--color-primary').trim(),
       slimfaas: css.getPropertyValue('--color-primary').trim(), queue: css.getPropertyValue('--warning').trim(),
+      sets: css.getPropertyValue('--data-access').trim(), files: css.getPropertyValue('--data-access').trim(),
+      stream: css.getPropertyValue('--job').trim(),
       external: css.getPropertyValue('--muted').trim(), ink: css.getPropertyValue('--ink').trim(),
       success: css.getPropertyValue('--success').trim(), danger: css.getPropertyValue('--danger').trim(), soft: css.getPropertyValue('--soft').trim(),
       line: css.getPropertyValue('--line').trim(), background: css.getPropertyValue('--surface').trim(),
     };
-    const messageColor = (kind: string) => kind === 'publication' ? colors.job : kind === 'queue' ? colors.queue : kind === 'reply' ? colors.external : colors.function;
+    const messageColor = (kind: string) => kind === 'data' ? colors.sets : kind === 'publication' ? colors.job : kind === 'queue' ? colors.queue : kind === 'reply' ? colors.external : colors.function;
     const stateColor = (state?: string) => state === 'Sleeping' ? colors.external : state === 'Starting' || state === 'Scaling' ? colors.queue : state === 'Error' ? colors.danger : colors.success;
     const zoom = d3.zoom<HTMLCanvasElement, unknown>().scaleExtent([0.001, 12])
       .on('zoom', event => { transform = event.transform; dirty.current = true; });
@@ -123,7 +126,7 @@ export default function TrafficCanvas(props: Props) {
     };
     const draw = (now: number) => {
       frame = requestAnimationFrame(draw);
-      const { topology: model, events, visibleEvents, activitySession, speed, eventType, isolate, selected, paused } = current.current;
+      const { topology: model, events, visibleEvents, activitySession, speed, eventType, isolate, selected, paused, dataAvailable } = current.current;
       if (model !== previousModel) {
         index = d3.quadtree<MapNode>().x(n => n.x).y(n => n.y).addAll(model.nodes.filter(n => n.parent));
         // The canvas can mount before the first SSE state arrives. Fit that first
@@ -135,7 +138,7 @@ export default function TrafficCanvas(props: Props) {
         previousModel = model; dirty.current = true;
       }
       const hadMarkers = playback.markers.size > 0 || playback.arrivals.size > 0;
-      playback.update(events, activitySession, paused || document.hidden, now, model, speed, eventType, selected, isolate);
+      playback.update(events, activitySession, paused || document.hidden, now, model, speed, eventType, selected, isolate, dataAvailable);
       const animations = [...playback.markers.values()];
       if (hadMarkers && !animations.length) dirty.current = true;
       if (now - lastStatusAt > 250) {
@@ -178,6 +181,7 @@ export default function TrafficCanvas(props: Props) {
 
       for (const group of model.groups) {
         if (!visible(group.x, group.y, group.width, group.height)) continue;
+        const compact = ['queue', 'stream', 'sets', 'files'].includes(group.kind);
         const collapsed = k < 0.48;
         const boxWidth = collapsed ? Math.min(group.width, 220 / k) : group.width;
         const boxHeight = collapsed ? Math.min(group.height, 90 / k) : group.height;
@@ -187,20 +191,26 @@ export default function TrafficCanvas(props: Props) {
         context.lineWidth = (selected === group.id ? 2 : 1) / k;
         context.beginPath(); context.roundRect(boxX, boxY, boxWidth, boxHeight, Math.min(16 / k, 24)); context.fill(); context.stroke();
         if (boxWidth * k > 80 && boxHeight * k > 45) {
-          const symbol = group.kind === 'function' ? 'power' : group.kind === 'queue' || group.kind === 'external' ? group.kind : null;
+          const symbol = group.kind === 'function' ? 'power' : group.kind === 'queue' || group.kind === 'external' || group.kind === 'stream' || group.kind === 'sets' || group.kind === 'files' ? group.kind : null;
           context.strokeStyle = group.state ? stateColor(group.state) : colors[group.kind];
-          if (symbol) drawSymbol(context, symbol, boxX + 10 / k, boxY + 6 / k, 18 / k);
+          if (symbol) drawSymbol(context, symbol, boxX + 10 / k, boxY + 4 / k, (compact ? 14 : 18) / k);
           context.fillStyle = colors[group.kind]; context.font = `600 ${11 / k}px system-ui`;
-          context.fillText(group.kind.toUpperCase(), boxX + (symbol ? 35 : 12) / k, boxY + 19 / k);
+          context.fillText(group.kind.toUpperCase(), boxX + (symbol ? 35 : 12) / k, boxY + (compact ? 14 : 19) / k);
           context.fillStyle = colors.ink; context.font = `600 ${13 / k}px system-ui`;
           const maxChars = Math.max(10, Math.floor(boxWidth * k / 8) - 3);
           const groupLabel = group.kind === 'external' ? 'External callers' : group.label;
           const label = groupLabel.length > maxChars ? `${groupLabel.slice(0, maxChars - 1)}…` : groupLabel;
-          context.fillText(label, boxX + 12 / k, boxY + 38 / k);
-          if (boxHeight * k > 65) {
+          context.fillText(label, boxX + 12 / k, boxY + (compact ? 30 : 38) / k);
+          if (boxHeight * k > (compact ? 48 : 65)) {
             context.font = `${11 / k}px system-ui`;
-            const footerY = boxY + boxHeight - 12 / k;
-            if (group.state) {
+            const footerY = boxY + boxHeight - (compact ? 8 : 12) / k;
+            if (group.deadLetterCount !== undefined) {
+              context.fillStyle = colors.queue;
+              context.fillText(`Async · ${group.queueLength === undefined ? 'unknown' : `${group.queueLength} queued`}`,
+                boxX + 12 / k, footerY - (boxHeight * k < 75 ? 13 : 18) / k, boxWidth - 24 / k);
+              context.fillStyle = colors.danger;
+              context.fillText(`DLQ · ${group.deadLetterCount} retained`, boxX + 12 / k, footerY, boxWidth - 24 / k);
+            } else if (group.state) {
               const badgeWidth = context.measureText(group.state).width + 14 / k;
               context.strokeStyle = stateColor(group.state); context.lineWidth = 1 / k;
               context.fillStyle = colors.background;
@@ -282,7 +292,8 @@ export default function TrafficCanvas(props: Props) {
         const x = motion.matches ? destination.x : a.x + (b.x - a.x) * fraction;
         const y = motion.matches ? destination.y : a.y + (b.y - a.y) * fraction;
         context.beginPath();
-        if (animation.kind === 'queue') context.rect(x - 4 / k, y - 4 / k, 8 / k, 8 / k);
+        if (animation.kind === 'data') context.roundRect(x - 5 / k, y - 4 / k, 10 / k, 8 / k, 3 / k);
+        else if (animation.kind === 'queue') context.rect(x - 4 / k, y - 4 / k, 8 / k, 8 / k);
         else if (animation.kind === 'publication') { context.moveTo(x, y - 6 / k); context.lineTo(x + 5 / k, y); context.lineTo(x, y + 6 / k); context.lineTo(x - 5 / k, y); context.closePath(); }
         else context.arc(x, y, 4 / k, 0, Math.PI * 2);
         if (animation.kind === 'reply') { context.lineWidth = 2 / k; context.stroke(); } else context.fill();
@@ -293,7 +304,7 @@ export default function TrafficCanvas(props: Props) {
     };
     const visibility = () => {
       const p = current.current;
-      playback.update(p.events, p.activitySession, p.paused || document.hidden, performance.now(), p.topology, p.speed, p.eventType, p.selected, p.isolate);
+      playback.update(p.events, p.activitySession, p.paused || document.hidden, performance.now(), p.topology, p.speed, p.eventType, p.selected, p.isolate, p.dataAvailable);
       dirty.current = true;
     };
     document.addEventListener('visibilitychange', visibility);

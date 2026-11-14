@@ -55,15 +55,18 @@ public class WebSocketSendClient : IWebSocketSendClient
     private readonly WebSocketConnectionRegistry _registry;
     private readonly ILogger<WebSocketSendClient> _logger;
     private readonly NetworkActivityTracker _activityTracker;
+    private readonly SlimFaas.DeadLetters.DeadLetterService? _deadLetters;
 
     public WebSocketSendClient(
         WebSocketConnectionRegistry registry,
         ILogger<WebSocketSendClient> logger,
-        NetworkActivityTracker activityTracker)
+        NetworkActivityTracker activityTracker,
+        SlimFaas.DeadLetters.DeadLetterService? deadLetters = null)
     {
         _registry = registry;
         _logger = logger;
         _activityTracker = activityTracker;
+        _deadLetters = deadLetters;
     }
 
     public async Task<int> SendAsync(
@@ -75,7 +78,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         CancellationToken ct = default)
     {
         int maxPerPod = _registry.GetConfiguration(functionName)?.NumberParallelRequestPerPod ?? int.MaxValue;
-        var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
+        var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod, reserve: true, excludedElementId: elementId);
         if (connection == null)
         {
             _logger.LogNoWebSocketClientAvailableForFunction(functionName);
@@ -83,10 +86,28 @@ public class WebSocketSendClient : IWebSocketSendClient
         }
 
         var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        connection.PendingCallbacks[elementId] = tcs;
+        if (!connection.PendingCallbacks.TryAdd(elementId, tcs))
+        {
+            connection.ReleaseRequest();
+            _logger.LogNoWebSocketClientAvailableForFunction(functionName);
+            return 503;
+        }
+        bool dispatchStarted = false;
 
         try
         {
+            if (!string.IsNullOrEmpty(customRequest.OffloadedFileId))
+            {
+                if (_deadLetters is null)
+                    throw new InvalidOperationException("The async payload reader is unavailable.");
+                await using var body = await _deadLetters.OpenBodyAsync(
+                    new SlimData.DeadLetterEntry { Value = MemoryPack.MemoryPackSerializer.Serialize(customRequest) }, ct);
+                if (body is null)
+                    throw new IOException("The offloaded async payload is unavailable.");
+                using var buffer = new MemoryStream();
+                await body.CopyToAsync(buffer, ct);
+                customRequest = customRequest with { Body = buffer.ToArray() };
+            }
             var payload = new AsyncRequestPayload
             {
                 ElementId = elementId,
@@ -111,11 +132,12 @@ public class WebSocketSendClient : IWebSocketSendClient
             _activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut,
                 NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
                 targetPod: connection.ConnectionId, correlationId: dequeueId);
+            dispatchStarted = true;
             await connection.SendAsync(envelope, ct);
             _logger.LogAsyncRequestSentViaWebSocketToElementId(functionName, connection.ConnectionId, elementId);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(300));
+            cts.CancelAfter(TimeSpan.FromSeconds(_registry.GetConfiguration(functionName)?.ParsedConfiguration.DefaultAsync.HttpTimeout ?? 120));
             return await tcs.Task.WaitAsync(cts.Token);
         }
         catch (OperationCanceledException)
@@ -130,7 +152,12 @@ public class WebSocketSendClient : IWebSocketSendClient
         }
         finally
         {
-            connection.PendingCallbacks.TryRemove(elementId, out _);
+            if (!dispatchStarted || tcs.Task.IsCompletedSuccessfully || !connection.IsAlive)
+                connection.PendingCallbacks.TryRemove(new KeyValuePair<string, TaskCompletionSource<int>>(elementId, tcs));
+            else
+                // Keep a timed-out ID occupied until its callback or disconnect; old SDK callbacks contain only the element ID.
+                tcs.TrySetCanceled(ct);
+            connection.ReleaseRequest();
         }
     }
 
@@ -140,9 +167,18 @@ public class WebSocketSendClient : IWebSocketSendClient
         string eventName,
         string? activitySourcePod = null, string? activityCorrelationId = null,
         CancellationToken ct = default)
+        => await PublishEventToConnectionsAsync(functionName, customRequest, eventName, null,
+            activitySourcePod, activityCorrelationId, ct);
+
+    internal async Task PublishEventToConnectionsAsync(
+        string functionName, CustomRequest customRequest, string eventName, IReadOnlySet<string>? targetIds,
+        string? activitySourcePod, string? activityCorrelationId, CancellationToken ct)
     {
-        var connections = _registry.GetConnections(functionName);
-        if (connections.Count == 0) return;
+        var connections = _registry.GetConnections(functionName)
+            .Where(connection => targetIds is null || targetIds.Contains(connection.ConnectionId)).ToArray();
+        if (targetIds is not null && connections.Length < targetIds.Count)
+            _logger.LogWebSocketEventTargetsUnavailable(functionName, targetIds.Count - connections.Length);
+        if (connections.Length == 0) return;
 
         var payload = new PublishEventPayload
         {
@@ -176,7 +212,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             CancellationToken ct = default)
     {
         int maxPerPod = _registry.GetConfiguration(functionName)?.NumberParallelRequestPerPod ?? int.MaxValue;
-        var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
+        var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod, reserve: true);
         if (connection == null)
         {
             _logger.LogNoWebSocketClientAvailableForSync(functionName);
@@ -196,7 +232,13 @@ public class WebSocketSendClient : IWebSocketSendClient
 
         var pendingStream = new PendingSyncStream();
         connection.PendingSyncStreams[correlationId] = pendingStream;
-        CancellationTokenSource? responseTimeoutCts = null;
+#pragma warning disable CA2000 // CleanupAsync owns these sources until the returned response completion or setup failure.
+        var responseTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct, pendingStream.Token);
+        var uploadCancellation = CancellationTokenSource.CreateLinkedTokenSource(responseTimeoutCts.Token);
+#pragma warning restore CA2000
+        responseTimeoutCts.CancelAfter(TimeSpan.FromSeconds(300));
+        Task upload = Task.CompletedTask;
+        int cleaned = 0;
 
         try
         {
@@ -210,32 +252,8 @@ public class WebSocketSendClient : IWebSocketSendClient
             };
             var startJson = JsonSerializer.SerializeToUtf8Bytes(startPayload, AppJsonContext.Default.SyncRequestStartPayload);
             var startFrame = BinaryFrame.Encode(WebSocketMessageType.SyncRequestStart, correlationId, startJson);
-            await connection.SendBinaryAsync(startFrame, ct);
-
-            // 2. Stream le body de la requête en chunks
-            if (requestBodyStream != null)
-            {
-                var buffer = new byte[32 * 1024]; // 32 KB chunks
-                int bytesRead;
-                while ((bytesRead = await requestBodyStream.ReadAsync(buffer, ct)) > 0)
-                {
-                    var chunkFrame = BinaryFrame.Encode(
-                        WebSocketMessageType.SyncRequestChunk,
-                        correlationId,
-                        buffer.AsSpan(0, bytesRead));
-                    await connection.SendBinaryAsync(chunkFrame, ct);
-                }
-            }
-
-            // 3. Envoie SyncRequestEnd
-            var endFrame = BinaryFrame.Encode(WebSocketMessageType.SyncRequestEnd, correlationId, BinaryFrame.FlagEndOfStream);
-            await connection.SendBinaryAsync(endFrame, ct);
-
-            _logger.LogSyncRequestStreamSentToCorrelationId(functionName, connection.ConnectionId, correlationId);
-
-            // 4. Attend SyncResponseStart du client (avec timeout)
-            responseTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct, pendingStream.Cts.Token);
-            responseTimeoutCts.CancelAfter(TimeSpan.FromSeconds(300));
+            await connection.SendBinaryAsync(startFrame, responseTimeoutCts.Token);
+            upload = UploadAsync();
 
             var responseStart = await pendingStream.ResponseStartTcs.Task.WaitAsync(responseTimeoutCts.Token);
             var responseCts = responseTimeoutCts;
@@ -243,12 +261,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             async Task CompleteAsync()
             {
                 try { await pendingStream.ResponseEndTcs.Task.WaitAsync(responseCts.Token); }
-                finally
-                {
-                    connection.PendingSyncStreams.TryRemove(correlationId, out _);
-                    responseCts.Dispose();
-                    EndActivity();
-                }
+                finally { await CleanupAsync(); }
             }
             Task completion = CompleteAsync();
             // The HTTP path still awaits the same task and observes its exception.
@@ -262,21 +275,66 @@ public class WebSocketSendClient : IWebSocketSendClient
                 () => completion
             );
         }
-        catch (Exception)
+        catch
         {
-            EndActivity();
-            responseTimeoutCts?.Dispose();
-            connection.PendingSyncStreams.TryRemove(correlationId, out _);
+            await CleanupAsync();
+            throw;
+        }
 
-            // Envoie SyncCancel au client pour libérer ses ressources
+        async Task UploadAsync()
+        {
             try
             {
-                var cancelFrame = BinaryFrame.Encode(WebSocketMessageType.SyncCancel, correlationId);
-                await connection.SendBinaryAsync(cancelFrame, ct);
+                if (requestBodyStream is not null)
+                {
+                    var buffer = new byte[32 * 1024];
+                    int read;
+                    while ((read = await requestBodyStream.ReadAsync(buffer, uploadCancellation.Token)) > 0)
+                        await connection.SendBinaryAsync(BinaryFrame.Encode(WebSocketMessageType.SyncRequestChunk,
+                            correlationId, buffer.AsSpan(0, read)), uploadCancellation.Token);
+                }
+                await connection.SendBinaryAsync(BinaryFrame.Encode(WebSocketMessageType.SyncRequestEnd, correlationId,
+                    BinaryFrame.FlagEndOfStream), uploadCancellation.Token);
+                _logger.LogSyncRequestStreamSentToCorrelationId(functionName, connection.ConnectionId, correlationId);
             }
-            catch { /* ignore */ }
+            catch (Exception exception)
+            {
+                pendingStream.ResponseStartTcs.TrySetException(exception);
+                pendingStream.ResponseEndTcs.TrySetException(exception);
+                pendingStream.ResponseChunks.Writer.TryComplete(exception);
+                throw;
+            }
+        }
 
-            throw;
+        async Task CleanupAsync()
+        {
+            if (Interlocked.Exchange(ref cleaned, 1) != 0) return;
+            bool completed = pendingStream.ResponseEndTcs.Task.IsCompletedSuccessfully;
+            await uploadCancellation.CancelAsync();
+            await pendingStream.CancelAsync();
+            pendingStream.ResponseChunks.Writer.TryComplete(completed ? null : new IOException("Synchronous WebSocket delivery ended."));
+            try { await upload; }
+            catch (OperationCanceledException) when (uploadCancellation.IsCancellationRequested) { }
+            catch (Exception exception) when (exception is IOException or System.Net.WebSockets.WebSocketException)
+            { _logger.LogWebSocketSyncCleanupFailed(exception, functionName); }
+            if (!completed && connection.IsAlive)
+            {
+                using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                try
+                {
+                    await connection.SendBinaryAsync(BinaryFrame.Encode(WebSocketMessageType.SyncCancel, correlationId),
+                        cancellation.Token);
+                }
+                catch (Exception exception) when (exception is System.Net.WebSockets.WebSocketException or
+                    OperationCanceledException or IOException)
+                { _logger.LogWebSocketSyncCleanupFailed(exception, functionName); }
+            }
+            connection.PendingSyncStreams.TryRemove(correlationId, out _);
+            responseTimeoutCts.Dispose();
+            uploadCancellation.Dispose();
+            pendingStream.Dispose();
+            connection.ReleaseRequest();
+            EndActivity();
         }
     }
 

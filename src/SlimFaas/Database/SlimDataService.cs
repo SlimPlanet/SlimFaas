@@ -90,7 +90,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 #pragma warning disable CA2000 // owned by the BatchPartition, disposed with the service
             var batcher = new MultiRateAdaptiveBatcher(
                 idleStop: TimeSpan.FromSeconds(15),
-                maxWaitPerTick: TimeSpan.FromSeconds(5));
+                maxWaitPerTick: TimeSpan.FromSeconds(5),
+                logger: _logger);
 #pragma warning restore CA2000
             var partition = new BatchPartition(kind, producerId, batcher);
             _batchPartitions[index] = partition;
@@ -329,6 +330,30 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         var mutation = NewOperation(SlimDataBatchOperationKind.ListCallback, key);
         mutation.CallbackItems = queueItemStatus.Items?.ToArray() ?? [];
         _ = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
+    }
+
+    public async Task<WebSocketDirectoryResult> ExecuteWebSocketDirectoryAsync(WebSocketDirectoryMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.WebSocketDirectory, WebSocketDirectoryStore.Key);
+        operation.Value = WebSocketDirectoryStore.SerializeMutation(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.WebSocketDirectoryResult ?? throw new DataException("Missing WebSocket directory result.");
+    }
+
+    public async Task<DurableStreamMutationResult> ExecuteStreamAsync(DurableStreamMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.Stream, DurableStreamStore.DefinitionPrefix + mutation.Stream);
+        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.StreamResult ?? throw new DataException("Missing durable Stream result.");
+    }
+
+    public async Task<DeadLetterMutationResult> ExecuteDeadLetterAsync(DeadLetterMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.DeadLetter, "Queue:" + mutation.Function);
+        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.DeadLetterResult ?? throw new DataException("Missing durable DLQ result.");
     }
 
     private async Task<SlimDataBatchOperationResult> EnqueueMutationAsync(

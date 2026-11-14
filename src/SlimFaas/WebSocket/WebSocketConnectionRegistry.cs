@@ -4,25 +4,36 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using SlimFaas.Kubernetes;
+using System.Globalization;
+using SlimFaas.Streams;
 
 namespace SlimFaas.WebSocket;
 
 /// <summary>
 /// Données d'un stream synchrone en cours côté serveur.
 /// </summary>
-public class PendingSyncStream
+public sealed class PendingSyncStream : IDisposable
 {
     /// <summary>Résultat du SyncResponseStart (status + headers).</summary>
     public TaskCompletionSource<SyncResponseStartPayload> ResponseStartTcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>Channel alimenté par les SyncResponseChunk du client.</summary>
-    public Channel<byte[]> ResponseChunks { get; } = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleReader = true });
+    public Channel<byte[]> ResponseChunks { get; } = Channel.CreateBounded<byte[]>(
+        new BoundedChannelOptions(8) { SingleReader = true, SingleWriter = true });
 
     /// <summary>Signalé quand SyncResponseEnd est reçu.</summary>
     public TaskCompletionSource ResponseEndTcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>CancellationTokenSource lié à l'annulation du stream.</summary>
     public CancellationTokenSource Cts { get; } = new();
+    internal CancellationToken Token { get; }
+    public PendingSyncStream() => Token = Cts.Token;
+    public void Dispose() => Cts.Dispose();
+    internal async Task CancelAsync()
+    {
+        try { await Cts.CancelAsync(); }
+        catch (ObjectDisposedException) when (Token.IsCancellationRequested) { }
+    }
 }
 
 /// <summary>
@@ -38,17 +49,34 @@ public sealed class WebSocketClientConnection : IDisposable
 
     /// <summary>Tâche en attente de callback (elementId -> TaskCompletionSource&lt;int&gt;).</summary>
     public ConcurrentDictionary<string, TaskCompletionSource<int>> PendingCallbacks { get; } = new();
+    public ConcurrentDictionary<string, byte> StreamRequests { get; } = new();
+    internal IStreamService? Streams { get; set; }
+    internal HttpContext? RequestContext { get; set; }
 
     /// <summary>Streams synchrones en cours (correlationId -> PendingSyncStream).</summary>
     public ConcurrentDictionary<string, PendingSyncStream> PendingSyncStreams { get; } = new();
 
     /// <summary>Nombre de requêtes en cours de traitement par ce client.</summary>
-    public int ActiveRequests => PendingCallbacks.Count + PendingSyncStreams.Count;
+    public int ActiveRequests => PendingCallbacks.Count + PendingSyncStreams.Count + StreamRequests.Count;
 
     public DateTime ConnectedAt { get; } = DateTime.UtcNow;
     public bool IsAlive => Socket.State == WebSocketState.Open;
+    internal bool Ready { get; set; } = true;
 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private int _reservedRequests;
+
+    internal bool TryReserveRequest(int maximum)
+    {
+        while (true)
+        {
+            int current = Volatile.Read(ref _reservedRequests);
+            if (Math.Max(current, ActiveRequests) >= maximum) return false;
+            if (Interlocked.CompareExchange(ref _reservedRequests, current + 1, current) == current) return true;
+        }
+    }
+
+    internal void ReleaseRequest() => Interlocked.Decrement(ref _reservedRequests);
 
     public void Dispose()
     {
@@ -100,12 +128,13 @@ public sealed class WebSocketClientConnection : IDisposable
 public class WebSocketConnectionRegistry
 {
     // functionName -> liste des connexions actives
-    private readonly ConcurrentDictionary<string, ConcurrentBag<WebSocketClientConnection>> _connections = new();
+    private readonly ConcurrentDictionary<string, ConcurrentBag<WebSocketClientConnection>> _connections = new(StringComparer.OrdinalIgnoreCase);
 
     // Verrou par functionName pour valider la configuration à la connexion
-    private readonly ConcurrentDictionary<string, WebSocketFunctionConfiguration> _registeredConfigurations = new();
+    private readonly ConcurrentDictionary<string, WebSocketFunctionConfiguration> _registeredConfigurations = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly ILogger<WebSocketConnectionRegistry> _logger;
+    private readonly object _registrationLock = new();
     private int _connectionCounter;
 
     public WebSocketConnectionRegistry(ILogger<WebSocketConnectionRegistry> logger)
@@ -124,7 +153,39 @@ public class WebSocketConnectionRegistry
         IReplicasService replicasService)
     {
         string name = connection.FunctionName;
+        try
+        {
+            ParseConfiguration(name, connection.Configuration);
+        }
+        catch (Exception exception) when (exception is FormatException or System.Text.Json.JsonException)
+        {
+            return (false, $"Invalid function configuration: {exception.Message}");
+        }
 
+        return RegisterValidated(connection, replicasService);
+    }
+
+    internal static void ParseConfiguration(string name, WebSocketFunctionConfiguration configuration)
+    {
+            var metadata = SlimFaas.Kubernetes.FunctionMetadataParser.Parse(
+                new Dictionary<string, string>
+                {
+                    [FunctionAnnotationNames.Configuration] = configuration.Configuration,
+                    [FunctionAnnotationNames.DefaultVisibility] = configuration.DefaultVisibility,
+                    [FunctionAnnotationNames.SubscribeStream] = string.Join(',', configuration.SubscribeStreams.Select(item =>
+                        (item.Visibility ?? configuration.DefaultVisibility) + ":" + item.Name)),
+                    [FunctionAnnotationNames.StreamMaxAge] = configuration.StreamMaxAgeSeconds.ToString(CultureInfo.InvariantCulture),
+                    [FunctionAnnotationNames.StreamMaxLength] = configuration.StreamMaxLength.ToString(CultureInfo.InvariantCulture)
+                }, name);
+            configuration.ParsedConfiguration = metadata.Configuration;
+            configuration.ParsedStreams = metadata.SubscribeStreams ?? [];
+    }
+
+    private (bool Success, string? Error) RegisterValidated(WebSocketClientConnection connection, IReplicasService replicasService)
+    {
+        lock (_registrationLock)
+        {
+        string name = connection.FunctionName;
         // Vérification : ce nom est-il déjà une fonction Kubernetes ?
         bool existsAsK8sFunction = replicasService.Deployments.Functions
             .Any(f => string.Equals(f.Deployment, name, StringComparison.OrdinalIgnoreCase));
@@ -156,6 +217,7 @@ public class WebSocketConnectionRegistry
         _logger.LogWebSocketClientRegisteredConnectionIdFunctionName(connection.ConnectionId, name);
 
         return (true, null);
+        }
     }
 
     /// <summary>
@@ -163,10 +225,14 @@ public class WebSocketConnectionRegistry
     /// </summary>
     public void Unregister(WebSocketClientConnection connection)
     {
+        lock (_registrationLock)
+        {
         if (!_connections.TryGetValue(connection.FunctionName, out var bag))
         {
             return;
         }
+
+        if (!bag.Any(candidate => candidate.ConnectionId == connection.ConnectionId)) return;
 
         // ConcurrentBag ne supporte pas de suppression directe ; on reconstruit
         var remaining = bag.Where(c => c.ConnectionId != connection.ConnectionId).ToList();
@@ -181,6 +247,7 @@ public class WebSocketConnectionRegistry
         Interlocked.Decrement(ref _connectionCounter);
 
         _logger.LogWebSocketClientUnregisteredConnectionIdFunctionName(connection.ConnectionId, connection.FunctionName);
+        }
     }
 
     /// <summary>
@@ -190,7 +257,7 @@ public class WebSocketConnectionRegistry
     {
         if (_connections.TryGetValue(functionName, out var bag))
         {
-            return bag.Where(c => c.IsAlive).ToList();
+            return bag.Where(c => c.IsAlive && c.Ready).ToList();
         }
         return Array.Empty<WebSocketClientConnection>();
     }
@@ -201,7 +268,7 @@ public class WebSocketConnectionRegistry
     public IReadOnlyList<string> GetRegisteredFunctionNames()
     {
         return _connections
-            .Where(kvp => kvp.Value.Any(c => c.IsAlive))
+            .Where(kvp => kvp.Value.Any(c => c.IsAlive && c.Ready))
             .Select(kvp => kvp.Key)
             .ToList();
     }
@@ -216,7 +283,7 @@ public class WebSocketConnectionRegistry
     }
 
     // Round-robin index par functionName
-    private readonly ConcurrentDictionary<string, int> _roundRobinIndex = new();
+    private readonly ConcurrentDictionary<string, int> _roundRobinIndex = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Sélectionne le prochain client WebSocket en round-robin pour une fonction donnée,
@@ -224,7 +291,8 @@ public class WebSocketConnectionRegistry
     /// Un client dont <see cref="WebSocketClientConnection.ActiveRequests"/> a atteint
     /// <paramref name="maxPerPod"/> est sauté. Si tous les clients sont saturés, retourne null.
     /// </summary>
-    public WebSocketClientConnection? SelectNextRoundRobin(string functionName, int maxPerPod = int.MaxValue)
+    public WebSocketClientConnection? SelectNextRoundRobin(string functionName, int maxPerPod = int.MaxValue,
+        bool reserve = false, string? excludedElementId = null)
     {
         var connections = GetConnections(functionName);
         if (connections.Count == 0)
@@ -238,9 +306,11 @@ public class WebSocketConnectionRegistry
         // sélectionner le premier qui n'a pas atteint la limite per-pod.
         for (int i = 0; i < connections.Count; i++)
         {
-            int index = Math.Abs(startIndex + i) % connections.Count;
+            int index = (int)((uint)unchecked(startIndex + i) % (uint)connections.Count);
             var candidate = connections[index];
-            if (candidate.ActiveRequests < maxPerPod)
+            if (candidate.ActiveRequests < maxPerPod &&
+                (excludedElementId is null || !candidate.PendingCallbacks.ContainsKey(excludedElementId)) &&
+                (!reserve || candidate.TryReserveRequest(maxPerPod)))
             {
                 return candidate;
             }
@@ -260,6 +330,11 @@ public class WebSocketConnectionRegistry
                && a.NumberParallelRequestPerPod == b.NumberParallelRequestPerPod
                && a.ReplicasStartAsSoonAsOneFunctionRetrieveARequest == b.ReplicasStartAsSoonAsOneFunctionRetrieveARequest
                && a.Configuration == b.Configuration
+               && a.StreamMaxAgeSeconds == b.StreamMaxAgeSeconds
+               && a.StreamMaxLength == b.StreamMaxLength
+               && a.SubscribeStreams.Count == b.SubscribeStreams.Count
+               && a.SubscribeStreams.OrderBy(x => x.Name).Zip(b.SubscribeStreams.OrderBy(x => x.Name))
+                   .All(pair => pair.First.Name == pair.Second.Name && pair.First.Visibility == pair.Second.Visibility)
                && a.SubscribeEvents.Count == b.SubscribeEvents.Count
                && a.SubscribeEvents.OrderBy(x => x.Name).Zip(b.SubscribeEvents.OrderBy(x => x.Name))
                    .All(pair => pair.First.Name == pair.Second.Name && pair.First.Visibility == pair.Second.Visibility)
@@ -269,4 +344,3 @@ public class WebSocketConnectionRegistry
                    .All(pair => pair.First.Path == pair.Second.Path && pair.First.Visibility == pair.Second.Visibility);
     }
 }
-

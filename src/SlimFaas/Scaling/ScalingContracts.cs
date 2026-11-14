@@ -40,16 +40,16 @@ public sealed record ScalingError(string Error);
 internal sealed record ScalingHistory(IReadOnlyList<AutoScaleSample> Decisions,
     IReadOnlyList<AutoScaleSample> Recommendations);
 internal sealed record ScalingEnvironment(DeploymentsInformations Deployments, IReadOnlyDictionary<string, long> HttpTicks,
-    bool TurnOnByDefault, DateTime NowUtc);
+    bool TurnOnByDefault, DateTime NowUtc, IReadOnlyDictionary<string, long>? StreamDemand = null);
 internal sealed record ScalingFunctionContext(DeploymentInformation Function, DateTime NowUtc,
     long LastHttpTicks, long? LastScheduleTicks, long EffectiveActivityTicks, double TimeoutSeconds,
-    bool DependencyDemand, bool DependenciesReady, string? InfrastructureFailure)
+    bool DependencyDemand, bool DependenciesReady, string? InfrastructureFailure, long StreamDemand = 0)
 {
     public long NowSeconds => new DateTimeOffset(NowUtc).ToUnixTimeSeconds();
     public double InactivityRemainingSeconds =>
         (EffectiveActivityTicks - NowUtc.Ticks) / (double)TimeSpan.TicksPerSecond + TimeoutSeconds;
     public bool Inactive => (TimeSpan.FromTicks(EffectiveActivityTicks) + TimeSpan.FromSeconds(TimeoutSeconds))
-        < TimeSpan.FromTicks(NowUtc.Ticks) && !DependencyDemand;
+        < TimeSpan.FromTicks(NowUtc.Ticks) && !DependencyDemand && StreamDemand == 0;
 }
 
 [JsonSerializable(typeof(ScalingState))]

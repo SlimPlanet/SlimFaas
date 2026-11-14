@@ -1,0 +1,27 @@
+meta {
+  name: Submit one controlled failure
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/async-function/fibonacci1/tour/dlq/{{durableId}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {"orderId":"{{durableId}}"}
+}
+
+script:pre-request {
+  bru.setVar("durableId", "tour-dlq-" + Date.now() + "-" + Math.floor(Math.random() * 1000000));
+  const access = await bru.sendRequest({ method: "GET", url: bru.getEnvVar("baseUrl") + "/data/dead-letters" });
+  if (access.status !== 200) throw new Error("DLQ management must be accessible in this trusted demo");
+}
+
+tests {
+  test("Accepted once, not yet successful", function () {
+    expect(res.getStatus()).to.equal(202);
+  });
+}

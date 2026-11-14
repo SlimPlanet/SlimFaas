@@ -1,7 +1,7 @@
 # SlimFaas local demo
 
 This bundle includes SlimFaas with its dashboard, four Fibonacci HTTP functions,
-two job configurations and the Bruno collection. No .NET SDK, .NET installation,
+three job configurations and the Bruno collection. No .NET SDK, .NET installation,
 Node.js, Docker or Kubernetes is needed. The sample applications include their
 own .NET runtime; normal operating-system libraries are still required.
 
@@ -29,11 +29,31 @@ Stop the demo before moving its directory or removing it.
 Follow https://slimfaas.dev/guided-tour from this directory. Open
 `demo/bruno-slimfaas-demo` in Bruno Desktop and select **Local**. Bruno Desktop
 requires no Node installation; running its optional CLI requires Node.
-For the Bash smoke script, install cURL and jq, then run:
+For the Bash smoke script, install cURL and jq.
+
+On Windows, use Git Bash and check `command -v curl jq` first. Git Bash includes
+cURL; install jq separately and add its directory to `PATH`. WSL is not required.
 
 ```bash
 BASE_URL=http://127.0.0.1:30020 bash demo/smoke-tour.sh
 ```
+
+The standard launch includes DLQ repair, two `orders` Stream subscribers and the
+independent `fibonacci-ws` job configuration.
+The smoke script above and Bruno's **Tour / 03 Async** and **Tour / 09 Streams** run these
+exercises by default, without additional manifests or environment switches.
+Bruno's **Tour / 10 WebSocket job** and the smoke script also create a NEW
+persistent WebSocket job per invocation, verifying sync, async, events and Streams.
+Two workers may stay connected; manually delete a previous job before a third
+run. Automation prints its job/function/Stream IDs and cleanup commands, removes
+only four proof keys, and leaves the worker/history running for UI inspection.
+The worker connects to only one node; other nodes route calls to that owner.
+Registration readiness is verified before publication. If customizing node
+ports/count, update the job's `SLIMFAAS_WS_URL` address too.
+Public Data, Stream and DLQ access permits body inspection and replay/deletion; never
+expose this trusted development configuration to untrusted users.
+Each run's repair/completion keys expire after ten minutes; successful
+cleanup leaves the shared `orders` history and subscriptions intact.
 
 To observe scaling from one to several ready replicas with 800 async requests,
 keep the dashboard open and run the optional bounded workload separately:
@@ -44,13 +64,17 @@ BASE_URL=http://127.0.0.1:30020 bash demo/async-scale-tour.sh
 
 It waits for an idle baseline, checks every submission, then verifies scale-out,
 queue drain and scale-down. Do not run another producer at the same time.
+The tutorial uses one async request per replica and a function-wide limit of ten;
+additional ready replicas can increase async processing capacity up to that limit.
 Bruno provides the equivalent **Manual / Autoscaling** folder. Cancelling
 submission leaves already accepted work queued; let it finish before stopping.
 
 The source manifest is paired with `slimfaas.local.prebuilt.yaml`, which selects
 the packaged executables and disables automatic sample schedules. The tour
 creates its own schedules. Pass further `-f` overlays to the launcher to customize
-the demo. Manifest paths are resolved relative to the base manifest.
+the demo. Manifest paths are resolved relative to the base manifest. If an overlay
+changes the entrypoint port or state location, use the dashboard URL and state
+directory printed by SlimFaas at startup.
 
 Linux bundles target glibc, not Alpine/musl. See the local installation guide
 for platform prerequisites and troubleshooting:

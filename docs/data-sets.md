@@ -266,6 +266,16 @@ Writes are grouped into bounded adaptive batches before being replicated as Raft
 - **429 Too Many Requests** when the in-memory adaptive batch queue is full.
 - **503 Service Unavailable** when no Raft quorum or valid leader lease is available within the bounded replication or read-barrier timeout.
 
+The internal `/SlimData/CommandBatch` endpoint also returns **503** if leadership
+is lost or a server operation is canceled while the caller remains connected.
+Expected `NotLeaderException` and `QuorumUnreachableException` failures are logged
+as temporary unavailability instead of unexpected server errors. **499** is
+reserved for cancellation of the incoming HTTP request. If response headers were
+already sent, the connection is aborted so a partial response cannot appear
+successful. An unavailable or interrupted response does not establish whether a
+write committed; the existing ordered producer-batch retry retains its sequence
+and deduplication identity.
+
 `SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
 
 SlimData uses DotNext's `SharedMemory` WAL strategy by default. It keeps WAL chunks in memory-mapped files so the operating system can reclaim their pages under memory pressure. Deployments that explicitly favor maximum write throughput over memory usage can select `PrivateMemory` instead:
@@ -307,19 +317,28 @@ For backward compatibility, a `warmupRounds` value inside `SlimData__Configurati
 
 ## Raft command protocol
 
-SlimData writes and accepts only the `SLDC/1` Raft command envelope. Legacy payloads, including key/value command ID `2` and queue command ID `14`, are skipped without mutating the state; they are never converted or rewritten. Every node exposes its protocol and assembly version on the internal SlimData port:
+SlimData advertises the `SLDC/5` cluster command contract, which includes
+Raft-backed WebSocket registration and owner leases. The underlying binary
+`SLDC/1` envelope remains unchanged. Legacy payloads, including key/value command
+ID `2` and queue command ID `14`, are skipped without mutating the state; they are
+never converted or rewritten. Every node exposes its protocol and assembly
+version on the internal SlimData port:
 
 Before a mutation is appended to Raft, every SlimData command is serialized into a bounded immutable payload. Its declared length and `SLDC/1` envelope are validated, then the same byte block is written to the leader WAL and replicated to followers.
 
 ```text
 GET /SlimData/protocol
-X-SlimData-Command-Protocol: SLDC/1
+X-SlimData-Command-Protocol: SLDC/5
 X-SlimData-Assembly-Version: <version>
 ```
 
 A node with a missing or incompatible protocol is rejected during membership changes. The assembly version, including the Git commit SHA, is diagnostic only: different builds may coexist during a rolling update as long as both advertise the same command protocol. A temporarily unreachable follower does not make a leader incompatible while the Raft quorum and lease remain valid. A follower still returns `503` from `/ready` and refuses SlimData operations when its leader advertises an incompatible protocol.
 
-Any release that changes the Raft wire format must also change `SlimDataCommandProtocol.Current` (for example from `SLDC/1` to `SLDC/2`). Such a release requires a coordinated cluster upgrade; releases retaining `SLDC/1` support normal one-pod-at-a-time Kubernetes updates.
+Any release that changes the replicated command/result contract must also change
+`SlimDataCommandProtocol.Current`. Upgrading from `SLDC/4` to `SLDC/5` requires a
+coordinated stop and upgrade of all members; mixed contracts are not ready.
+Existing snapshots and producer receipts remain readable. Releases retaining
+`SLDC/5` support normal one-pod-at-a-time Kubernetes updates.
 
 Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
 
@@ -340,3 +359,7 @@ For a complete executable example covering values, expiration and every counter 
 The built-in dashboard's **Live Stream → Data** tab shows set keys and their TTL without fetching values or documents. Search by prefix, inspect expiration and navigate pages of 100 entries. The inventory updates at the configured status interval; short-lived entries between snapshots may be missed.
 
 Metadata follows the existing data visibility policy unless `SlimFaas__ExposeDataMetadata=true` explicitly enables metadata access for dashboard visitors. This does not grant access to stored contents. See [the dashboard inventory and SSE API](user-interface.md#data-inventory).
+
+### Live traffic visualization
+
+The dashboard animates authorized API calls through SlimFaas to its logical store, including reads, lists, writes and deletes. Set numeric operations are included. Store boxes show unexpired item counts and logical byte totals without exposing contents. See [Data API traffic and store counters](user-interface.md#data-api-traffic-and-store-counters) for metadata access and animation behavior.

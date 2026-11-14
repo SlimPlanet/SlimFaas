@@ -21,7 +21,7 @@ public sealed class ReactiveStreamTests
 {
     private sealed class Snapshot : IStatusStreamSnapshotCache
     {
-        public Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct) => Task.FromResult("event: state\ndata: {}\n\n");
+        public Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct) => Task.FromResult("event: state\ndata: " + JsonSerializer.Serialize(new StatusStreamPayload([], [], [], []), StatusStreamSerializerContext.Default.StatusStreamPayload) + "\n\n");
     }
     private static async Task<IHost> Host(Action<IServiceCollection>? configure = null) => await new HostBuilder().ConfigureWebHost(web => web.UseTestServer()
         .ConfigureServices(services => {

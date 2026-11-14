@@ -1,4 +1,3 @@
-using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -7,6 +6,13 @@ namespace SlimFaas.Endpoints;
 
 public static class JobStatusEndpoints
 {
+    private static readonly CountType[] s_queueCountTypes =
+    [
+        CountType.Available,
+        CountType.Running,
+        CountType.WaitingForRetry
+    ];
+
     public static void MapJobStatusEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/jobs/status", GetAllJobStatuses)
@@ -24,10 +30,11 @@ public static class JobStatusEndpoints
     private static async Task<IResult> GetAllJobStatuses(
         [FromServices] IJobConfiguration jobConfiguration,
         [FromServices] IJobService jobService,
-        [FromServices] IScheduleJobService? scheduleJobService)
+        [FromServices] IScheduleJobService? scheduleJobService,
+        [FromServices] IJobQueue? jobQueue)
     {
 
-        var result = await BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
+        var result = await BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService, jobQueue);
 
         return Results.Json(result,
             ListJobConfigurationStatusSerializerContext.Default.ListJobConfigurationStatus);
@@ -36,7 +43,8 @@ public static class JobStatusEndpoints
     public static async Task<List<JobConfigurationStatus>> BuildJobStatusesAsync(
         IJobConfiguration jobConfiguration,
         IJobService jobService,
-        IScheduleJobService? scheduleJobService)
+        IScheduleJobService? scheduleJobService,
+        IJobQueue? jobQueue = null)
     {
         var configurations = jobConfiguration.Configuration.Configurations;
         var schedules = jobConfiguration.Configuration.Schedules;
@@ -70,12 +78,12 @@ public static class JobStatusEndpoints
                 foreach (var s in k8sSchedules)
                 {
                     long? next = null;
-                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix);
+                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix, s.TimeZone);
                     if (nextResult.IsSuccess) next = nextResult.Data;
 
-                    var id = IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(s));
+                    var id = ScheduleCreateJobSerializer.GetId(s);
                     scheduledInfos.Add(new ScheduledJobInfo(
-                        id, s.Schedule, s.Image, next, s.Resources, s.DependsOn));
+                        id, s.Schedule, s.Image, next, s.Resources, s.DependsOn, s.TimeZone));
                 }
             }
 
@@ -85,13 +93,19 @@ public static class JobStatusEndpoints
                 foreach (var s in apiSchedules)
                 {
                     long? next = null;
-                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix);
+                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix, s.TimeZone);
                     if (nextResult.IsSuccess) next = nextResult.Data;
 
                     scheduledInfos.Add(new ScheduledJobInfo(
-                        s.Id, s.Schedule, s.Image, next, s.Resources, s.DependsOn));
+                        s.Id, s.Schedule, s.Image, next, s.Resources, s.DependsOn, s.TimeZone));
                 }
             }
+
+            // Same messages as a function queue length: waiting, being dispatched or
+            // waiting for a retry. SlimJobsWorker reads the queue under the lower-case name.
+            long queueLength = jobQueue is null
+                ? 0
+                : await jobQueue.CountAsync(JobService.QueueName(name), s_queueCountTypes);
 
             result.Add(new JobConfigurationStatus(
                 Name: name,
@@ -102,7 +116,8 @@ public static class JobStatusEndpoints
                 Resources: conf.Resources,
                 DependsOn: conf.DependsOn,
                 Schedules: scheduledInfos,
-                RunningJobs: running));
+                RunningJobs: running,
+                QueueLength: queueLength));
         }
 
         return result;

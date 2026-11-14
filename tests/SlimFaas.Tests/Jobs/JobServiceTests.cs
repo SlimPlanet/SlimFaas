@@ -158,12 +158,49 @@ public class JobServiceTests
         // Assert
         Assert.True(result.IsSuccess, "Aucune erreur ne doit remonter.");
 
-        // Vérifie que EnqueueAsync est bien appelé
+        // Vérifie que EnqueueAsync est bien appelé sur la file lue par SlimJobsWorker
         _jobQueueMock.Verify(x => x.EnqueueAsync(
-                "Default",
-                It.IsAny<byte[]>()),
+                "default",
+                It.Is<byte[]>(bytes => HasJobFullNamePrefix(bytes, "default-slimfaas-job-"))),
             Times.Once
         );
+    }
+
+    [Fact]
+    public async Task EnqueueJobAsync_ShouldQueueDefaultJobs_WhereTheJobsWorkerReadsThem()
+    {
+        // Arrange : vraie file sur la base en mémoire, configuration "Default" publique
+        _jobConfigurationMock.Setup(x => x.Configuration)
+            .Returns(new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase)
+            {
+                {
+                    JobConfiguration.Default, new SlimfaasJob("default-image", new List<string> { "default-image" },
+                        new CreateJobResources(
+                            new Dictionary<string, string> { { "cpu", "100m" } },
+                            new Dictionary<string, string> { { "cpu", "200m" } }))
+                }
+            }));
+        var jobQueue = new JobQueue(new DatabaseMockService());
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+        var jobService = new JobService(_kubernetesServiceMock.Object, _jobConfigurationMock.Object, jobQueue,
+            namespaceProviderMock.Object, NullLogger<JobService>.Instance);
+
+        // Act
+        var result = await jobService.EnqueueJobAsync("unknown-job", new CreateJob(new List<string> { "arg1" }), true);
+
+        // Assert : SlimJobsWorker lit la file "default" (nom de configuration en minuscules)
+        Assert.True(result.IsSuccess);
+        var queued = await jobQueue.CountElementAsync("default", new List<CountType> { CountType.Available });
+        Assert.Equal(result.Data!.Id, Assert.Single(queued).Id);
+        Assert.Single(await jobService.ListJobAsync("unknown-job"));
+        Assert.True(await jobService.DeleteJobAsync("unknown-job", result.Data.Id, true));
+    }
+
+    private static bool HasJobFullNamePrefix(byte[] bytes, string prefix)
+    {
+        JobInQueue? jobDeserialized = MemoryPackSerializer.Deserialize<JobInQueue>(bytes);
+        return jobDeserialized != null && jobDeserialized.JobFullName.StartsWith(prefix, StringComparison.Ordinal);
     }
 
     private bool ValidateSerializedJob(byte[] bytes, string expectedImage)
@@ -191,7 +228,7 @@ public class JobServiceTests
 
         // On peut vérifier le contenu de l’enqueue pour voir si la sérialisation a bien l'image fallback "public-image"
         _jobQueueMock.Verify(x => x.EnqueueAsync(
-            jobName,
+            "mypublicjob",
             It.Is<byte[]>(bytes => ValidateSerializedJob(bytes, "public-image"))
         ), Times.Once);
     }
@@ -255,7 +292,7 @@ public class JobServiceTests
 
         // Vérifie qu'on a ENV_EXISTING, ENV_NEW et ENV_COMMON (avec la nouvelle valeur)
         _jobQueueMock.Verify(x => x.EnqueueAsync(
-            jobName,
+            "mypublicjob",
             It.Is<byte[]>(bytes => ValidateSerializedEnvironments(bytes))
         ), Times.Once);
     }

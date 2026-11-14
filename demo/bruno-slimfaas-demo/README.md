@@ -6,7 +6,46 @@ Open this directory as a collection, select Local, Kubernetes or Compose, then r
 bru run Tour -r --env Local
 ```
 
-The Tour folder uses runtime variables, captures IDs from responses and deletes only the resources it creates. Read assertions poll transient follower visibility for at most ten seconds, leaving the original response visible. Writes are never retried automatically. Run the whole folder again for a fresh run. A failed run may leave resources until their TTL; inspect captured IDs before manual cleanup. No environment secrets are required. The fixture is `fixtures/hello.txt`, relative to the collection root.
+**Tour / 03 Async** includes DLQ repair and runs by default with the rest of the tour.
+The standard demo already includes DLQ capture and both Stream subscribers.
+To run only that folder:
+
+```bash
+bru run "Tour/03 Async" -r --env Local --bail
+bru run "Tour/09 Streams" -r --env Local --bail
+```
+
+Use Compose or Kubernetes instead of Local for those deployments. Run in sequence,
+not parallel, with scripts enabled. Each run creates a fresh `durableId`, locates
+only its own retained 422 across metadata pages, repairs its shared dependency,
+requeues once and verifies the new execution ID. The Async folder has no Stream
+prerequisite. **Tour / 09 Streams** initializes its own `streamTourId`, waits for
+both subscriptions, publishes once and returns a **202** receipt without waiting
+for consumers. A separate request checks both independent ACKs, followed by a
+retained-body read. Cleanup removes only two DLQ run-scoped keys; `orders`
+history stays until retention. If a run fails, stop and inspect before rerunning
+individual mutations. Old images or missing demo configuration are errors,
+not skipped exercises. Public DLQ management exposes retained bodies, replay
+and deletion; use an isolated trusted demo.
+
+**Tour / 10 WebSocket job** creates a NEW persistent, dependency-free
+`fibonacci-ws` execution, unique virtual function and dedicated Stream on each run.
+It verifies sync computation, async execution identity/processing proof, exact
+Stream ACK and retained body, then deletes only the three ten-minute proof keys.
+In multi-node demos the one job registers an identical client on each node,
+and automation waits for all registration identities before invoking it.
+The job stays connected until manually deleted. Capacity is two in the base
+demos; a third run fails before submission until explicit cleanup. Retained
+job/function/Stream IDs and cleanup routes are printed in the console.
+
+```bash
+bru run "Tour/10 WebSocket job" -r --env Local --bail
+```
+
+This in-demo worker uses the internal WebSocket service address, including in
+Compose and Kubernetes; it does not need an extra host port-forward.
+
+The Tour folder uses runtime variables, captures IDs from responses and deletes only the resources it creates, except the intentionally persistent WebSocket job and Stream. Read assertions poll transient follower visibility for at most ten seconds, leaving the original response visible. Writes are never retried automatically. Run the whole folder again for a fresh run. A failed run may leave resources until their TTL; inspect captured IDs before manual cleanup. No environment secrets are required. The fixture is `fixtures/hello.txt`, relative to the collection root.
 
 **Manual** requests must be run individually: SSE stays open until cancelled; callbacks require a real outstanding element ID; error requests can leave retries in queues. Native local callers can be classified as trusted because they share loopback addresses. The WebSocket HTTP request only demonstrates the upgrade requirement; use the official clients to establish a full session. For Kubernetes, port-forward port 5003 separately when using WebSocket clients; the core Compose tour does not publish it.
 

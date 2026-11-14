@@ -1,0 +1,7 @@
+.dead-letters {
+  display: grid;
+  gap: 1rem;
+  &__detail { min-width: 0; }
+  &__preview { max-height: 28rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; background: #f5f5ff; }
+  &__snapshot { font-size: .875rem; }
+}

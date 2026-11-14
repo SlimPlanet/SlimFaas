@@ -1,7 +1,7 @@
 import hljs from 'highlight.js';
 import { load } from 'cheerio';
 import path from 'path';
-import { getPublicRouteForSource } from './documentation-catalog.ts';
+import { getPublicRouteForSource, legacyDeadLetterTarget } from './documentation-catalog.ts';
 
 export interface DocumentationHeading { id: string; text: string; level: number }
 
@@ -32,6 +32,9 @@ function rewriteRelativeUrl(
         path.posix.join(path.posix.dirname(sourcePath), match[1]),
     );
     const suffix = match[2] ?? '';
+    if (target === 'link' && resolvedPath === 'docs/dead-letter-queues.md') {
+        return legacyDeadLetterTarget(suffix);
+    }
     if (resolvedPath === 'demo/bruno-slimfaas-demo.zip') {
         return `/downloads/slimfaas-demo.zip${suffix}`;
     }

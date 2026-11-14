@@ -7,7 +7,7 @@ public static class Starter
 {
     private static IServiceProvider ServiceProvider { get; set; } = null!;
 
-    private static Task UseAspNetCoreHost(string publicEndPoint, 
+    private static async Task UseAspNetCoreHost(string publicEndPoint,
         string? persistentStorage = null)
     {
         var uri = new Uri(publicEndPoint);
@@ -41,7 +41,21 @@ public static class Starter
             .JoinCluster()
             .Build();
 
-        return host.RunAsync();
+        try
+        {
+            // DotNext reads the restored snapshot synchronously when constructing the WAL.
+            await host.Services.GetRequiredService<SlimPersistentState>().RestoreAsync(CancellationToken.None);
+        }
+        catch
+        {
+            // RunAsync owns disposal once entered; restoration failures occur before that.
+            if (host is IAsyncDisposable asyncHost)
+                await asyncHost.DisposeAsync();
+            else
+                host.Dispose();
+            throw;
+        }
+        await host.RunAsync();
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder)

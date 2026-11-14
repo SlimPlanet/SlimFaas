@@ -1,4 +1,4 @@
-import { MultiServerMCPClient } from "@langchain/mcp-adapters";
+import { MCPAdapter, type Connection, type MCPAdapterConfig } from "@langchain/mcp-adapters";
 import { ChatOpenAI } from "@langchain/openai";
 // LangGraph prebuilt createReactAgent is deprecated in v1.
 // Prefer createAgent from langchain package.
@@ -6,21 +6,21 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 
 export type McpServerMap = Record<string, string>;
 
-function buildMcpConfig(mcpServerMap: McpServerMap) {
-  const mcpServers: Record<string, any> = {};
+export function buildMcpConfig(mcpServerMap: McpServerMap): MCPAdapterConfig {
+  const servers: Record<string, Connection> = {};
   for (const [name, url] of Object.entries(mcpServerMap)) {
-    mcpServers[name] = {
+    servers[name] = {
       transport: "http",
+      mode: "legacy",
       automaticSSEFallback: false,
       url,
     };
   }
   return {
     throwOnLoadError: true,
-    useStandardContentBlocks: true,
     prefixToolNameWithServerName: true,
     additionalToolNamePrefix: "",
-    mcpServers,
+    servers,
   };
 }
 
@@ -29,7 +29,7 @@ export class MCPChat {
   private readonly openaiKey: string;
   private readonly modelName: string;
 
-  private client: MultiServerMCPClient | null = null;
+  private client: MCPAdapter | null = null;
   private agent: any | null = null;
   private initialized = false;
 
@@ -43,9 +43,9 @@ export class MCPChat {
     if (this.initialized) return;
 
     const cfg = buildMcpConfig(this.mcpServerMap);
-    this.client = new MultiServerMCPClient(cfg);
+    this.client = new MCPAdapter(cfg);
 
-    const tools = await this.client.getTools();
+    const tools = await this.client.listTools();
 
     const llm = new ChatOpenAI({
       apiKey: this.openaiKey,
@@ -81,7 +81,7 @@ export class MCPChat {
 
   async close() {
     try {
-      await (this.client as any)?.close?.();
+      await this.client?.close();
     } catch {
       // ignore
     }

@@ -434,8 +434,14 @@ public static partial class LocalManifestLoader
                     {
                         ResultWithError<long> result = Cron.GetNextJobExecutionTimestamp(
                             schedule.Schedule,
-                            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                        if (!result.IsSuccess)
+                            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                            schedule.TimeZone);
+                        if (result.Error?.Key == Cron.InvalidTimeZone)
+                        {
+                            errors.Add(
+                                $"jobs.{name}.annotations: SlimFaas/Schedules.TimeZone: {result.Error.Description}");
+                        }
+                        else if (!result.IsSuccess)
                         {
                             errors.Add(
                                 $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule " +

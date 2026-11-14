@@ -21,6 +21,13 @@ public class JobConfiguration : IJobConfiguration
 {
     public const string Default = "Default";
 
+    /// <summary>
+    /// Returns the configuration a job name is processed under, with its configured case.
+    /// As in <see cref="JobService.EnqueueJobAsync"/>, an unknown name uses <see cref="Default"/>.
+    /// </summary>
+    public static string ResolveName(IDictionary<string, SlimfaasJob> configurations, string name)
+        => configurations.Keys.FirstOrDefault(key => string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+           ?? Default;
 
     private SlimFaasJobConfiguration _configuration;
     private readonly SlimFaasJobConfiguration _initialConfiguration;

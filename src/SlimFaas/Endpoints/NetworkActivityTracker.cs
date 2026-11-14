@@ -20,7 +20,17 @@ public record NetworkActivityEvent(
     string NodeId,        // hostname of the SlimFaas node that recorded the event
     string? SourcePod = null,   // source pod name or IP (including a full SlimFaas job run name)
     string? TargetPod = null,   // target pod name or IP (e.g. the downstream pod receiving the request)
-    string? CorrelationId = null); // preceding activity id: ingress/dispatch/publication; completion still references its start
+    string? CorrelationId = null,
+    string? DeadLetterId = null,
+    string? ElementId = null,
+    string? OriginalElementId = null,
+    string? StreamName = null,
+    string? StreamFunction = null,
+    string? StreamMessageId = null,
+    string? StreamVisibility = null,
+    string? DataKind = null,
+    string? DataOperation = null,
+    int? DataStatusCode = null);
 
 /// <summary>
 /// Represents the full stream payload sent via SSE.
@@ -37,7 +47,17 @@ public record StatusStreamPayload(
     bool FrontEnabled = true,
     string? FrontMessage = null,
     double LiveActivitySamplingRatio = 1.0,
-    int MaxLiveEventsPerSecond = 0);
+    int MaxLiveEventsPerSecond = 0,
+    IReadOnlyList<SlimFaas.DeadLetters.DeadLetterSummary>? DeadLetters = null,
+    bool DeadLettersFrontEnabled = false,
+    bool DeadLettersAccessible = false,
+    IReadOnlyList<SlimFaas.Streams.StreamSummary>? Streams = null,
+    IReadOnlyList<SlimFaas.Streams.StreamFunctionSummary>? StreamSubscriptions = null,
+    bool StreamsAvailable = false,
+    bool StreamsTruncated = false,
+    bool StreamsFrontEnabled = false,
+    bool StreamsAccessible = false,
+    DataStatusSummary? DataSummary = null);
 
 public record QueueInfo(string Name, long Length);
 
@@ -133,10 +153,15 @@ public sealed class NetworkActivityTracker
                                     ?? Environment.MachineName
                                     ?? Guid.NewGuid().ToString("N")[..8];
 
+    public bool IsEnabled => _enabled;
+
     public bool HasSubscribers => _enabled && !_subscribers.IsEmpty;
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
-    public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null, string? correlationId = null)
+    public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null, string? correlationId = null,
+        string? deadLetterId = null, string? elementId = null, string? originalElementId = null,
+        string? streamName = null, string? streamFunction = null, string? streamMessageId = null, string? streamVisibility = null,
+        string? dataKind = null, string? dataOperation = null, int? dataStatusCode = null)
     {
         if (!_enabled) return string.Empty;
 
@@ -150,7 +175,15 @@ public sealed class NetworkActivityTracker
             NodeId: NodeId,
             SourcePod: sourcePod,
             TargetPod: targetPod,
-            CorrelationId: correlationId);
+            CorrelationId: correlationId,
+            DeadLetterId: deadLetterId,
+            ElementId: elementId,
+            OriginalElementId: originalElementId,
+            StreamName: streamName,
+            StreamFunction: streamFunction,
+            StreamMessageId: streamMessageId,
+            StreamVisibility: streamVisibility,
+            DataKind: dataKind, DataOperation: dataOperation, DataStatusCode: dataStatusCode);
 
         Enqueue(evt);
         return evt.Id;

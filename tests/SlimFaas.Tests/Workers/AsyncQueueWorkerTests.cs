@@ -1,14 +1,20 @@
 using System.Net;
+using System.Collections.Immutable;
+using DotNext;
 using MemoryPack;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using SlimData;
 using SlimData.ClusterFiles;
+using SlimData.Commands;
+using SlimFaas.DeadLetters;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using SlimFaas.Security;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Tests.Workers;
 
@@ -171,6 +177,73 @@ public sealed class AsyncQueueWorkerTests
     }
 
     [Fact]
+    public async Task Managed_completion_retries_persistence_without_redispatching_application()
+    {
+        var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var committed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var signal = new SlimDataQueueSignal();
+        var database = new Mock<IDatabaseService>();
+        int calls = 0;
+        database.Setup(value => value.ExecuteDeadLetterAsync(It.Is<DeadLetterMutation>(
+            mutation => mutation.Action == DeadLetterAction.Complete && mutation.ElementId == "item")))
+            .Returns(() =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    failed.TrySetResult();
+                    return Task.FromException<DeadLetterMutationResult>(new IOException("Persistence unavailable"));
+                }
+                committed.TrySetResult();
+                return Task.FromResult(new DeadLetterMutationResult());
+            });
+        var payload = new SlimDataPayload
+        {
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            KeyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(DeadLetterKeys.Policy("function"),
+                MemoryPackSerializer.Serialize(new DeadLetterPolicy { Enabled = true })),
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+        var state = new Mock<ISupplier<SlimDataPayload>>();
+        state.Setup(value => value.Invoke()).Returns(payload);
+        var tracker = new NetworkActivityTracker();
+        using var deadLetters = new DeadLetterService(database.Object, state.Object, Mock.Of<IReplicasService>(),
+            Mock.Of<IWebSocketFunctionRepository>(), Mock.Of<IFunctionAccessPolicy>(),
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()), Mock.Of<IClusterFileSync>(),
+            Mock.Of<IMasterService>(), tracker, Mock.Of<ILogger<DeadLetterService>>());
+        var queue = new Mock<ISlimFaasQueue>();
+        queue.Setup(value => value.GetDispatchStateAsync("function")).ReturnsAsync(new QueueDispatchState(1, 0, 0, []));
+        CustomRequest request = new([], [1], "function", "/work", "POST", "");
+        queue.SetupSequence(value => value.DequeueAsync("function", It.IsAny<int>(), It.IsAny<IList<string>?>()))
+            .ReturnsAsync([new QueueData("item", MemoryPackSerializer.Serialize(request), 1, true, 0,
+                TimeSpan.FromSeconds(30).Ticks, "10.0.0.42")]).ReturnsAsync([]);
+        var client = new Mock<ISendClient>();
+        client.Setup(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+            It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.BadRequest));
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var worker = BuildWorker(queue.Object, signal, Task.CompletedTask, client.Object,
+            readyObserved: ready, tracker: tracker, deadLetters: deadLetters);
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            signal.Pulse();
+            await failed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.DoesNotContain(tracker.GetRecent(), item => item.Type == "request_end");
+            signal.Pulse();
+            await committed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => tracker.GetRecent().Any(item => item.Type == "request_end"));
+            client.Verify(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
+            Assert.Equal(2, calls);
+            queue.Verify(value => value.ListCallbackAsync(It.IsAny<string>(), It.IsAny<ListQueueItemStatus>()), Times.Never);
+        }
+        finally { await worker.StopAsync(CancellationToken.None); }
+    }
+
+    [Fact]
     public async Task Leadership_loss_cancels_long_running_dispatch()
     {
         var sendStarted = new TaskCompletionSource<CancellationTokenSource>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -236,7 +309,8 @@ public sealed class AsyncQueueWorkerTests
         ISendClient? sendClient = null,
         Func<bool>? isMaster = null,
         TaskCompletionSource? readyObserved = null,
-        NetworkActivityTracker? tracker = null)
+        NetworkActivityTracker? tracker = null,
+        DeadLetterService? deadLetters = null)
     {
         var replicas = new Mock<IReplicasService>();
         replicas.Setup(service => service.Deployments).Returns(new DeploymentsInformations(
@@ -251,7 +325,10 @@ public sealed class AsyncQueueWorkerTests
                     ReplicasAtStart: 1,
                     TimeoutSecondBeforeSetReplicasMin: 300,
                     ReplicasStartAsSoonAsOneFunctionRetrieveARequest: true,
-                    Configuration: new SlimFaasConfiguration(),
+                    Configuration: new SlimFaasConfiguration
+                    {
+                        DefaultAsync = new() { DeadLetterQueue = new(Enabled: deadLetters is not null) }
+                    },
                     Pods: [new PodInformation("pod", true, true, "10.0.0.42", "function")],
                     EndpointReady: true)
             ],
@@ -276,7 +353,8 @@ public sealed class AsyncQueueWorkerTests
             Microsoft.Extensions.Options.Options.Create(
                 new WorkersOptions { QueuesDelayMilliseconds = 60_000 }),
             tracker ?? new NetworkActivityTracker(),
-            signal);
+            signal,
+            deadLetters);
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

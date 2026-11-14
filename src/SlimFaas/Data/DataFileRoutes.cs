@@ -25,7 +25,8 @@ public static class DataFileRoutes
     public static IEndpointRouteBuilder MapDataFileRoutes(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/data/files")
-            .AddEndpointFilter<DataVisibilityEndpointFilter>();
+            .AddEndpointFilter<DataVisibilityEndpointFilter>()
+            .AddEndpointFilter<DataActivityEndpointFilter>();
 
         group.MapPost("", DataFileHandlers.PostAsync);
         group.MapGet("/{elementId}", DataFileHandlers.GetAsync);

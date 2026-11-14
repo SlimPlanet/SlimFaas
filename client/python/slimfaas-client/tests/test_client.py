@@ -5,19 +5,25 @@ Tests unitaires pour slimfaas-client.
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
+import weakref
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from slimfaas_client._models import (
     AsyncRequest,
+    BinaryFrame,
+    StreamMessage,
+    SubscribeStreamConfig,
     FunctionVisibility,
     FunctionTrust,
     MessageType,
     PublishEvent,
     SlimFaasClientConfig,
     SubscribeEventConfig,
+    SyncRequest,
     PathVisibilityConfig,
 )
 from slimfaas_client._client import SlimFaasClient, SlimFaasRegistrationError
@@ -49,6 +55,80 @@ def make_envelope(msg_type: int, payload: dict | None, correlation_id: str = "co
 # ---------------------------------------------------------------------------
 
 class TestAsyncRequest:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stream", [False, True])
+    @pytest.mark.parametrize("failure", [False, True])
+    async def test_pending_dispatch_is_retained_until_handler_and_callback_complete(self, stream, failure):
+        client = SlimFaasClient("ws://fake", make_config())
+        ws = MockWebSocket([])
+        started = asyncio.Event()
+        waiting = None
+
+        async def handler(request):
+            nonlocal waiting
+            future = asyncio.get_running_loop().create_future()
+            waiting = weakref.ref(future)
+            started.set()
+            await future
+            if failure:
+                raise RuntimeError("Application handler failed")
+            return 200
+
+        if stream:
+            client.on_stream_message(handler)
+        else:
+            client.on_async_request(handler)
+        payload = {"elementId": "pending", "method": "POST", "path": "/work"}
+        if stream:
+            payload.update(streamName="orders", messageId="generation_1")
+        await client._handle_message(ws, make_envelope(MessageType.ASYNC_REQUEST, payload))
+        await asyncio.wait_for(started.wait(), timeout=5)
+        gc.collect()
+        assert waiting() is not None
+        assert len(client._dispatch_tasks) == 1
+        assert ws.sent == []
+        task = next(iter(client._dispatch_tasks))
+        waiting().set_result(None)
+        await asyncio.wait_for(task, timeout=5)
+        assert client._dispatch_tasks == set()
+        assert json.loads(ws.sent[0])["payload"] == {"elementId": "pending", "statusCode": 500 if failure else 200}
+
+    def test_stream_registration_contract(self):
+        config = make_config(subscribe_streams=[SubscribeStreamConfig("orders", FunctionVisibility.PUBLIC)])
+        payload = config.to_register_payload()["configuration"]
+        assert payload["subscribeStreams"] == [{"name": "orders", "visibility": "Public"}]
+        assert payload["streamMaxAgeSeconds"] == 86400
+        assert payload["streamMaxLength"] == 100000
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", [200, 202, 503])
+    async def test_stream_handler_identity_and_status(self, status):
+        client = SlimFaasClient("ws://fake", make_config())
+        received = []
+
+        async def handler(message):
+            received.append(message)
+            return status
+
+        client.on_stream_message(handler)
+        ws = MockWebSocket([])
+        message = StreamMessage.from_payload({
+            "elementId": "stream_a", "streamName": "orders", "messageId": "generation_1",
+            "method": "POST", "path": "/work", "body": "ZGF0YQ==", "tryNumber": 2,
+        })
+        await client._dispatch_stream_message(ws, message)
+        assert received == [message]
+        assert message.body == b"data"
+        assert message.try_number == 2
+        assert json.loads(ws.sent[0])["payload"]["statusCode"] == status
+
+    @pytest.mark.asyncio
+    async def test_stream_subscription_rejects_an_older_server(self):
+        client = SlimFaasClient("ws://fake", make_config(subscribe_streams=[SubscribeStreamConfig("orders")]))
+        ws = MockWebSocket([make_envelope(MessageType.REGISTER_RESPONSE, {"success": True, "connectionId": "old"})])
+        with pytest.raises(SlimFaasRegistrationError, match="does not support"):
+            await client._register(ws)
+
     def test_from_payload_basic(self):
         payload = {
             "elementId": "elem-1",
@@ -104,6 +184,17 @@ class TestPublishEvent:
 
 
 class TestSlimFaasClientConfig:
+    def test_dead_letter_configuration_uses_existing_registration_contract(self):
+        configuration = json.dumps({
+            "DefaultAsync": {
+                "HttpTimeout": 120,
+                "DeadLetterQueue": {"Enabled": True, "MaxAgeSeconds": 604800, "MaxLength": 10000},
+            },
+        })
+        payload = make_config(configuration=configuration).to_register_payload()
+        assert payload["configuration"]["configuration"] == configuration
+        assert json.loads(payload["configuration"]["configuration"])["DefaultAsync"]["DeadLetterQueue"]["Enabled"]
+
     def test_to_register_payload(self):
         config = make_config(
             function_name="my-job",
@@ -294,3 +385,73 @@ class TestSlimFaasClientDispatch:
         # Aucun callback automatique
         assert len(ws.sent) == 0
 
+
+# ---------------------------------------------------------------------------
+# Tests du streaming synchrone (frames binaires)
+# ---------------------------------------------------------------------------
+
+class TestSyncRequestDispatch:
+    """Réponse envoyée à SlimFaas quand le handler synchrone échoue."""
+
+    CORRELATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e"
+
+    async def _run_sync_request(self, handler) -> list[tuple[int, str, bytes]]:
+        client = SlimFaasClient("ws://fake", make_config())
+        client.on_sync_request(handler)
+        ws = MockWebSocket([])
+        client._ws = ws  # type: ignore[assignment]
+
+        start = json.dumps({"method": "GET", "path": "/report", "query": "", "headers": {}}).encode("utf-8")
+        client._handle_binary_frame(ws, BinaryFrame.encode(MessageType.SYNC_REQUEST_START, self.CORRELATION_ID, start))  # type: ignore[arg-type]
+        client._handle_binary_frame(ws, BinaryFrame.encode(MessageType.SYNC_REQUEST_END, self.CORRELATION_ID))  # type: ignore[arg-type]
+        for _ in range(10):
+            await asyncio.sleep(0)
+
+        frames = []
+        for data in ws.sent:
+            msg_type, correlation_id, _, length = BinaryFrame.decode_header(data)
+            frames.append((msg_type, correlation_id, data[BinaryFrame.HEADER_SIZE:BinaryFrame.HEADER_SIZE + length]))
+        return frames
+
+    @pytest.mark.asyncio
+    async def test_handler_failure_before_start_sends_500(self):
+        async def handler(req: SyncRequest) -> None:
+            raise ValueError("boom")
+
+        frames = await self._run_sync_request(handler)
+
+        assert [f[0] for f in frames] == [MessageType.SYNC_RESPONSE_START, MessageType.SYNC_RESPONSE_END]
+        assert json.loads(frames[0][2])["statusCode"] == 500
+        assert all(f[1] == self.CORRELATION_ID for f in frames)
+
+    @pytest.mark.asyncio
+    async def test_handler_failure_after_start_cancels_the_stream(self):
+        async def handler(req: SyncRequest) -> None:
+            await req.response.start(200, {"Content-Type": ["text/csv"]})
+            await req.response.write(b"id,total\n1,")
+            raise ValueError("boom")
+
+        frames = await self._run_sync_request(handler)
+
+        assert [f[0] for f in frames] == [
+            MessageType.SYNC_RESPONSE_START,
+            MessageType.SYNC_RESPONSE_CHUNK,
+            MessageType.SYNC_CANCEL,
+        ]
+        assert json.loads(frames[0][2])["statusCode"] == 200
+        assert all(f[1] == self.CORRELATION_ID for f in frames)
+
+    @pytest.mark.asyncio
+    async def test_handler_failure_after_complete_sends_nothing_more(self):
+        async def handler(req: SyncRequest) -> None:
+            await req.response.write(b"done")
+            await req.response.complete()
+            raise ValueError("boom")
+
+        frames = await self._run_sync_request(handler)
+
+        assert [f[0] for f in frames] == [
+            MessageType.SYNC_RESPONSE_START,
+            MessageType.SYNC_RESPONSE_CHUNK,
+            MessageType.SYNC_RESPONSE_END,
+        ]

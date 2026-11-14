@@ -27,6 +27,7 @@ const JOBS_IDLE: JobConfigurationStatus[] = [
       },
     ],
     RunningJobs: [],
+    QueueLength: 0,
   },
   {
     Name: 'Default',
@@ -41,6 +42,7 @@ const JOBS_IDLE: JobConfigurationStatus[] = [
     DependsOn: null,
     Schedules: [],
     RunningJobs: [],
+    QueueLength: 0,
   },
 ];
 
@@ -63,6 +65,8 @@ const JOBS_WITH_RUNNING: JobConfigurationStatus[] = [
         StartTimestamp: 1775257350,
       },
     ],
+    // Both execution slots are busy: further executions wait in the queue.
+    QueueLength: 3,
   },
   JOBS_IDLE[1],
 ];

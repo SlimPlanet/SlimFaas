@@ -3,6 +3,10 @@ namespace SlimFaas.WebSocket
 {
     internal static partial class WebSocketEndpointsLog
     {
+        [LoggerMessage(Level = LogLevel.Debug, Message = "Discarded synchronous frame after cancellation: {CorrelationId}")]
+        internal static partial void LogSyncFrameDiscardedAfterCancellation(this ILogger logger, string correlationId);
+        [LoggerMessage(Level = LogLevel.Error, Message = "WebSocket directory lifecycle failed for {FunctionName}.")]
+        internal static partial void LogWebSocketDirectoryLifecycleFailed(this ILogger logger, Exception exception, string functionName);
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "Failed to deserialize WebSocket message")]
         internal static partial void LogFailedToDeserializeWebSocketMessage(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Exception exception);
 

@@ -64,6 +64,8 @@ public class DataStatusStreamTests
         Assert.DoesNotContain("secret-value", json);
         Assert.DoesNotContain("private-internal", json);
         Assert.Equal(0, result.Summary.Files);
+        Assert.Equal(Encoding.UTF8.GetByteCount("secret-value-must-not-leak"), result.Summary.SetBytes);
+        Assert.Equal(result.Summary.SetBytes, result.Entries.Sum(entry => entry.SizeBytes));
     }
 
     [Fact]
@@ -127,14 +129,54 @@ public class DataStatusStreamTests
         return await new HostBuilder().ConfigureWebHost(web => web.UseTestServer().ConfigureServices(services =>
         {
             services.AddRouting();
+            services.AddSingleton(new Mock<SlimFaas.Jobs.IJobService>().Object);
+            services.AddSingleton<IReplicasService, MemoryReplicasService>();
             services.AddSingleton<ISupplier<SlimDataPayload>>(state);
             services.AddSingleton(access.Object);
             services.AddSingleton(new Mock<IDatabaseService>().Object);
             services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
-            services.Configure<SlimFaasOptions>(o => { o.ExposeDataMetadata = expose; o.EnableFront = front; o.StatusStream.MaxSseClients = maxClients; });
+            services.Configure<SlimFaasOptions>(o => { o.ExposeDataMetadata = expose; o.EnableFront = front; o.StatusStream.MaxSseClients = maxClients; o.StatusStream.StateIntervalMilliseconds = 50; });
             services.Configure<DataOptions>(o => o.DefaultVisibility = isPublic ? FunctionVisibility.Public : FunctionVisibility.Private);
+            services.AddSingleton<IStatusStreamSnapshotCache, EmptyStatus>();
             services.AddSingleton<DataStatusSnapshotCache>(); services.AddSingleton<NetworkActivityTracker>();
-        }).Configure(app => { app.UseRouting(); app.UseEndpoints(e => { e.MapDataStatusStreamEndpoints(); e.MapDataSetRoutes(); }); })).StartAsync();
+        }).Configure(app => { app.UseRouting(); app.UseEndpoints(e => { e.MapDataStatusStreamEndpoints(); e.MapDataSetRoutes(); e.MapStatusStreamEndpoints(); }); })).StartAsync();
+    }
+
+    private sealed class EmptyStatus : IStatusStreamSnapshotCache
+    {
+        public Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct) =>
+            Task.FromResult("event: state\ndata: " + JsonSerializer.Serialize(new StatusStreamPayload([], [], [], []),
+                StatusStreamSerializerContext.Default.StatusStreamPayload) + "\n\n");
+    }
+
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(true, 1)]
+    [InlineData(false, 100)]
+    [InlineData(true, 100)]
+    public async Task PublicTrafficFramesApplyDataMetadataPermissions(bool expose, int batchSize)
+    {
+        using var host = await Host(expose: expose);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var response = await host.GetTestClient().SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            "http://localhost:5000/status-functions-stream"), HttpCompletionOption.ResponseHeadersRead, cancellation.Token);
+        using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(cancellation.Token));
+        var first = await reader.ReadLineAsync(cancellation.Token);
+        Assert.Equal("event: state", first);
+        string initial = (await reader.ReadLineAsync(cancellation.Token))!;
+        Assert.Equal(expose, initial.Contains("\"Sets\":1", StringComparison.Ordinal));
+        var tracker = host.Services.GetRequiredService<NetworkActivityTracker>();
+        for (int index = 0; index < batchSize; index++)
+            tracker.Record("data_request", "external", "slimfaas", dataKind: "sets", dataOperation: "read");
+        int states = 0; bool observed = false;
+        while (states < 3)
+        {
+            string line = (await reader.ReadLineAsync(cancellation.Token))!;
+            if (line == "event: state") states++;
+            if (line.Contains("data_request", StringComparison.Ordinal)) observed = true;
+        }
+        Assert.Equal(expose, observed);
+        await cancellation.CancelAsync();
     }
 
     [Theory]

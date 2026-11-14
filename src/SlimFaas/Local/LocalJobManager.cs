@@ -288,7 +288,8 @@ public sealed class LocalJobManager : IAsyncDisposable
                         : schedule.RestartPolicy,
                     Resources: schedule.Resources ?? resources,
                     Environments: schedule.Environments ?? environment,
-                    DependsOn: schedule.DependsOn ?? metadata.DependsOn)).ToList();
+                    DependsOn: schedule.DependsOn ?? metadata.DependsOn,
+                    TimeZone: schedule.TimeZone)).ToList();
             }
         }
 

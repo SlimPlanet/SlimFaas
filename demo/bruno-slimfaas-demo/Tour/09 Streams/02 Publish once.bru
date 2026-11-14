@@ -1,0 +1,30 @@
+meta {
+  name: Publish once and receive durable acceptance
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/publish-stream/orders/compute
+  body: json
+  auth: none
+}
+
+body:json {
+  {"orderId":"{{streamTourId}}","amount":42}
+}
+
+tests {
+  test("202 identifies a durable publication, not consumer completion", function () {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody().Stream).to.equal("orders");
+    const id = res.getBody().MessageId;
+    expect(id).to.match(/^[a-f0-9]+_[0-9]{20}$/);
+    bru.setVar("durableStreamId", id);
+  });
+}
+
+docs {
+  This request ends after durable acceptance. Run 03 Observe both ACKs separately
+  to follow processing; a slow or disconnected consumer does not delay this receipt.
+}

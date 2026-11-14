@@ -32,5 +32,5 @@ while [ "$remaining" -gt 0 ]; do
 done
 "$runtime" local validate -f slimfaas.local.yaml -f slimfaas.local.prebuilt.yaml "$@"
 if [ "$clean" = true ]; then set -- "$@" --clean; fi
-printf '%s\n' 'Dashboard: http://127.0.0.1:30020/ (wait for readiness)' 'Press Ctrl+C to stop. State is kept in .slimfaas/slimfaas-demo.'
+printf '%s\n' 'Starting the demo. The configured dashboard URL is printed below; wait for readiness.' 'Press Ctrl+C to stop.'
 exec "$runtime" local up -f slimfaas.local.yaml -f slimfaas.local.prebuilt.yaml "$@"

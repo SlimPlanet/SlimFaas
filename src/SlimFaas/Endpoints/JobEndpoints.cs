@@ -61,7 +61,9 @@ public static partial class JobEndpoints
         string functionName,
         HttpContext context,
         [FromServices] IJobService jobService,
+        [FromServices] IJobConfiguration jobConfiguration,
         [FromServices] IReplicasService replicasService,
+        [FromServices] NetworkActivityTracker activityTracker,
         [FromServices] ILogger<Job> logger)
     {
         functionName = functionName.ToLowerInvariant();
@@ -89,13 +91,52 @@ public static partial class JobEndpoints
         bool isMessageComeFromNamespaceInternal =
             FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
 
-        var result = await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
+        var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
+            context,
+            jobService,
+            FunctionEndpointsHelpers.HasLocalWorkloadIdentity(context)
+                ? FunctionEndpointsHelpers.GetLocalWorkloadToken(context)
+                : string.Empty, replicasService);
+        string requestInId = activityTracker.Record(
+            NetworkActivityTracker.EventTypes.RequestIn,
+            activityCaller.Actor,
+            NetworkActivityTracker.Actors.SlimFaas,
+            sourcePod: activityCaller.SourcePod);
+
+        ResultWithError<EnqueueJobResult>? result = null;
+        try
+        {
+            result = await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
+        }
+        finally
+        {
+            // A rejected or failed request is answered to its caller without entering the queue.
+            if (result is not { IsSuccess: true })
+            {
+                activityTracker.Record(
+                    NetworkActivityTracker.EventTypes.RequestEnd,
+                    activityCaller.Actor,
+                    NetworkActivityTracker.Actors.SlimFaas,
+                    sourcePod: activityCaller.SourcePod,
+                    correlationId: requestInId);
+            }
+        }
 
         if (!result.IsSuccess)
         {
             logger.LogJobHTTPStatusWithError(400, result.Error?.Key);
             return Results.BadRequest();
         }
+
+        string configurationName = JobConfiguration.ResolveName(
+            jobConfiguration.Configuration.Configurations, functionName);
+        activityTracker.Record(
+            NetworkActivityTracker.EventTypes.Enqueue,
+            NetworkActivityTracker.Actors.SlimFaas,
+            configurationName,
+            JobQueue.ActivityQueueName(configurationName),
+            sourcePod: activityCaller.SourcePod,
+            correlationId: requestInId);
 
         return Results.Json(
             new EnqueueJobResult(result.Data?.Id ?? ""),

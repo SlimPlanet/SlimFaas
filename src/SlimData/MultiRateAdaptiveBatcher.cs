@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SlimData;
 
@@ -119,18 +121,26 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
     private readonly VersionSignal _signal = new();
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger _logger;
+    private readonly object _lifecycleGate = new();
     private volatile bool _disposed;
-    private volatile int _workerRunning;
+    private bool _workerRunning;
     private Task? _loopTask;
+    private Task? _disposeTask;
+
+    // Allows lifecycle tests to await actual retirement rather than sleep or use reflection.
+    internal Task? WorkerTask => Volatile.Read(ref _loopTask);
 
     public MultiRateAdaptiveBatcher(
         TimeSpan? idleStop = null,
         TimeSpan? maxWaitPerTick = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ILogger? logger = null)
     {
         IdleStop = idleStop ?? TimeSpan.FromSeconds(15);
         MaxWaitPerTick = maxWaitPerTick ?? TimeSpan.FromSeconds(5);
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _logger = logger ?? NullLogger.Instance;
     }
 
     public TimeSpan IdleStop { get; }
@@ -179,8 +189,12 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             }
         };
 
-        if (!_kinds.TryAdd(kind, registeredKind))
-            throw new InvalidOperationException($"Kind '{kind}' is already registered.");
+        lock (_lifecycleGate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_kinds.TryAdd(kind, registeredKind))
+                throw new InvalidOperationException($"Kind '{kind}' is already registered.");
+        }
     }
 
     public async Task<TRes> EnqueueAsync<TReq, TRes>(
@@ -205,32 +219,36 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             ? AddTimestamp(enqueuedTimestamp, wait)
             : null;
         var completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (registeredKind.QueueGate)
+        lock (_lifecycleGate)
         {
-            if ((registeredKind.MaxQueueLength > 0 &&
-                 registeredKind.QueueLength >= registeredKind.MaxQueueLength) ||
-                (registeredKind.MaxQueueBytes > 0L &&
-                 registeredKind.QueueBytes + size > registeredKind.MaxQueueBytes))
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            lock (registeredKind.QueueGate)
             {
-                throw new BatchQueueFullException(kind);
-            }
+                if ((registeredKind.MaxQueueLength > 0 &&
+                     registeredKind.QueueLength >= registeredKind.MaxQueueLength) ||
+                    (registeredKind.MaxQueueBytes > 0L &&
+                     registeredKind.QueueBytes + size > registeredKind.MaxQueueBytes))
+                {
+                    throw new BatchQueueFullException(kind);
+                }
 
-            registeredKind.Queue.Enqueue(new PendingItem(
-                request!, completion, size, enqueuedTimestamp, flushDeadline));
-            registeredKind.QueueLength++;
-            registeredKind.QueueBytes += size;
-            if (flushDeadline.HasValue &&
-                (!registeredKind.EarliestFlushDeadlineTimestamp.HasValue ||
-                 flushDeadline.Value < registeredKind.EarliestFlushDeadlineTimestamp.Value))
-            {
-                registeredKind.EarliestFlushDeadlineTimestamp = flushDeadline;
+                // Fallible timing reads must finish before the command is admitted.
+                RecordArrival(registeredKind);
+                registeredKind.Queue.Enqueue(new PendingItem(
+                    request!, completion, size, enqueuedTimestamp, flushDeadline));
+                registeredKind.QueueLength++;
+                registeredKind.QueueBytes += size;
+                if (flushDeadline.HasValue &&
+                    (!registeredKind.EarliestFlushDeadlineTimestamp.HasValue ||
+                     flushDeadline.Value < registeredKind.EarliestFlushDeadlineTimestamp.Value))
+                {
+                    registeredKind.EarliestFlushDeadlineTimestamp = flushDeadline;
+                }
             }
+            if (flushDeadline.HasValue)
+                Interlocked.Increment(ref registeredKind.LatencySensitiveOperations);
+            StartWorkerIfNeeded();
         }
-        if (flushDeadline.HasValue)
-            Interlocked.Increment(ref registeredKind.LatencySensitiveOperations);
-        RecordArrival(registeredKind);
-
-        StartWorkerIfNeeded();
         _signal.Pulse();
 
         using CancellationTokenRegistration registration = cancellationToken.Register(
@@ -251,15 +269,20 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void StartWorkerIfNeeded()
     {
-        if (_disposed)
+        // Admission, retirement and disposal all hold the lifecycle gate.
+        if (_disposed || _workerRunning)
             return;
-        if (Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
-            _loopTask = Task.Run(() => LoopAsync(_disposeCts.Token), _disposeCts.Token);
+        _workerRunning = true;
+        // Always enter the loop, even if disposal wins before Task.Run starts it:
+        // its finally block owns completion of every admitted command.
+        _loopTask = Task.Run(() => LoopAsync(_disposeCts.Token));
     }
 
     private async Task LoopAsync(CancellationToken cancellationToken)
     {
         long observedVersion = _signal.Version;
+        List<PendingItem>? activeBatch = null;
+        Exception? failure = null;
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -267,10 +290,11 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
                 if (AllQueuesEmpty())
                 {
                     long idleStarted = _timeProvider.GetTimestamp();
-                    while (AllQueuesEmpty() &&
-                           _timeProvider.GetElapsedTime(idleStarted) < IdleStop)
+                    while (AllQueuesEmpty())
                     {
                         TimeSpan remaining = IdleStop - _timeProvider.GetElapsedTime(idleStarted);
+                        if (remaining <= TimeSpan.Zero)
+                            break;
                         observedVersion = await _signal.WaitForChangeAsync(
                             observedVersion,
                             Min(MaxWaitPerTick, Min(remaining, TimeSpan.FromMilliseconds(250))),
@@ -279,15 +303,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
                     }
 
                     if (AllQueuesEmpty())
-                    {
-                        Interlocked.Exchange(ref _workerRunning, 0);
-                        if (!AllQueuesEmpty() &&
-                            Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
-                        {
-                            continue;
-                        }
                         return;
-                    }
                 }
 
                 long now = _timeProvider.GetTimestamp();
@@ -343,7 +359,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
                 if (coalesce > TimeSpan.Zero && GetQueueCount(readyKind) < readyKind.MaxBatchSize)
                     await Task.Delay(coalesce, _timeProvider, cancellationToken).ConfigureAwait(false);
 
-                List<PendingItem> batch = DrainBatch(readyKind);
+                List<PendingItem> batch = activeBatch = DrainBatch(readyKind);
                 if (batch.Count == 0)
                     continue;
 
@@ -362,6 +378,10 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
                     foreach (PendingItem item in batch)
                         item.Completion.TrySetException(exception);
                 }
+                finally
+                {
+                    activeBatch = null;
+                }
 
                 TimeSpan delayAfterBatch = GetTiming(readyKind).Delay;
                 readyKind.NextAllowedDequeueTimestamp = delayAfterBatch > TimeSpan.Zero
@@ -372,12 +392,35 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
         }
+        catch (Exception exception)
+        {
+            failure = exception;
+            _logger.LogCommandBatchWorkerStopped(exception);
+        }
         finally
         {
-            foreach (Kind kind in _kinds.Values)
+            lock (_lifecycleGate)
             {
-                while (TryDequeue(kind, out PendingItem? item))
-                    item.Completion.TrySetException(new TaskCanceledException("Batcher stopped"));
+                if (failure is not null || _disposed)
+                {
+                    Exception reason = failure ?? new TaskCanceledException("Batcher stopped");
+                    if (activeBatch is not null)
+                    {
+                        foreach (PendingItem item in activeBatch)
+                            item.Completion.TrySetException(reason);
+                    }
+                    foreach (Kind kind in _kinds.Values)
+                    {
+                        while (TryDequeue(kind, out PendingItem? item))
+                            item.Completion.TrySetException(reason);
+                    }
+                }
+
+                _workerRunning = false;
+                // A command may arrive after the last empty check. Transfer its
+                // ownership only after this worker has finished all queue access.
+                if (!AllQueuesEmpty())
+                    StartWorkerIfNeeded();
             }
         }
     }
@@ -545,21 +588,31 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (_disposed)
-            return;
-        _disposed = true;
+        lock (_lifecycleGate)
+        {
+            if (_disposeTask is null)
+            {
+                _disposed = true;
+                _disposeTask = DisposeCoreAsync(_loopTask);
+            }
+            return new ValueTask(_disposeTask);
+        }
+    }
+
+    private async Task DisposeCoreAsync(Task? worker)
+    {
         await _disposeCts.CancelAsync().ConfigureAwait(false);
         _signal.Pulse();
         try
         {
-            if (_loopTask is not null)
-                await _loopTask.ConfigureAwait(false);
+            if (worker is not null)
+                await worker.ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        finally
         {
+            _disposeCts.Dispose();
         }
-        _disposeCts.Dispose();
     }
 }

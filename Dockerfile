@@ -1,4 +1,6 @@
-﻿FROM --platform=$TARGETPLATFORM alpine:3.23 AS base
+ARG TARGETARCH
+
+FROM --platform=$TARGETPLATFORM alpine:3.24.2 AS base
 RUN apk update && apk upgrade
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
@@ -7,14 +9,18 @@ RUN adduser -u 1000 --disabled-password --gecos "" appuser && chown -R appuser /
 USER appuser
 
 # ---- Node stage: build the Vite/React dashboard ----
-FROM --platform=$TARGETPLATFORM node:24-alpine AS clientapp
+FROM --platform=$BUILDPLATFORM node:24.21.0-alpine3.24 AS clientapp
 WORKDIR /clientapp
-COPY src/SlimFaas/ClientApp/package.json src/SlimFaas/ClientApp/package-lock.json* ./
-RUN npm install
+COPY src/SlimFaas/ClientApp/package.json src/SlimFaas/ClientApp/package-lock.json ./
+RUN npm ci
 COPY src/SlimFaas/ClientApp/ ./
 RUN npm run build
 
-FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
+# x64 Native AOT keeps its native linker/toolchain, including on ARM build hosts.
+FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.403-alpine3.24 AS sdk-amd64
+# ARM publishes managed code: run Roslyn/the trimmer natively instead of under QEMU.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.403-alpine3.24 AS sdk-arm64
+FROM sdk-${TARGETARCH} AS build
 RUN apk update && apk upgrade
 # Install compilation tools for native AOT
 RUN apk add --no-cache build-base zlib-dev musl-dev

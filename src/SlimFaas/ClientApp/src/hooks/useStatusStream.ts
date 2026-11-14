@@ -1,6 +1,9 @@
 import { appendActivity } from '../lib/live.ts';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import type { DataSummary, FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import { jobQueues } from '../lib/topology.ts';
+import { isDeadLetterSummary, type DeadLetterSummary } from '../lib/deadLetters.ts';
+import { isStreamSummary, isStreamFunction, type StreamSummary, type StreamFunction } from '../lib/streams.ts';
 
 const COOLDOWN_MS = 3000;
 const ACTIVITY_FLUSH_MS = 100;
@@ -135,6 +138,7 @@ function normalizeJobs(raw: unknown): JobConfigurationStatus[] {
       InQueueTimestamp: asNumber(pick(rj, 'InQueueTimestamp', 'inQueueTimestamp')),
       StartTimestamp: asNumber(pick(rj, 'StartTimestamp', 'startTimestamp')),
     })),
+    QueueLength: asNumber(pick(entry, 'QueueLength', 'queueLength')),
   }));
 }
 
@@ -157,6 +161,15 @@ function normalizeActivity(raw: unknown): NetworkActivityEvent[] {
     SourcePod: asString(pick(entry, 'SourcePod', 'sourcePod'), '') || null,
     TargetPod: asString(pick(entry, 'TargetPod', 'targetPod'), '') || null,
     CorrelationId: asString(pick(entry, 'CorrelationId', 'correlationId'), '') || null,
+    DeadLetterId: asString(pick(entry, 'DeadLetterId', 'deadLetterId'), '') || null,
+    ElementId: asString(pick(entry, 'ElementId', 'elementId'), '') || null,
+    OriginalElementId: asString(pick(entry, 'OriginalElementId', 'originalElementId'), '') || null,
+    DataKind: asString(pick(entry, 'DataKind', 'dataKind'), '') || null,
+    DataOperation: asString(pick(entry, 'DataOperation', 'dataOperation'), '') || null,
+    DataStatusCode: asNullableNumber(pick(entry, 'DataStatusCode', 'dataStatusCode')),
+    StreamName: asString(pick(entry, 'StreamName', 'streamName'), '') || null,
+    StreamFunction: asString(pick(entry, 'StreamFunction', 'streamFunction'), '') || null,
+    StreamMessageId: asString(pick(entry, 'StreamMessageId', 'streamMessageId'), '') || null,
   }));
 }
 
@@ -171,8 +184,17 @@ export function normalizeSlimFaasNodes(raw: unknown): SlimFaasNodeInfo[] {
   });
 }
 
-function normalizePayload(raw: unknown): StatusStreamPayload {
+function normalizeDataSummary(raw: unknown): DataSummary | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const result = Object.fromEntries(['Sets', 'Files', 'SetBytes', 'FileBytes', 'UnknownFileSizes'].map(key =>
+    [key, pick(raw, key, key[0].toLowerCase() + key.slice(1))]));
+  return Object.values(result).every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    ? result as unknown as DataSummary : null;
+}
+
+export function normalizePayload(raw: unknown): StatusStreamPayload {
   return {
+    DataSummary: normalizeDataSummary(pick(raw, 'DataSummary', 'dataSummary')),
     Functions: normalizeFunctions(pick(raw, 'Functions', 'functions')),
     Queues: normalizeQueues(pick(raw, 'Queues', 'queues')),
     Jobs: normalizeJobs(pick(raw, 'Jobs', 'jobs')),
@@ -183,6 +205,15 @@ function normalizePayload(raw: unknown): StatusStreamPayload {
     MaxLiveEventsPerSecond: asNumber(pick(raw, 'MaxLiveEventsPerSecond', 'maxLiveEventsPerSecond')),
     FrontEnabled: pick(raw, 'FrontEnabled', 'frontEnabled') as boolean | undefined,
     FrontMessage: pick(raw, 'FrontMessage', 'frontMessage') as string | null | undefined,
+    DeadLetters: asArray(pick(raw, 'DeadLetters', 'deadLetters')).filter(isDeadLetterSummary),
+    DeadLettersFrontEnabled: pick(raw, 'DeadLettersFrontEnabled', 'deadLettersFrontEnabled') === true,
+    DeadLettersAccessible: pick(raw, 'DeadLettersAccessible', 'deadLettersAccessible') === true,
+    Streams: asArray(pick(raw, 'Streams', 'streams')).filter(isStreamSummary),
+    StreamSubscriptions: asArray(pick(raw, 'StreamSubscriptions', 'streamSubscriptions')).filter(isStreamFunction),
+    StreamsAvailable: pick(raw, 'StreamsAvailable', 'streamsAvailable') === true,
+    StreamsFrontEnabled: (pick(raw, 'StreamsFrontEnabled', 'streamsFrontEnabled') ?? pick(raw, 'StreamsAvailable', 'streamsAvailable')) === true,
+    StreamsAccessible: (pick(raw, 'StreamsAccessible', 'streamsAccessible') ?? pick(raw, 'StreamsAvailable', 'streamsAvailable')) === true,
+    StreamsTruncated: pick(raw, 'StreamsTruncated', 'streamsTruncated') === true,
   };
 }
 
@@ -199,15 +230,26 @@ export function useStatusStream(includeActivity = true) {
   const [error, setError] = useState<string | null>(null);
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
-  const [functionsWithQueueActivity, setFunctionsWithQueueActivity] = useState<Set<string>>(new Set());
+  const [queuesWithActivity, setQueuesWithActivity] = useState<Set<string>>(new Set());
   const [slimFaasReplicas, setSlimFaasReplicas] = useState(1);
   const [slimFaasNodes, setSlimFaasNodes] = useState<SlimFaasNodeInfo[]>([]);
   const [frontEnabled, setFrontEnabled] = useState(true);
   const [frontMessage, setFrontMessage] = useState<string | null>(null);
+  const [deadLetters, setDeadLetters] = useState<DeadLetterSummary[]>([]);
+  const [deadLettersFrontEnabled, setDeadLettersFrontEnabled] = useState(false);
+  const [deadLettersAccessible, setDeadLettersAccessible] = useState(false);
+  const [streams, setStreams] = useState<StreamSummary[]>([]);
+  const [streamSubscriptions, setStreamSubscriptions] = useState<StreamFunction[]>([]);
+  const [streamsAvailable, setStreamsAvailable] = useState(false);
+  const [streamsFrontEnabled, setStreamsFrontEnabled] = useState(false);
+  const [streamsAccessible, setStreamsAccessible] = useState(false);
+  const [dataSummary, setDataSummary] = useState<DataSummary | null>(null);
+  const [streamsTruncated, setStreamsTruncated] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectFailures = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataAvailableRef = useRef(false);
   const activityBufferRef = useRef<NetworkActivityEvent[]>([]);
   const activityFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -225,20 +267,20 @@ export function useStatusStream(includeActivity = true) {
       return appendActivity(prev, batch);
     });
 
-    const queueTargets = new Set<string>();
+    const usedQueues = new Set<string>();
     for (const evt of batch) {
       if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
-        queueTargets.add(evt.Target);
+        usedQueues.add(evt.QueueName ?? evt.Target);
       }
     }
 
-    if (queueTargets.size > 0) {
-      setFunctionsWithQueueActivity(prev => {
+    if (usedQueues.size > 0) {
+      setQueuesWithActivity(prev => {
         let changed = false;
         const next = new Set(prev);
-        queueTargets.forEach(target => {
-          if (!next.has(target)) {
-            next.add(target);
+        usedQueues.forEach(name => {
+          if (!next.has(name)) {
+            next.add(name);
             changed = true;
           }
         });
@@ -250,7 +292,9 @@ export function useStatusStream(includeActivity = true) {
   const enqueueActivityBatch = useCallback((events: NetworkActivityEvent[]) => {
     if (events.length === 0) return;
     const receivedAt = performance.now();
-    activityBufferRef.current.push(...events.map(event => ({ ...event, ReceivedAt: receivedAt })));
+    for (const event of events) if (!event.DataKind || dataAvailableRef.current)
+      activityBufferRef.current.push({ ...event, ReceivedAt: receivedAt });
+    if (activityBufferRef.current.length === 0) return;
 
     if (activityBufferRef.current.length >= ACTIVITY_IMMEDIATE_FLUSH_SIZE) {
       flushActivityBuffer();
@@ -271,6 +315,7 @@ export function useStatusStream(includeActivity = true) {
       activityFlushTimerRef.current = null;
     }
     activityBufferRef.current = [];
+    dataAvailableRef.current = false;
 
     const es = new EventSource(`/status-functions-stream${includeActivity ? '' : '?activity=false'}`);
     eventSourceRef.current = es;
@@ -293,21 +338,38 @@ export function useStatusStream(includeActivity = true) {
         setSamplingRatio(payload.LiveActivitySamplingRatio ?? 1);
         setMaxLiveEventsPerSecond(payload.MaxLiveEventsPerSecond ?? 0);
         setFrontMessage(payload.FrontMessage ?? null);
+        setDeadLetters(payload.DeadLetters ?? []);
+        setDeadLettersFrontEnabled(payload.DeadLettersFrontEnabled === true);
+        setDeadLettersAccessible(payload.DeadLettersAccessible === true);
+        const streamsVisible = payload.StreamsFrontEnabled === true && payload.StreamsAccessible === true;
+        setStreams(streamsVisible ? payload.Streams ?? [] : []);
+        setStreamSubscriptions(streamsVisible ? payload.StreamSubscriptions ?? [] : []);
+        setStreamsAvailable(streamsVisible);
+        setStreamsFrontEnabled(payload.StreamsFrontEnabled === true);
+        setStreamsAccessible(payload.StreamsAccessible === true);
+        setStreamsTruncated(payload.StreamsTruncated === true);
+        setDataSummary(payload.DataSummary ?? null);
+        dataAvailableRef.current = !!payload.DataSummary;
+        if (!dataAvailableRef.current) {
+          activityBufferRef.current = activityBufferRef.current.filter(event => !event.DataKind);
+          setActivity(previous => previous.filter(event => !event.DataKind));
+        }
         setError(null);
         reconnectFailures.current = 0;
         setLoading(false);
 
         // Detect queue usage from current queue lengths only (live view).
-        const queueFns = new Set<string>();
-        for (const q of (payload.Queues ?? [])) {
+        const queues = [...(payload.Queues ?? []), ...jobQueues(payload.Jobs)];
+        const usedQueues = new Set<string>();
+        for (const q of queues) {
           if (q.Length > 0) {
-            queueFns.add(q.Name);
+            usedQueues.add(q.Name);
           }
         }
-        const knownFunctions = new Set(payload.Functions.map(fn => fn.Name));
-        setFunctionsWithQueueActivity(prev => {
-          const next = new Set([...prev].filter(name => knownFunctions.has(name)));
-          queueFns.forEach(name => next.add(name));
+        const knownQueues = new Set([...payload.Functions.map(fn => fn.Name), ...queues.map(q => q.Name)]);
+        setQueuesWithActivity(prev => {
+          const next = new Set([...prev].filter(name => knownQueues.has(name)));
+          usedQueues.forEach(name => next.add(name));
           return next.size === prev.size && [...next].every(name => prev.has(name)) ? prev : next;
         });
       } catch (err) {
@@ -392,7 +454,7 @@ export function useStatusStream(includeActivity = true) {
   }, [wakeAllCooling]);
 
   return {
-    functions,
+    functions, dataSummary,
     queues,
     jobs,
     activity, activitySession,
@@ -402,13 +464,12 @@ export function useStatusStream(includeActivity = true) {
     wakeUpAll,
     coolingDown,
     wakeAllCooling,
-    functionsWithQueueActivity,
+    queuesWithActivity,
     slimFaasReplicas,
     slimFaasNodes,
     frontEnabled,
+    deadLetters, deadLettersFrontEnabled, deadLettersAccessible,
+    streams, streamSubscriptions, streamsAvailable, streamsFrontEnabled, streamsAccessible, streamsTruncated,
     frontMessage, actionError, samplingRatio, maxLiveEventsPerSecond,
   };
 }
-
-
-

@@ -327,7 +327,7 @@ sampler_pid="$!"
 
 echo "Measured load: scenario=$scenario duration=${duration_seconds}s concurrency=$concurrency"
 validate_mixed="false"
-if [[ "$scenario" == "slimdata-mixed" ]]; then
+if [[ "$scenario" == "slimdata-mixed" || "$scenario" == "slimdata-set" ]]; then
   validate_mixed="true"
 fi
 set +e
@@ -343,6 +343,7 @@ dotnet "$lab_dll" load \
   --keys-per-worker 16 \
   --key-prefix "measure-${timestamp}" \
   --validate "$validate_mixed" \
+  --phase-file "$phase_file" \
   --csv "$run_dir/operations.csv" \
   --json "$run_dir/operations.json" \
   | tee "$run_dir/load.log"

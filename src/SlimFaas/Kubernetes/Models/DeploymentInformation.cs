@@ -42,7 +42,10 @@ public record DeploymentInformation(
     FunctionTrust Trust = FunctionTrust.Trusted,
     ScaleConfig? Scale = null,
     int NumberParallelRequestPerPod = 10,
-    ResourcesConfiguration? Resources = null
+    ResourcesConfiguration? Resources = null,
+    IList<SubscribeStream>? SubscribeStreams = null,
+    int StreamMaxAgeSeconds = 86400,
+    int StreamMaxLength = 100000
 );
 
 public record PodInformation(

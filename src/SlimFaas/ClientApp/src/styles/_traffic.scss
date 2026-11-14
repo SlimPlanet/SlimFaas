@@ -8,6 +8,7 @@
   &__legend-item--function::before { background: var(--color-primary); }
   &__legend-item--publication::before { background: var(--job); border-radius: 0; transform: rotate(45deg); }
   &__legend-item--reply::before { background: transparent; border: 2px solid var(--muted); }
+  &__legend-item--data::before { background: var(--data-access); border-radius: 3px; width: 10px; }
   &__filters { background: var(--soft); padding: .5rem .75rem; border-radius: 8px; font-size: .8rem; }
   &__isolate { display: flex; align-items: center; gap: .4rem; font-size: .8rem; white-space: nowrap; }
   &__legend-item--queue::before { background: var(--warning); border-radius: 0; }

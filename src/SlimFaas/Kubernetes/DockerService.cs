@@ -485,7 +485,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
                 deploymentName,
                 ports,
                 insp.Created?.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture) ?? DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture)
-            ));
+            )
+            {
+                Annotations = insp.Config?.Labels ?? c.Labels
+            });
         }
 
         allPods.AddRange(pods);
@@ -559,7 +562,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             metadata.Trust,
             metadata.Scale,
             metadata.NumberParallelRequestPerPod,
-            Resources: resources
+            Resources: resources,
+            SubscribeStreams: metadata.SubscribeStreams,
+            StreamMaxAgeSeconds: metadata.StreamMaxAgeSeconds,
+            StreamMaxLength: metadata.StreamMaxLength
         );
 
         deployments.Add(di);
@@ -1255,7 +1261,10 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 deploymentName,
                 GetAllContainerPortsNoHeuristic(insp),
                 insp.Created?.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture) ?? DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture)
-            );
+            )
+            {
+                Annotations = insp.Config?.Labels
+            };
 
 
         private async Task<List<ContainerSummary>> ListContainersByLabelsAsync(

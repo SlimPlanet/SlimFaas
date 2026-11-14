@@ -15,8 +15,9 @@ export function makeFixtures(replicas = 6, executions = 4) {
     Name: 'daily-report', Image: 'ghcr.io/example/report:1.0', Visibility: 'Private', ImagesWhitelist: [], NumberParallelJob: 10000,
     Resources: null, DependsOn: ['fibonacci1'], Schedules: [],
     RunningJobs: Array.from({ length: executions }, (_, i) => ({ Name: `daily-report-slimfaas-job-${String(i).padStart(5, '0')}`, Status: 'Running', ElementId: `execution-${i}`, InQueueTimestamp: 1788868800000, StartTimestamp: 1788868801000 })),
+    QueueLength: 0,
   }];
-  return { functions, jobs, queues: [{ Name: 'fibonacci1', Length: 12 }], functionsWithQueueActivity: new Set(['fibonacci1']), slimFaasReplicas: 3,
+  return { functions, jobs, queues: [{ Name: 'fibonacci1', Length: 12 }], queuesWithActivity: new Set(['fibonacci1']), slimFaasReplicas: 3,
     slimFaasNodes: [0, 1, 2].map(i => ({ Name: `slimfaas-${i}`, Status: 'Running', Role: i === 1 ? 'Leader' as const : 'Follower' as const })) };
 }
 export function fixtureEvents(start: number, count: number, now = Date.now()): NetworkActivityEvent[] {

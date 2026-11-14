@@ -1,5 +1,12 @@
 # SlimFaas API Reference
 
+See [Durable Streams](streams.md#observe-without-consuming) for the `/data/streams`
+catalog, passive history/body/subscription routes, explicit reservation/ACK,
+deletion guards and `/publish-stream/{stream}/{path}` append alias.
+All publication forms return `202 {"Stream":"...","MessageId":"..."}` with
+`Location` after durable commit, without waiting for recipients or ACKs.
+This replaces the previous `201` publication status, with unchanged receipt fields.
+
 This inventory describes the routes registered by the SlimFaas runtime in this checkout. Use the [Guided Tour](guided-tour.md) for executable cURL examples and the [Bruno collection](https://slimfaas.dev/downloads/slimfaas-demo.zip) for ordered requests with assertions.
 
 ## Addresses and response conventions
@@ -27,7 +34,7 @@ See [tour steps 1–2](guided-tour.md#1-read-the-cluster-state).
 | GET | `/status-log-sources` | Discover a managed instance’s log sources with `kind=function/job/slimfaas`, `name` and `replica`. Requires `EnableFront` and `ExposeLogs`. Returns `Id`, `Name`, `Container`; no paths or network addresses. |
 | GET | `/status-logs-stream` | SSE `log_state` and `log_batch` for a discovered `source`, with `tail=1..10000` (default 10000). Shared SSE quota and four source readers per node. `403` for disabled/denied access, `404` for an unavailable source/port, `400` for invalid queries, `429` for limits. See [instance logs](user-interface.md#instance-logs). |
 | GET | `/status-functions-stream` | SSE snapshots and activity with opaque address tokens instead of replica/caller IPs in `Pods[].Identity` and activity references. `429` when the configured subscriber limit is reached. |
-| GET | `/jobs/status` | `200`, job configurations and running-job status. |
+| GET | `/jobs/status` | `200`, job configurations, running-job status and `QueueLength`, the number of queued executions. |
 | GET | `/status-jobs` | Alias of `/jobs/status`. |
 
 The health middleware matches paths without restricting the HTTP method; use GET for probes. SSE event names are `state`, `activity` and `activity_batch`. `state` includes functions, jobs, queue lengths, nodes and front status. Keep connections open or impose a deliberate timeout when exploring with cURL. See [UI configuration](user-interface.md).
@@ -46,7 +53,16 @@ See [synchronous calls](guided-tour.md#3-call-functions-synchronously) and [asyn
 
 The wildcard represents the application's path; it is not a literal part of the URL. The registered HTTP methods do not guarantee that the downstream application supports them. For example, the demo exposes GET `/hello/{name}` and POST `/fibonacci`; calling an unsupported application method can return `405`.
 
-An async worker sends `SlimFaas-Element-Id` to the function. If the function returns `202`, it must later call the completion route with that ID. `success` (case-insensitive) maps to successful completion; other nonempty status strings map to failure. Use the documented `success` or `error` values. The callback does not publish a queryable result resource. See [Functions](functions.md) for headers, retry configuration and idempotency.
+An async worker sends `SlimFaas-Element-Id` to the function. If the function returns `202`, it must later call the completion route with that ID. `success` (case-insensitive) maps to successful completion and `error` to failure; other values return `400`. The callback does not publish a queryable result resource. See [Functions](functions.md) for headers, retry configuration and idempotency.
+
+## Dead Letter Queues
+
+The [DLQ API inventory](async-functions.md#management-api) documents catalog,
+summary, filtered cursor pages, message details/body, replay, deletion, and
+access-controlled metrics under `/data/dead-letters`. Capture is opt-in per
+function. Management is independently Private by default; enabling a public
+function or the Data dashboard does not expose it. Replay returns 202 only after
+durable insertion and retains an idempotency receipt for 24 hours.
 
 ## Events
 
@@ -69,7 +85,7 @@ See [jobs in the tour](guided-tour.md#6-run-jobs-and-manage-schedules).
 | GET | `/job/{functionName}` | `200`, execution list for the configuration. |
 | DELETE | `/job/{functionName}/{elementId}` | `200` when deleted, `404` if absent, `400` for invalid/disallowed input. |
 | PUT, PATCH | `/job/{functionName}` | Explicitly rejected: `405`. |
-| POST | `/job-schedules/{functionName}` | JSON, e.g. `{"Schedule":"*/1 * * * *","Args":["10"]}`. `201 {"Id":"..."}`; invalid/disallowed input `400`. |
+| POST | `/job-schedules/{functionName}` | JSON, e.g. `{"Schedule":"*/1 * * * *","Args":["10"]}`; optional IANA `TimeZone` (default `UTC`). `201 {"Id":"..."}`; invalid/disallowed input `400`, with `{"error":"invalid_timezone",...}` for an unknown time zone. |
 | GET | `/job-schedules/{functionName}` | `200`, dynamically stored schedules. |
 | DELETE | `/job-schedules/{functionName}/{elementId}` | `204` when deleted, `404` if absent, `400` for invalid/disallowed input. |
 | PUT, PATCH | `/job-schedules/{functionName}` | Explicitly rejected: `405`. |

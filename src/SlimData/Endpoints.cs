@@ -270,14 +270,16 @@ public static class Endpoints
         }
         catch (OperationCanceledException)
         {
-            // client disconnected / leadership lost
-            if (!context.Response.HasStarted)
-                context.Response.StatusCode = StatusCodes.Status499ClientClosedRequest; // (Kestrel non-standard, but useful)
+            // The operation token also covers leadership loss and server deadlines.
+            // Only RequestAborted identifies a client disconnect.
+            CompleteUnavailableResponse(context, context.RequestAborted.IsCancellationRequested
+                ? StatusCodes.Status499ClientClosedRequest
+                : StatusCodes.Status503ServiceUnavailable);
         }
-        catch (SlimDataUnavailableException e)
+        catch (Exception e) when (e is SlimDataUnavailableException or NotLeaderException or QuorumUnreachableException)
         {
             logger.LogSlimDataIsUnavailableFor(e, context.Request.Path);
-            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            CompleteUnavailableResponse(context, StatusCodes.Status503ServiceUnavailable);
         }
         catch (InvalidDataException e)
         {
@@ -293,6 +295,16 @@ public static class Endpoints
         {
             source?.Dispose();
         }
+    }
+
+    private static void CompleteUnavailableResponse(HttpContext context, int statusCode)
+    {
+        // Once headers are sent, a partial success must not look like a complete
+        // response, and assigning a new status would hide the original failure.
+        if (context.Response.HasStarted)
+            context.Abort();
+        else
+            context.Response.StatusCode = statusCode;
     }
 
     public static Task AddHashSetAsync(HttpContext context)

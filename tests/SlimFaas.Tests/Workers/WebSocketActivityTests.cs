@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SlimFaas.Endpoints;
@@ -10,6 +11,42 @@ namespace SlimFaas.Tests.Workers;
 
 public sealed class WebSocketActivityTests
 {
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(3600, true)]
+    public void Registration_validates_and_applies_async_dead_letter_configuration(int maxAge, bool expected)
+    {
+        var registry = new WebSocketConnectionRegistry(NullLogger<WebSocketConnectionRegistry>.Instance);
+        var replicas = new Mock<IReplicasService>();
+        replicas.SetupGet(value => value.Deployments).Returns(new DeploymentsInformations([], new SlimFaasDeploymentInformation(1, []), []));
+        var socket = new Mock<System.Net.WebSockets.WebSocket>();
+        socket.SetupGet(value => value.State).Returns(WebSocketState.Open);
+        using var connection = new WebSocketClientConnection
+        {
+            FunctionName = "billing", Socket = socket.Object, Configuration = new()
+            {
+                Configuration = JsonSerializer.Serialize(new SlimFaasConfiguration
+                {
+                    DefaultAsync = new()
+                    {
+                        HttpTimeout = 40,
+                        DeadLetterQueue = new() { Enabled = true, MaxAgeSeconds = maxAge }
+                    }
+                }, SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration)
+            }
+        };
+        var result = registry.TryRegister(connection, replicas.Object);
+        Assert.Equal(expected, result.Success);
+        if (expected)
+        {
+            var function = Assert.Single(new WebSocketFunctionRepository(registry).GetVirtualDeployments());
+            Assert.True(function.Configuration.DefaultAsync.DeadLetterQueue.Enabled);
+            Assert.Equal(40, function.Configuration.DefaultAsync.HttpTimeout);
+            Assert.Equal(maxAge, function.Configuration.DefaultAsync.DeadLetterQueue.MaxAgeSeconds);
+        }
+        else Assert.Contains("MaxAgeSeconds", result.Error, StringComparison.Ordinal);
+    }
+
     private static (WebSocketSendClient Client, WebSocketClientConnection Connection, NetworkActivityTracker Tracker) Setup(bool fail = false, int replicas = 1)
     {
         var tracker = new NetworkActivityTracker();

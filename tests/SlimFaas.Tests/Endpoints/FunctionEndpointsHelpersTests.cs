@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
@@ -11,6 +12,99 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class FunctionEndpointsHelpersTests
 {
+    [Theory]
+    [InlineData("/v1/configuration/dataset_versions/dynamic", FunctionVisibility.Private, FunctionVisibility.Public)]
+    [InlineData("/v1/events/callback", FunctionVisibility.Public, FunctionVisibility.Private)]
+    [InlineData("/v1/speech_to_text/callback", FunctionVisibility.Public, FunctionVisibility.Private)]
+    [InlineData("/unrelated", FunctionVisibility.Public, FunctionVisibility.Public)]
+    [InlineData("/unrelated", FunctionVisibility.Private, FunctionVisibility.Private)]
+    public void GetFunctionVisibility_WithValidRules_ResolvesRepeatedRequestsWithoutWarnings(
+        string path, FunctionVisibility defaultVisibility, FunctionVisibility expected)
+    {
+        var metadata = FunctionMetadataParser.Parse(new Dictionary<string, string>
+        {
+            [FunctionAnnotationNames.DefaultVisibility] = defaultVisibility.ToString(),
+            [FunctionAnnotationNames.PathsStartWithVisibility] =
+                "Public:/v1/configuration/dataset_versions/dynamic,Private:/v1/events/callback,Private:/v1/speech_to_text/callback"
+        }, "function");
+        var function = new DeploymentInformation("function", "default", [], new SlimFaasConfiguration(), 1,
+            Visibility: metadata.Visibility, PathsStartWithVisibility: metadata.PathsStartWithVisibility);
+        var logger = new RecordingLogger();
+
+        for (int request = 0; request < 3; request++)
+        {
+            Assert.Equal(expected, FunctionEndpointsHelpers.GetFunctionVisibility(logger, function, path));
+        }
+
+        Assert.Empty(logger.Messages);
+    }
+
+    [Theory]
+    [InlineData("/API/Private", "/api/private/orders")]
+    [InlineData("/API/Private", "api/private/orders")]
+    [InlineData("API/Private", "/api/private/orders")]
+    [InlineData("API/Private", "api/private/orders")]
+    public void GetFunctionVisibility_MatchesPrefixesIgnoringCaseAndLeadingSlash(string prefix, string path)
+    {
+        var function = new DeploymentInformation("function", "default", [], new SlimFaasConfiguration(), 1,
+            Visibility: FunctionVisibility.Public,
+            PathsStartWithVisibility: [new PathVisibility(prefix, FunctionVisibility.Private)]);
+        var logger = new RecordingLogger();
+
+        Assert.Equal(FunctionVisibility.Private,
+            FunctionEndpointsHelpers.GetFunctionVisibility(logger, function, path));
+        Assert.Empty(logger.Messages);
+    }
+
+    [Theory]
+    [InlineData(FunctionVisibility.Public, FunctionVisibility.Private)]
+    [InlineData(FunctionVisibility.Private, FunctionVisibility.Public)]
+    public void GetFunctionVisibility_WithOverlappingRules_UsesFirstMatch(
+        FunctionVisibility firstVisibility, FunctionVisibility secondVisibility)
+    {
+        var function = new DeploymentInformation("function", "default", [], new SlimFaasConfiguration(), 1,
+            Visibility: secondVisibility,
+            PathsStartWithVisibility:
+            [
+                new PathVisibility("/api", firstVisibility),
+                new PathVisibility("/api/private", secondVisibility)
+            ]);
+        var logger = new RecordingLogger();
+
+        Assert.Equal(firstVisibility,
+            FunctionEndpointsHelpers.GetFunctionVisibility(logger, function, "/api/private/orders"));
+        Assert.Empty(logger.Messages);
+    }
+
+    [Theory]
+    [InlineData(true, FunctionVisibility.Public)]
+    [InlineData(true, FunctionVisibility.Private)]
+    [InlineData(false, FunctionVisibility.Public)]
+    [InlineData(false, FunctionVisibility.Private)]
+    public void GetFunctionVisibility_WithoutRules_UsesFunctionVisibility(
+        bool missingRules, FunctionVisibility visibility)
+    {
+        var function = new DeploymentInformation("function", "default", [], new SlimFaasConfiguration(), 1,
+            Visibility: visibility, PathsStartWithVisibility: missingRules ? null : []);
+        var logger = new RecordingLogger();
+
+        Assert.Equal(visibility, FunctionEndpointsHelpers.GetFunctionVisibility(logger, function, "/any/path"));
+        Assert.Empty(logger.Messages);
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<(LogLevel Level, string Message)> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+            => Messages.Add((logLevel, formatter(state, exception)));
+    }
+
     [Theory]
     [InlineData("10.42.0.8")]
     [InlineData("::ffff:10.42.0.8")]

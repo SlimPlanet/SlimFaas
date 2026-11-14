@@ -28,6 +28,9 @@ export default defineConfig({
             { find: /^node:async_hooks$/, replacement: asyncHooksShim },
             { find: /^async_hooks$/, replacement: asyncHooksShim },
 
+            // MCP SDK 2 keeps stdio server connections out of the browser bundle.
+            { find: /^@modelcontextprotocol\/client\/stdio$/, replacement: mcpStdioShim },
+
             // ✅ MCP stdio polyfill (match avec .js ET sans .js)
             { find: /^@modelcontextprotocol\/sdk\/client\/stdio(\.js)?$/, replacement: mcpStdioShim },
             { find: /^@modelcontextprotocol\/sdk\/server\/stdio(\.js)?$/, replacement: mcpStdioShim },

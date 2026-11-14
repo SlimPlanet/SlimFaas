@@ -2,14 +2,25 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { TrafficPlayback, SPEEDS, matchesTraffic, displayPath, markerProgress } from '../src/lib/traffic.ts';
 import { functionState } from '../src/lib/live.ts';
-import { buildTopology, observedFunctions, observedQueues } from '../src/lib/topology.ts';
+import { buildTopology, jobQueueName, jobQueues, observedFunctions, observedQueues } from '../src/lib/topology.ts';
 import { makeFixtures, fixtureEvents } from '../src/lib/fixtures.ts';
-import { normalizeSlimFaasNodes } from '../src/hooks/useStatusStream.ts';
+import { normalizePayload, normalizeSlimFaasNodes } from '../src/hooks/useStatusStream.ts';
 
 const fixture = makeFixtures();
 const model = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes);
 const event = (id, overrides = {}) => ({ ...fixtureEvents(3, 1)[0], Id: id, ReceivedAt: 100, ...overrides });
 const count = playback => [...playback.markers.values()].reduce((sum, marker) => sum + marker.count, 0);
+test('Stream UI availability distinguishes disabled and restricted states and preserves old snapshots', () => {
+  const legacy = normalizePayload({ StreamsAvailable: true });
+  assert.equal(legacy.StreamsFrontEnabled, true);
+  assert.equal(legacy.StreamsAccessible, true);
+  const disabled = normalizePayload({ StreamsAvailable: true, StreamsFrontEnabled: false, StreamsAccessible: true });
+  assert.equal(disabled.StreamsFrontEnabled, false);
+  assert.equal(disabled.StreamsAccessible, true);
+  const restricted = normalizePayload({ streamsFrontEnabled: true, streamsAccessible: false });
+  assert.equal(restricted.StreamsFrontEnabled, true);
+  assert.equal(restricted.StreamsAccessible, false);
+});
 test('SSE normalization preserves changing leader roles and handles old or unknown snapshots', () => {
   for (const Role of ['Leader', 'Follower', 'Unknown', undefined, 'invalid']) {
     const nodes = normalizeSlimFaasNodes([{ Name: 'node', Status: 'Running', Role }]);
@@ -17,9 +28,93 @@ test('SSE normalization preserves changing leader roles and handles old or unkno
   }
   assert.equal(normalizeSlimFaasNodes([{ name: 'node', status: 'Starting', role: 'Leader' }])[0].Role, 'Leader');
 });
-function update(playback, events, { now = 100, paused = false, session = 1, speed = 'Fast', type = 'all', selected = null, isolate = false, topology = model } = {}) {
-  playback.update(events, session, paused, now, topology, speed, type, selected, isolate);
+function update(playback, events, { now = 100, paused = false, session = 1, speed = 'Fast', type = 'all', selected = null, isolate = false, topology = model, dataAvailable = true } = {}) {
+  playback.update(events, session, paused, now, topology, speed, type, selected, isolate, dataAvailable);
 }
+test('Stream attempt correlation draws delivery and then ACK, including reverse batches and isolated actors', () => {
+  const fn = fixture.functions[0].Name;
+  const topology = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes, [], [], [], [{
+    Name: 'orders', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  const delivery = event('stream-delivery', { Type: 'stream_delivery', Source: 'stream:orders', Target: fn,
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'orders', ElementId: 'stream-attempt', CorrelationId: 'stream-attempt' });
+  const ack = event('stream-ack', { Type: 'stream_ack', Source: fn, Target: 'stream:orders',
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'orders', ElementId: 'stream-attempt', CorrelationId: 'stream-attempt' });
+  for (const events of [[delivery, ack], [ack, delivery]]) {
+    const player = new TrafficPlayback();
+    update(player, events, { topology, selected: 'stream:orders', isolate: true });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, ['stream:orders', `function:${fn}`]);
+    assert.equal([...player.markers.values()][0].kind, 'queue');
+    update(player, events, { topology, now: 550, selected: 'stream:orders', isolate: true });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, [`function:${fn}`, 'stream:orders']);
+    assert.equal([...player.markers.values()][0].kind, 'reply');
+  }
+});
+test('Stream delivery does not require an invented HTTP parent and pause cannot replay it', () => {
+  const topology = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes, [], [], [], [{
+    Name: 'orders', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  const delivery = event('stream-delivery', { Type: 'stream_delivery', Source: 'stream:orders', Target: fixture.functions[0].Name,
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'orders', CorrelationId: 'attempt-not-an-event' });
+  const player = new TrafficPlayback();
+  update(player, [delivery], { topology });
+  assert.equal(count(player), 1);
+  const paused = new TrafficPlayback();
+  update(paused, [delivery], { topology, paused: true });
+  update(paused, [delivery], { topology, now: 200 });
+  assert.equal(count(paused), 0);
+});
+test('fresh WebSocket Stream deliveries survive a delayed inventory snapshot, then ACK the actual connection', () => {
+  const fn = { ...fixture.functions[0], Name: 'fresh-ws', PodType: 'WebSocket', NumberReady: 1, NumberRequested: 1,
+    Pods: [{ Name: 'ws-connection', Identity: 'connection', Status: 'Running', Ready: true }] };
+  const initial = buildTopology([fn], [], [], fixture.slimFaasNodes);
+  const ready = buildTopology([fn], [], [], fixture.slimFaasNodes, [], [], [], [{
+    Name: 'fresh-stream', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  const delivery = event('fresh-delivery', { Type: 'stream_delivery', Source: 'stream:fresh-stream', Target: fn.Name,
+    SourcePod: null, TargetPod: 'connection', QueueName: null, StreamName: 'fresh-stream', StreamFunction: fn.Name,
+    ElementId: 'fresh-attempt', CorrelationId: 'fresh-attempt' });
+  const ack = event('fresh-ack', { ...delivery, Id: 'fresh-ack', Type: 'stream_ack', Source: fn.Name,
+    Target: 'stream:fresh-stream', SourcePod: 'connection', TargetPod: null });
+  for (const events of [[delivery, ack], [ack, delivery]]) for (const selected of [null, 'function:fresh-ws', 'stream:fresh-stream']) {
+    const player = new TrafficPlayback();
+    const options = { selected, isolate: !!selected };
+    update(player, events, { ...options, topology: initial });
+    assert.equal(count(player), 0);
+    // The metadata arrives after a Fast animation's lifetime, but this live receipt is still pending.
+    update(player, events, { ...options, topology: ready, now: 1000 });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, ['stream:fresh-stream', 'pod:fresh-ws/ws-connection']);
+    update(player, events, { ...options, topology: ready, now: 1000 + SPEEDS.Fast });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, ['pod:fresh-ws/ws-connection', 'stream:fresh-stream']);
+  }
+});
+test('missing Stream inventory waits are bounded and cannot replay expired receipts', () => {
+  const delivery = event('unknown-stream', { Type: 'stream_delivery', Source: 'stream:missing', Target: fixture.functions[0].Name,
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'missing', CorrelationId: 'attempt' });
+  const player = new TrafficPlayback();
+  update(player, [delivery]);
+  assert.equal(count(player), 0);
+  update(player, [delivery], { now: 5101 });
+  assert.equal(count(player), 0);
+  assert.equal(player.omitted, 1);
+  const ready = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes, [], [], [], [{
+    Name: 'missing', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  update(player, [delivery], { topology: ready, now: 6000 });
+  assert.equal(count(player), 0);
+});
 test('the first isolated receipt is animated even when its server clock is old or ahead', () => {
   const player = new TrafficPlayback();
   update(player, []);
@@ -147,6 +242,73 @@ test('peer WebSocket queue dispatches retain their queue even without a local qu
   assert.equal(topology.byId.get('queue:remote-ws').status, 'Queue length unknown');
   assert.deepEqual(displayPath(topology, e, null), ['queue:remote-ws', 'observed:remote-ws/connection']);
   assert.deepEqual(observedQueues([{ Name: 'remote-ws', Length: 0 }], [e]), []);
+});
+
+test('job queues stay apart from a same-named function and deliver dequeued executions to the job', () => {
+  const jobs = [{ ...fixture.jobs[0], QueueLength: 3 }, { ...fixture.jobs[0], Name: 'fibonacci1', RunningJobs: [], QueueLength: 0 }];
+  const queues = [...fixture.queues, ...jobQueues(jobs)];
+  const job = { Target: 'daily-report', QueueName: jobQueueName('daily-report'), SourcePod: null, TargetPod: null };
+  const scheduled = event('scheduled', { ...job, Type: 'enqueue', Source: 'slimfaas', NodeId: 'slimfaas-1' });
+  const dequeue = event('started', { ...job, Type: 'dequeue', Source: 'slimfaas', TargetPod: 'daily-report-slimfaas-job-new' });
+  const listed = event('listed', { ...job, Type: 'dequeue', Source: 'slimfaas', TargetPod: 'daily-report-slimfaas-job-00000' });
+  const sameName = { Target: 'fibonacci1', QueueName: jobQueueName('fibonacci1'), Source: 'slimfaas', SourcePod: null };
+  const collision = event('collision', { ...sameName, Type: 'dequeue', TargetPod: 'fibonacci1-slimfaas-job-new' });
+  const collisionPod = event('collision-pod', { ...sameName, Type: 'dequeue', TargetPod: fixture.functions[0].Pods[0].Identity });
+  const activity = [scheduled, dequeue, listed, collision, collisionPod];
+  // Job queue traffic never makes a job, or the execution it creates, look like a function.
+  const observed = observedFunctions(fixture.functions, activity);
+  assert.deepEqual(observed, []);
+  assert.deepEqual(observedQueues(queues, activity), []);
+  const topology = buildTopology(fixture.functions, jobs, queues, fixture.slimFaasNodes, observed);
+  assert.equal(jobQueueName('daily-report'), 'job:daily-report');
+  assert.equal(topology.byId.get('queue:fibonacci1').status, '12 queued');
+  assert.equal(topology.byId.get('queue:job:daily-report').status, '3 queued');
+  assert.equal(topology.byId.get('queue:job:fibonacci1').status, '0 queued');
+  const hub = topology.byId.get('slimfaas:slimfaas');
+  for (const name of ['daily-report', 'fibonacci1']) {
+    const actor = topology.byId.get(`job:${name}`), queue = topology.byId.get(`queue:job:${name}`);
+    assert.ok(actor.x + actor.width < queue.x);
+    assert.ok(queue.x + queue.width < hub.x);
+  }
+  assert.ok(topology.byId.get('queue:fibonacci1').x > hub.x + hub.width);
+  assert.equal(topology.byId.has('function:daily-report'), false);
+  assert.deepEqual(displayPath(topology, scheduled, null), ['node:slimfaas-1', 'queue:job:daily-report']);
+  assert.deepEqual(displayPath(topology, dequeue, null), ['queue:job:daily-report', 'job:daily-report']);
+  assert.deepEqual(displayPath(topology, listed, null), ['queue:job:daily-report', 'run:daily-report-slimfaas-job-00000']);
+  assert.deepEqual(displayPath(topology, collision, null), ['queue:job:fibonacci1', 'job:fibonacci1']);
+  assert.deepEqual(displayPath(topology, collisionPod, null), ['queue:job:fibonacci1', 'job:fibonacci1']);
+  const player = new TrafficPlayback();
+  update(player, [scheduled, dequeue], { topology });
+  assert.deepEqual([...player.markers.values()].map(marker => [marker.kind, marker.path]), [
+    ['queue', ['node:slimfaas-1', 'queue:job:daily-report']],
+    ['queue', ['queue:job:daily-report', 'job:daily-report']],
+  ]);
+});
+
+test('event-only job queues are left of the hub while ordinary and dead-letter queues stay right', () => {
+  const topology = buildTopology(fixture.functions, [], fixture.queues, fixture.slimFaasNodes, [], ['job:unlisted', 'dlq:unlisted']);
+  const hub = topology.byId.get('slimfaas:slimfaas');
+  assert.ok(topology.byId.get('queue:job:unlisted').x + topology.byId.get('queue:job:unlisted').width < hub.x);
+  assert.ok(topology.byId.get('queue:dlq:unlisted').x > hub.x + hub.width);
+});
+
+test('many empty job queues reserve non-overlapping space strictly between jobs and the hub', () => {
+  const jobs = Array.from({ length: 50 }, (_, index) => ({ ...fixture.jobs[0], Name: `worker-${index}`, RunningJobs: [] }));
+  const queues = jobs.map(job => ({ Name: `job:${job.Name}`, Length: 0 }));
+  const topology = buildTopology(fixture.functions, jobs, [...fixture.queues, ...queues], fixture.slimFaasNodes);
+  const hub = topology.byId.get('slimfaas:slimfaas');
+  for (const job of jobs) {
+    const actor = topology.byId.get(`job:${job.Name}`), queue = topology.byId.get(`queue:job:${job.Name}`);
+    assert.ok(actor.x + actor.width < queue.x);
+    assert.ok(queue.x + queue.width < hub.x);
+    assert.equal(queue.status, '0 queued');
+  }
+  const groups = topology.nodes.filter(node => !node.parent);
+  for (let index = 0; index < groups.length; index++) for (const other of groups.slice(index + 1)) {
+    const node = groups[index];
+    assert.ok(node.x + node.width <= other.x || other.x + other.width <= node.x ||
+      node.y + node.height <= other.y || other.y + other.height <= node.y);
+  }
 });
 
 test('async dequeue and dispatch represent one delivery in either order, across batches and after completion', () => {
@@ -401,4 +563,110 @@ test('queue retry attempts retain separate dispatch and completion counts', () =
   update(player, events, { now: 1450 });
   assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'queue:fibonacci1']]);
   assert.equal(count(player), 1);
+});
+
+test('Data hops preserve the exact caller, run in order and never animate a failed deposit or reply', () => {
+  const fn = fixture.functions[0];
+  const ingress = event('data-in', { Type: 'data_request', Source: fn.Name, SourcePod: fn.Pods![0].Name,
+    Target: 'slimfaas', TargetPod: null, QueueName: null, CorrelationId: null, DataKind: 'sets', DataOperation: 'write' });
+  const access = { ...ingress, Id: 'data-store', Type: 'data_access', CorrelationId: ingress.Id, DataStatusCode: 200 };
+  for (const events of [[ingress, access], [access, ingress]]) {
+    const player = new TrafficPlayback();
+    update(player, events);
+    assert.equal(count(player), 1);
+    assert.equal([...player.markers.values()][0].kind, 'data');
+    assert.deepEqual([...player.markers.values()][0].path, [`pod:${fn.Name}/${fn.Pods![0].Name}`, `node:${ingress.NodeId}`]);
+    update(player, events, { now: 550 });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, [`node:${ingress.NodeId}`, 'sets:Set']);
+    update(player, events, { now: 1000 });
+    assert.equal(count(player), 0);
+  }
+  const failed = new TrafficPlayback();
+  const events = [ingress, { ...access, DataStatusCode: 503 }];
+  update(failed, events); update(failed, events, { now: 550 });
+  assert.equal(count(failed), 0);
+  assert.ok(matchesTraffic(model, ingress, 'all', 'sets:Set', true));
+  assert.ok(matchesTraffic(model, access, 'all', `function:${fn.Name}`, true));
+});
+
+test('Data summaries normalize additively and compact stores show honest counts and unknown file sizes', () => {
+  assert.equal(normalizePayload({}).DataSummary, null);
+  const summary = { Sets: 0, Files: 2, SetBytes: 0, FileBytes: 1024, UnknownFileSizes: 1 };
+  assert.deepEqual(normalizePayload({ dataSummary: summary }).DataSummary, summary);
+  assert.equal(normalizePayload({ DataSummary: { ...summary, SetBytes: -1 } }).DataSummary, null);
+  const topology = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes, [], [], [], [], summary);
+  assert.equal(topology.byId.get('sets:Set')!.status, '0 items · 0 B');
+  assert.equal(topology.byId.get('files:Files')!.status, '2 items · ≥ 1.0 KiB');
+  assert.match(topology.byId.get('files:Files')!.detail, /1 unknown file sizes/);
+});
+
+test('workload queues stay adjacent and centered while External, Data and Streams form the hub column', () => {
+  const topology = buildTopology(fixture.functions, fixture.jobs, [...fixture.queues, ...jobQueues(fixture.jobs)], fixture.slimFaasNodes, [], [], [], [{
+    Name: 'orders', Visibility: 'Public', RetainedMessageCount: 0, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'g', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  for (const group of topology.groups.filter(group => group.kind === 'function' || group.kind === 'job')) {
+    const queue = topology.byId.get(`queue:${group.kind === 'job' ? jobQueueName(group.label) : group.label}`);
+    if (!queue) continue;
+    assert.equal(group.y + group.height / 2, queue.y + queue.height / 2);
+    assert.ok(queue.width < group.width && queue.height < group.height);
+    assert.equal(group.kind === 'job' ? queue.x - group.x - group.width : group.x - queue.x - queue.width, 28);
+  }
+  const external = topology.byId.get('external:external')!, hub = topology.byId.get('slimfaas:slimfaas')!;
+  assert.equal(external.x + external.width / 2, hub.x + hub.width / 2);
+  assert.ok(external.y + external.height < hub.y);
+  assert.ok(topology.byId.get('sets:Set')!.y > hub.y + hub.height);
+  assert.ok(topology.byId.get('stream:orders')!.y > topology.byId.get('files:Files')!.y + 104);
+  for (const a of topology.groups) for (const b of topology.groups) if (a !== b)
+    assert.ok(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y);
+});
+
+test('the first waking replica does not move the hub or interrupt an ingress animation', () => {
+  const fn = fixture.functions[0];
+  const sleeping = { ...fn, NumberReady: 0, NumberRequested: 0, Pods: [] };
+  const awake = { ...fn, NumberReady: 1, NumberRequested: 1, Pods: fn.Pods!.slice(0, 1) };
+  const before = buildTopology([sleeping], [], [], fixture.slimFaasNodes);
+  const after = buildTopology([awake], [], [], fixture.slimFaasNodes);
+  assert.deepEqual(before.groups.map(group => [group.id, group.x, group.y, group.width, group.height]),
+    after.groups.map(group => [group.id, group.x, group.y, group.width, group.height]));
+});
+
+test('Data availability cancels active and queued legs without stopping other traffic or replaying buffered receipts', () => {
+  const ingress = event('private-data', { Type: 'data_request', Source: fixture.functions[0].Name, SourcePod: fixture.functions[0].Pods![0].Name,
+    Target: 'slimfaas', TargetPod: null, QueueName: null, CorrelationId: null, DataKind: 'sets' });
+  const access = { ...ingress, Id: 'private-store', Type: 'data_access', CorrelationId: ingress.Id, DataStatusCode: 200 };
+  const normal = event('normal', { Type: 'request_in', Source: 'external', SourcePod: null, Target: 'slimfaas', QueueName: null, CorrelationId: null });
+  const player = new TrafficPlayback();
+  update(player, [ingress, access, normal], { speed: 'Slow' });
+  assert.equal(player.markers.size, 2);
+  update(player, [normal], { now: 200, speed: 'Slow', dataAvailable: false });
+  assert.ok([...player.markers.values()].every(marker => marker.kind !== 'data'));
+  assert.equal(player.markers.size, 1, 'unrelated traffic keeps its marker');
+  const late = { ...ingress, Id: 'buffered', ReceivedAt: 150 };
+  const history = [ingress, access, normal, late];
+  update(player, history, { now: 250, speed: 'Slow', dataAvailable: false });
+  update(player, history, { now: 240, speed: 'Slow', dataAvailable: false });
+  update(player, history, { now: 300, speed: 'Slow' });
+  update(player, [...history, { ...late, Id: 'late-after-restore', ReceivedAt: 245 }], { now: 350, speed: 'Slow' });
+  assert.ok([...player.markers.values()].every(marker => marker.kind !== 'data'));
+  update(player, history, { now: 1500, speed: 'Slow' });
+  assert.equal(player.markers.size, 0, 'the cancelled store hop never starts');
+  update(player, [...history, { ...ingress, Id: 'fresh', ReceivedAt: 1600 }], { now: 1600, speed: 'Slow' });
+  assert.ok([...player.markers.values()].some(marker => marker.kind === 'data'));
+});
+
+test('a Data source seen before inventory keeps its observed replica and never invents a function for a job execution', () => {
+  const ingress = event('peer-data', { Type: 'data_request', Source: 'new-source', SourcePod: 'replica-before-snapshot', Target: 'slimfaas', TargetPod: null,
+    QueueName: null, CorrelationId: null, DataKind: 'files' });
+  const observed = observedFunctions([], [ingress, { ...ingress, Id: 'second' }]);
+  assert.deepEqual(observed, [{ name: 'new-source', replicas: ['replica-before-snapshot'] }]);
+  const topology = buildTopology([], [], [], fixture.slimFaasNodes, observed);
+  assert.deepEqual(displayPath(topology, ingress, null), ['observed:new-source/replica-before-snapshot', `node:${ingress.NodeId}`]);
+  assert.match(topology.byId.get('function:new-source')!.status, /inventory unknown/);
+  assert.ok(matchesTraffic(topology, ingress, 'all', 'function:new-source', true));
+  assert.deepEqual(observedFunctions([], [{ ...ingress, Source: 'report', SourcePod: 'report-slimfaas-job-run1' },
+    { ...ingress, Source: 'external', SourcePod: 'id_address' }]), []);
+  assert.deepEqual(observedFunctions([{ ...fixture.functions[0], Name: 'new-source' }], [ingress]), []);
 });

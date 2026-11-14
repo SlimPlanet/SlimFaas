@@ -20,9 +20,20 @@ For a ready-to-run demonstration without installing .NET or Node.js, use [Get St
 The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yaml)
 demo.
 
+The base demo includes DLQ capture for `fibonacci1` and two `orders` Stream
+subscriptions. Follow the [DLQ exercise](async-functions.md#native-local-exercise)
+or the complete [Guided Tour](guided-tour.md).
+
+Native local mode enables the DLQ dashboard and Public DLQ management by default,
+like its existing Public Data APIs. It is a trusted development environment, not
+an access-isolation boundary: retained bodies, replay and deletion are accessible
+to local clients. Explicit `SlimFaas__DeadLetterQueue__EnableFront` and
+`SlimFaas__DeadLetterQueue__DefaultVisibility` environment values override these
+local defaults. Production runtime visibility defaults remain unchanged.
+
 ### Run the demo from a Git clone
 
-With the .NET 10 SDK (`10.0.103` or later), Node.js 24 or later, and npm installed, clone the repository and
+With the .NET 10 SDK (`10.0.403` or later), Node.js 24 or later, and npm installed, clone the repository and
 start the demo directly from its root:
 
 ```bash
@@ -70,7 +81,9 @@ curl -i -X POST http://127.0.0.1:30020/async-function/fibonacci1/fibonacci \
 ```
 
 Sustained queued work can scale the function up to its configured maximum of
-10 replicas. Three settings explain the subsequent descent:
+10 replicas. The tutorial allows up to ten concurrent async requests across the
+function, with one request per replica, so additional ready replicas can increase
+processing capacity. Three settings explain the subsequent descent:
 
 - The trigger uses `max_over_time(...[30s])`: a queue peak can remain visible
   for 30 seconds after work drains.

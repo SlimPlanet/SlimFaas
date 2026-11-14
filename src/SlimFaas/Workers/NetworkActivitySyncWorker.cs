@@ -69,19 +69,7 @@ public class NetworkActivitySyncWorker(
 
     internal static Uri? ActivityEndpoint(PodInformation pod, SlimFaasOptions options, string ns)
     {
-        // Native nodes advertise [Raft, HTTP]; Kubernetes pod port order can vary.
-        // Use the same exclusion as SlimFaasPorts rather than the first declared port.
-        var applicationPod = pod with { EndpointUrl = null };
-        if (options.BaseFunctionPodUrl.Contains("{pod_port}", StringComparison.Ordinal))
-        {
-            if (!Uri.TryCreate(SlimDataEndpoint.Get(pod, options.BaseSlimDataUrl, ns), UriKind.Absolute, out var raft)) return null;
-            var ports = pod.Ports?.Where(port => port != raft.Port).Distinct().ToList();
-            if (ports is not { Count: > 0 }) return null;
-            applicationPod = applicationPod with { Ports = ports };
-        }
-        // Explicit ports and indexed port placeholders retain their configured meaning.
-        return Uri.TryCreate(SlimDataEndpoint.Get(applicationPod, options.BaseFunctionPodUrl, ns), UriKind.Absolute, out var endpoint)
-            ? endpoint : null;
+        return SlimFaasPeerEndpoint.Resolve(pod, options, ns);
     }
 
     private async Task ScrapePeerAsync(string key, string url, long session, CancellationToken ct)

@@ -1,5 +1,6 @@
 # Optional external exporter demo: see demo/external-autoscaling/README.md.
-# The native demo exposes Data publicly. In private deployments, optionally set
+# The native demo exposes Data, Streams and DLQ management publicly for local development.
+# In private deployments, optionally set
 # SlimFaas__ExposeDataMetadata=true on the runtime to enable dashboard metadata only.
 schemaVersion: 1
 name: slimfaas-demo
@@ -33,6 +34,11 @@ functions:
     workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
+      SlimFaas/Configuration: >
+        {"DefaultAsync":{"HttpTimeout":30,"TimeoutRetries":[1],"HttpStatusRetries":[500,502,503,504],"DeadLetterQueue":{"Enabled":true,"MaxAgeSeconds":604800,"MaxLength":10000}}}
+      SlimFaas/SubscribeStream: "Public:orders"
+      SlimFaas/StreamMaxAge: "24h"
+      SlimFaas/StreamMaxLength: "100000"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
       SlimFaas/NumberParallelRequest: "10"
       SlimFaas/NumberParallelRequestPerPod: "1"
@@ -90,6 +96,9 @@ functions:
     workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
+      SlimFaas/SubscribeStream: "Public:orders"
+      SlimFaas/StreamMaxAge: "24h"
+      SlimFaas/StreamMaxLength: "100000"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
       SlimFaas/NumberParallelRequest: "2"
       SlimFaas/ReplicasAtStart: "1"
@@ -172,6 +181,20 @@ functions:
       startupTimeoutSeconds: 120
 
 jobs:
+  fibonacci-ws:
+    command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
+    workingDirectory: samples/FibonacciBatch
+    annotations:
+      SlimFaas/Job: "true"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/NumberParallelJob: "2"
+    environment:
+      SLIMFAAS_WS_URL: "ws://127.0.0.1:30022/ws"
+      SlimFaas__BaseUrl: "http://127.0.0.1:30020"
+    ttlSecondsAfterFinished: 60
+    backoffLimit: 0
+    restartPolicy: Never
+
   fibonacci:
     command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
     workingDirectory: samples/FibonacciBatch

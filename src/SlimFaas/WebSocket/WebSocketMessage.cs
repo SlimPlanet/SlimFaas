@@ -120,6 +120,9 @@ public class PathVisibilityConfig
 /// </summary>
 public class WebSocketFunctionConfiguration
 {
+    [JsonIgnore]
+    public SlimFaas.Kubernetes.SlimFaasConfiguration ParsedConfiguration { get; set; } = new();
+
     [JsonPropertyName("dependsOn")]
     public List<string> DependsOn { get; set; } = [];
 
@@ -129,6 +132,18 @@ public class WebSocketFunctionConfiguration
     /// </summary>
     [JsonPropertyName("subscribeEvents")]
     public List<SubscribeEventConfig> SubscribeEvents { get; set; } = [];
+
+    [JsonPropertyName("subscribeStreams")]
+    public List<SubscribeEventConfig> SubscribeStreams { get; set; } = [];
+
+    [JsonPropertyName("streamMaxAgeSeconds")]
+    public int StreamMaxAgeSeconds { get; set; } = 86400;
+
+    [JsonPropertyName("streamMaxLength")]
+    public int StreamMaxLength { get; set; } = 100000;
+
+    [JsonIgnore]
+    public IList<SlimFaas.Kubernetes.SubscribeStream> ParsedStreams { get; set; } = [];
 
     [JsonPropertyName("defaultVisibility")]
     public string DefaultVisibility { get; set; } = "Public";
@@ -168,6 +183,9 @@ public class RegisterResponsePayload
 
     [JsonPropertyName("connectionId")]
     public string ConnectionId { get; set; } = string.Empty;
+
+    [JsonPropertyName("capabilities")]
+    public string[] Capabilities { get; set; } = ["streams-v1"];
 }
 
 /// <summary>
@@ -175,6 +193,14 @@ public class RegisterResponsePayload
 /// </summary>
 public class AsyncRequestPayload
 {
+    [JsonPropertyName("streamName")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? StreamName { get; set; }
+
+    [JsonPropertyName("messageId")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MessageId { get; set; }
+
     [JsonPropertyName("elementId")]
     public string ElementId { get; set; } = string.Empty;
 
@@ -338,4 +364,3 @@ public class SyncResponseStartPayload
     [JsonPropertyName("headers")]
     public Dictionary<string, string[]> Headers { get; set; } = [];
 }
-

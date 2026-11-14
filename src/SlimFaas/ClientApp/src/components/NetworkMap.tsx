@@ -1,23 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types.ts';
-import { buildTopology, eventPath, filterNodes, observedFunctions, observedQueues, type ObservedFunction } from '../lib/topology.ts';
+import type { DataSummary, FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types.ts';
+import { buildTopology, eventPath, filterNodes, isJobQueueName, jobQueues, observedFunctions, observedQueues, type ObservedFunction } from '../lib/topology.ts';
 import { paginate } from '../lib/live.ts';
 import { matchesTraffic, SPEEDS, type Speed } from '../lib/traffic.ts';
 import TrafficCanvas from './TrafficCanvas';
 import Pagination from './Pagination';
 import InstanceLogs from './InstanceLogs';
 import TrafficDetails from './TrafficDetails';
+import { deadLetterLink, type DeadLetterSummary } from '../lib/deadLetters';
+import { streamLink, type StreamSummary, type StreamFunction } from '../lib/streams';
 
 interface Props {
+  dataSummary?: DataSummary | null;
+  deadLetters?: DeadLetterSummary[];
+  streams?: StreamSummary[]; streamSubscriptions?: StreamFunction[]; streamsTruncated?: boolean; streamsAvailable?: boolean;
   functions: FunctionStatusDetailed[]; jobs: JobConfigurationStatus[]; queues: QueueInfo[];
-  activity: NetworkActivityEvent[]; functionsWithQueueActivity: Set<string>;
+  activity: NetworkActivityEvent[]; queuesWithActivity: Set<string>;
   slimFaasReplicas: number; slimFaasNodes: SlimFaasNodeInfo[];
   activitySession?: number; samplingRatio?: number; maxLiveEventsPerSecond?: number;
 }
 
 export default function NetworkMap(props: Props) {
   const [frozen, setFrozen] = useState<Props | null>(null);
-  const input = frozen ?? props;
+  const input = useMemo(() => {
+    const saved = frozen ?? props;
+    const snapshot = props.dataSummary !== null ? saved : { ...saved, dataSummary: null, activity: saved.activity.filter(event => !event.DataKind) };
+    return props.streamsAvailable !== false ? snapshot : {
+      ...snapshot, streams: [], streamSubscriptions: [], streamsTruncated: false,
+      activity: snapshot.activity.filter(event => !event.StreamName),
+    };
+  }, [frozen, props]);
   const [now, setNow] = useState(performance.now());
   useEffect(() => {
     if (frozen) return;
@@ -30,6 +42,14 @@ export default function NetworkMap(props: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const section = useRef<HTMLElement>(null);
   const [eventType, setEventType] = useState('all');
+  useEffect(() => {
+    if (props.streamsAvailable !== false) return;
+    setEventType(value => value.startsWith('stream_') ? 'all' : value);
+    if (selected?.startsWith('stream:')) {
+      setSelected(null); setSelectedLabel(''); setDetailsOpen(false);
+    }
+  }, [props.streamsAvailable, selected]);
+  const [functionFilter, setFunctionFilter] = useState('');
   const [isolate, setIsolate] = useState(false);
   const [speed, setSpeed] = useState<Speed>(() => {
     try { const saved = localStorage.getItem('slimfaas.traffic.speed'); return saved && Object.keys(SPEEDS).includes(saved) ? saved as Speed : 'Fast'; }
@@ -44,18 +64,25 @@ export default function NetworkMap(props: Props) {
   // Most receipts concern existing inventory: preserve the expensive topology in that case.
   if (JSON.stringify(nextObserved) !== JSON.stringify(observedRef.current)) observedRef.current = nextObserved;
   const observedActors = observedRef.current;
+  const queues = useMemo(() => [...input.queues, ...jobQueues(input.jobs)], [input.queues, input.jobs]);
   const observedQueuesRef = useRef<string[]>([]);
-  const nextObservedQueues = observedQueues(input.queues, input.activity);
+  const nextObservedQueues = observedQueues(queues, input.activity);
   if (JSON.stringify(nextObservedQueues) !== JSON.stringify(observedQueuesRef.current)) observedQueuesRef.current = nextObservedQueues;
   const unknownQueues = observedQueuesRef.current;
-  const topology = useMemo(() => buildTopology(input.functions, input.jobs,
-    input.queues.filter(q => q.Length > 0 || input.functionsWithQueueActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues),
-  [input.functions, input.jobs, input.queues, input.functionsWithQueueActivity, input.slimFaasNodes, observedActors, unknownQueues]);
+  const topology = useMemo(() => {
+    const withDeadLetters = new Set(input.deadLetters?.map(summary => summary.Function));
+    return buildTopology(input.functions, input.jobs,
+      queues.filter(q => isJobQueueName(q.Name) || q.Length > 0 || input.queuesWithActivity.has(q.Name) || withDeadLetters.has(q.Name)),
+      input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams, input.dataSummary);
+  },
+  [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams, input.dataSummary]);
   const node = selected ? topology.byId.get(selected) : null;
   const nodes = useMemo(() => filterNodes(topology, search), [topology, search]);
   const nodePage = paginate(nodes, page);
-  const activity = useMemo(() => input.activity.filter(e => matchesTraffic(topology, e, eventType, selected, isolate)),
-    [input.activity, eventType, topology, selected, isolate]);
+  const activity = useMemo(() => input.activity.filter(e => matchesTraffic(topology, e, eventType, selected, isolate) &&
+    (!functionFilter || e.QueueName === functionFilter || e.Source === functionFilter || e.Target === functionFilter)),
+    [input.activity, eventType, topology, selected, isolate, functionFilter]);
+  const selectedDeadLetters = input.deadLetters?.find(item => item.Function === node?.label || `dlq:${item.Function}` === node?.label);
   const journal = paginate([...activity].reverse(), journalPage);
   const observed = input.activity.filter(e => e.ReceivedAt !== undefined && e.ReceivedAt > now - 1000).length;
 
@@ -80,7 +107,13 @@ export default function NetworkMap(props: Props) {
       <label className="field">Event type
         <select className="field__input" value={eventType} onChange={e => { setEventType(e.target.value); setJournalPage(0); }}>
           <option value="all">All events</option>
-          {['request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end'].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+          {['data_request', 'data_access', 'request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end', 'dead_lettered', 'dead_letter_requeued', 'dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted',
+            ...(props.streamsAvailable !== false ? ['stream_append', 'stream_delivery', 'stream_ack', 'stream_waiting', 'stream_retry', 'stream_failed', 'stream_deleted', 'stream_retention'] : [])].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+        </select>
+      </label>
+      <label className="field">Function
+        <select className="field__input" value={functionFilter} onChange={event => { setFunctionFilter(event.target.value); setJournalPage(0); }}>
+          <option value="">All functions</option>{[...new Set([...input.functions.map(item => item.Name), ...(input.deadLetters ?? []).map(item => item.Function)])].sort().map(name => <option key={name}>{name}</option>)}
         </select>
       </label>
       <label className="field">Animation speed
@@ -96,8 +129,8 @@ export default function NetworkMap(props: Props) {
       <span>Sampling: {((props.samplingRatio ?? 1) * 100).toLocaleString()}% · Stream limit: {props.maxLiveEventsPerSecond ? `${props.maxLiveEventsPerSecond.toLocaleString()} events/s/node` : 'none'}</span>
     </div>
     {(eventType !== 'all' || (selected && isolate)) && <p className="traffic__filters" role="status">Filtered view: {eventType !== 'all' ? eventType.replace(/_/g, ' ') : 'all event types'}{selected && isolate ? ' · selected actor only' : ''}. <button className="table__link" onClick={() => { setEventType('all'); setIsolate(false); }}>Clear filters</button></p>}
-    <TrafficCanvas topology={topology} events={props.activity} visibleEvents={activity} activitySession={props.activitySession ?? 0} selected={selected} paused={!!frozen} onSelect={choose} speed={speed} eventType={eventType} isolate={isolate} />
-    <div className="traffic__legend" aria-label="Message legend"><span className="traffic__legend-item traffic__legend-item--function">Requests</span><span className="traffic__legend-item traffic__legend-item--publication">Publications</span><span className="traffic__legend-item traffic__legend-item--queue">Queue messages</span><span className="traffic__legend-item traffic__legend-item--reply">Replies</span></div>
+    <TrafficCanvas dataAvailable={props.dataSummary !== null} topology={topology} events={props.activity} visibleEvents={activity} activitySession={props.activitySession ?? 0} selected={selected} paused={!!frozen} onSelect={choose} speed={speed} eventType={eventType} isolate={isolate} />
+    <div className="traffic__legend" aria-label="Message legend"><span className="traffic__legend-item traffic__legend-item--function">Requests</span><span className="traffic__legend-item traffic__legend-item--publication">Publications</span><span className="traffic__legend-item traffic__legend-item--queue">Queue messages</span><span className="traffic__legend-item traffic__legend-item--reply">Replies</span><span className="traffic__legend-item traffic__legend-item--data">Data access</span></div>
     <p className="traffic__note">Animation speed is independent of request latency. Delivery is best effort; the journal retains up to 5,000 received events.</p>
     {selected && <div className="traffic__selection">
       <button className="table__link traffic__selected-name" type="button" aria-haspopup="dialog" onClick={() => setDetailsOpen(true)}>{node?.label ?? selectedLabel} · Open details</button>
@@ -107,12 +140,18 @@ export default function NetworkMap(props: Props) {
       isolate={isolate}
       onIsolate={value => { setIsolate(value); setJournalPage(0); }} onClose={() => setDetailsOpen(false)} onClear={clearSelection}
       fallbackFocus={() => section.current?.querySelector('canvas') ?? null}
+      deadLetters={<>{selectedDeadLetters && <p className="traffic__note">DLQ: {selectedDeadLetters.Count} retained. <a href={deadLetterLink(selectedDeadLetters.Function)}>Open dead letters</a> · snapshot {selectedDeadLetters.CapturedAt} · revision {selectedDeadLetters.Revision}</p>}
+        {(input.streamSubscriptions ?? []).filter(item => item.Stream === (node?.kind === 'stream' ? node.label : '') || item.Function === node?.label).map(item =>
+          <p key={`${item.Stream}/${item.Function}`} className="traffic__note"><a href={streamLink(item.Stream, 'functions', item.Function)}>{item.Stream} / {item.Function}</a> · lag {item.Lag} · pending {item.PendingCount} · callbacks {item.WaitingForCallbackCount} · retries {item.RetryScheduledCount} · failed {item.FailedCount} · gaps {item.RetentionGapCount}</p>)}
+        {(node?.kind === 'sets' || node?.kind === 'files') && <a href={`#/live/data?kind=${node.kind}`}>Open data inventory</a>}
+        {node?.kind === 'stream' && <a href={streamLink(node.label)}>Browse retained history</a>}
+        {input.streamsTruncated && <p className="traffic__note">Stream snapshot is bounded. Use the Streams page for complete paginated inventory.</p>}</>}
       logs={logTarget ? <InstanceLogs key={selected} target={logTarget} fill /> : undefined} />}
     <div className="section-heading"><h2 className="section-heading__title">{showJournal ? 'Event journal' : 'Actors'}</h2><button className="button button--quiet" type="button" onClick={() => setShowJournal(!showJournal)}>{showJournal ? 'Show actors' : `Event journal (${activity.length.toLocaleString()})`}</button></div>
     {showJournal ? <>
       <p className="traffic__note">Up to 5,000 received events. Pause to inspect a stable view. Select an actor to follow its connections.</p>
       <div className="table-wrap"><table className="table"><thead className="table__head"><tr><th className="table__th">Time</th><th className="table__th">Event</th><th className="table__th">Path</th><th className="table__th">Node</th></tr></thead>
-        <tbody>{journal.items.map(e => <tr className="table__row" key={e.Id}><td className="table__td table__td--mono">{new Date(e.TimestampMs).toLocaleTimeString()}</td><td className="table__td">{e.Type.replace(/_/g, ' ')}</td><td className="table__td table__td--path">{eventPath(topology, e).map(id => topology.byId.get(id)?.label ?? id).join(' → ')}</td><td className="table__td">{e.NodeId}</td></tr>)}</tbody></table></div>
+        <tbody>{journal.items.map(e => <tr className="table__row" key={e.Id}><td className="table__td table__td--mono">{new Date(e.TimestampMs).toLocaleTimeString()}</td><td className="table__td">{e.DeadLetterId && e.QueueName ? <a href={deadLetterLink(e.QueueName, e.DeadLetterId)}>{e.Type.replace(/_/g, ' ')} · {e.DeadLetterId}</a> : e.Type.replace(/_/g, ' ')}{e.DataKind && ` · ${e.DataKind} / ${e.DataOperation}${e.DataStatusCode ? ` · HTTP ${e.DataStatusCode}` : ''}`}</td><td className="table__td table__td--path">{eventPath(topology, e).map(id => topology.byId.get(id)?.label ?? id).join(' → ')}</td><td className="table__td">{e.NodeId}</td></tr>)}</tbody></table></div>
       {activity.length === 0 && <p className="empty-state">Waiting for matching traffic.</p>}
       <Pagination page={journal.page} pages={journal.pages} total={activity.length} onPage={setJournalPage} />
     </> : <>

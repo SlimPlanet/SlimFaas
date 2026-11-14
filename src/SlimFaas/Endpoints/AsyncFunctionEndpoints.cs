@@ -92,6 +92,15 @@ public static class AsyncFunctionEndpoints
 
         if (function == null)
         {
+            if (context.RequestServices.GetService<IWebSocketClusterDirectory>() is { } directory)
+            {
+                await directory.RefreshAsync(context.RequestAborted);
+                function = webSocketFunctionRepository.GetVirtualDeployments()
+                    .FirstOrDefault(deployment => deployment.Deployment.Equals(functionName, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+        if (function == null)
+        {
             return Results.NotFound();
         }
 
@@ -99,8 +108,12 @@ public static class AsyncFunctionEndpoints
         {
             return Results.NotFound();
         }
+        if (function.Namespace == "websocket-virtual") functionName = function.Deployment;
 
         var defaultAsync = function.Configuration.DefaultAsync;
+        var deadLetters = context.RequestServices.GetService<SlimFaas.DeadLetters.DeadLetterService>();
+        if (deadLetters is not null)
+            await deadLetters.ConfigureAsync(function);
 
         string queueElementId = Guid.NewGuid().ToString();
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
@@ -173,7 +186,34 @@ public static class AsyncFunctionEndpoints
         [FromServices] IJobService jobService,
         [FromServices] ISlimFaasQueue slimFaasQueue)
     {
+        if (elementId.StartsWith("stream_", StringComparison.Ordinal))
+        {
+            var streams = context.RequestServices.GetRequiredService<SlimFaas.Streams.IStreamService>();
+            var payload = await streams.ReadAsync(context.RequestAborted);
+            var attempt = DurableStreamStore.Attempt(payload, elementId);
+            var definition = attempt is null ? null : DurableStreamStore.Definition(payload, attempt.Stream);
+            if (attempt is null || definition is null || attempt.Function != functionName ||
+                !streams.CanAccess(context, definition) || !streams.CanObserveFunction(context, functionName))
+                return Results.NotFound();
+            if (!string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(status, "error", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest("Status must be success or error.");
+            var result = await streams.MutateAsync(new()
+            {
+                Action = DurableStreamAction.Complete, Stream = attempt.Stream, Function = functionName, ElementId = elementId,
+                StatusCode = string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) ? 200 : 500
+            }, context.RequestAborted);
+            return Results.StatusCode(result.Status);
+        }
         DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
+        function ??= context.RequestServices.GetService<IWebSocketFunctionRepository>()?.GetVirtualDeployments()
+            .FirstOrDefault(item => item.Deployment == functionName);
+        if (function is null && context.RequestServices.GetService<IWebSocketClusterDirectory>() is { } directory)
+        {
+            await directory.RefreshAsync(context.RequestAborted);
+            function = context.RequestServices.GetRequiredService<IWebSocketFunctionRepository>().GetVirtualDeployments()
+                .FirstOrDefault(item => item.Deployment == functionName);
+        }
         if (function == null)
         {
             return Results.NotFound();
@@ -192,6 +232,24 @@ public static class AsyncFunctionEndpoints
         }
 
         int statusCode = string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) ? 200 : 500;
+        if (!string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(status, "error", StringComparison.OrdinalIgnoreCase))
+            return Results.BadRequest("Status must be success or error.");
+
+        var deadLetters = context.RequestServices.GetService<SlimFaas.DeadLetters.DeadLetterService>();
+        if (deadLetters is not null)
+        {
+            await deadLetters.ConfigureAsync(function);
+            if (deadLetters.IsManaged(function.Deployment))
+            {
+                await deadLetters.MutateAsync(new()
+                {
+                    Action = DeadLetterAction.Complete, Function = function.Deployment,
+                    ElementId = elementId, HttpStatus = statusCode, Source = "Callback"
+                });
+                return Results.Ok();
+            }
+        }
 
         var items = new ListQueueItemStatus
         {

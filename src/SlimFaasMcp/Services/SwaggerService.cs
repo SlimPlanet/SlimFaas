@@ -25,6 +25,14 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
     private static readonly TimeSpan s_slidingExpiration = TimeSpan.FromMinutes(20);
 
+    // The fixed fields of a path item that describe an operation. The others (parameters, summary, description,
+    // servers, $ref and x- extensions) apply to the whole path.
+    private static readonly HashSet<string> s_operationFields =
+        new(StringComparer.OrdinalIgnoreCase) { "get", "put", "post", "delete", "options", "head", "patch", "trace" };
+
+    // A referenced parameter can itself be a reference; the bound stops a reference cycle.
+    private const int MaxParameterRefDepth = 8;
+
     public async Task<JsonDocument> GetSwaggerAsync(
         string swaggerUrl,
         string? baseUrl   = null,
@@ -85,8 +93,12 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         foreach (var path in paths.EnumerateObject())
         {
             var url = path.Name;
+            var pathParameters = ResolveParameters(root, path.Value);
             foreach (var verbObj in path.Value.EnumerateObject())
             {
+                if (!s_operationFields.Contains(verbObj.Name))
+                    continue;
+
                 var verb      = verbObj.Name.ToUpperInvariant();
                 var operation = verbObj.Value;
 
@@ -96,23 +108,24 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 string contentType = "application/json"; // défaut
 
                 // (A) parameters (path/query/header)
-        if (operation.TryGetProperty("parameters", out var parametersArray))
-        {
-            foreach (var param0 in parametersArray.EnumerateArray())
+            foreach (var param in OperationParameters(root, operation, pathParameters))
             {
-                var param = ResolveParamRefIfAny(root, param0);
 
                 // --- full schema if present (preserves anyOf/oneOf/allOf) -------------
                 JsonElement? schemaEl = null;
+                var isJsonContent = false;
 
                 if (param.TryGetProperty("schema", out var sch))
                     schemaEl = sch;
                 else if (param.TryGetProperty("content", out var cnt) && cnt.ValueKind == JsonValueKind.Object)
                 {
                     // OpenAPI autorise content/application/json pour query params
-                    if (cnt.TryGetProperty("application/json", out var cj) &&
-                        cj.TryGetProperty("schema", out var sch2))
-                        schemaEl = sch2;
+                    if (cnt.TryGetProperty("application/json", out var cj))
+                    {
+                        isJsonContent = true;
+                        if (cj.TryGetProperty("schema", out var sch2))
+                            schemaEl = sch2;
+                    }
                 }
 
                 // --- enum (to enrich the description, optional) -------------------
@@ -138,11 +151,12 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     Required    = param.TryGetProperty("required", out var req) && TryParseBool(req, out var required) && required,
                     Description = descr,
                     SchemaType  = schemaType,
+                    Explode     = param.TryGetProperty("explode", out var explodeEl) && TryParseBool(explodeEl, out var explode) && explode,
+                    IsJsonContent = isJsonContent,
                     // ✅ Here: we store the expanded schema; anyOf/oneOf/allOf are preserved
                     Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(ExpandAndSanitize(expander, se)!,param) : null
                 });
             }
-        }
 
 
                 // (B) requestBody (v3)
@@ -156,15 +170,17 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     if (content.TryGetProperty("application/json", out var appJson) &&
                         appJson.TryGetProperty("schema", out var schema))
                     {
-                        var unwrapped = UnwrapSinglePropObjectIfAny(expander, schema);
+                        // The JSON body is forwarded as-is, so its schema must keep every property,
+                        // even when the object has only one.
+                        var expanded = ExpandToElement(expander, schema);
                         parameters.Add(new Parameter
                         {
                             Name        = "body",
                             In          = "body",
                             Required    = true,
                             Description = "Request body",
-                            SchemaType  = unwrapped.TryGetProperty("type", out var t) ? t.GetString() : "object",
-                            Schema      =  ExpandAndSanitize(expander, unwrapped)
+                            SchemaType  = expanded.TryGetProperty("type", out var t) ? t.GetString() : "object",
+                            Schema      =  ExpandAndSanitize(expander, expanded)
                         });
                         contentType = "application/json";
                     }
@@ -251,21 +267,65 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         return endpoints;
     }
 
+    // The parameters of an operation: those declared on its path item, then its own. An operation parameter replaces
+    // a path item parameter with the same name and location; header names are case-insensitive.
+    private static List<JsonElement> OperationParameters(JsonElement root, JsonElement operation,
+        List<JsonElement> pathParameters)
+    {
+        var operationParameters = ResolveParameters(root, operation);
+
+        static bool SameParameter(JsonElement a, JsonElement b)
+        {
+            var location = a.TryGetProperty("in", out var aIn) ? aIn.GetString() : null;
+            if (!b.TryGetProperty("in", out var bIn) || bIn.GetString() != location ||
+                !a.TryGetProperty("name", out var aName) || !b.TryGetProperty("name", out var bName))
+                return false;
+
+            return string.Equals(aName.GetString(), bName.GetString(),
+                location == "header" ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        }
+
+        return pathParameters
+            .Where(shared => !operationParameters.Any(own => SameParameter(own, shared)))
+            .Concat(operationParameters)
+            .ToList();
+    }
+
+    private static List<JsonElement> ResolveParameters(JsonElement root, JsonElement owner) =>
+        owner.TryGetProperty("parameters", out var parametersArray) && parametersArray.ValueKind == JsonValueKind.Array
+            ? parametersArray.EnumerateArray().Select(param => ResolveParamRefIfAny(root, param)).ToList()
+            : [];
+
+    // Resolves a local reference such as #/components/parameters/Limit (OpenAPI 3) or #/parameters/limit
+    // (Swagger 2.0). A reference that cannot be resolved is returned as is.
     private static JsonElement ResolveParamRefIfAny(JsonElement root, JsonElement param)
     {
-        if (param.TryGetProperty("$ref", out var refProp))
+        for (var depth = 0; depth < MaxParameterRefDepth; depth++)
         {
-            var refPath = refProp.GetString();
-            if (refPath is not null && refPath.StartsWith("#/parameters/", StringComparison.Ordinal))
+            if (param.ValueKind != JsonValueKind.Object ||
+                !param.TryGetProperty("$ref", out var refProp) ||
+                refProp.ValueKind != JsonValueKind.String ||
+                refProp.GetString() is not { } refPath ||
+                !refPath.StartsWith("#/", StringComparison.Ordinal))
+                return param;
+
+            var resolved = root;
+            foreach (var token in refPath[2..].Split('/', StringSplitOptions.RemoveEmptyEntries))
             {
-                var name = refPath.Substring("#/parameters/".Length);
-                if (root.TryGetProperty("parameters", out var globals) &&
-                    globals.TryGetProperty(name, out var resolved))
-                    return resolved;
+                if (resolved.ValueKind != JsonValueKind.Object ||
+                    !resolved.TryGetProperty(UnescapeJsonPointer(token), out var next))
+                    return param;
+                resolved = next;
             }
+
+            param = resolved;
         }
+
         return param;
     }
+
+    private static string UnescapeJsonPointer(string token) =>
+        token.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
 
     private static bool TryParseBool(JsonElement element, out bool result)
     {
@@ -339,21 +399,22 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         return sanitized;
     }
 
+    // Convertit un JsonNode en JsonElement SANS serializer (pas de reflection)
+    private static JsonElement ToElem(JsonNode n)
+    {
+        using var doc = JsonDocument.Parse(n.ToJsonString());
+        return doc.RootElement.Clone();
+    }
+
+    // Expand -> object graph -> JsonElement
+    private static JsonElement ExpandToElement(OpenApiSchemaExpander expander, JsonElement schemaEl)
+        => ToElem(SchemaHelpers.ToJsonNode(expander.ExpandSchema(schemaEl), maxDepth: 64) ?? new JsonObject());
+
     private static JsonElement UnwrapSinglePropObjectIfAny(OpenApiSchemaExpander expander, JsonElement schemaEl)
     {
-        // 1) Expand -> object graph
-        var expanded = expander.ExpandSchema(schemaEl);
+        var rootElem = ExpandToElement(expander, schemaEl);
 
-        // 2) Convertit en JsonNode puis en JsonElement SANS serializer
-        static JsonElement ToElem(JsonNode n)
-        {
-            using var doc = JsonDocument.Parse(n.ToJsonString()); // pas de reflection
-            return doc.RootElement.Clone();
-        }
-
-        var rootElem = ToElem(SchemaHelpers.ToJsonNode(expanded, maxDepth: 64) ?? new JsonObject());
-
-        // 3) Détection wrapper { type: "object", properties: { only: {...} }, required?: ["only"] }
+        // Détection wrapper { type: "object", properties: { only: {...} }, required?: ["only"] }
         if (rootElem.ValueKind == JsonValueKind.Object
             && rootElem.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String
             && string.Equals(t.GetString(), "object", StringComparison.OrdinalIgnoreCase)

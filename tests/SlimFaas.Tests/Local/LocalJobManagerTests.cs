@@ -40,7 +40,7 @@ public sealed class LocalJobManagerTests
             [JobAnnotationNames.NumberParallelJob] = "3",
             [JobAnnotationNames.DependsOn] = "function-one,function-two",
             [JobAnnotationNames.Schedules] =
-                """[{"Schedule":"*/5 * * * *","Args":["39"],"DependsOn":["function-two"]}]"""
+                """[{"Schedule":"*/5 * * * *","Args":["39"],"DependsOn":["function-two"],"TimeZone":"Europe/Paris"}]"""
         };
         await using var fixture = new JobFixture(["--info"], backoffLimit: 4, annotations: annotations);
 
@@ -56,6 +56,7 @@ public sealed class LocalJobManagerTests
         Assert.Equal(4, schedule.BackoffLimit);
         Assert.Equal(60, schedule.TtlSecondsAfterFinished);
         Assert.Equal("Never", schedule.RestartPolicy);
+        Assert.Equal("Europe/Paris", schedule.TimeZone);
     }
 
     private sealed class JobFixture : IAsyncDisposable

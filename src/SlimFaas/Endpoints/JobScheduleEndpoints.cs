@@ -103,6 +103,13 @@ public static partial class JobScheduleEndpoints
         if (!result.IsSuccess)
         {
             logger.LogJobHTTPStatusWithError(400, result.Error?.Key ?? "");
+            if (result.Error?.Key == Cron.InvalidTimeZone)
+            {
+                return Results.Json(new ScheduleJobError(result.Error.Key, result.Error.Description),
+                    ScheduleJobErrorSerializerContext.Default.ScheduleJobError,
+                    statusCode: (int)HttpStatusCode.BadRequest);
+            }
+
             return Results.BadRequest();
         }
 

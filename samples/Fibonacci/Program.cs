@@ -47,6 +47,7 @@ serviceCollection.Configure<JsonOptions>(options =>
 });
 
 WebApplication app = builder.Build();
+app.MapTourEndpoints(slimFaasBaseUrl);
 app.UseCors(builder => builder
     .AllowAnyOrigin()
     .AllowAnyMethod()

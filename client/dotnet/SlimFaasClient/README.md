@@ -6,8 +6,19 @@
 
 # SlimFaasClient
 
+Durable Streams use `SubscribeStreams` (`SubscribeStreamConfig`) and
+`OnStreamMessage` (`SlimFaasStreamMessage`). The message includes `StreamName`,
+`MessageId`, the delivery `ElementId` and original request. Return final status
+or `202` followed by `SendCallbackAsync`. Registration requires server capability
+`streams-v1`; reconnect preserves progress. See [Streams examples](../../../docs/streams.md#websocket-functions).
+
 C# library to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
+
+One outbound connection to any SlimFaas node is sufficient: sync, async and event
+ingress on other nodes relays to its owner; Streams consume on the connected node.
+Configuration must match across clients sharing a name. SDK wire messages are
+unchanged. See [multi-node routing and failures](../../../docs/clients.md#multi-node-routing-and-failure-semantics).
 
 [![NuGet](https://img.shields.io/nuget/v/SlimFaasClient.svg)](https://www.nuget.org/packages/SlimFaasClient)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/SlimFaasClient.svg)](https://www.nuget.org/packages/SlimFaasClient)
@@ -67,7 +78,30 @@ Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 await client.RunForeverAsync(cts.Token);
 ```
 
+If the handler throws before the response starts, the client sends a `500`.
+If it throws after the status and headers are sent, the status can no longer
+change, so the client cancels the stream and the caller gets a truncated
+response. See [sync streaming](../../../docs/clients.md#7-synchronous-http-over-websocket).
+
 ## Full configuration
+
+For durable async failures, use the existing configuration JSON (no new wire
+field or SDK upgrade is required):
+
+```csharp
+var config = new SlimFaasClientConfig
+{
+    FunctionName = "billing",
+    Configuration = """{"DefaultAsync":{"HttpTimeout":120,"DeadLetterQueue":{"Enabled":true,"MaxAgeSeconds":604800,"MaxLength":10000}}}"""
+};
+```
+
+The runtime validates this JSON. Async handler return codes, explicit callbacks,
+and timeouts determine retries/capture. Replay gets a new element ID and current
+retry settings; make handlers idempotent. Return 202 only for deferred work that
+will send the existing completion callback. Management APIs are private by
+default; function visibility never grants DLQ access. See the
+[DLQ guide](../../../docs/dead-letter-queues.md).
 
 | Property | Kubernetes annotation | Description |
 |---|---|---|

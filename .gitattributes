@@ -1,0 +1,2 @@
+# Shell scripts must also run after a Windows checkout and inside release ZIPs.
+*.sh text eol=lf

@@ -11,6 +11,14 @@ public record CreateScheduleJobResult(string Id);
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class CreateScheduleJobResultSerializerContext : JsonSerializerContext;
 
+public record ScheduleJobError(
+    [property: JsonPropertyName("error")] string Error,
+    [property: JsonPropertyName("message")] string? Message);
+
+[JsonSerializable(typeof(ScheduleJobError))]
+[JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+public partial class ScheduleJobErrorSerializerContext : JsonSerializerContext;
+
 
 [MemoryPackable]
 public partial record ListScheduleJob(
@@ -23,7 +31,8 @@ public partial record ListScheduleJob(
     string RestartPolicy = "Never",
     CreateJobResources? Resources = null,
     IList<EnvVarInput>? Environments = null,
-    List<string>? DependsOn = null);
+    List<string>? DependsOn = null,
+    string? TimeZone = null);
 
 [JsonSerializable(typeof(IList<ListScheduleJob>))]
 [JsonSerializable(typeof(List<ListScheduleJob>))]
@@ -51,7 +60,7 @@ public class ScheduleJobService(
     public async Task<ResultWithError<CreateScheduleJobResult>> CreateScheduleJobAsync(string name, ScheduleCreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
         var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
-        var result = Cron.GetLatestJobExecutionTimestamp(createJob.Schedule, timeStamp);
+        var result = Cron.GetLatestJobExecutionTimestamp(createJob.Schedule, timeStamp, createJob.TimeZone);
         if (!result.IsSuccess)
         {
             return new ResultWithError<CreateScheduleJobResult>(null , result.Error);
@@ -71,7 +80,7 @@ public class ScheduleJobService(
         }
 
         var idSchedule = Guid.NewGuid().ToString();
-        byte[] memory = MemoryPackSerializer.Serialize(createJob);
+        byte[] memory = ScheduleCreateJobSerializer.Serialize(createJob);
         var dictionary = new Dictionary<string, byte[]>();
         dictionary.Add(idSchedule, memory);
         await databaseService.HashSetAsync($"{ScheduleJob}{name}", dictionary);
@@ -101,7 +110,8 @@ public class ScheduleJobService(
                 value.RestartPolicy,
                 value.Resources,
                 value.Environments,
-                value.DependsOn ?? new List<string>(0)
+                value.DependsOn ?? new List<string>(0),
+                value.TimeZone
                 ));
         }
 

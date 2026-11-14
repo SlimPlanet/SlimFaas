@@ -1,5 +1,6 @@
 using MemoryPack;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Jobs;
@@ -10,7 +11,8 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         ISlimDataStatus slimDataStatus,
         IDatabaseService databaseService,
         IMasterService masterService,
-        int delay = 1000 * 60)
+        int delay = 1000 * 60,
+        NetworkActivityTracker? activityTracker = null)
     : BackgroundService
 {
 
@@ -58,7 +60,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
             {
                 foreach (ScheduleCreateJob scheduleCreateJob in configurationSchedule.Value)
                 {
-                    var id = IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(scheduleCreateJob));
+                    var id = ScheduleCreateJobSerializer.GetId(scheduleCreateJob);
                     await EnqueueJobIfNeeded(configurationSchedule.Key, id, scheduleCreateJob);
                 }
             }
@@ -83,7 +85,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
         logger.LogLastExecutionTimestampForScheduleJob(id, configurationName, lastestExecutionTimeStampFromDatabase);
         var cronSchedule = scheduleConfiguration.Schedule;
-        var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
+        var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp, scheduleConfiguration.TimeZone).Data;
 
         bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
         logger.LogShouldRunJobForScheduleIn(id, configurationName, runJob, latestExecutionTimeStamp, lastestExecutionTimeStampFromDatabase);
@@ -104,6 +106,13 @@ public class SlimScheduleJobsWorker( IJobService jobService,
 
         if (result.IsSuccess)
         {
+            string queuedConfigurationName = JobConfiguration.ResolveName(
+                jobConfiguration.Configuration.Configurations, configurationName);
+            activityTracker?.Record(
+                NetworkActivityTracker.EventTypes.Enqueue,
+                NetworkActivityTracker.Actors.SlimFaas,
+                queuedConfigurationName,
+                JobQueue.ActivityQueueName(queuedConfigurationName));
             await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(latestExecutionTimeStamp), OneYearInMilliseconds);
             logger.LogEnqueuedJobForScheduleInConfiguration(id, configurationName);
         }

@@ -282,7 +282,7 @@ public class KafkaMonitoringWorkerTests
             l => l.Log(
                 level,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains(fragment, StringComparison.Ordinal)),
+                It.Is<It.IsAnyType>((v, _) => v != null && (v.ToString() ?? string.Empty).Contains(fragment, StringComparison.Ordinal)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
