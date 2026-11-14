@@ -88,7 +88,7 @@ is reported alongside the failed normalized check; it does not waive that check.
 An authorized inactive-cache cleanup overlaps the first attempt's third run;
 the evidence records that interval. Compiler monitoring observes no external
 compilation. The VS Code restart did not restart the campaign or its workloads.
-Native MemoryLab results follow below; microbenchmark and container comparisons
+Native MemoryLab and microbenchmark results follow below; container comparisons
 remain in progress.
 
 ## Current-source native MemoryLab observations
@@ -120,6 +120,74 @@ resuming the two remaining ordinals with the same configuration. The original
 isolation segment retains 5,667 samples, zero external compilation observations
 and an 8.020-second maximum sample gap. The cleanup interval and resumed segment
 remain distinct in the evidence.
+
+## Current-source managed microbenchmarks
+
+The [complete statistical reports](micro-net11-03.json) and
+[comparison CSV](micro-net11-03.csv) contain **74 cases in each of four ABBA
+runs**, or 296 measured case executions. Every case has valid measured
+statistics and allocation data; every run completes successfully with zero
+external compilation observations. All runs use the same .NET 11.0.0 ARM64
+Release host, SDK 11.0.100 and 13 identical benchmark source files, compiled
+against their respective runtime sources. The mode is managed
+`ShortRunInProcess`, with three measured iterations per case. Application
+acceptance remains governed by the separate HTTP and MemoryLab results.
+
+Representative observed means and allocations include improvements and costs:
+
+| Case | Reference means | Candidate means | Allocated bytes/op: reference → candidate |
+|---|---:|---:|---:|
+| First ready pod ports, 20 functions | 74.76 / 74.83 ns | 28.32 / 29.25 ns | 176 → 0 |
+| Function search, 20 functions | 51.24 / 51.74 ns | 25.48 / 25.47 ns | 24 → 0 |
+| Job caller lookup, 200 entries | 13.61 / 12.90 µs | 7.58 / 7.88 µs | 48,608 → 18,048 |
+| Retry queue, 200 entries | 429.88 / 396.70 ns | 673.66 / 675.77 ns | 1,656 → 80 |
+
+These short-run estimates preserve all measured values and confidence intervals.
+Lower allocation counts do not clear the observed mixed-workload RSS failure,
+and local lookup improvements do not clear the failed HTTP tail guardrails.
+
+To reproduce the common-source driver, use the
+[project template](common-micro.csproj.template) from this report revision.
+Build both drivers before measuring; keep the reference checkout's tracked
+sources unchanged. Run from the candidate repository root with SDK 11.0.100,
+and use a fresh path for the reference worktree:
+
+```bash
+SLIMFAAS_MICRO_ROOT="$PWD"
+SLIMFAAS_REFERENCE_ROOT="$PWD/../SlimFaas-net11-micro-reference"
+git worktree add --detach "$SLIMFAAS_REFERENCE_ROOT" f36084643a75d803051a6918d2950d1a4f674ada
+
+for SLIMFAAS_VARIANT in before after; do
+  SLIMFAAS_PROJECT="$SLIMFAAS_MICRO_ROOT/artifacts/common-micro/$SLIMFAAS_VARIANT/project"
+  mkdir -p "$SLIMFAAS_PROJECT"
+  cp docs/reliability/2026-11-13/common-micro.csproj.template "$SLIMFAAS_PROJECT/Common.csproj"
+  SLIMFAAS_RUNTIME_ROOT="$SLIMFAAS_MICRO_ROOT"
+  if [ "$SLIMFAAS_VARIANT" = before ]; then
+    SLIMFAAS_RUNTIME_ROOT="$SLIMFAAS_REFERENCE_ROOT"
+  fi
+  dotnet build "$SLIMFAAS_PROJECT/Common.csproj" -c Release \
+    -p:SkipClientAppBuild=true \
+    -p:MicrobenchmarkSourceRoot="$SLIMFAAS_MICRO_ROOT" \
+    -p:RuntimeSourceRoot="$SLIMFAAS_RUNTIME_ROOT" \
+    -o "$SLIMFAAS_MICRO_ROOT/artifacts/common-micro/$SLIMFAAS_VARIANT/bin"
+done
+
+for SLIMFAAS_ORDINAL in 1 2 3 4; do
+  case "$SLIMFAAS_ORDINAL" in
+    1|4) SLIMFAAS_VARIANT=before ;;
+    *) SLIMFAAS_VARIANT=after ;;
+  esac
+  dotnet "artifacts/common-micro/$SLIMFAAS_VARIANT/bin/SlimFaas.Benchmarks.dll" \
+    --filter '*' --exporters json csv markdown \
+    --artifacts "artifacts/common-micro/run-$SLIMFAAS_ORDINAL-$SLIMFAAS_VARIANT"
+done
+```
+
+The candidate runtime for these observations is `1ecba4d1`; subsequent report
+commits change documentation only. The JSON includes the 13 source hashes and
+both frozen driver hashes appear in the current publication provenance. The
+template has the same properties, compilation inputs and runtime references as
+the generated project used for these measurements, with configurable paths.
 
 ## Current-source endurance
 
@@ -154,9 +222,9 @@ the original volumes or journals. The earlier source's index remains unchanged.
 All correctness controllers are stopped, and the original persisted files are
 hashed before the first timed comparison. Discarding already unallocated blocks
 of the VM filesystem returns about 4.2 GiB to the Mac without removing any file,
-image, WAL, snapshot or volume. The fresh Native ABBA matrix is running with the
-corrected common driver. Its completed HTTP and MemoryLab observations are
-reported above; microbenchmark and container conclusions remain pending.
+image, WAL, snapshot or volume. The renewed Native ABBA measurements use the corrected common driver. Their
+completed HTTP, MemoryLab and microbenchmark observations are reported above;
+container conclusions remain pending.
 Earlier failed or interrupted runs are retained.
 
 ## Integrated sources
