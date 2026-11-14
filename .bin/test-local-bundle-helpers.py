@@ -308,9 +308,52 @@ class ShutdownTests(unittest.TestCase):
             bundle.stop_supervisor(process)
         self.assertEqual(process.wait.call_count, 2)
         if bundle.os.name == "nt":
-            run.assert_called_once_with(["taskkill", "/PID", "4242", "/T", "/F"], check=False)
+            run.assert_called_once_with(["taskkill", "/PID", "4242", "/T", "/F"], check=True, timeout=45)
         else:
             killpg.assert_called_once_with(4242, bundle.signal.SIGKILL)
+        self.assertEqual(process.wait.call_args_list, [call(timeout=45), call(timeout=45)])
+
+    def test_stop_accepts_exit_between_poll_and_signal(self):
+        process = Mock()
+        process.poll.side_effect = [None, 0]
+        process.send_signal.side_effect = ProcessLookupError("Already exited")
+        bundle.stop_supervisor(process)
+        process.wait.assert_not_called()
+
+    def test_stop_preserves_signal_failure_while_supervisor_is_running(self):
+        process = Mock()
+        process.poll.return_value = None
+        process.send_signal.side_effect = OSError("Signal denied")
+        with self.assertRaisesRegex(OSError, "Signal denied"):
+            bundle.stop_supervisor(process)
+
+    def test_stop_does_not_wait_forever_after_force_kill(self):
+        process = Mock(pid=4242)
+        process.poll.return_value = None
+        process.wait.side_effect = bundle.subprocess.TimeoutExpired("slimfaas", 45)
+        with patch.object(bundle.subprocess, "run"), patch.object(bundle.os, "killpg", create=True):
+            with self.assertRaises(bundle.subprocess.TimeoutExpired):
+                bundle.stop_supervisor(process)
+        self.assertEqual(process.wait.call_args_list, [call(timeout=45), call(timeout=45)])
+
+    @unittest.skipUnless(bundle.os.name == "nt", "Windows taskkill handling")
+    def test_stop_preserves_taskkill_failure_while_supervisor_is_running(self):
+        process = Mock(pid=4242)
+        process.poll.return_value = None
+        process.wait.side_effect = bundle.subprocess.TimeoutExpired("slimfaas", 45)
+        failure = bundle.subprocess.CalledProcessError(1, "taskkill")
+        with patch.object(bundle.subprocess, "run", side_effect=failure):
+            with self.assertRaises(bundle.subprocess.CalledProcessError):
+                bundle.stop_supervisor(process)
+
+    @unittest.skipUnless(bundle.os.name == "nt", "Windows taskkill handling")
+    def test_stop_accepts_supervisor_exit_before_taskkill(self):
+        process = Mock(pid=4242)
+        process.poll.side_effect = [None, 0]
+        process.wait.side_effect = [bundle.subprocess.TimeoutExpired("slimfaas", 45), 0]
+        with patch.object(bundle.subprocess, "run", side_effect=bundle.subprocess.CalledProcessError(1, "taskkill")):
+            bundle.stop_supervisor(process)
+        self.assertEqual(process.wait.call_args_list, [call(timeout=45), call(timeout=45)])
 
     def test_stop_leaves_an_exited_supervisor_alone(self):
         process = Mock()

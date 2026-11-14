@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace SlimFaas.Local;
 
@@ -45,6 +46,21 @@ internal static class ProcessTree
     }
 }
 
+/// <summary>Keeps process handles alive so ancestry and reused identifiers cannot hide a survivor.</summary>
+internal sealed class ProcessTreeSnapshot(
+    IReadOnlyList<(ProcessTreeEntry Entry, SafeProcessHandle Handle)> descendants) : IDisposable
+{
+    internal List<ProcessTreeEntry> GetLiveDescendants()
+        => descendants.Where(descendant => !WindowsProcessTree.HasExited(descendant.Handle))
+            .Select(descendant => descendant.Entry).ToList();
+
+    public void Dispose()
+    {
+        foreach ((_, SafeProcessHandle handle) in descendants)
+            handle.Dispose();
+    }
+}
+
 /// <summary>
 /// Enumerates the live descendants of a process on Windows, where
 /// <see cref="Process"/> does not expose parent identifiers.
@@ -54,26 +70,56 @@ internal static partial class WindowsProcessTree
     private const uint SnapshotProcesses = 0x00000002;
     private const nint InvalidHandle = -1;
 
-    internal static List<ProcessTreeEntry> GetDescendants(int rootProcessId, DateTime rootStartedAt)
+    internal static ProcessTreeSnapshot CaptureDescendants(int rootProcessId, DateTime rootStartedAt)
     {
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("Process tree snapshots are only implemented on Windows.");
-        return ProcessTree.SelectDescendants(rootProcessId, rootStartedAt, Snapshot(), GetStartTime);
-    }
 
-    private static DateTime? GetStartTime(int processId)
-    {
+        var opened = new Dictionary<int, SafeProcessHandle>();
         try
         {
-            using Process process = Process.GetProcessById(processId);
-            return process.StartTime;
+            List<ProcessTreeEntry> entries = ProcessTree.SelectDescendants(
+                rootProcessId, rootStartedAt.ToUniversalTime(), Snapshot(), processId =>
+                {
+                    // Query and synchronization rights suffice; no termination or write access is needed.
+                    const uint QueryAndSynchronize = 0x00101000;
+                    SafeProcessHandle handle = OpenProcess(QueryAndSynchronize, false, processId);
+                    try
+                    {
+                        // Retain the handle, not just the PID: HasExited must keep referring
+                        // to this process even after its parent exits or Windows reuses a PID.
+                        if (handle.IsInvalid || !GetProcessTimes(handle, out long created, out _, out _, out _))
+                            throw new Win32Exception();
+                        opened.Add(processId, handle);
+                        return DateTime.FromFileTimeUtc(created);
+                    }
+                    catch
+                    {
+                        handle.Dispose();
+                        throw;
+                    }
+                });
+            var retained = entries.Select(entry => (entry, opened[entry.ProcessId])).ToArray();
+            var snapshot = new ProcessTreeSnapshot(retained);
+            foreach (ProcessTreeEntry entry in entries)
+                opened.Remove(entry.ProcessId);
+            return snapshot;
         }
-        catch (Exception exception) when (
-            exception is ArgumentException or InvalidOperationException or Win32Exception)
+        finally
         {
-            // The process exited in the meantime or cannot be opened.
-            return null;
+            foreach (SafeProcessHandle handle in opened.Values)
+                handle.Dispose();
         }
+    }
+
+    internal static bool HasExited(SafeProcessHandle handle)
+    {
+        return WaitForSingleObject(handle, 0) switch
+        {
+            0 => true,
+            0x00000102 => false, // WAIT_TIMEOUT: the process handle is not signaled yet.
+            _ => throw new Win32Exception()
+        };
     }
 
     private static unsafe List<ProcessTreeEntry> Snapshot()
@@ -92,6 +138,11 @@ internal static partial class WindowsProcessTree
             {
                 entries.Add(new ProcessTreeEntry((int)entry.ProcessId, (int)entry.ParentProcessId));
             } while (Process32NextW(snapshot, ref entry));
+
+            const int NoMoreFiles = 18;
+            int error = Marshal.GetLastPInvokeError();
+            if (error != NoMoreFiles)
+                throw new Win32Exception(error);
 
             return entries;
         }
@@ -116,6 +167,21 @@ internal static partial class WindowsProcessTree
         public uint Flags;
         public fixed char ExeFile[260];
     }
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static partial SafeProcessHandle OpenProcess(
+        uint access, [MarshalAs(UnmanagedType.Bool)] bool inheritHandle, int processId);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetProcessTimes(
+        SafeProcessHandle process, out long creation, out long exit, out long kernel, out long user);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static partial uint WaitForSingleObject(SafeProcessHandle handle, uint milliseconds);
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]

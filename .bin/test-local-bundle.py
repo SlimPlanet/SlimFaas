@@ -52,15 +52,30 @@ def stop_supervisor(process, timeout=45):
     """Ask the supervisor to stop its process trees and wait; force-kill only past the deadline."""
     if process.poll() is not None:
         return
-    process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
+    try:
+        process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
+    except OSError:
+        if process.poll() is None:
+            raise
+        # The supervisor can exit after poll() but before the signal is delivered.
+        return
     try:
         process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], check=False)
+            try:
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               check=True, timeout=timeout)
+            except subprocess.CalledProcessError:
+                if process.poll() is None:
+                    raise
         else:
-            os.killpg(process.pid, signal.SIGKILL)
-        process.wait()
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                if process.poll() is None:
+                    raise
+        process.wait(timeout=timeout)
 
 
 def ensure_clean_shutdown(process, log_path):

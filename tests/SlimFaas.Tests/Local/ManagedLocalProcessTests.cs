@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Text;
 using SlimFaas.Local;
 
 namespace SlimFaas.Tests.Local;
@@ -91,7 +92,7 @@ public sealed class ManagedLocalProcessTests
                 "powershell.exe",
                 "-NoProfile",
                 "-Command",
-                "$child = Start-Process ping.exe -ArgumentList @('-t','127.0.0.1') -PassThru; " +
+                "$child = Start-Process ping.exe -ArgumentList @('-t','127.0.0.1') -WindowStyle Hidden -PassThru; " +
                 $"Set-Content -LiteralPath '{escapedPath}' -Value $child.Id; " +
                 "Wait-Process -Id $child.Id"
             ];
@@ -120,15 +121,80 @@ public sealed class ManagedLocalProcessTests
             DateTime startedAt;
             using (Process root = Process.GetProcessById(process.Id))
                 startedAt = root.StartTime;
-            List<ProcessTreeEntry> descendants = WindowsProcessTree.GetDescendants(process.Id, startedAt);
-            Assert.Contains(descendants, descendant => descendant.ProcessId == childPid);
-            Assert.DoesNotContain(descendants, descendant => descendant.ProcessId == Environment.ProcessId);
+            using ProcessTreeSnapshot snapshot = WindowsProcessTree.CaptureDescendants(process.Id, startedAt);
+            Assert.Contains(snapshot.GetLiveDescendants(), descendant => descendant.ProcessId == childPid);
+            Assert.DoesNotContain(snapshot.GetLiveDescendants(), descendant => descendant.ProcessId == Environment.ProcessId);
         }
 
         await process.StopAsync(null, TimeSpan.FromSeconds(5));
 
         await WaitForAsync(() => !IsRunning(childPid), ShutdownDeadline);
         Assert.True(process.HasExited);
+    }
+
+    [Fact]
+    public async Task CapturedTree_PreservesTheFailureForAnOrphanedGrandchild()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        await using var directory = new TemporaryDirectory();
+        string childPidPath = Path.Combine(directory.Path, "intermediate.pid");
+        string grandchildPidPath = Path.Combine(directory.Path, "grandchild.pid");
+        string childScript =
+            "$child = Start-Process ping.exe -ArgumentList @('-t','127.0.0.1') -WindowStyle Hidden -PassThru; " +
+            $"Set-Content -LiteralPath '{grandchildPidPath.Replace("'", "''", StringComparison.Ordinal)}' -Value $child.Id; " +
+            "Wait-Process -Id $child.Id";
+        string encodedScript = Convert.ToBase64String(Encoding.Unicode.GetBytes(childScript));
+        await using ManagedLocalProcess root = ManagedLocalProcess.Start(
+            ["powershell.exe", "-NoProfile", "-Command",
+                "$child = Start-Process powershell.exe -WindowStyle Hidden -PassThru " +
+                $"-ArgumentList @('-NoProfile','-EncodedCommand','{encodedScript}'); " +
+                $"Set-Content -LiteralPath '{childPidPath.Replace("'", "''", StringComparison.Ordinal)}' -Value $child.Id; " +
+                "Wait-Process -Id $child.Id"],
+            directory.Path,
+            new Dictionary<string, string>(),
+            "process/orphan-test",
+            Path.Combine(directory.Path, "tree.log"));
+        using Process child = Process.GetProcessById(await WaitForChildPidAsync(childPidPath));
+        using Process grandchild = Process.GetProcessById(await WaitForChildPidAsync(grandchildPidPath));
+        try
+        {
+            using Process parent = Process.GetProcessById(root.Id);
+            using ProcessTreeSnapshot snapshot = WindowsProcessTree.CaptureDescendants(root.Id, parent.StartTime);
+            Assert.Contains(snapshot.GetLiveDescendants(), entry => entry.ProcessId == grandchild.Id);
+
+            parent.Kill();
+            child.Kill();
+            await Task.WhenAll(parent.WaitForExitAsync(), child.WaitForExitAsync()).WaitAsync(ShutdownDeadline);
+            await WaitForAsync(() => !snapshot.GetLiveDescendants().Any(entry => entry.ProcessId == child.Id),
+                ShutdownDeadline);
+
+            // Both intermediate ancestors are absent, but the retained handle still identifies the grandchild.
+            Assert.DoesNotContain(snapshot.GetLiveDescendants(), entry => entry.ProcessId == child.Id);
+            Assert.Contains(snapshot.GetLiveDescendants(), entry => entry.ProcessId == grandchild.Id);
+            var failure = new AggregateException(new Win32Exception(AccessDenied));
+            InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                ManagedLocalProcess.WaitForTreeExitAsync(failure, root.Id, () => root.HasExited,
+                    snapshot.GetLiveDescendants, TimeSpan.Zero, CancellationToken.None));
+            Assert.Same(failure, exception.InnerException);
+            Assert.Contains(grandchild.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                exception.Message, StringComparison.Ordinal);
+
+            grandchild.Kill();
+            await grandchild.WaitForExitAsync().WaitAsync(ShutdownDeadline);
+            await ManagedLocalProcess.WaitForTreeExitAsync(failure, root.Id, () => root.HasExited,
+                snapshot.GetLiveDescendants, ShutdownDeadline, CancellationToken.None);
+        }
+        finally
+        {
+            foreach (Process process in new[] { child, grandchild })
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync().WaitAsync(ShutdownDeadline);
+            }
+        }
     }
 
     [Fact]
