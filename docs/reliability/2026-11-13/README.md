@@ -36,15 +36,18 @@ FOSSA License Compliance also passes. The separate SonarCloud quality gate still
 fails with 38 open vulnerability findings and new-code Security E; a successful
 scanner job does not clear this gate. No findings or rules were suppressed.
 
-The [current publication provenance](provenance-net11-03.json) records the
+The [completed short controls](short-controls-net11-03.json) retain SDK case
+counts, fault history and raw resource boundary samples. All six renewed long
+roles have started; their final reconciliation and the complete performance
+matrices remain pending. The [current publication provenance](provenance-net11-03.json) records the
 merged-source executable, image and driver hashes. The new comparative driver
 is frozen from `a3e28adc`. Its identical managed DLL
 runs on macOS and in both Linux tool images. Direct file hashes also confirm
 identical native CLR, GC, JIT, OS release and libc between reference and candidate
 Linux images. Each of the three current Kubernetes runtime pods has the expected
 published executable/DLL hashes and occupies a distinct worker. Renewed long
-endurance campaigns and complete performance comparisons on these exact
-publications are pending; the earlier completed endurance below remains evidence
+endurance campaigns on these exact publications are running and complete
+performance comparisons remain pending; the earlier completed endurance below remains evidence
 for its recorded `a8e1b5fd` runtime, rather than a result for the newer source.
 
 ## Integrated sources
