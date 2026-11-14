@@ -27,7 +27,12 @@ public class Parameter
     public string? Format { get; set; }
     public object? Schema { get; set; }
 
-    // OpenAPI `explode` keyword, used to serialize object header values.
+    // OpenAPI `style` keyword (form, spaceDelimited, pipeDelimited, deepObject, simple), with the OpenAPI default for
+    // the parameter location when absent. Swagger 2.0 `collectionFormat` values are mapped to the matching style, and
+    // tsv, which OpenAPI 3 dropped, to tabDelimited.
+    public string? Style { get; set; }
+
+    // OpenAPI `explode` keyword, with the OpenAPI default when absent: true for the form style, false otherwise.
     public bool Explode { get; set; }
 
     // True when the parameter is described with `content: application/json` instead of `schema`.

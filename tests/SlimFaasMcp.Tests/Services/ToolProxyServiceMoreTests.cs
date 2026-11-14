@@ -506,6 +506,122 @@ public class ToolProxyServiceMoreTests
     }
 
     [Theory]
+    [InlineData("form", true, "[1,2]", "ids=1&ids=2")]
+    [InlineData("form", false, "[1,2]", "ids=1,2")]
+    [InlineData("spaceDelimited", false, "[1,2]", "ids=1%202")]
+    [InlineData("pipeDelimited", false, "[1,2]", "ids=1%7C2")]
+    [InlineData("tabDelimited", false, "[1,2]", "ids=1%092")]
+    [InlineData("form", true, "[\"a b\",\"c,d\"]", "ids=a%20b&ids=c%2Cd")]
+    [InlineData("form", false, "[\"a b\",\"c,d\"]", "ids=a%20b,c%2Cd")]
+    [InlineData("form", true, "{\"role\":\"admin\",\"id\":5}", "role=admin&id=5")]
+    [InlineData("form", false, "{\"role\":\"admin\",\"id\":5}", "ids=role,admin,id,5")]
+    [InlineData("deepObject", true, "{\"role\":\"admin\",\"id\":5}", "ids%5Brole%5D=admin&ids%5Bid%5D=5")]
+    [InlineData("form", true, "true", "ids=true")]
+    public async Task ExecuteToolAsync_SerializesQueryParametersWithTheirStyle(string style, bool explode, string value,
+        string expectedQuery)
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "ids", In = "query", Style = style, Explode = explode }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>($"{{\"ids\":{value}}}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal($"https://api.example/pets?{expectedQuery}", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SendsJsonContentQueryParameterAsJson()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "filter", In = "query", Style = "form", Explode = true, IsJsonContent = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"filter\":{ \"tags\": [\"a\", \"b\"] }}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?filter=%7B%22tags%22%3A%5B%22a%22%2C%22b%22%5D%7D",
+            _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SendsExplicitNullForJsonContentQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "filter", In = "query", Style = "form", Explode = true, IsJsonContent = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"filter\":null}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?filter=null", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SkipsNullAndEmptyQueryParameters()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "type",   In = "query", Style = "form", Explode = true },
+                    new() { Name = "ids",    In = "query", Style = "form", Explode = true },
+                    new() { Name = "filter", In = "query", Style = "form", Explode = false },
+                    new() { Name = "limit",  In = "query", Style = "form", Explode = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"type\":null,\"ids\":[],\"filter\":{},\"limit\":10}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?limit=10", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Theory]
     [InlineData("GET")]
     [InlineData("DELETE")]
     public async Task ExecuteToolAsync_RejectsContentHeaderParameterWithoutBody(string verb)
