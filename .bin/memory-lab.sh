@@ -40,7 +40,7 @@ run_root="${MEMORY_LAB_RUN_ROOT:-$repo_root/artifacts/memory-lab}"
 run_dir="$run_root/${run_label}-${scenario}-c${concurrency}-${timestamp}"
 publish_dir="${MEMORY_LAB_PUBLISH_DIR:-$repo_root/artifacts/memory-lab/publish-${mode}-${runtime_id}}"
 lab_project="$repo_root/tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj"
-lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.MemoryLab.dll"
+lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
 memory_csv="$run_dir/memory.csv"
 diagnostics_csv="$run_dir/diagnostics.csv"
 phase_file="$run_dir/phase"
@@ -153,7 +153,12 @@ else
 fi
 
 echo "Starting local function"
-dotnet "$lab_dll" function --port 5050 >"$run_dir/function.log" 2>&1 &
+if [[ -n "${MEMORY_LAB_RECEIPTS:-}" ]]; then
+  PORT=5050 python3 "$repo_root/tests/SlimFaas.Tests/Local/chaos_function.py" \
+    --journal-directory "$MEMORY_LAB_RECEIPTS" >"$run_dir/function.log" 2>&1 &
+else
+  dotnet "$lab_dll" function --port 5050 >"$run_dir/function.log" 2>&1 &
+fi
 function_pid="$!"
 
 for attempt in $(seq 1 60); do

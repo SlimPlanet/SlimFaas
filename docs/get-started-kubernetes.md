@@ -16,6 +16,21 @@ cd SlimFaas
 
 All commands below run from the repository root. Check the selected context before applying the demo.
 
+When the SlimFaas pod has sidecars with declared TCP ports, declare the configured
+Raft TCP port on exactly one container: the SlimFaas runtime. SlimFaas opens that
+container's HTTP/WebSocket ports and leaves sidecar listeners alone. For example,
+keep `5000`, `5003` and `3262` on the runtime container, and a monitoring sidecar's
+port on the sidecar. A custom `SlimFaas__BaseSlimDataUrl` selects its corresponding
+Raft port. Ambiguous ownership is rejected rather than binding another container's
+ports. Namespace RBAC must allow listing Services as well as Pods so peer service
+names can be discovered; the supplied service account grants both.
+
+Function routing follows the exact Pod → ReplicaSet → Deployment controller names
+and UIDs, or the direct StatefulSet controller. Names such as `api` and `api-admin`
+stay isolated during rolling updates. Grant `get` and `list` on `apps/replicasets`
+as in the supplied Role. A failed ownership LIST preserves the previous inventory;
+an unverified owner is never matched by a name prefix.
+
 The base manifests include [DLQ repair and durable Streams](guided-tour.md#repair-and-replay-a-dead-letter):
 `fibonacci1` captures terminal failures, both first functions subscribe to `orders`,
 and DLQ/Stream management is Public. The base job configuration also includes the
@@ -102,6 +117,11 @@ Use `/ready` on port 5000 for the readiness probe and `/health` for the liveness
 probe, as in the demo. `/ready` returns 503 while the node lacks a leader,
 consensus, protocol compatibility or completed snapshot restoration. `/health`
 can still return 200: the process must remain alive to participate in recovery.
+The demo also allows 300 seconds for the `/health` startup probe before enabling
+liveness checks. Retained-state initialization can wait for the existing
+200-second membership announcement deadline when a peer is silent. Set the
+startup allowance to cover your restoration budget; liveness must not repeatedly
+replace a recovering process before its HTTP listener opens.
 
 The two Services have different purposes:
 

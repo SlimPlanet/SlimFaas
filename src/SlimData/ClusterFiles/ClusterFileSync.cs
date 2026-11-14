@@ -1,3 +1,4 @@
+using ZLinq;
 using System.Net;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Messaging;
@@ -96,7 +97,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
 
         // Itérer sur tous les nœuds (remotes) pour trouver celui qui a le fichier
-        var candidates = _bus.Members.Where(m => m.IsRemote).ToList();
+        var candidates = _bus.Members.AsValueEnumerable().Where(static m => m.IsRemote).ToList();
         if (candidates.Count == 0)
             return new FilePullResult(null);
         
@@ -142,7 +143,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 }
 
                 var length = headResp.Content.Headers.ContentLength;
-                if (length is null || length <= 0)
+                if (length is null || length < 0)
                 {
                     _logger.LogHEADOkButNoContentLength(fileUri);
                     continue;
@@ -300,7 +301,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         {
             return "";
         }
-        if (url.EndsWith('/'))
+        if (url.EndsWith('/', StringComparison.Ordinal))
         {
             url = url.Substring(0, url.Length - 1);
         }

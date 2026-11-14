@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Net;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace SlimFaasBenchmark;
@@ -13,6 +14,7 @@ internal static class BenchmarkTarget
     public static async Task<int> RunAsync(CommandArguments arguments)
     {
         int port = ResolvePort(arguments);
+        IPAddress address = IPAddress.Parse(arguments.Get("host", "127.0.0.1"));
         var observations = new ConcurrentDictionary<string, ObservationAccumulator>(StringComparer.Ordinal);
         long requestCount = 0;
         long lastScaleWorkTicks = 0;
@@ -20,7 +22,7 @@ internal static class BenchmarkTarget
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.ConfigureKestrel(options =>
-            options.ListenLocalhost(port, listen => listen.Protocols = HttpProtocols.Http1));
+            options.Listen(address, port, listen => listen.Protocols = HttpProtocols.Http1));
 
         WebApplication app = builder.Build();
         app.MapGet("/health", () => Results.Text("OK"));
@@ -91,7 +93,7 @@ internal static class BenchmarkTarget
                 context.Response.StatusCode = StatusCodes.Status204NoContent;
             });
 
-        Console.WriteLine($"SlimFaas benchmark target listening on http://127.0.0.1:{port}");
+        Console.WriteLine($"SlimFaas benchmark target listening on http://{address}:{port}");
         await app.RunAsync();
         return 0;
     }

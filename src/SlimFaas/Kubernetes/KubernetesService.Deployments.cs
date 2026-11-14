@@ -20,11 +20,13 @@ public partial class KubernetesService
             Task<V1DeploymentList>? deploymentListTask = client.ListNamespacedDeploymentAsync(kubeNamespace);
             Task<V1PodList>? podListTask = client.ListNamespacedPodAsync(kubeNamespace);
             Task<V1StatefulSetList>? statefulSetListTask = client.ListNamespacedStatefulSetAsync(kubeNamespace);
+            Task<V1ReplicaSetList> replicaSetListTask = client.ListNamespacedReplicaSetAsync(kubeNamespace);
             Task<V1ServiceList?> serviceListTask = TryListServicesAsync(kubeNamespace);
 
-            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, serviceListTask);
+            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, replicaSetListTask, serviceListTask);
             V1DeploymentList? deploymentList = await deploymentListTask;
-            IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, await serviceListTask, _logger);
+            IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, await serviceListTask, _logger,
+                _baseSlimDataUrl, kubeNamespace);
             V1StatefulSetList? statefulSetList = await statefulSetListTask;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
@@ -36,9 +38,9 @@ public partial class KubernetesService
 
             IEnumerable<PodInformation> podInformations = podList.ToArray();
             await AddDeployments(kubeNamespace, deploymentList, podInformations, deploymentInformationList, _logger,
-                client, previousDeployments.Functions);
+                client, previousDeployments.Functions, await podListTask, await replicaSetListTask);
             await AddStatefulSets(kubeNamespace, statefulSetList, podInformations, deploymentInformationList, _logger,
-                client, previousDeployments.Functions);
+                client, previousDeployments.Functions, await podListTask);
 
             return new DeploymentsInformations(deploymentInformationList,
                 slimFaasDeploymentInformation ?? new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
@@ -101,7 +103,8 @@ public partial class KubernetesService
     private static async Task AddDeployments(string kubeNamespace, V1DeploymentList deploymentList,
         IEnumerable<PodInformation> podList,
         IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger,
-        k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList)
+        k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList,
+        V1PodList actualPods, V1ReplicaSetList replicaSets)
     {
         foreach (V1Deployment? deploymentListItem in deploymentList.Items)
         {
@@ -115,7 +118,9 @@ public partial class KubernetesService
                 }
 
                 string? name = deploymentListItem.Metadata.Name;
-                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name, StringComparison.Ordinal)).ToList();
+                IReadOnlySet<string> ownedPods = GetControllerPodNames(actualPods, replicaSets,
+                    "Deployment", name, deploymentListItem.Metadata.Uid);
+                List<PodInformation> pods = podList.Where(p => ownedPods.Contains(p.Name)).ToList();
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
@@ -337,7 +342,8 @@ public partial class KubernetesService
     private static async Task AddStatefulSets(string kubeNamespace, V1StatefulSetList deploymentList,
         IEnumerable<PodInformation> podList,
         IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger,
-        k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList)
+        k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList,
+        V1PodList actualPods)
     {
         foreach (V1StatefulSet? deploymentListItem in deploymentList.Items)
         {
@@ -351,7 +357,9 @@ public partial class KubernetesService
                 }
 
                 string? name = deploymentListItem.Metadata.Name;
-                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name, StringComparison.Ordinal)).ToList();
+                IReadOnlySet<string> ownedPods = GetControllerPodNames(actualPods, null,
+                    "StatefulSet", name, deploymentListItem.Metadata.Uid);
+                List<PodInformation> pods = podList.Where(p => ownedPods.Contains(p.Name)).ToList();
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
@@ -406,7 +414,9 @@ public partial class KubernetesService
     private static List<PodInformation> MapPodInformations(
         V1PodList v1PodList,
         V1ServiceList? serviceList,
-        ILogger<KubernetesService> logger)
+        ILogger<KubernetesService> logger,
+        string? baseSlimDataUrl = null,
+        string? kubeNamespace = null)
     {
         List<PodInformation> result = new();
 
@@ -519,6 +529,10 @@ public partial class KubernetesService
                     AppFailureReason = appFailureReason,
                     AppFailureMessage = appFailureMessage
                 };
+
+                if (deploymentName == SlimfaasDeploymentName)
+                    podInformation = podInformation with { Ports = ResolveSlimFaasContainerPorts(
+                        containers, podInformation, baseSlimDataUrl, kubeNamespace) };
 
                 result.Add(podInformation);
             }

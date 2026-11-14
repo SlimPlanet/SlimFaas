@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "runtime_source_commit": "b00224c5831b918f426b44e0fcbda8edfa2c5494",
+  "dotnet": {
+    "total": 1992,
+    "SlimData": 304,
+    "SlimFaas": 1532,
+    "SlimFaasMcp": 106,
+    "SlimFaasKafka": 11,
+    "dotnet_client": 39
+  },
+  "local_job_unit_tests": 9,
+  "harness_tests": 14,
+  "license_compliance": {
+    "state": "success",
+    "context": "License Compliance",
+    "commit": "b00224c5831b918f426b44e0fcbda8edfa2c5494"
+  },
+  "raw_logs": {
+    "job-journal-recovery-full-tests.log": {
+      "bytes": 3215,
+      "sha256": "c4d75db92cf9ae957ff3ded1e78978fbd06e22a826305cea6cc13886098aa869"
+    },
+    "job-journal-recovery-unit-03.log": {
+      "bytes": 798,
+      "sha256": "d1fad3133a3fea4ce853959eaa488ec9c71ab3decaaae8161c6265c85bff9f86"
+    },
+    "journal-fault-checkpoint-harness-tests.log": {
+      "bytes": 118,
+      "sha256": "2e4ccf183532b137d78432c128bcdff9868f527cb005e2f953b4d686678c7efd"
+    },
+    "traffic-probe-self-test-02.json": {
+      "bytes": 1321,
+      "sha256": "47953dd5784021f997ab79fb7809b97e72dcd86b53960fb5ae52c6b09ff9e90c"
+    }
+  },
+  "note": "Native b002 publication and final benchmarks are tracked separately; historical verification remains in validation.json."
+}

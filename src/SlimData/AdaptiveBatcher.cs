@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
+using ZLinq;
+
 namespace SlimData;
 
 
@@ -183,7 +185,7 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
 
                 try
                 {
-                    var reqs = batch.Select(b => b.req).ToList();
+                    var reqs = batch.AsValueEnumerable().Select(static b => b.req).ToList();
                     var results = await _batchHandler(reqs, ct).ConfigureAwait(false);
 
                     if (results.Count != batch.Count)

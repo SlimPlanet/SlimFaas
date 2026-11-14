@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 
-DLL = (Path(__file__).resolve().parents[1] / "tools/SlimFaas.MemoryLab/bin/Release/net10.0"
+DLL = (Path(__file__).resolve().parents[1] / "tools/SlimFaas.MemoryLab/bin/Release/net11.0"
        / "SlimFaas.MemoryLab.dll")
 
 

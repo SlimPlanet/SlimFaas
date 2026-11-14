@@ -8,6 +8,56 @@ namespace SlimData.Tests;
 
 public sealed class SlimDataCommandBatchTests
 {
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    public async Task Pop_reports_zero_based_attempt_and_only_marks_the_final_delivery(int completedAttempts, bool lastTry)
+    {
+        long now = new DateTime(2026, 11, 8, 12, 0, 0, DateTimeKind.Utc).Ticks;
+        SlimDataState state = NewState();
+        var tries = Enumerable.Range(0, completedAttempts)
+            .Select(index => new QueueHttpTryElement(now - (10 * TimeSpan.TicksPerSecond),
+                $"previous-{index}", now - (5 * TimeSpan.TicksPerSecond), 500))
+            .ToImmutableArray();
+        state.Queues = state.Queues.SetItem("queue", [new QueueElement(new byte[] { 42 }, "element", now, 30, [1, 2], tries, [500])]);
+        SlimDataBatchOperation pop = Operation(SlimDataBatchOperationKind.ListRightPop, "pop", "queue");
+        pop.TransactionId = "current-delivery";
+        pop.Count = 1;
+        pop.NowTicks = now;
+
+        SlimDataCommandBatchResponse response = await ApplyAsync(state, NewRequest(pop));
+
+        QueueData delivery = Assert.Single(Assert.Single(response.Results).QueueItems!);
+        Assert.Equal(completedAttempts, delivery.TryNumber);
+        Assert.Equal(lastTry, delivery.IsLastTry);
+        Assert.Equal(completedAttempts + 1, Assert.Single(state.Queues["queue"]).NumberOfTries());
+    }
+
+    [Fact]
+    public async Task Pop_results_include_only_the_running_transaction_and_keep_payload_ownership_and_order()
+    {
+        long now = DateTime.UtcNow.Ticks;
+        byte[] owned = [1, 2];
+        byte[] sliced = [9, 3, 4, 9];
+        var state = NewState();
+        state.Queues = state.Queues.SetItem("queue",
+        [
+            new(owned, "a", now, 30, [], [new(now, "selected")], []),
+            new(new byte[] { 7 }, "other", now, 30, [], [new(now, "other")], []),
+            new(new ReadOnlyMemory<byte>(sliced, 1, 2), "b", now, 30, [], [new(now, "selected")], []),
+            new(new byte[] { 8 }, "available", now, 30, [], [], [])
+        ]);
+        var pop = Operation(SlimDataBatchOperationKind.ListRightPop, "pop", "queue");
+        pop.TransactionId = "selected"; pop.NowTicks = now; pop.Count = 0;
+        var response = await ApplyAsync(state, NewRequest(pop));
+        var items = response.Results[0].QueueItems!;
+        Assert.Equal(new[] { "a", "b" }, items.Select(item => item.Id));
+        Assert.Same(owned, items[0].Data);
+        Assert.Equal(new byte[] { 3, 4 }, items[1].Data);
+        Assert.NotSame(sliced, items[1].Data);
+    }
+
     [Fact]
     public async Task Composite_batch_applies_set_delete_set_in_request_order()
     {

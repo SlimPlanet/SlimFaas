@@ -9,9 +9,17 @@ run_root="${BENCHMARK_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-benchmark/$p
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
 slimfaas_project="$repo_root/src/SlimFaas/SlimFaas.csproj"
 benchmark_project="$repo_root/benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj"
-slimfaas_dll="$repo_root/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll"
-benchmark_dll="$repo_root/benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll"
+slimfaas_dll="${BENCHMARK_RUNTIME:-${BENCHMARK_RUNTIME_PATH:-${BENCHMARK_SLIMFAAS_DLL:-$repo_root/src/SlimFaas/bin/Release/net11.0/SlimFaas.dll}}}"
+if [[ "$slimfaas_dll" == *.dll ]]; then
+  slimfaas_command=(dotnet "$slimfaas_dll")
+else
+  slimfaas_command=("$slimfaas_dll")
+fi
+benchmark_dll="$repo_root/benchmarks/SlimFaasBenchmark/bin/Release/net11.0/SlimFaasBenchmark.dll"
 local_log="$run_root/slimfaas-local.log"
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+  slimfaas_command=(python "$repo_root/.bin/run-local-benchmark-host.py" --ports 31020,31021,31022,31023,3162,3163,3164,31080,32000,32001,32002,32003,32004,32005,32006,32007,32008,32009,32010,32011,32012,32013,32014,32015 "${slimfaas_command[@]}")
+fi
 
 case "$profile" in
   quick)
@@ -57,7 +65,7 @@ else
   dotnet build "$benchmark_project" -c Release --nologo
 fi
 
-dotnet "$slimfaas_dll" local validate -f "$manifest"
+"${slimfaas_command[@]}" local validate -f "$manifest"
 
 {
   echo "started_at=$timestamp"
@@ -65,7 +73,13 @@ dotnet "$slimfaas_dll" local validate -f "$manifest"
   echo "commit=$(git -C "$repo_root" rev-parse HEAD)"
   echo "worktree_dirty=$(git -C "$repo_root" status --porcelain | grep -q . && echo true || echo false)"
   echo "dotnet_sdk=$(dotnet --version)"
+  echo "runtime=$slimfaas_dll"
+  echo "local_manifest=$manifest"
+  echo "local_manifest_sha256=$(sha256sum "$manifest" | cut -d ' ' -f 1)"
+  echo "runtime_sha256=$(sha256sum "$slimfaas_dll" | cut -d ' ' -f 1)"
   echo "host=$(uname -s)-$(uname -m)"
+  echo "runtime_path=$slimfaas_dll"
+  echo "runtime_mode=${BENCHMARK_RUNTIME_MODE:-jit}"
   echo "duration_seconds=$duration_seconds"
   echo "warmup_seconds=$warmup_seconds"
   echo "repetitions=$repetitions"
@@ -101,7 +115,7 @@ trap 'exit 130' INT TERM
 echo "Starting the three-node native local cluster"
 (
   cd "$repo_root"
-  exec dotnet "$slimfaas_dll" local up -f "$manifest" --clean
+  exec "${slimfaas_command[@]}" local up -f "$manifest" --clean
 ) >"$local_log" 2>&1 &
 local_pid="$!"
 

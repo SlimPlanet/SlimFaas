@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -6,6 +6,8 @@ using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
 using SlimData.Commands;
+
+using ZLinq;
 
 namespace SlimData;
 
@@ -764,9 +766,9 @@ public static class SlimDataInterpreter
             SlimDataProducerSession? session;
             try
             {
-                session = MemoryPackSerializer.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
+                session = MemoryPackPayload.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
             {
                 throw new InvalidDataException("The persisted SlimData producer session is invalid.", ex);
             }
@@ -814,7 +816,7 @@ public static class SlimDataInterpreter
                 end++;
             }
 
-            var items = new List<ListLeftPushBatchCommand.BatchItem>(end - i);
+            List<ListLeftPushBatchCommand.BatchItem> items = [with(capacity: end - i)];
             for (var index = i; index < end; index++)
             {
                 SlimDataBatchOperation operation = request.Operations[index];
@@ -869,10 +871,10 @@ public static class SlimDataInterpreter
     {
         try
         {
-            return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(response)
+            return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(response)
                 ?? throw new InvalidDataException("The cached SlimData producer response is null.");
         }
-        catch (Exception ex) when (ex is not InvalidDataException)
+        catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
         {
             throw new InvalidDataException("The cached SlimData producer response is invalid.", ex);
         }
@@ -908,15 +910,15 @@ public static class SlimDataInterpreter
         {
             case SlimDataBatchOperationKind.WebSocketDirectory:
                 result.WebSocketDirectoryResult = WebSocketDirectoryStore.Apply(
-                    MemoryPackSerializer.Deserialize<WebSocketDirectoryMutation>(operation.Value)!, state);
+                    MemoryPackPayload.Deserialize<WebSocketDirectoryMutation>(operation.Value)!, state);
                 break;
             case SlimDataBatchOperationKind.Stream:
                 result.StreamResult = DurableStreamStore.Apply(
-                    MemoryPackSerializer.Deserialize<DurableStreamMutation>(operation.Value)!, state);
+                    MemoryPackPayload.Deserialize<DurableStreamMutation>(operation.Value)!, state);
                 break;
             case SlimDataBatchOperationKind.DeadLetter:
                 result.DeadLetterResult = DeadLetterStateMachine.Apply(
-                    MemoryPackSerializer.Deserialize<DeadLetterMutation>(operation.Value)!, state);
+                    MemoryPackPayload.Deserialize<DeadLetterMutation>(operation.Value)!, state);
                 break;
             case SlimDataBatchOperationKind.KeyValue:
             {
@@ -1016,7 +1018,7 @@ public static class SlimDataInterpreter
                     {
                         Key = operation.Key,
                         NowTicks = operation.NowTicks,
-                        CallbackElements = operation.CallbackItems
+                        CallbackElements = operation.CallbackItems.AsValueEnumerable()
                             .Select(static item => new CallbackElement(item.Id, item.HttpCode))
                             .ToList()
                     },
@@ -1037,15 +1039,14 @@ public static class SlimDataInterpreter
         if (!state.Queues.TryGetValue(operation.Key, out var queue))
             return [];
 
-        return queue
-            .GetQueueRunningElement(operation.NowTicks)
+        return queue.AsValueEnumerable()
             .Where(item =>
-                !item.RetryQueueElements.IsDefaultOrEmpty &&
+                item.IsRunning(operation.NowTicks) &&
                 item.RetryQueueElements[^1].IdTransaction == operation.TransactionId)
             .Select(static item => new QueueData(
                 item.Id,
                 GetQueueValueBuffer(item.Value),
-                item.NumberOfTries(),
+                item.GetTryNumber(),
                 item.IsLastTry(),
                 item.GetLastRetryTimeTicks(),
                 item.GetHttpTimeoutTicks(),

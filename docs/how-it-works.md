@@ -1,12 +1,28 @@
 # How SlimFaas Works
 
+In Kubernetes, SlimFaas identifies its listener container by the configured Raft
+TCP port when the pod contains multiple containers with declared ports. Its HTTP
+server opens only that container's TCP ports, excluding Raft itself. This keeps
+monitoring and control sidecars from colliding with SlimFaas at startup. A
+single-container pod retains its declared TCP ports. With multiple containers,
+missing or ambiguous Raft-port ownership fails closed with an explicit diagnostic.
+
+Kubernetes function pods are associated with their exact controller identity.
+Deployment pods must reference a ReplicaSet whose controller name and UID match
+the Deployment; StatefulSet pods must reference that StatefulSet's current UID.
+This includes both ReplicaSets during a rollout and excludes orphaned or stale
+owners after a same-name recreation. Prefix matching is not used for routing.
+
 [Durable Streams](streams.md) persist definitions, subscriptions, message bodies,
 attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
 path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the
 same shared state. SLDC/5 fences the additive WebSocket directory batch contract; stored
-producer receipts from earlier formats remain readable. Stream payloads use
-generated MemoryPack writers directly to avoid Native AOT generic virtual
-formatter dispatch, without changing the wire format. API payloads use
+producer receipts from earlier formats remain readable. SlimData payloads use
+generated MemoryPack readers and writers directly, without changing the wire
+format. Readers rent their own temporary state and avoid a partially published
+root formatter during concurrent startup/WAL replay. Unexpected runtime decoding
+or validation exceptions propagate; only known structural/serialization errors
+are classified as incompatible batch payloads. API payloads use
 source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/4 and SLDC/5
 clusters are deliberately not ready.
 
@@ -23,6 +39,31 @@ keep the standard instrumented HTTP client.
 See [client routing and failure semantics](clients.md#multi-node-routing-and-failure-semantics).
 
 SlimFaas sits between callers and their applications. It routes HTTP requests, wakes idle workloads, queues asynchronous work, dispatches jobs and coordinates state through SlimData.
+
+Routing and wake-up queries use explicit [ZLinq](https://github.com/Cysharp/ZLinq)
+value enumeration for function lookup and first-ready-pod port selection.
+Function lookup remains ordinal, case-sensitive and first-match, and reads the
+current deployment snapshot on each call. Arrays and lists avoid query iterator
+allocations; other collection implementations remain supported. Materializing
+pipelines also use value enumeration for job caller resolution, HTTP headers,
+status and virtual-replica projections, local topology, metrics/activity workers,
+stream dispatch and SlimData batches. DLQ staging still deep-clones mutable
+queue attempts while sharing immutable payload memory; its wire format is unchanged.
+Value queries stay within synchronous scopes, and task/DTO collections are
+materialized before awaiting. Deferred `IEnumerable<T>` APIs remain deferred.
+Predicated counts and readiness checks keep .NET 10 LINQ, whose array/list fast paths
+already avoid iterator allocations. There is no global LINQ replacement.
+Queue-state selections also use value queries so sparse running/retry/finished
+snapshots allocate storage for their matches instead of a builder sized to the
+whole queue. The filtered value query materializes an owned array and wraps it
+as immutable without another copy; this also avoids growing immutable builders
+for dense selections. The selected elements retain their original identities and payload
+ownership. Stream counters scan pending deliveries once without a temporary
+array; key/value batch projections, queue result projections, batch statistics
+and file-transfer peer selection also use explicit value enumeration. File-tag
+sorting and active Stream counts retain LINQ after comparative measurements.
+See [performance measurements](performance-benchmarks.md#zlinq-routing-queries-issue-121)
+for local-cluster and allocation benchmarks.
 
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.
 
@@ -44,9 +85,9 @@ uses the same dedicated access policy rather than the public metric registry.
 
 ## Container build dependencies
 
-Dockerfiles pin the .NET 10 SDK to `10.0.403` and .NET runtime images to `10.0.14`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.2` for standalone Alpine images). Frontend build stages use Node.js `24.21.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.5` on Alpine 3.24.
+Dockerfiles pin the .NET 11 SDK to `11.0.100` and .NET runtime images to `11.0.0`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.4` for standalone Alpine images). Frontend build stages use Node.js `26.13.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.6` on Alpine 3.24.
 
-SDK `10.0.403` supplies Native AOT compiler `10.0.14`, which fixes [GHSA-p3jp-9v83-76w9](https://github.com/advisories/GHSA-p3jp-9v83-76w9). Older container SDK pins can fail restore with `NU1903` even when the host SDK is current; update the SDK image instead of disabling NuGet audit.
+The SDK and runtime pins must be upgraded together. NuGet audit checks all direct and transitive dependencies, including the Native AOT compiler; vulnerability warnings fail the build.
 
 The SlimFaas and MCP dashboards install dependencies with `npm ci`; the React demo uses pnpm with a frozen lockfile. Updating a dependency therefore requires its corresponding lockfile to be committed. Generated frontend assets and local test/demo artifacts are excluded from the Docker context. The MCP final image explicitly copies the freshly built dashboard into `wwwroot`, including on the first publish from a clean checkout. All .NET container builds use the repository root as their build context so central package versions, analyzers and AOT checks apply consistently:
 
@@ -58,15 +99,50 @@ docker build -f samples/FibonacciReact/Dockerfile -t fibonacci-react:local sampl
 
 See the [dependency update guidelines](../CONTRIBUTING.md#dependency-updates) for compatibility constraints, license checks and validation commands.
 
+### Dependency compatibility holds
+
+Frontend tooling uses Node 26 LTS and pnpm 12.18.0. pnpm configuration, including
+transitive overrides and explicitly allowed build scripts, lives in each
+package's `pnpm-workspace.yaml`.
+
+Mermaid remains pinned to 11.17.2: Mermaid 12 introduces EPL-2.0 `elkjs`, which
+is outside the CNCF license allowlist.
+
+ESLint and `@eslint/js` remain at 9.39.5 because the current React plugins do not
+support ESLint 10. The documentation site keeps TypeScript 6.0.3 because
+`typescript-eslint` cannot use the TypeScript 7 API; the Vite dashboards use
+TypeScript 7. Storybook's docgen plugin uses patched glob 14.0.4 or later through
+a scoped override. These constraints can be revisited when upstream supports
+the newer tooling.
+
+The Python client retains Python 3.10 support with websockets 16.x. Pygments
+2.19.2 is held until a newer distribution passes FOSSA. The existing
+OpenTelemetry Prometheus exporter remains at 1.20.1-beta.1 because there is no
+stable release of that package.
+
+### ASP.NET Core 11.0.0 trimming workaround
+
+SDK 11.0.100's `Microsoft.AspNetCore.Components.Endpoints` assembly embeds an
+`ILLink.Substitutions.xml` resource naming `Microsoft.AspNetCore.Components.Forms`
+instead of its own assembly. Managed trimmed SlimFaas publishes therefore fail
+with IL2101. A linker attribute file scopes an exception to IL2101 on that exact
+framework assembly for this SDK. Its Blazor Hot Reload substitution is unused by
+the React host. Application trimming/AOT analysis and warnings-as-errors remain
+enabled. Remove the workaround when the framework resource is corrected.
+
 ## Native build toolchain
 
-Source builds require .NET SDK `10.0.403` or a newer .NET 10 SDK, as selected
-by `global.json`. This selects the Native AOT compiler and runtime `10.0.14`,
+Source builds require .NET SDK `11.0.100` or a newer .NET 11 SDK, as selected
+by `global.json`. This selects the Native AOT compiler and runtime `11.0.0`,
 including the [Brotli security fix](https://github.com/advisories/GHSA-p3jp-9v83-76w9).
 It also retains the compiler fix shipped in .NET `10.0.12` for Apple's linker
 assertion, `too many large addends`, which can
 affect SlimFaas's generated Kubernetes client code on macOS. Upgrade the SDK
-before publishing a native macOS build; no custom linker setting is required.
+before publishing a native macOS build. For `net11.0` / `osx-x64` AOT builds,
+`Directory.Build.targets` selects the modern Apple linker: Xcode 16's classic
+linker rejects unaligned GSS pointers in .NET 11's native security archive. The
+setting also applies to the standalone bundle's sample executables and does not
+affect other RIDs.
 The fix is documented in the [upstream .NET runtime backport](https://github.com/dotnet/runtime/pull/132171).
 
 ```bash
@@ -122,6 +198,16 @@ Each SlimFaas node serves requests and observes the cluster. `ReplicasSynchroniz
 `SlimWorker` dispatches queued HTTP work. WebSocket workers deliver requests to registered clients. Job workers create executions through the orchestrator, while schedule workers enqueue due jobs. `HistorySynchronizationWorker` shares recent activity history used by scaling.
 
 SlimData holds replicated queue state, configuration and small values. `ClusterMembershipAnnounceWorker` announces a member to a leader; `SlimDataMembershipReconciliationWorker` reconciles membership with the orchestrator topology. Node readiness includes Raft recovery and protocol compatibility.
+
+Raft HTTP sockets release unsent data when a connection closes. This prevents
+cancelled large uploads to a silent peer from retaining TCP buffers across
+retries; it does not change the request/election deadlines or persisted Raft
+format. Successful connections remain pooled. The
+[.NET socket linger contract](https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.socket.lingerstate?view=net-10.0)
+explains the difference between waiting to transmit queued data and discarding
+it during socket closure. Linux cgroup socket memory is measured separately
+from process RSS in the [reliability controls](slimdata-reliability.md#linux-socket-memory-controls).
+
 
 Membership reconciliation uses one topology snapshot per cycle. A removal requires
 a positive requested replica count, exactly that many distinct eligible endpoints,
@@ -304,6 +390,17 @@ mutation: a stalled local consumer can therefore stop dispatch even when functio
 are Ready and Raft continues committing writes from other nodes. Check local batch
 queue growth and dispatch-cycle progress together with Raft health.
 
+An outgoing mutation request uses both the current local Raft consensus token and
+an observed-leader generation for its lifetime, including the HTTP response body.
+The leader-change event also retires the generation: a follower can observe a new
+leader without its captured consensus token being cancelled. When either epoch
+ends, the old request is cancelled and the
+ordered consumer retries the same producer/generation/sequence against the newly
+observed leader. This avoids holding every later command until the old HTTP
+request's 100-second default timeout. A previously committed attempt is resolved
+through the existing batch deduplication; no request is skipped to unblock the
+queue. The configured HTTP timeout still bounds a request within a valid epoch.
+
 The consumer stops after 15 seconds of inactivity and starts again when a command
 arrives. Admission, retirement and disposal are synchronized so that a command
 arriving during retirement remains owned by exactly one consumer. An unexpected
@@ -319,14 +416,50 @@ File content is disk-backed; metadata is cluster-consistent. A receiving node an
 
 ### Consensus and persistence
 
+Protocol probes have a two-second deadline covering connection, response headers
+and body. A silent or suspended member is classified as unavailable, so a newly
+elected leader can still check the remaining reachable members. Caller shutdown
+cancellation propagates. An explicit incompatible protocol still blocks writes,
+and ignoring an unreachable probe never replaces Raft's quorum/lease checks.
+This prevents an unbounded protocol HTTP read from holding a healthy majority
+unavailable after a leader change; request and async-drain deadlines are unchanged.
+
 SlimData uses Raft through DotNext. Nodes retain applied state in memory and persist commands in a write-ahead log. A healthy quorum is needed for replicated writes; local snapshots of status and metadata do not by themselves establish that every peer is caught up.
 
-SlimData uses DotNext 6.11.1. This retains upstream fixes for a full replication
+SlimData uses DotNext 6.12.0. This retains upstream fixes for a full replication
 queue silently losing a member response and for rejecting an election candidate
 whose log is shorter but whose last term is newer. These are stabilization fixes;
 they do not establish the cause of a particular operational incident. The
 SlimData command protocol, snapshot payload format and AppendEntries commit-index
 guard are preserved.
+
+SlimData's WAL adapter waits for the append's flush/recovery checkpoint before
+returning to the Raft transport. DotNext's buffered append can otherwise return
+before its background flusher persists the newly received tail. Under disk
+exhaustion and process failure, that volatile acknowledgment can leave a quorum
+without a previously accepted entry. The adapter keeps the same WAL layout and
+memory strategy, propagates flush failure/cancellation, and allows the existing
+flusher to coalesce concurrent writes. Flush-completion observation is serialized
+because the underlying completion source supports one waiter. Commit and explicit
+flush calls share the same observer gate, including calls through Raft interfaces;
+appends remain concurrent. See the versioned
+[append implementation](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.cs)
+and [flush/checkpoint implementation](https://github.com/dotnet/dotNext/blob/0c1a6621a397494d8a6f633d8a5176752b5ec9e5/src/cluster/DotNext.Net.Cluster/Net/Cluster/Consensus/Raft/StateMachine/WriteAheadLog.Flusher.cs).
+
+Read paths additionally wait for the local state machine to apply the visible
+commit after the leader barrier. This covers DotNext's weak-leader fast path,
+which may return before that local application. The existing read timeout still
+bounds the complete operation.
+
+Version 6.12.0 also corrects an empty-heartbeat response that could delay leader
+lease renewal after a write burst when one voter stops responding despite a
+healthy majority. The fix applies to the HTTP transport; see
+[upstream issue 309](https://github.com/dotnet/dotNext/issues/309) and its
+[fix](https://github.com/dotnet/dotNext/pull/311). The Local `lease-burst` campaign
+records actual write latency while a follower is suspended. This upstream defect
+has not been established as the cause of all recorded Windows publication or
+recovery failures. Existing WAL chunk geometry and SlimData payload formats are
+unchanged; do not reset state or assume rollback safety from a forward replay.
 
 The upgrade must preserve live member re-addition, legacy WAL metadata pages
 on hosts with system pages larger than 4 KiB, and compatibility with legacy
@@ -336,7 +469,25 @@ before upgrading existing state. Do not infer safe rollback from a forward-upgra
 
 ### SlimData recovery
 
-DotNext 6.11.1 chooses the synchronization path internally. SlimFaas supplies
+SlimData implements DotNext's public `IStateMachine` and `ISnapshotManager`
+contracts for its snapshot lifecycle; Raft consensus and the WAL remain DotNext.
+Incoming snapshots are written to a temporary file in the same directory, checked
+against their declared length, flushed to disk and decoded into detached state.
+Only successful completion publishes the index/term filename and replaces the
+in-memory payload. Cancellation, short input and I/O errors retain the previous
+state and cannot promote an incomplete temporary copy. Snapshot transport and
+serialization use bounded 64 KiB I/O buffers, independently of WAL chunk geometry.
+
+Older receivers could leave truncated files under final snapshot names. Startup
+logs and retains those files when decoding reaches unexpected end-of-file, then
+tries an older complete snapshot before WAL replay or peer synchronization. If
+none is complete, startup fails explicitly instead of accepting an empty reset.
+Unexpected decoding failures still propagate. The snapshot payload and filenames
+remain compatible with historical formats; the 6.6.0 WAL/snapshot fixture is part
+of the regressions. Snapshot lifecycle code adapted from DotNext carries its MIT
+notice in `src/SlimData/ThirdPartyNotices/DotNext.txt` and published output.
+
+DotNext 6.12.0 chooses the synchronization path internally. SlimFaas supplies
 `warmupRounds` (100 by default): a restarted member first attempts WAL
 backtracking and can fall back to DotNext snapshot recovery when the gap is
 larger than the configured search window. There is no public API in this
@@ -390,7 +541,23 @@ See the [upstream release notes](https://github.com/dotnet/dotNext/blob/aa75879e
 DotNext supports two WAL memory-management strategies. SlimFaas selects the strategy with `SlimData:WalMemoryManagement`:
 
 - `SharedMemory` is the default. It writes directly to memory-mapped WAL files so the operating system can reclaim or flush mapped pages under memory pressure.
-- `PrivateMemory` uses private temporary buffers and favors write throughput, at the cost of higher RAM consumption.
+- `PrivateMemory` uses private temporary buffers and asynchronous write-through I/O. It can improve write throughput but consume more RAM, especially when opening a large existing WAL.
+
+Fresh Windows WAL directories use 64 KiB data chunks. Smaller system-page chunks
+can require hundreds of synchronous mapped-file flushes per large Raft entry,
+causing repeated RPC cancellation before a healthy majority can acknowledge it.
+The chunk size is persisted in `wal/slimdata-chunk-size` before the first page is
+created and read before opening the WAL, including on other operating systems.
+Existing unmarked WALs keep their historical system-page geometry. New Linux and
+macOS WALs keep their existing defaults. This preserves existing stored addresses;
+it does not migrate old Windows volumes or change acknowledgment durability,
+request deadlines, elections, snapshots or the command protocol. Older binaries
+that ignore the marker must not open a marked WAL. Preserve the marker in backups.
+
+Windows strategy controls show faster large publications with explicit
+`PrivateMemory`, but later recovery checks still failed. A trial Windows default
+change was therefore withdrawn; see the
+[recorded controls and remaining reliability gates](slimdata-reliability-results.md).
 
 SlimData creates a streaming snapshot when either **32 MiB of successfully applied WAL entries** or **500 successfully applied entries** have accumulated, whichever occurs first. A snapshot compacts the preceding Raft log window; the byte and entry counters restart after the snapshot request or a snapshot restore.
 
@@ -413,6 +580,16 @@ SlimData__SnapshotIntervalBytes=33554432
 ```
 
 `WalMemoryManagement` accepts only `PrivateMemory` and `SharedMemory`, case-insensitively. Snapshot intervals must be strictly positive. Invalid values stop startup with a configuration error. Changing the memory strategy does not change the WAL format and does not require a data migration.
+
+A failed background WAL flush or application leaves the current DotNext WAL
+instance terminal, even after disk space returns. The diagnostics worker checks
+that state through a bounded, read-only application barrier and stops the host
+on `WriteAheadLog.InternalException`. Configure a supervisor or Kubernetes
+restart policy and retain the original volumes. Atomic index gauges alone do
+not detect this failure. Ordinary catch-up delays remain observable and do not
+stop the host. On Linux, exhausting the filesystem backing `SharedMemory` can
+also terminate a memory-mapped writer immediately; the restart must still use
+the retained WAL and snapshots.
 
 The current byte window and the cause of the latest snapshot request are exposed as `slimdata_wal_bytes_since_snapshot` and `slimdata_snapshot_last_trigger{cause="bytes|entries|incompatible"}`.
 
@@ -583,6 +760,11 @@ See [external sources and migration](autoscaling.md#external-metrics-and-opt-in-
 The dashboard reads a separate bounded in-memory diagnostic journal. The journal has no role in making scaling decisions and is reset across leadership changes. Simulations use request-local metric and health copies plus copied autoscaler histories; compilation caches for edited queries are also request-local. They share the calculators without invoking production writes or the side effects of the existing PromQL debug endpoint.
 
 Followers resolve the leader from configured Raft membership and reuse the configured application-port resolution for HTTP relays. State frames are briefly cached per function and leader, with a maximum of eight cache entries per node. Internal endpoints require the front, allowed ports and a direct connection from a recognized SlimFaas member IP; browser-supplied upstream addresses are not accepted. See [the UI guide](user-interface.md#scaling-diagnostics-and-playground).
+
+### Reliability testing
+
+See [SlimData reliability campaigns](slimdata-reliability.md) for executable
+three-node Local recovery checks and the remaining 1.0 LTS evidence gates.
 
 ### Multi-platform runtime image compilation
 

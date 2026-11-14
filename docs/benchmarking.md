@@ -12,6 +12,18 @@ The quick profile is intended for a smoke test and takes a few minutes:
 BENCHMARK_PROFILE=quick .bin/slimfaas-local-benchmark.sh
 ```
 
+On Windows, run the script in Git Bash with Python 3.10+. The launcher places the
+runtime and its descendants in an owned Windows Job Object before execution.
+Normal completion and an abrupt launcher exit both close the entire process
+tree. Occupied benchmark ports are rejected before starting or cleaning state.
+Run `python .bin/test-local-benchmark-host.py` to verify those lifecycle checks.
+
+Fresh Windows WALs use recorded 64 KiB data chunks; existing unmarked volumes
+keep their original geometry. Preserve `wal/slimdata-chunk-size` with the WAL.
+The [Windows investigation](reliability/2026-11-13/windows-benchmark.md) retains
+the failed controls, reproduction commands and validation of large messages,
+Streams and recovery. This changes neither the load nor its request deadlines.
+
 ## Run the three-node recovery scenario
 
 The restart-under-load scenario starts the same three-node SlimFaas Local
@@ -49,7 +61,7 @@ validates `benchmarks/slimfaas.local.benchmark.yaml`, starts a clean three-node
 cluster with `slimfaas local`, runs the matrix, and shuts down every managed
 process. Docker and Kubernetes are not required.
 
-It requires the repository's .NET 10 SDK plus Bash and `curl`. Ports 31020-31023,
+It requires the repository's .NET 11 SDK plus Bash and `curl`. Ports 31020-31023,
 3162-3164, 31080, and the 32000-32015 process pool must be free.
 
 Results are written below
@@ -63,6 +75,228 @@ Results are written below
 - `slimfaas-local.log`: control-plane and managed-process output.
 
 ## Compare an optimization with its baseline
+
+For release safety checks, add `--criteria non-regression` to the comparison
+command below. The default remains `optimization`. Non-regression evaluates the
+complete sync, async, paced/burst and scaling evidence without requiring the
+20–50% optimization targets. It retains the existing 10% throughput/tail guardrails,
+20% CPU/message, 10% RSS and 2x Raft-entries/message limits. A missing measurement
+or failed reference produces **INCONCLUSIVE** (exit 2), never a passing result.
+
+Async resource collection waits for a fresh diagnostics sample on every node
+before sending measured requests. CPU and RSS come from the live process
+collectors across load and delivery drain. After drain, the collector waits for
+each node's five-second diagnostics exporter to refresh before reading the final
+Raft counter. This wait is outside the timed load and the CPU/RSS window; the
+Raft delta includes background entries within that exporter window. It does not
+extend the 180-second delivery deadline. Initial, final process and final
+diagnostics snapshots, including per-node timestamps and counters, are retained
+in `AsyncResources` / focused-workload `Resources` for audit. A missing counter,
+counter reset or refresh timeout cannot produce passing resource evidence.
+
+Earlier subsecond bursts could finish between periodic samples and report zero
+CPU or Raft work. Keep those observations as **INCONCLUSIVE** and rerun both
+revisions with the same corrected driver; do not backfill their missing samples.
+
+### macOS, Linux ARM64 and Kubernetes campaigns
+
+Use `.bin/run-platform-workload.py` for one attributable run and
+`.bin/run-platform-matrix.py` for serial reference–candidate–candidate–reference
+blocks. Publish both revisions before starting measurements; use the same
+prebuilt benchmark and MemoryLab drivers for both. The full HTTP defaults are
+`async-queue`, 64/4096/65536/262144/1048576/2000000/2097152/4194304 bytes,
+concurrency 1/4/16, 2-second warmup, 10-second measurements and three repetitions.
+MemoryLab defaults are Set and mixed at concurrency 12/48, 30-second warmup and
+120-second load, with all-node reads and independent async SHA-256 receipts.
+Its safety limits remain 90% throughput, 120% p99 and 115% RSS, with zero errors.
+
+After integrating PR #504 and PR #514, build the candidate and comparison
+reference with SDK 11.0.100 and the same compilation mode. The .NET 11 reference
+is PR #514's `f36084643a75d803051a6918d2950d1a4f674ada`, before the collection
+and reliability changes. Keep the original `496e8739` .NET 10 reference and its
+observations as historical evidence; do not combine their performance samples
+with the .NET 11 comparison. Record both source SHAs and the common driver's
+hash in each new campaign configuration. Existing campaign directories and
+original persisted volumes must remain available after this toolchain change.
+
+For example, save an environment configuration outside the source tree:
+
+```json
+{
+  "environment": "macos",
+  "before": "/absolute/path/baseline/SlimFaas",
+  "after": "/absolute/path/candidate/SlimFaas",
+  "benchmark": "/absolute/path/SlimFaasBenchmark.dll",
+  "memorylab": "/absolute/path/SlimFaas.MemoryLab.dll",
+  "compare_command": ["dotnet", "/absolute/path/SlimFaasBenchmark.dll"]
+}
+```
+
+```bash
+python3 .bin/run-platform-matrix.py --config artifacts/platform-macos.json \
+  --output artifacts/platform-macos
+```
+
+The matrix writes every run and all four cross-comparisons. Contradictory
+guardrails against the two surrounding references trigger one complete ABBA
+repeat for that block; both attempts remain available. `--resume` continues an
+interrupted matrix without overwriting completed or failed evidence. No builds,
+other measurements or fault campaigns may run concurrently with measurements.
+Low disk space stops a new phase; preserve state, WALs, snapshots and journals
+when reclaiming verified inactive build caches or images.
+
+The test-only `benchmarks/platform/Dockerfile` inherits the exact production
+runtime image and adds a common load driver, SDK fixtures and Linux fault tools.
+Build with `--build-arg RUNTIME_IMAGE=<source-built-runtime>`. Use `podman` in the
+matrix configuration, image names for `before`/`after`, and a unique `prefix`.
+State is stored on the VM's Linux filesystem, not a macOS bind mount. Podman
+measures a managed, trimmed ARM64 runtime with the current production Dockerfile;
+macOS Native AOT results are a separate comparison.
+
+For Kubernetes, use a dedicated four-node kind cluster (one control plane and
+three workers), an explicit kubeconfig and context `kind-slimfaas-pr506`. Verify
+[kind's rootless prerequisites](https://kind.sigs.k8s.io/docs/user/rootless/),
+including cgroup v2 delegation. The kind nodes need a VM-native `/evidence` mount
+from `/var/home/core/slimfaas-pr506`. Preload the runtime and common controller
+images. Set `environment` to `kubernetes`, `prefix` to `slimfaas-pr506-<campaign>`,
+and provide `kubeconfig`, `controller_image`, `before_commit` and `after_commit`.
+The launcher creates dedicated labelled namespaces, retained persistent volumes,
+three anti-affined StatefulSet nodes, actual function Deployments and Jobs.
+Generators and functions run inside the cluster through Services and pod DNS.
+Port-forwarding is unnecessary for measurements.
+Each matrix phase keeps launcher manifests, ownership records and Kubernetes
+diagnostics under `controller/`, alongside its workload reports. The launcher
+requires this controller directory to be new; existing phase metadata must not
+be used as the controller output or overwritten during a resume.
+
+HTTP and MemoryLab fixtures omit the fault-agent sidecar's `containerPort`
+declaration for both revisions; its control socket still listens normally.
+The historical runtime also bound declared sidecar ports, which conflicts with
+that agent. The separate chaos fixture declares the sidecar port to exercise
+the corrected listener ownership. Keep this common performance convention when
+checking reference readiness; retain failed compatibility controls separately.
+
+Linux fault controls also inspect cgroup socket memory and OOM status. RSS
+guardrails retain their existing definition, while an unplanned runtime/control
+OOM fails the controlled recovery campaign even if the process restarts. See the
+[Linux socket-memory controls](slimdata-reliability.md#linux-socket-memory-controls).
+
+Runtime comparisons include the durable Raft append and local read-application
+barriers described in [the architecture](how-it-works.md). Keep them enabled:
+an acknowledgment from a volatile replica cannot be counted as equivalent to
+a persisted quorum copy when comparing performance.
+
+The platform runner preserves every latency sample in `latency-samples.csv.gz`.
+The common driver compresses completed case samples between timed cases, using
+`--samples-format csv.gz`; ordinary manual runs still default to CSV. Comparison
+requires matching sample formats. Compression reduces evidence storage without
+sampling or dropping request observations.
+VM exports retain complete WALs and samples in `raw.tar.gz`, with its SHA-256 in
+`raw-archive.json`; comparers extract only the smaller reports and logs. The
+original VM state remains in place. Extract the archive when inspecting the
+large raw members rather than keeping an additional uncompressed copy.
+
+Long rootless campaigns also consume the Linux user's session-key quota. Inspect
+`/proc/key-users` and `sysctl kernel.keys.maxkeys kernel.keys.maxbytes` in the
+dedicated VM. If OCI startup reports `unable to create session key: disk quota
+exceeded`, raise that VM's quota (for example, `sudo sysctl -w
+kernel.keys.maxkeys=20000 kernel.keys.maxbytes=2000000`) and retain the original
+failed attempt. This is unrelated to filesystem capacity.
+
+`sysctl -w` settings are lost when the VM restarts. To preserve the campaign's
+validated key quotas and inotify limits across restarts, install a dedicated
+configuration inside that VM:
+
+```bash
+podman machine ssh sudo tee /etc/sysctl.d/90-slimfaas-pr506-rootless.conf <<'EOF'
+kernel.keys.maxkeys = 20000
+kernel.keys.maxbytes = 2000000
+fs.inotify.max_user_watches = 524288
+fs.inotify.max_user_instances = 524288
+EOF
+podman machine ssh sudo sysctl -p /etc/sysctl.d/90-slimfaas-pr506-rootless.conf
+```
+
+Recheck these values after a host/VM restart before resuming container campaigns.
+On macOS, prevent idle sleep for the measurement command's lifetime, for example
+with `caffeinate -ims python3 .bin/run-platform-matrix.py --config config.json
+--output artifacts/matrix`. A host suspension interrupts measurement isolation;
+retain the partial results and start a fresh complete ABBA block.
+
+The `normal` probe profile runs readiness and liveness checks with a 300-second
+startup allowance for retained-state recovery. The `endurance`
+profile disables liveness replacement while explicitly suspending only the
+campaign runtime process; pod UID, PID and process start time fence every signal.
+Per-pod/per-restart receipts and logs are retained before scaling down. See the
+[reliability guide](slimdata-reliability.md) for fault and ledger invariants.
+The protocol-probe regression reports crash-to-listener time separately from
+majority recovery after the listener opens; the latter keeps its 15-second
+deadline. The existing membership announcement can consume 200 seconds before
+the restarted listener opens when its first peer is silent. Retain that startup
+time in the report, even when the subsequent majority check succeeds.
+
+Benchmark targets accept `--host 0.0.0.0` for container access (default remains
+loopback). MemoryLab accepts `--node-urls http://node-0:5000,http://node-1:5000,http://node-2:5000`;
+the existing local ports remain the default. URLs must be HTTP(S) origins without
+credentials, paths, queries or fragments.
+
+The real .NET SDK payload check uses the existing FibonacciBatch WebSocket job
+from the native demo. Start the demo with its supervisor output redirected to
+`artifacts/native-demo.log`, then create a unique worker:
+
+```bash
+curl --fail-with-body -H 'Content-Type: application/json' \
+  --data '{"Args":["--ws-mode","--function-name","dotnet-payload-check","--ws-url","ws://127.0.0.1:30022/ws"],"DependsOn":[],"BackoffLimit":0}' \
+  http://127.0.0.1:30020/job/fibonacci-ws
+python3 .bin/test-dotnet-sdk-payloads.py --function dotnet-payload-check \
+  --worker-log artifacts/native-demo.log --output artifacts/dotnet-payload-check
+```
+
+The probe waits for readiness and registration through every node and its base
+URL. On Kubernetes, also wait for the application Service from the worker pod's
+network namespace (for example, an init container polling `/ready`): direct pod
+readiness can precede that node's Service routing update. Processing-proof GETs
+may retry transport failures within their existing 180-second deadline; each
+failure is recorded as `proof-read-unavailable`. Function and job mutations are
+never resent by the probe.
+
+Use a fresh function name and output directory for another run. The 72 cases
+cover all six historical sizes through every node, Content-Length and chunked,
+sync response streaming and actual async callbacks. Sync checks hash the returned
+canonical JSON request; async checks hash the worker's logged decoded body and
+require its persisted processing proof. Partial stdout lines are never counted.
+The client journal is fsynced before each unretried request. Keep the returned
+Job ID and delete only that test Job after collecting evidence.
+
+To reproduce the in-cluster probe, build and preload the existing
+`samples/FibonacciBatch/Dockerfile` worker image alongside the source-built
+runtime/tools image. Use a fresh owned namespace for each probe:
+
+```bash
+campaign=slimfaas-pr506-sdk-check-01
+campaign_kubeconfig=artifacts/pr506/kubernetes/kubeconfig
+runtime_image=localhost/slimfaas-pr506:after-tools-websocket
+worker_image=localhost/slimfaas-pr506:dotnet-worker
+python3 .bin/run-kubernetes-campaign.py launch \
+  --kubeconfig "$campaign_kubeconfig" --namespace "$campaign" \
+  --output "artifacts/$campaign" --image "$runtime_image" \
+  --controller-image "$runtime_image" --source-commit HEAD \
+  --probes normal --scenarios api
+python3 .bin/run-kubernetes-campaign.py wait \
+  --kubeconfig "$campaign_kubeconfig" --namespace "$campaign" \
+  --output "artifacts/$campaign" --timeout 900
+python3 .bin/test-dotnet-sdk-kubernetes.py \
+  --kubeconfig "$campaign_kubeconfig" --namespace "$campaign" \
+  --image "$runtime_image" --worker-image "$worker_image" \
+  --output "artifacts/$campaign/sdk"
+```
+
+The SDK command requires a successful initial campaign, checks namespace ownership
+and the exact runtime image, and refuses existing SDK resources. It creates
+actual worker/probe Jobs, gates the worker on Service readiness, and reads the
+worker's logs from inside the cluster. It collects evidence before deleting only
+its worker Job and stopping the runtime StatefulSet. Original state and raw
+`/evidence/runs/<namespace>/dotnet-sdk/probe-output` remain on the VM.
 
 Run the standard profile before changing the runtime, then run the exact same
 matrix after the change. Compare the two structured reports with:
@@ -230,6 +464,137 @@ Available variables are:
 | `BENCHMARK_ASYNC_BURST_CONCURRENCY` | `64` | burst enqueue concurrency |
 | `BENCHMARK_RUN_ROOT` | timestamped artifacts path | exact output directory |
 | `BENCHMARK_SKIP_BUILD` | `false` | reuse existing Release binaries for repeated runs on the same checkout |
+| `BENCHMARK_RUNTIME` | built Release SlimFaas DLL | preserved managed DLL or Native executable to compare |
+
+The standard Local manifest's path and SHA-256 are also recorded. Its ephemeral
+mode assigns a new state directory to each independent benchmark invocation.
+The Windows host launcher requires a 512 MiB free-space reserve on the working
+and temporary volumes before startup and while running. If exhausted, it stops
+only its owned process tree and leaves state for investigation. Such an interrupted
+run is an environment failure and cannot support a performance verdict.
+| `BENCHMARK_RUNTIME_PATH` | unset | launch a prebuilt self-contained JIT or Native AOT `SlimFaas` executable; use with `BENCHMARK_SKIP_BUILD=true` |
+| `BENCHMARK_RUNTIME_MODE` | `jit` | record the runtime mode in the run manifest; it does not change the supplied executable |
+
+## Compare JIT and Native AOT on a new machine
+
+The [Apple M4 Pro ZLinq report](performance-benchmarks-m4.md) records the
+before/after measurements, resource definitions and limitations of this protocol.
+
+The four-variant campaign requires Python 3.11+ on macOS or Linux; its orchestration
+uses POSIX process groups, `ps` and host load averages. Rebuild and measure **both**
+revisions on the same host. Previous measurements
+from a different CPU or OS are historical context, not a baseline. Publish four
+isolated directories named `baseline-jit`, `candidate-jit`, `baseline-aot` and
+`candidate-aot` below a common directory. Use the same SDK and Release settings:
+
+```bash
+# Run from each revision, changing the output directory accordingly.
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 \
+  -p:SkipClientAppBuild=true -p:PublishAot=false -p:PublishTrimmed=false \
+  --self-contained true -o /absolute/path/publish/baseline-jit
+
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 \
+  -p:SkipClientAppBuild=true -o /absolute/path/publish/baseline-aot
+
+dotnet build benchmarks/SlimFaasBenchmark -c Release
+dotnet build tools/SlimFaas.MemoryLab -c Release
+
+python3 .bin/slimfaas-zlinq-benchmark.py \
+  --publish-root /absolute/path/publish \
+  --output artifacts/zlinq-comparison \
+  --rounds 3 --duration 20 --warmup 5 \
+  --payloads 64,4096,2097152 --concurrency 1,16 \
+  --data-duration 60 --stream-messages 200 --dispatch-parallelism 16
+
+python3 .bin/summarize-zlinq-benchmark.py artifacts/zlinq-comparison
+```
+
+Use the RID matching the host. The JIT publication is self-contained and
+untrimmed; the native publication uses the product's AOT settings. The campaign
+requires identical dashboard assets in all publications. `SkipClientAppBuild`
+skips compilation but can still copy an existing generated `wwwroot`; remove it
+from the **benchmark publication copies** for a backend-only comparison.
+The campaign
+never compiles during measurement. It runs variants sequentially, reverses their
+order on alternate rounds and rotates the third round. Every repetition starts
+a clean three-node `slimfaas local` cluster. The unchanged benchmark driver and
+target use the same JIT runtime for all four variants.
+
+Each round covers direct/synchronous/asynchronous HTTP, paced and burst queue
+traffic, scale-to-zero/scale-out, sustained sets, mixed set/delete/increment/
+hashset/async operations, cross-node file uploads/reads, and a bounded durable
+Stream burst. Set/hashset/counter state is checked on all three nodes; queue and
+Stream delivery checks reject missing or duplicate IDs. The Stream burst must
+reach zero lag and pending deliveries with committed ACKs. Microbenchmarks
+exercise larger collection populations separately.
+File payloads default to 256 KiB and can be changed with `--file-bytes`.
+The file workload reuses one ID per worker, uploads to one node and drains a read
+from the next. It measures warm repeated-file access and HTTP success, without
+byte-by-byte comparison. Unique 2 MiB async bodies exercise offload separately.
+`--dispatch-parallelism` defaults to 16 and sets both async dispatch limits on
+the benchmark function through a generated local overlay. The original manifest
+stays unchanged. Use 256 explicitly to retain the original high-parallelism
+stress profile. Sustained 2 MiB traffic exposed quorum interruptions and delivery
+deadlines at both capacities 256 and 16 on this three-node setup, including the
+baseline without ZLinq. Retain unsuccessful attempts alongside completed runs;
+performance medians conditional on successful completion cannot establish reliability.
+
+CPU and sampled peak RSS sum the runtime nodes, excluding the supervisor,
+functions and load generator. Async and Stream CPU windows include delivery and
+drain. RSS reflects process working sets, including shared/native pages; it is
+different from managed allocation per operation. Data resources include driver
+startup before load, but end before report serialization and state validation.
+Data operations may issue multiple HTTP requests. Stream throughput includes
+delivery/drain; its p95 is append acceptance latency.
+
+The summarizer rejects incomplete rounds and correctness failures. It retains
+every repetition in `comparison.json`, reports medians plus rate/CPU/RSS/p95 ranges, and
+includes the unchanged direct-target control. Compressed per-request HTTP samples,
+per-case resources, validation logs, binary hashes and settings remain in the
+campaign directory. A noisy direct control or overlapping repetition ranges
+limits conclusions about small differences; longer runs alone do not remove
+shared-host variance.
+
+After an interrupted campaign, repeat its exact command with `--resume`. The
+runner checks settings and executable/assembly hashes, skips completed variants,
+and archives incomplete attempts before restarting them with clean state.
+It waits for ports to become reusable and accepts TCP `TIME_WAIT` during restart.
+
+If instability prevents a planned repetition from completing, retain its logs and
+failure counts. An explicit `analysis.json` can limit repetitions symmetrically
+before/after within each runtime mode; `--resume` honors those limits and the
+summarizer displays the analyzed counts. Keep the original manifest unchanged:
+
+```json
+{
+  "rounds_by_variant": {
+    "baseline-jit": 3, "candidate-jit": 3,
+    "baseline-aot": 2, "candidate-aot": 2
+  },
+  "reason": "Stop AOT retries after repeated heavy-body failures; retain both completed repetitions per revision."
+}
+```
+
+These are conditional performance statistics, with fewer AOT repetitions. Report
+unsuccessful attempts alongside them; do not describe the workload as reliable.
+
+For more stable collection timing and allocation estimates, run the same
+benchmark sources against each revision:
+
+```bash
+dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks \
+  -p:SkipClientAppBuild=true -- --extended \
+  --filter '*DataFeatureBenchmarks*' '*CollectionPipelineBenchmarks*' \
+           '*RoutingQueryBenchmarks*' '*SlimDataQueueBenchmarks*' \
+           '*QueueSelectionBenchmarks*' \
+  --exporters json csv --join
+```
+
+`--extended` uses six warmup and twelve measured iterations with a 500 ms target
+iteration time. Queue mutation benchmarks retain their explicit invocation count
+and fresh-state setup; their short iterations make mutation timings exploratory.
+These microbenchmarks run in-process under JIT; the full
+local campaign supplies the actual JIT/AOT comparison.
 
 ## Interpret the result correctly
 

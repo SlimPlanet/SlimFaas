@@ -1,5 +1,25 @@
 ﻿# SlimFaas Clients
 
+The Python client bounds incoming WebSocket envelopes to 32 MiB by default,
+with a four-frame buffer and backpressure. Configure positive `max_message_size`
+and `max_queue` constructor options for your memory budget. JSON/base64 overhead
+counts toward the envelope limit; it is separate from server HTTP body limits.
+Older clients inherited a 1 MiB receive limit and closed with code 1009 before
+dispatching valid larger Async bodies, including 2 MB and 2 MiB. Upgrade those
+clients; see [Python message limits](../client/python/slimfaas-client/README.md#incoming-message-limits).
+
+Server retry defaults include `504` for expired delivery reservations and
+WebSocket delivery timeouts. Explicit `HttpStatusRetries` lists override them;
+include `504` for bounded recovery after a worker/owner disappears. Existing
+queue entries retain their original policy. See [function retry configuration](functions.md#6-function-configuration).
+
+Async `TryNumber` / `try_number` is zero-based. With two configured retries,
+deliveries are numbered `0`, `1`, `2`, and only the final one has
+`IsLastTry` / `is_last_try` set to `true`. Runtimes predating the queue metadata
+correction exposed one-based attempts and an inverted final-attempt flag;
+upgrade the runtime to obtain the corrected values. The client wire format is
+unchanged. See [async delivery metadata](async-functions.md#deferred-completion-callbacks).
+
 For retained events, use `SubscribeStreams` / `subscribe_streams` and
 `OnStreamMessage` / `on_stream_message`. See [Durable Streams](streams.md) for
 registration, deferred callbacks, visibility, and reconnect semantics.
@@ -41,9 +61,19 @@ buffers; cancellation propagates to the owner. An unavailable owner returns an
 explicit failure, not a blind synchronous replay. Async delivery retains the
 normal retry/DLQ behavior. An ambiguous attempt's element ID stays fenced on its
 connection until a late callback or disconnect; retries may use another replica.
+A dispatch cancelled before acquiring the socket send lock releases its ID, since
+no callback can arrive. A failed active send aborts its transport before retry;
+this prevents an ambiguous frame from producing a callback for a later attempt.
 Events remain best effort: `204` is acceptance, not delivery confirmation, and
 partial fan-out is not automatically resent. Disconnect removes the route;
 crashes expire the lease, and reconnect creates a new connection identity.
+
+An early successful sync response stops further request-body reads while an
+already dispatched frame finishes within the existing 300-second delivery
+budget. Normal response completion must not cancel that frame or its response
+headers: canceling an active WebSocket send can abort the shared worker
+connection and interrupt unrelated deliveries. Caller cancellation and actual
+transport failures keep their existing cancellation and fencing behavior.
 
 Client libraries:
 
@@ -55,6 +85,17 @@ Client libraries:
 ---
 
 The built-in [Live Stream dashboard](user-interface.md#5-network-map) shows synchronous WebSocket dispatch/completion and publication fan-out to connected replicas. These are server-side observation events; client registration and binary/text WebSocket protocols are unchanged.
+
+## Runtime compatibility
+
+The .NET client targets **net11.0 only** and requires .NET 11. This removes the
+previous net8.0, net9.0 and net10.0 package assets. Applications using an older
+runtime must upgrade before taking this client version. Registration payloads,
+HTTP routes, WebSocket messages and sync streaming contracts remain compatible.
+
+The Python client supports **Python 3.10 or later**. It uses `websockets>=16.1.1,<17`
+because websockets 17 requires Python 3.11. Development dependencies retain
+`pygments==2.19.2` until a newer distribution passes the repository's FOSSA policy.
 
 ## A worker connects to SlimFaas
 
@@ -289,6 +330,12 @@ If the WebSocket request times out server-side, SlimFaas returns `504` for that 
 ---
 
 ## 7. Synchronous HTTP-Over-WebSocket
+
+The .NET client's `Response.WriteAsync` splits large buffers into ordered chunks
+of at most 64 KiB, including the byte-array Stream overload. A single large write
+therefore remains below the 256 KiB complete-frame limit of cross-node peer
+relays. Cancellation stops further chunks; status, headers, body bytes and the
+existing wire protocol remain unchanged.
 
 Requests sent to:
 

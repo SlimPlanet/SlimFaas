@@ -7,6 +7,28 @@ SlimFaas lets you run **oneâ€‘off, batch, and scheduled (cron) jobs** either onâ
 
 ## From a trigger to a completed job
 
+Native local nodes load the manifest's job configuration before accepting
+requests. They do not invent a `Default` executable: unknown job/schedule names
+are rejected unless a default command is explicitly declared. This closes the
+post-restart configuration-refresh window in which a valid job could previously
+be accepted into the wrong queue. It does not reconstruct a job already routed
+to `Default` by an older runtime; reconcile those entries with the original caller
+journal. See [native local Jobs](native-local-mode.md#jobs).
+
+Job creation uses a durable queue reservation with a 120-second timeout and
+bounded retry delays of 2, 4, 8, 16 and 32 seconds. A worker crash after reservation
+and before creating the orchestrator job expires that reservation as HTTP 504;
+504 is retryable, so a replacement worker can create the accepted job.
+The stable job name makes repeated creation requests idempotent in the local
+supervisor. Application jobs should still tolerate at-least-once execution.
+
+Earlier versions omitted 504 from this internal retry policy. A reservation
+timeout could therefore evict an accepted job before any process was created.
+The correction applies to newly enqueued jobs. Existing queued entries retain
+their persisted retry policy; review/drain them before a disruptive upgrade.
+An entry already evicted by the old policy cannot be recovered from a compacted
+queue solely by installing this correction; reconcile it with the caller's log.
+
 HTTP requests and schedules feed the same job execution path. A job configuration supplies the executable/image, dependencies, concurrency and retry limits; it is distinct from each execution created from that configuration.
 
 ```mermaid
@@ -587,6 +609,11 @@ curl -i -X DELETE "$BASE_URL/job-schedules/fibonacci/$SCHEDULE_ID"
 ### 5.1 Backup & Restore of Dynamic Schedules
 
 Dynamic schedules (created at runtime via `POST /job-schedules`) are stored in the internal SlimData Raft database. Deleting Raft storage also deletes these schedules. Export the schedules before a planned storage reset; ordinary follower recovery should preserve storage.
+
+Dynamic schedule listing uses a Raft read barrier, including on followers. A read
+after a successful create/delete observes that committed change. If quorum is
+unavailable, listing reports an availability error instead of serving a stale
+local HashSet. This also applies to other internal HashSet consumers.
 
 To prevent data loss, SlimFaas can **automatically back up** all dynamic schedule data to a **separate volume** and **restore** it on cold start when the database is empty.
 

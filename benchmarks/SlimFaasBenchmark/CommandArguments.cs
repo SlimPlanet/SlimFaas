@@ -90,9 +90,10 @@ internal static class BenchmarkCli
     public static void PrintUsage() => Console.WriteLine(
         """
         SlimFaasBenchmark:
-          target [--port 31080]
+          target [--port 31080] [--host 127.0.0.1]
           compare --baseline <baseline-results.json> --candidate <candidate-results.json>
                   [--profile sync|async]
+                  [--criteria optimization|non-regression]
                   [--output artifacts/slimfaas-local-benchmark/comparison]
           run [--profile standard|async-queue]
               [--slimfaas-url http://127.0.0.1:31020]
@@ -100,6 +101,7 @@ internal static class BenchmarkCli
               [--node-urls http://127.0.0.1:31021,http://127.0.0.1:31022,http://127.0.0.1:31023]
               [--function benchmark-latency] [--scale-function benchmark-scale]
               [--duration 10] [--warmup 2] [--repetitions 3]
+              [--samples-format csv|csv.gz]
               [--payload-bytes 64,4096,262144,2097152]
               [--concurrency 1,16] [--async-drain-timeout 180]
               [--scale-messages 200] [--scale-concurrency 32]

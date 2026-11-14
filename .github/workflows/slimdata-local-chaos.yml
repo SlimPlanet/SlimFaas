@@ -1,0 +1,188 @@
+name: SlimData Local reliability
+
+on:
+  pull_request:
+    paths:
+      - 'src/SlimData/**'
+      - 'src/SlimFaas/**'
+      - 'tests/SlimData.Tests/**'
+      - 'tests/SlimFaas.Tests/Local/**'
+      - '.bin/*chaos*'
+      - '.bin/run-local-benchmark-host.py'
+      - '.bin/test-local-benchmark-host.py'
+      - '.bin/test-raft-socket-memory.py'
+      - 'docs/reliability/2026-11-12/socket-memory-probe/**'
+      - '.bin/slimfaas-local-benchmark.sh'
+      - '.github/workflows/slimdata-local-chaos.yml'
+      - 'Directory.*'
+      - 'global.json'
+  workflow_dispatch:
+    inputs:
+      endurance:
+        description: 'Run the dedicated 30s through 1h absence matrix (about two hours per role)'
+        type: boolean
+        default: false
+      endurance_platforms:
+        description: 'Select the endurance runtime platforms'
+        type: choice
+        options:
+          - all
+          - linux
+          - windows-native
+        default: all
+
+permissions:
+  contents: read
+
+jobs:
+  quick:
+    name: Three-node Local (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - name: Verify campaign failure and accounting invariants
+        run: python .bin/test-local-chaos-harness.py
+      - name: Verify retained campaign evidence
+        run: python .bin/test-local-chaos-evidence.py
+      - name: Verify owned benchmark processes and occupied-port rejection
+        run: python .bin/test-local-benchmark-host.py
+      - name: Build the platform validation driver
+        run: dotnet build tools/SlimFaas.MemoryLab -c Release
+      - name: Verify platform receipts, process fencing and endpoint configuration
+        run: python .bin/test-platform-validation.py
+      - name: Build runtime
+        run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
+      - name: Reject accumulated kernel socket memory after cancelled Raft uploads
+        if: runner.os == 'Linux'
+        run: |
+          dotnet publish docs/reliability/2026-11-12/socket-memory-probe/SocketMemoryProbe.csproj -c Release -r linux-x64 --self-contained true -p:PublishAot=false -p:SkipClientAppBuild=true -o artifacts/local-chaos/socket-publication
+          python .bin/test-raft-socket-memory.py --publication artifacts/local-chaos/socket-publication --output artifacts/local-chaos/socket-memory
+      - name: Exercise real APIs, payload checksums, retries, DLQ and faults
+        run: python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/quick --durations 1,5,10
+      - name: Bootstrap job configuration before admitting requests after node restarts
+        run: >-
+          python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/startup-jobs
+          --scenarios startup-jobs,job-environments,job-recovery,schedules,streams,restarts --recovery-timeout 300
+      - name: Keep a healthy majority writable after a burst with a silent follower
+        run: >-
+          python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/lease-burst
+          --scenarios lease-burst,leader-route,protocol-timeout --request-timeout 15 --recovery-timeout 180
+      - name: Install locked SDK dependencies without build scripts
+        run: uv sync --frozen --project client/python/slimfaas-client --no-build --no-install-project
+      - name: Exercise real SDK streaming, offline retention and reconnect
+        env:
+          PYTHONPATH: client/python/slimfaas-client/src
+        run: >-
+          uv run --locked --no-sync --no-build --project client/python/slimfaas-client
+          python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/websocket
+          --scenarios websocket --delivery-diagnostics --request-timeout 120 --recovery-timeout 300
+      - name: Recover Async delivery after a WebSocket owner timeout
+        env:
+          PYTHONPATH: client/python/slimfaas-client/src
+        run: >-
+          uv run --locked --no-sync --no-build --project client/python/slimfaas-client
+          python .bin/test-slimdata-local-chaos.py --output artifacts/local-chaos/websocket-timeout
+          --scenarios websocket-timeout --delivery-diagnostics --request-timeout 30 --recovery-timeout 60
+      - name: Drop real Raft traffic in an isolated network namespace
+        if: runner.os == 'Linux'
+        run: >-
+          sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT"
+          bash .bin/run-local-network-chaos.sh --output artifacts/local-chaos/network
+          --scenarios api,latency,partitions,restarts --durations 1,5,10
+      - name: Recover from a full isolated 128 MiB filesystem
+        if: runner.os == 'Linux'
+        run: >-
+          sudo env "PATH=$PATH" "DOTNET_ROOT=$DOTNET_ROOT"
+          bash .bin/run-local-disk-chaos.sh artifacts/local-chaos/disk-resources
+          --output artifacts/local-chaos/disk --scenarios api,diskfull,job-diskfull,restarts
+          --durations 15 --recovery-timeout 300
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slimdata-local-quick-${{ matrix.os }}
+          path: artifacts/local-chaos
+          retention-days: 14
+
+  endurance:
+    name: Persistent recovery (${{ matrix.role }})
+    if: github.event_name == 'workflow_dispatch' && inputs.endurance && inputs.endurance_platforms != 'windows-native'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [follower, leader, quorum]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build runtime
+        run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
+      - name: Keep volumes while a node or quorum is absent for up to one hour
+        run: >-
+          python .bin/test-slimdata-local-chaos.py
+          --output artifacts/local-chaos/endurance
+          --scenarios payloads,api,files,retries,chaos,restarts
+          --roles ${{ matrix.role }}
+          --durations 30,60,300,900,1800,3600
+          --recovery-timeout 300 --traffic-interval 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slimdata-local-endurance-${{ matrix.role }}
+          path: artifacts/local-chaos
+          retention-days: 30
+
+  endurance_windows_native:
+    name: Native Windows recovery (${{ matrix.role }})
+    if: github.event_name == 'workflow_dispatch' && inputs.endurance && inputs.endurance_platforms != 'linux'
+    runs-on: windows-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [follower, leader, quorum]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Publish the Native Windows runtime with platform WAL defaults
+        run: >-
+          dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r win-x64
+          -p:SkipClientAppBuild=true -p:IlcGenerateDgmlFile=false
+          -o artifacts/local-chaos/native
+      - name: Keep original volumes through the Native hour-long absence matrix
+        run: >-
+          python .bin/test-slimdata-local-chaos.py
+          --runtime artifacts/local-chaos/native/SlimFaas.exe
+          --output artifacts/local-chaos/endurance-windows-native
+          --scenarios job-environments,job-recovery,payloads,api,files,retries,chaos,restarts
+          --roles ${{ matrix.role }}
+          --durations 30,60,300,900,1800,3600
+          --recovery-timeout 300 --traffic-interval 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slimdata-local-endurance-windows-native-${{ matrix.role }}
+          path: artifacts/local-chaos
+          retention-days: 30

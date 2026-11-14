@@ -20,6 +20,55 @@ public sealed class SlimDataRecoveryTests
     private static readonly TimeSpan TestDeadline = TimeSpan.FromSeconds(12);
 
     [Theory]
+    [InlineData(SlimDataBatchMode.Global, false)]
+    [InlineData(SlimDataBatchMode.Global, true)]
+    [InlineData(SlimDataBatchMode.PartitionedByKey, false)]
+    [InlineData(SlimDataBatchMode.PartitionedByKey, true)]
+    public async Task Leader_epoch_change_cancels_the_old_http_request_without_waiting_for_client_timeout(
+        SlimDataBatchMode mode, bool loseConsensus)
+    {
+        using var stalled = new StalledContent();
+        using var oldConsensus = new CancellationTokenSource();
+        CancellationToken consensus = oldConsensus.Token;
+        var requests = new ConcurrentQueue<(Uri Uri, byte[] Payload)>();
+        using var handler = new Handler(async (request, token) =>
+        {
+            byte[] bytes = await request.Content!.ReadAsByteArrayAsync(token);
+            requests.Enqueue((request.RequestUri!, bytes));
+            if (requests.Count == 1)
+                return new(HttpStatusCode.OK) { Content = stalled };
+            SlimDataCommandBatchRequest batch = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(bytes)!;
+            return Reply(batch, "");
+        });
+        await using var fixture = await Fixture.CreateAsync(handler, Timeout.InfiniteTimeSpan, mode);
+        fixture.Cluster.SetupGet(cluster => cluster.ConsensusToken).Returns(() => consensus);
+        var queue = new JobQueue(fixture.Service);
+        var first = queue.EnqueueAsync("recovery", [1]);
+        await stalled.Started.Task.WaitAsync(TestDeadline);
+        var next = queue.EnqueueAsync("recovery", [2]);
+
+        fixture.LeaderPort = 3263;
+        consensus = CancellationToken.None;
+        if (loseConsensus)
+            await oldConsensus.CancelAsync();
+        else
+            fixture.Cluster.Raise(cluster => cluster.LeaderChanged += null, fixture.Cluster.Object, fixture.Cluster.Object.Leader!);
+
+        await first.WaitAsync(TestDeadline);
+        await next.WaitAsync(TestDeadline);
+        Assert.True(stalled.Disposed);
+        var sent = requests.ToArray();
+        Assert.Equal(3, sent.Length);
+        Assert.Equal(3262, sent[0].Uri.Port);
+        Assert.Equal(3263, sent[1].Uri.Port);
+        Assert.Equal(sent[0].Payload, sent[1].Payload);
+        SlimDataCommandBatchRequest retried = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(sent[1].Payload)!;
+        SlimDataCommandBatchRequest following = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(sent[2].Payload)!;
+        Assert.Equal(retried.Sequence + 1, following.Sequence);
+        Assert.Equal(retried.GenerationId, following.GenerationId);
+    }
+
+    [Theory]
     [InlineData(SlimDataBatchMode.Global)]
     [InlineData(SlimDataBatchMode.PartitionedByKey)]
     public async Task Accepted_job_is_dequeued_after_response_body_timeout_and_leader_change(SlimDataBatchMode mode)
@@ -101,9 +150,9 @@ public sealed class SlimDataRecoveryTests
     [InlineData("hash")]
     public async Task Read_retries_after_local_apply_timeout_and_recovers(string readKind)
     {
-        using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
-        await using var fixture = await Fixture.CreateAsync(handler);
-        using var cleanup = new CancellationTokenSource();
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
+        using CancellationTokenSource cleanup = new();
         var attempts = 0;
         fixture.Log.WaitForApply = token =>
             Interlocked.Increment(ref attempts) == 1 ? StallApplyAsync(token, cleanup.Token) : ValueTask.CompletedTask;
@@ -123,16 +172,63 @@ public sealed class SlimDataRecoveryTests
     }
 
     [Fact]
+    public async Task Hashset_read_waits_for_the_leaders_read_barrier_before_observing_local_state()
+    {
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
+        TaskCompletionSource barrier = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
+            .Returns((ReadBarrierType _, CancellationToken token) => new ValueTask(barrier.Task.WaitAsync(token)));
+
+        Task<IDictionary<string, byte[]>> read = fixture.Service.HashGetAllAsync("recovery");
+        try
+        {
+            Assert.False(read.IsCompleted);
+            fixture.Cluster.Verify(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()), Times.Once);
+            barrier.SetResult();
+            Assert.Empty(await read.WaitAsync(TestDeadline));
+        }
+        finally
+        {
+            barrier.TrySetResult();
+            await read.WaitAsync(TestDeadline);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Completed_weak_leader_barrier_does_not_expose_state_before_local_application(bool hashset)
+    {
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
+        TaskCompletionSource applied = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
+            .Returns(ValueTask.CompletedTask);
+        fixture.Log.WaitForApply = token => new ValueTask(applied.Task.WaitAsync(token));
+        Task read = hashset ? fixture.Service.HashGetAllAsync("recovery") : fixture.Service.GetAsync("recovery");
+        try
+        {
+            Assert.False(read.IsCompleted);
+        }
+        finally
+        {
+            applied.TrySetResult();
+            await read.WaitAsync(TestDeadline);
+        }
+    }
+
+    [Fact]
     public async Task Persistent_local_apply_timeout_is_reported_as_unavailable()
     {
-        using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
-        await using var fixture = await Fixture.CreateAsync(handler);
-        using var cleanup = new CancellationTokenSource();
+        using Handler handler = new((_, _) => throw new InvalidOperationException("Read must not mutate"));
+        await using Fixture fixture = await Fixture.CreateAsync(handler);
+        using CancellationTokenSource cleanup = new();
         fixture.Log.WaitForApply = token => StallApplyAsync(token, cleanup.Token);
 
         try
         {
-            var error = await Assert.ThrowsAsync<SlimDataUnavailableException>(() =>
+            SlimDataUnavailableException error = await Assert.ThrowsAsync<SlimDataUnavailableException>(() =>
                 fixture.Service.ListCountAsync("Job:recovery", [CountType.Available])
                     .WaitAsync(TimeSpan.FromSeconds(30)));
             Assert.Contains("local", error.Message, StringComparison.OrdinalIgnoreCase);
@@ -210,6 +306,8 @@ public sealed class SlimDataRecoveryTests
             member.SetupGet(m => m.EndPoint).Returns(() => new UriEndPoint(new Uri($"http://127.0.0.1:{LeaderPort}")));
             Cluster.SetupGet(c => c.Leader).Returns(member.Object);
             Cluster.SetupGet(c => c.AuditTrail).Returns(Log);
+            Cluster.Setup(c => c.ApplyReadBarrierAsync(ReadBarrierType.Weak, It.IsAny<CancellationToken>()))
+                .Returns(ValueTask.CompletedTask);
             // Follower reads do not need a leader lease after local application.
             Cluster.SetupGet(c => c.LeadershipToken).Returns(new CancellationToken(true));
             var compatibility = new Mock<ISlimDataProtocolCompatibility>();

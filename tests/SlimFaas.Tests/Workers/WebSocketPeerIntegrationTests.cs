@@ -27,6 +27,54 @@ namespace SlimFaas.Tests.Workers;
 public sealed class WebSocketPeerIntegrationTests
 {
     [Fact]
+    public async Task Early_completed_reply_cancels_upload_without_canceling_the_successful_response()
+    {
+        await using var cluster = await Cluster.CreateAsync();
+        await using var worker = await Worker.ConnectAsync(cluster.Nodes[1], earlyResponse: true);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        for (int batch = 0; batch < 64; batch++)
+        {
+            await Task.WhenAll(Enumerable.Range(0, 4).Select(async _ =>
+            {
+                await using var body = new GatedBody(32 * 1024 * 1024);
+                var response = await cluster.Nodes[0].Sender.SendSyncRequestStreamAsync(
+                    "remote", "POST", "echo", "", [], body, ct: timeout.Token);
+                Assert.Equal(206, response.StatusCode);
+                await foreach (byte[] chunk in response.BodyChunks.ReadAllAsync(timeout.Token))
+                    Assert.Empty(chunk);
+                await response.WaitForEnd();
+                Assert.False(body.Completed);
+            }));
+        }
+        Assert.False(timeout.IsCancellationRequested);
+        Assert.Empty(Assert.Single(cluster.Nodes[1].Registry.GetConnections("remote")).PendingSyncStreams);
+    }
+
+    [Fact]
+    public async Task Completed_buffered_relay_does_not_cancel_its_own_response_headers()
+    {
+        await using var cluster = await Cluster.CreateAsync();
+        await using var worker = await Worker.ConnectAsync(cluster.Nodes[1], deferredResponse: true);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        // A buffered worker can send headers, EOF and close in the same network
+        // burst, before the ingress continuation consumes the header promise.
+        for (int batch = 0; batch < 64; batch++)
+        {
+            await Task.WhenAll(Enumerable.Range(0, 4).Select(async _ =>
+            {
+                var response = await cluster.Nodes[0].Sender.SendSyncRequestStreamAsync(
+                    "remote", "POST", "echo", "", [], Stream.Null, ct: timeout.Token);
+                Assert.Equal(206, response.StatusCode);
+                await foreach (byte[] chunk in response.BodyChunks.ReadAllAsync(timeout.Token))
+                    Assert.Empty(chunk);
+                await response.WaitForEnd();
+            }));
+        }
+        Assert.False(timeout.IsCancellationRequested);
+        Assert.Empty(Assert.Single(cluster.Nodes[1].Registry.GetConnections("remote")).PendingSyncStreams);
+    }
+
+    [Fact]
     public async Task Single_connection_serves_sync_async_and_events_from_every_node()
     {
         await using var cluster = await Cluster.CreateAsync();
@@ -324,10 +372,12 @@ public sealed class WebSocketPeerIntegrationTests
         public Channel<PublishEventPayload> Events { get; } = Channel.CreateUnbounded<PublishEventPayload>();
         public TaskCompletionSource Canceled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public volatile bool SuppressCallbacks;
+        private bool _deferredResponse;
+        private bool _earlyResponse;
 
-        public static async Task<Worker> ConnectAsync(Node node)
+        public static async Task<Worker> ConnectAsync(Node node, bool deferredResponse = false, bool earlyResponse = false)
         {
-            var worker = new Worker();
+            var worker = new Worker { _deferredResponse = deferredResponse, _earlyResponse = earlyResponse };
             await worker._socket.ConnectAsync(new UriBuilder(node.Url) { Scheme = "ws", Path = "/ws" }.Uri, worker._stop.Token);
             await worker.SendAsync(new WebSocketEnvelope
             {
@@ -392,21 +442,21 @@ public sealed class WebSocketPeerIntegrationTests
                             case MessageType.SyncRequestStart:
                                 await SyncRequests.Writer.WriteAsync(JsonSerializer.Deserialize(payload.Span,
                                     AppJsonContext.Default.SyncRequestStartPayload)!, _stop.Token);
-                                await WebSocketPeerFrames.SendAsync(_socket, MessageType.SyncResponseStart, header.CorrelationId,
-                                    JsonSerializer.SerializeToUtf8Bytes(new SyncResponseStartPayload
-                                    {
-                                        StatusCode = 206, Headers = new()
-                                        {
-                                            ["X-Worker"] = ["owner"], ["Content-Type"] = ["application/octet-stream"],
-                                            ["Connection"] = ["X-Hop"], ["X-Hop"] = ["hidden"], ["Set-Cookie"] = ["a=1", "b=2"]
-                                        }
-                                    }, AppJsonContext.Default.SyncResponseStartPayload), _stop.Token);
+                                if (!_deferredResponse)
+                                    await SendResponseStartAsync(header.CorrelationId);
+                                if (_earlyResponse)
+                                    await WebSocketPeerFrames.SendAsync(_socket, MessageType.SyncResponseEnd,
+                                        header.CorrelationId, ReadOnlyMemory<byte>.Empty, _stop.Token);
                                 break;
                             case MessageType.SyncRequestChunk:
-                                await WebSocketPeerFrames.SendAsync(_socket, MessageType.SyncResponseChunk, header.CorrelationId, payload, _stop.Token);
+                                if (!_earlyResponse)
+                                    await WebSocketPeerFrames.SendAsync(_socket, MessageType.SyncResponseChunk, header.CorrelationId, payload, _stop.Token);
                                 break;
                             case MessageType.SyncRequestEnd:
-                                await WebSocketPeerFrames.SendAsync(_socket, MessageType.SyncResponseEnd, header.CorrelationId, ReadOnlyMemory<byte>.Empty, _stop.Token);
+                                if (_deferredResponse)
+                                    await SendResponseStartAsync(header.CorrelationId);
+                                if (!_earlyResponse)
+                                    await WebSocketPeerFrames.SendAsync(_socket, MessageType.SyncResponseEnd, header.CorrelationId, ReadOnlyMemory<byte>.Empty, _stop.Token);
                                 break;
                             case MessageType.SyncCancel:
                                 Canceled.TrySetResult();
@@ -427,8 +477,20 @@ public sealed class WebSocketPeerIntegrationTests
                     }
                 }
             }
-            catch (Exception exception) when (_stop.IsCancellationRequested && exception is OperationCanceledException or WebSocketException or IOException) { }
+            // Intentional fixture shutdown can abort between the loop check and ReceiveAsync.
+            catch (Exception exception) when (_stop.IsCancellationRequested && exception is OperationCanceledException or WebSocketException or IOException or ObjectDisposedException) { }
         }
+
+        private Task SendResponseStartAsync(string correlationId) =>
+            WebSocketPeerFrames.SendAsync(_socket, MessageType.SyncResponseStart, correlationId,
+                                    JsonSerializer.SerializeToUtf8Bytes(new SyncResponseStartPayload
+                                    {
+                                        StatusCode = 206, Headers = new()
+                                        {
+                                            ["X-Worker"] = ["owner"], ["Content-Type"] = ["application/octet-stream"],
+                                            ["Connection"] = ["X-Hop"], ["X-Hop"] = ["hidden"], ["Set-Cookie"] = ["a=1", "b=2"]
+                                        }
+                                    }, AppJsonContext.Default.SyncResponseStartPayload), _stop.Token);
 
         public async ValueTask DisposeAsync()
         {

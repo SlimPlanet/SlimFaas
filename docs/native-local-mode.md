@@ -13,6 +13,15 @@ The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
 loopback-only, token-authenticated supervisor.
 
+On macOS, each runtime node is started through the system `/bin/sh` wait
+implementation. This keeps a suspended node from blocking the .NET 10
+supervisor's child-process reaper and delaying unrelated Jobs. The shell passes
+the command arguments literally, forwards termination, and preserves the runtime
+exit status. Node logs distinguish `started pid=` (the owned launcher) from
+`runtime pid=` (the node to suspend during fault tests). Other platforms start
+nodes directly. The launcher uses only macOS system tools and also works in
+Native AOT bundles without a .NET SDK.
+
 For a ready-to-run demonstration without installing .NET or Node.js, use [Get Started in Local](get-started-local.md). That guide also provides the complete [Git clone, branch selection and npm/dotnet build workflow](get-started-local.md#run-from-a-git-clone). The commands below are a shorter path for development from a Git checkout.
 
 ## Quick start
@@ -33,7 +42,7 @@ local defaults. Production runtime visibility defaults remain unchanged.
 
 ### Run the demo from a Git clone
 
-With the .NET 10 SDK (`10.0.403` or later), Node.js 24 or later, and npm installed, clone the repository and
+With the .NET 11 SDK (`11.0.100` or later), Node.js 26 or later, and npm installed, clone the repository and
 start the demo directly from its root:
 
 ```bash
@@ -417,6 +426,32 @@ processes:
 
 ## Jobs
 
+Persistent Local mode journals each job plan under `jobs/` in its state directory
+before acknowledging creation to the distributed queue. After a supervisor restart,
+unfinished jobs resume with their original run name and arguments. An interrupted
+attempt can execute again: job side effects must tolerate at-least-once delivery.
+Completed, failed and explicitly deleted runs remain recorded until their configured
+TTL expires. Process exit failures retain the configured finite backoff policy.
+
+Keep the state directory and the manifest configuration for unfinished jobs. An
+unreadable job record or missing configuration for an unfinished run stops startup
+with an error; Local never deletes that evidence to obtain an empty successful start.
+During supervision, a journal I/O failure retains the last durable plan and pending
+transition. The affected job remains `Pending` until its transition is flushed; the
+monitor reports the failure once, reconciles pending state on later cycles, and
+reports storage recovery. New creations and deletions still fail explicitly if
+their state cannot be persisted. Process failure backoffs remain finite; a journal
+write does not keep a client request open through an unbounded retry loop. These
+guarantees cover process crashes and restarts with retained
+storage; they do not certify device or host power-loss behavior.
+
+Each node loads the supervisor's job configuration before opening its HTTP
+listener, including after a crash. The periodic refresh interval therefore does
+not create a window in which a declared job is queued under `Default`. Native
+local mode only provides a default job command when the manifest explicitly
+declares it; otherwise an undefined job or schedule is rejected with HTTP 400
+before it enters SlimData.
+
 Local Jobs use the same `SlimFaas/*` annotations as suspended Kubernetes
 CronJobs. For example:
 
@@ -485,6 +520,10 @@ port; subsequent nodes use consecutive ports. Interrupted connections are
 never replayed; a later connection selects from the current ready set.
 
 ## Logs and shutdown
+
+If an internal supervision task fails, Local prints its original exception before
+disposing processes and storage. A second I/O failure during shutdown therefore
+cannot hide the initiating cause in the captured console log.
 
 `local up` stays in the foreground, prefixes and aggregates child output, and
 writes the same output below `state.directory/logs`. Every emitted line keeps
@@ -563,6 +602,27 @@ SlimFaas__ExposeLogs=false dotnet run --project src/SlimFaas -- local up -f ../.
 `cluster.exposeLogs` defaults to `false` for other manifests. Log level and log exposure are independent: `nodeLogLevel: Error` can leave only supervisor start/stop messages when there are no application errors. Log streaming follows the selected instance generation, detects file rotation/truncation, and stops when the viewer disconnects. See [instance logs](user-interface.md#instance-logs) for access semantics, filters and retention limits.
 
 
+## Reliability testing
+
+Process output continues on the console if its optional log file cannot be
+written (for example, a full log volume). The supervisor reports the first file
+logging error and reports recovery with the number of failed writes. File output
+during the failure may be incomplete. A file-log write or final-flush error does
+not terminate the supervisor. This does not suppress errors from Raft, WAL,
+snapshot or artifact storage.
+
+When DotNext reports a terminal WAL state (for example, a snapshot write failed
+while the disk was full), the runtime logs a critical error and lets the host
+stop. The local supervisor then restarts the node with the retained WAL,
+snapshots and files. Its existing restart backoff applies while storage remains
+unavailable. The diagnostics worker keeps reporting ordinary transient failures;
+loss of quorum alone does not trigger this restart. Persistent corruption still
+requires investigation and is never repaired by deleting storage automatically.
+
+For persistent three-node recovery tests, see the
+[SlimData reliability campaign](slimdata-reliability.md). It drives real Local
+functions and APIs during owned process outages and preserves all volumes/logs.
+
 ## External metrics demo
 
 `slimfaas.local.external-metrics.yaml` runs a Python standard-library exporter as an
@@ -580,3 +640,18 @@ curl http://127.0.0.1:30020/status-functions
 See [external autoscaling](autoscaling.md#external-metrics-and-opt-in-wake-up) for the
 opt-in flag, dependency behavior, rollout and rollback. This optional source-checkout
 demo requires Python 3.10+; the standard precompiled tutorial bundle is unchanged.
+
+## Automated migration smoke test
+
+After publishing the native runtime for the host RID, run the source demo smoke
+test from the repository root (macOS ARM64 shown):
+
+```bash
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 -o artifacts/native-local/runtime
+python3 .bin/test-native-local.py --runtime artifacts/native-local/runtime/SlimFaas
+```
+
+It validates the manifest, starts three nodes on ports 30020–30023, calls the
+real Fibonacci function, waits for a job, then restarts the cluster and verifies
+persisted data. Its temporary state is isolated from the normal demo directory;
+logs are kept in `artifacts/native-local`. The same check runs on pull requests.

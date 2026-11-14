@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "checked_utc": "2026-11-09T02:34:41.758138+00:00",
+  "runtime_source_commit": "4e80c9a19f3f5e2a633f23ad00b510e8b25676dc",
+  "endurance_source_commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+  "native_source_commit": "a95d49e8cd48c433e482a724e5f0c77c7ea29eb5",
+  "runtime_src_diff_empty": true,
+  "results": {
+    "dotnet": {
+      "SlimFaas": 1536,
+      "SlimData": 304,
+      "SlimFaasMcp": 106,
+      "SlimFaasKafka": 11,
+      "SlimFaasClient": 39,
+      "total": 1996
+    },
+    "focused_recovery": 13,
+    "harness_accounting_safety": 22,
+    "windows_host_ownership_capacity": 5,
+    "exporter_safety": 4,
+    "documentation_site": {
+      "passed": true,
+      "pages": 23,
+      "local_links_assets": 1657,
+      "search_entries": 394
+    },
+    "final_report_relative_links_checked": 36
+  },
+  "raw_logs": [
+    {
+      "path": "artifacts/slimdata-lts/leader-event-full-tests.log",
+      "bytes": 3218,
+      "sha256": "5dabfd28251e96a691f229f14435c453886e90e7f8b233d90ee36fc302d270db"
+    },
+    {
+      "path": "artifacts/slimdata-lts/leader-change-event-after-tests-03.log",
+      "bytes": 799,
+      "sha256": "bb59f809d58f8ac9c3b152fbb9036d49ce8e0fcfa3544f406d70b50ceea0e773"
+    },
+    {
+      "path": "artifacts/slimdata-lts/resume-counter-contract-after-tests.log",
+      "bytes": 126,
+      "sha256": "802528826cd42fbd4dc691ae4266b194097096e8d014809cf48d5b16fdf81b59"
+    },
+    {
+      "path": "artifacts/slimdata-lts/final-a95-host-ownership-tests.log",
+      "bytes": 819,
+      "sha256": "7e938a1bdcb90690c938a55beb97858c1a30a2b3689cccf95bb506d0863bc8b6"
+    },
+    {
+      "path": "artifacts/slimdata-lts/final-a95-exporter-tests.log",
+      "bytes": 707,
+      "sha256": "4fc741ebb3ea7e34f531950bdd88c3116df8f03933aa90d794f741fa79ed0064"
+    },
+    {
+      "path": "artifacts/slimdata-lts/final-evidence-site-build.log",
+      "bytes": 1944,
+      "sha256": "383197b89254313d913c1f433a51753e4a60d5c380b9ab35801ddd9853814ad7"
+    }
+  ],
+  "note": "Counts refer to their recorded validation revisions. The documentation site build checks catalogued published pages; the separate local check covers relative links in the technical evidence reports."
+}

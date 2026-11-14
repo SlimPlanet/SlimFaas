@@ -229,8 +229,13 @@ public sealed class ClusterWebSocketSendClient : IWebSocketSendClient, IDisposab
         {
             try
             {
-                await WebSocketPeerFrames.SendBodyAsync(socket, correlation, requestBodyStream, uploadCancellation.Token)
+                await WebSocketPeerFrames.SendBodyAsync(socket, correlation, requestBodyStream, uploadCancellation.Token, relayToken)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (uploadCancellation.IsCancellationRequested && !budget.IsCancellationRequested)
+            {
+                // A completed response stops only further upload reads. It must
+                // not cancel the successful response's still-pending headers.
             }
             catch (Exception exception)
             {
@@ -311,7 +316,7 @@ public sealed class ClusterWebSocketSendClient : IWebSocketSendClient, IDisposab
             }
             finally
             {
-                await budget.CancelAsync().ConfigureAwait(false);
+                if (!completed) await budget.CancelAsync().ConfigureAwait(false);
                 socket.Dispose();
                 uploadCancellation.Dispose();
                 budget.Dispose();

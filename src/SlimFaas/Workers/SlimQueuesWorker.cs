@@ -118,13 +118,16 @@ public class SlimQueuesWorker(
     {
         try
         {
+            // These deliveries were already reserved through Raft. Preserve
+            // their completed responses before a role change clears tracking;
+            // a follower can forward the callback to the current leader.
+            await DrainCompletedRequestsAsync(processingRequests, awaiting202Requests).ConfigureAwait(false);
             if (!masterService.IsMaster)
             {
                 ClearLocalTracking(processingRequests, awaiting202Requests);
                 return;
             }
 
-            await DrainCompletedRequestsAsync(processingRequests, awaiting202Requests).ConfigureAwait(false);
             DeploymentsInformations deployments = replicasService.Deployments;
             foreach (DeploymentInformation function in deployments.Functions)
             {
@@ -454,82 +457,103 @@ public class SlimQueuesWorker(
     {
         long generation = Volatile.Read(ref _trackingGeneration);
         var callbacks = new Dictionary<string, List<QueueItemStatus>>(StringComparer.Ordinal);
-        var completedActivities = new Dictionary<string, List<TrackedHttpRequest>>(StringComparer.Ordinal);
+        var completedBatches = new Dictionary<string, List<CompletedHttpRequest>>(StringComparer.Ordinal);
         var terminalOffloads = new List<string>();
-        while (_completedRequests.TryPeek(out CompletedHttpRequest completed))
+        try
         {
-            TrackedHttpRequest request = completed.Request;
-            if (request.Generation == generation && deadLetters?.IsManaged(request.FunctionName) == true)
+            while (_completedRequests.TryPeek(out CompletedHttpRequest completed))
             {
-                var function = replicasService.Deployments.Functions.FirstOrDefault(item => item.Deployment == request.FunctionName);
-                if (function is not null)
-                    await deadLetters.ConfigureAsync(function).ConfigureAwait(false);
-                bool awaiting = completed.StatusCode == 202 && completed.Error is null;
-                await deadLetters.MutateAsync(new()
+                TrackedHttpRequest request = completed.Request;
+                if (request.Generation != generation)
                 {
-                    Action = awaiting ? DeadLetterAction.AwaitingCallback : DeadLetterAction.Complete,
-                    Function = request.FunctionName, ElementId = request.Id, HttpStatus = completed.StatusCode,
-                    Source = completed.Error is OperationCanceledException ? "DeliveryTimeout"
-                        : completed.Error is not null ? "Transport" : "Http"
-                }).ConfigureAwait(false);
-                _completedRequests.TryDequeue(out _);
-                if (processingRequests.TryGetValue(request.FunctionName, out var managedActive))
-                    managedActive.Remove(request.Id);
-                if (awaiting)
-                    GetOrAdd(awaiting202Requests, request.FunctionName).Add(new(request.Id, request.TargetIp, request.ActivityId));
+                    _completedRequests.TryDequeue(out _);
+                    continue;
+                }
+
+                if (deadLetters?.IsManaged(request.FunctionName) == true)
+                {
+                    var function = replicasService.Deployments.FindFunction(request.FunctionName);
+                    if (function is not null)
+                        await deadLetters.ConfigureAsync(function).ConfigureAwait(false);
+                    bool awaiting = completed.StatusCode == 202 && completed.Error is null;
+                    await deadLetters.MutateAsync(new()
+                    {
+                        Action = awaiting ? DeadLetterAction.AwaitingCallback : DeadLetterAction.Complete,
+                        Function = request.FunctionName, ElementId = request.Id, HttpStatus = completed.StatusCode,
+                        Source = completed.Error is OperationCanceledException ? "DeliveryTimeout"
+                            : completed.Error is not null ? "Transport" : "Http"
+                    }).ConfigureAwait(false);
+                    _completedRequests.TryDequeue(out _);
+                    if (processingRequests.TryGetValue(request.FunctionName, out var managedActive))
+                        managedActive.Remove(request.Id);
+                    if (awaiting)
+                        GetOrAdd(awaiting202Requests, request.FunctionName).Add(new(request.Id, request.TargetIp, request.ActivityId));
+                    else
+                        RecordCompletion(request.FunctionName, request.TargetIp, request.ActivityId);
+                    continue;
+                }
+
+                historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
+                if (completed.Error is not null)
+                {
+                    logger.LogAsyncRequestFailedFor(completed.Error, request.FunctionName, request.Id);
+                }
                 else
-                    RecordCompletion(request.FunctionName, request.TargetIp, request.ActivityId);
-                continue;
-            }
-            _completedRequests.TryDequeue(out _);
-            if (processingRequests.TryGetValue(request.FunctionName, out var active))
-                active.Remove(request.Id);
-            if (request.Generation != generation)
-                continue;
+                {
+                    logger.LogAsyncFunction(request.CustomRequest.Method, request.CustomRequest.Path, request.CustomRequest.Query, completed.StatusCode);
+                }
 
-            historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
-            if (completed.Error is not null)
-            {
-                logger.LogAsyncRequestFailedFor(completed.Error, request.FunctionName, request.Id);
-            }
-            else
-            {
-                logger.LogAsyncFunction(request.CustomRequest.Method, request.CustomRequest.Path, request.CustomRequest.Query, completed.StatusCode);
+                if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
+                {
+                    _completedRequests.TryDequeue(out _);
+                    if (processingRequests.TryGetValue(request.FunctionName, out var awaitingActive))
+                        awaitingActive.Remove(request.Id);
+                    GetOrAdd(awaiting202Requests, request.FunctionName)
+                        .Add(new Awaiting202Request(request.Id, request.TargetIp, request.ActivityId));
+                    continue;
+                }
+
+                if (!callbacks.TryGetValue(request.FunctionName, out List<QueueItemStatus>? statuses))
+                {
+                    statuses = [];
+                    callbacks.Add(request.FunctionName, statuses);
+                    completedBatches.Add(request.FunctionName, []);
+                }
+                statuses.Add(new QueueItemStatus(request.Id, completed.StatusCode));
+                completedBatches[request.FunctionName].Add(completed);
+                _completedRequests.TryDequeue(out _);
             }
 
-            if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
+            foreach ((string functionName, List<QueueItemStatus> statuses) in callbacks)
             {
-                GetOrAdd(awaiting202Requests, request.FunctionName)
-                    .Add(new Awaiting202Request(request.Id, request.TargetIp, request.ActivityId));
-                continue;
-            }
-
-            if (!callbacks.TryGetValue(request.FunctionName, out List<QueueItemStatus>? statuses))
-            {
-                statuses = [];
-                callbacks.Add(request.FunctionName, statuses);
-                completedActivities.Add(request.FunctionName, []);
-            }
-            statuses.Add(new QueueItemStatus(request.Id, completed.StatusCode));
-            completedActivities[request.FunctionName].Add(request);
-            if (!string.IsNullOrEmpty(request.CustomRequest.OffloadedFileId) &&
-                !request.HttpStatusRetries.Contains(completed.StatusCode))
-            {
-                terminalOffloads.Add(request.CustomRequest.OffloadedFileId);
+                await slimFaasQueue.ListCallbackAsync(
+                    functionName,
+                    new ListQueueItemStatus { Items = statuses }).ConfigureAwait(false);
+                List<CompletedHttpRequest> committed = completedBatches[functionName];
+                completedBatches.Remove(functionName);
+                foreach (CompletedHttpRequest completed in committed)
+                {
+                    TrackedHttpRequest request = completed.Request;
+                    if (processingRequests.TryGetValue(functionName, out var active))
+                        active.Remove(request.Id);
+                    RecordCompletion(functionName, request.TargetIp, request.ActivityId);
+                    if (!string.IsNullOrEmpty(request.CustomRequest.OffloadedFileId) &&
+                        !request.HttpStatusRetries.Contains(completed.StatusCode))
+                    {
+                        terminalOffloads.Add(request.CustomRequest.OffloadedFileId);
+                    }
+                }
             }
         }
-
-        foreach ((string functionName, List<QueueItemStatus> statuses) in callbacks)
+        finally
         {
-            await slimFaasQueue.ListCallbackAsync(
-                functionName,
-                new ListQueueItemStatus { Items = statuses }).ConfigureAwait(false);
-            foreach (TrackedHttpRequest request in completedActivities[functionName])
-                RecordCompletion(functionName, request.TargetIp, request.ActivityId);
-        }
-
-        if (terminalOffloads.Count > 0)
-        {
+            // A failed callback must keep its known application response and
+            // capacity reservation. Retry persistence without another delivery.
+            foreach (List<CompletedHttpRequest> pending in completedBatches.Values)
+            {
+                foreach (CompletedHttpRequest completed in pending)
+                    _completedRequests.Enqueue(completed);
+            }
             foreach (string fileId in terminalOffloads.Distinct(StringComparer.Ordinal))
                 _terminalOffloadCleanup.Writer.TryWrite(fileId);
         }

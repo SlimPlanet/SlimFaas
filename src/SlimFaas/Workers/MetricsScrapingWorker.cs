@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using ZLinq;
 
 namespace SlimFaas.Workers;
 
@@ -55,9 +56,9 @@ public class MetricsScrapingWorker(
                 var loopIntervalMilliseconds = ResolveLoopIntervalMilliseconds(deployments);
 
                 // 👉 Est-ce qu'au moins une fonction utilise le ScaleConfig ?
-                var scaledDeployments = deployments.Functions
-                    .Where(f => f.Scale is { Triggers.Count: > 0 })
-                    .Select(f => f.Deployment)
+                var scaledDeployments = deployments.Functions.AsValueEnumerable()
+                    .Where(static f => f.Scale is { Triggers.Count: > 0 })
+                    .Select(static f => f.Deployment)
                     .ToHashSet(StringComparer.Ordinal);
 
                 var hasScaleConfig = scaledDeployments.Count > 0;
@@ -105,7 +106,8 @@ public class MetricsScrapingWorker(
                 foreach (var function in deployments.Functions)
                 {
                     if (function.Scale is not { } scale) continue;
-                    foreach (var name in scale.Triggers.Select(t => t.Source).Where(n => n is not null).Distinct())
+                    foreach (var name in scale.Triggers.AsValueEnumerable().Select(static t => t.Source)
+                                 .Where(static n => n is not null).Distinct())
                     {
                         var source = ExternalMetricsSource.Resolve(function.Namespace, function.Deployment, scale, name!);
                         if (source is null) continue;
@@ -141,7 +143,7 @@ public class MetricsScrapingWorker(
                 {
                     var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     using var concurrency = new SemaphoreSlim(_metricsScrapingOptions.MaxConcurrentTargets);
-                    var scrapeTasks = dueTargets
+                    var scrapeTasks = dueTargets.AsValueEnumerable()
                         .Select(target => ScrapeTargetBoundedAsync(
                             target.Deployment,
                             target.Url,
@@ -227,11 +229,11 @@ public class MetricsScrapingWorker(
         IDictionary<string, IList<string>> targetsByDeployment,
         IReadOnlyDictionary<string, ExternalMetricsSource> externalTargets)
     {
-        var functions = deployments.Functions.ToDictionary(
+        var functions = deployments.Functions.AsValueEnumerable().ToDictionary(
             static function => function.Deployment,
             StringComparer.Ordinal);
         var currentDeployments = targetsByDeployment.Keys.ToHashSet(StringComparer.Ordinal);
-        foreach (var staleDeployment in _nextScrapeByDeployment.Keys
+        foreach (var staleDeployment in _nextScrapeByDeployment.Keys.AsValueEnumerable()
                      .Where(key => !currentDeployments.Contains(key))
                      .ToArray())
         {
@@ -255,7 +257,8 @@ public class MetricsScrapingWorker(
 
             _nextScrapeByDeployment[deployment] = now +
                 (long)(intervalMilliseconds / 1_000.0 * Stopwatch.Frequency);
-            dueTargets.AddRange(urls.Select(url => (deployment, url)));
+            foreach (string url in urls.AsValueEnumerable())
+                dueTargets.Add((deployment, url));
 
             if (logger.IsEnabled(LogLevel.Information))
             {

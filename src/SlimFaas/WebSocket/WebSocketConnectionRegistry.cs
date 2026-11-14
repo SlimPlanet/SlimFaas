@@ -7,6 +7,8 @@ using SlimFaas.Kubernetes;
 using System.Globalization;
 using SlimFaas.Streams;
 
+using ZLinq;
+
 namespace SlimFaas.WebSocket;
 
 /// <summary>
@@ -88,32 +90,32 @@ public sealed class WebSocketClientConnection : IDisposable
     {
         string json = JsonSerializer.Serialize(envelope, AppJsonContext.Default.WebSocketEnvelope);
         byte[] bytes = Encoding.UTF8.GetBytes(json);
-        await _sendLock.WaitAsync(ct);
-        try
-        {
-            await Socket.SendAsync(
-                new ArraySegment<byte>(bytes),
-                System.Net.WebSockets.WebSocketMessageType.Text,
-                endOfMessage: true,
-                ct);
-        }
-        finally
-        {
-            _sendLock.Release();
-        }
+        await SendFrameAsync(bytes, System.Net.WebSockets.WebSocketMessageType.Text, ct);
     }
 
     /// <summary>Envoie une frame binaire brute au client WebSocket.</summary>
-    public async Task SendBinaryAsync(byte[] frame, CancellationToken ct)
+    public Task SendBinaryAsync(byte[] frame, CancellationToken ct)
+        => SendFrameAsync(frame, System.Net.WebSockets.WebSocketMessageType.Binary, ct);
+
+    private async Task SendFrameAsync(byte[] frame, System.Net.WebSockets.WebSocketMessageType type, CancellationToken ct)
     {
         await _sendLock.WaitAsync(ct);
         try
         {
             await Socket.SendAsync(
                 new ArraySegment<byte>(frame),
-                System.Net.WebSockets.WebSocketMessageType.Binary,
+                type,
                 endOfMessage: true,
                 ct);
+        }
+        catch
+        {
+            // A failed active send may have transmitted part or all of the
+            // message. Abort this transport so a later callback cannot be
+            // mistaken for a retry. Cancellation while waiting for the lock
+            // occurs outside this block and leaves the connection usable.
+            Socket.Abort();
+            throw;
         }
         finally
         {
@@ -235,7 +237,7 @@ public class WebSocketConnectionRegistry
         if (!bag.Any(candidate => candidate.ConnectionId == connection.ConnectionId)) return;
 
         // ConcurrentBag ne supporte pas de suppression directe ; on reconstruit
-        var remaining = bag.Where(c => c.ConnectionId != connection.ConnectionId).ToList();
+        var remaining = bag.AsValueEnumerable().Where(c => c.ConnectionId != connection.ConnectionId).ToList();
         var newBag = new ConcurrentBag<WebSocketClientConnection>(remaining);
         _connections.TryUpdate(connection.FunctionName, newBag, bag);
 
@@ -257,7 +259,7 @@ public class WebSocketConnectionRegistry
     {
         if (_connections.TryGetValue(functionName, out var bag))
         {
-            return bag.Where(c => c.IsAlive && c.Ready).ToList();
+            return bag.AsValueEnumerable().Where(static c => c.IsAlive && c.Ready).ToList();
         }
         return Array.Empty<WebSocketClientConnection>();
     }
@@ -267,9 +269,9 @@ public class WebSocketConnectionRegistry
     /// </summary>
     public IReadOnlyList<string> GetRegisteredFunctionNames()
     {
-        return _connections
-            .Where(kvp => kvp.Value.Any(c => c.IsAlive && c.Ready))
-            .Select(kvp => kvp.Key)
+        return _connections.AsValueEnumerable()
+            .Where(static kvp => kvp.Value.Any(static c => c.IsAlive && c.Ready))
+            .Select(static kvp => kvp.Key)
             .ToList();
     }
 

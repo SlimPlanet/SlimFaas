@@ -7,6 +7,8 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Logs;
 using System.Text.Json;
 
+using ZLinq;
+
 namespace SlimFaas.Local;
 
 public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
@@ -61,10 +63,10 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
             var topology = new DeploymentsInformations(
                 Functions: functionSnapshot,
                 SlimFaas: new SlimFaasDeploymentInformation(loaded.Manifest.Cluster.Nodes, nodeSnapshot),
-                Pods: functionSnapshot.SelectMany(item => item.Pods).ToList(),
-                LocalProcesses: processes.Snapshot().ToDictionary(
-                    status => status.Name,
-                    status => status.Running,
+                Pods: functionSnapshot.AsValueEnumerable().SelectMany(static item => item.Pods.AsValueEnumerable()).ToList(),
+                LocalProcesses: processes.Snapshot().AsValueEnumerable().ToDictionary(
+                    static status => status.Name,
+                    static status => status.Running,
                     StringComparer.OrdinalIgnoreCase));
             return Results.Json(topology, ProcessControlJsonContext.Default.DeploymentsInformations);
         });
@@ -157,13 +159,13 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
         {
             await Task.WhenAll(
                 functions.StartAsync(cancellationToken),
-                jobs.StartAsync(cancellationToken),
                 processes.StartAsync(cancellationToken),
                 nodeManager.StartAsync(cancellationToken));
 #pragma warning disable CA2000 // disposed in the finally block below
             gateway = new LocalTcpGateway(loaded.Manifest.Cluster.EntrypointPort, nodeManager);
 #pragma warning restore CA2000
             gateway.Start();
+            await jobs.StartAsync(cancellationToken);
 
             Console.WriteLine(
                 $"SlimFaas local '{loaded.Manifest.Name}' is running with {loaded.Manifest.Cluster.Nodes} node(s).");
@@ -174,10 +176,18 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
 
             try
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                Task stopped = Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                await await Task.WhenAny(stopped, jobs.Completion);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+            }
+            catch (Exception exception)
+            {
+                ILogger logger = LocalProcessOutputLog.ConsoleLogger;
+                if (logger.IsEnabled(LogLevel.Critical))
+                    logger.LogLocalSupervisionFailedBeforeCleanup(exception.ToString());
+                throw;
             }
         }
         finally

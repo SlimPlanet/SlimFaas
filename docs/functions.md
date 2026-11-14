@@ -147,12 +147,12 @@ You can configure the synchronous HTTP timeout and the retry policies used by as
   "DefaultAsync": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
-    "HttpStatusRetries": [500,502,503]
+    "HttpStatusRetries": [500,502,503,504]
   },
   "DefaultPublish": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
-    "HttpStatusRetries": [500,502,503]
+    "HttpStatusRetries": [500,502,503,504]
   }
 }
 ```
@@ -160,6 +160,14 @@ You can configure the synchronous HTTP timeout and the retry policies used by as
 Synchronous calls make exactly one HTTP request and never retry. `DefaultSync` therefore supports only `HttpTimeout`.
 
 `TimeoutRetries` defines the delays in seconds between attempts for asynchronous and publish calls. `HttpStatusRetries` lists the HTTP statuses that trigger those retries.
+
+The default retry statuses include `504`. An expired worker reservation or a
+WebSocket delivery timeout can produce that status without the function having
+received the message. Explicit status lists remain authoritative: include `504`
+when those failures should use the bounded retry budget. Enable the
+[DLQ](dead-letter-queues.md) to retain terminal failures after that budget.
+Queue entries keep their acceptance-time policy; upgrading does not change old
+entries or reconstruct messages already evicted under a previous policy.
 
 Every section is optional. When a section or property is omitted, SlimFaas applies its defaults. For example, the following configuration customizes only publish calls; sync and async keep their default 120-second timeout, and async keeps its default retry policy:
 

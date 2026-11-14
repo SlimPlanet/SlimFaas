@@ -1,3 +1,5 @@
+using ZLinq;
+
 namespace SlimFaas.WebSocket;
 
 internal static class WebSocketPeerHeaders
@@ -12,9 +14,10 @@ internal static class WebSocketPeerHeaders
         };
         foreach (var (name, values) in headers)
             if (name.Equals("Connection", StringComparison.OrdinalIgnoreCase))
-                foreach (var value in values.SelectMany(value => value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)))
+                foreach (var value in values.AsValueEnumerable().SelectMany(static value =>
+                    value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).AsValueEnumerable()))
                     excluded.Add(value);
-        return headers.Where(header => !excluded.Contains(header.Key))
-            .ToDictionary(header => header.Key, header => header.Value, StringComparer.OrdinalIgnoreCase);
+        return headers.AsValueEnumerable().Where(header => !excluded.Contains(header.Key))
+            .ToDictionary(static header => header.Key, static header => header.Value, StringComparer.OrdinalIgnoreCase);
     }
 }

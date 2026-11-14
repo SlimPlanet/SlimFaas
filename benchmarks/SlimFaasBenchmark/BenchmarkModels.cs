@@ -15,7 +15,15 @@ internal sealed record AsyncResourceUsage(
     double? RaftEntriesPerMessage,
     double? PeakWorkingSetBytes,
     double? CpuSeconds,
-    double? RaftEntries);
+    double? RaftEntries,
+    ClusterResourceSnapshot? InitialSnapshot = null,
+    ClusterResourceSnapshot? FinalProcessSnapshot = null,
+    ClusterResourceSnapshot? FinalDiagnosticsSnapshot = null);
+
+internal sealed record ProcessResourceUsage(
+    double CpuSeconds,
+    double CpuMillisecondsPerRequest,
+    double PeakWorkingSetBytes);
 
 internal sealed record LatencyCaseData(
     LatencyRunResult Result,
@@ -39,7 +47,8 @@ internal sealed record LatencyRunResult(
     int AsyncMissing = 0,
     int AsyncDuplicates = 0,
     AsyncResourceUsage? AsyncResources = null,
-    string LoadShape = "steady");
+    string LoadShape = "steady",
+    ProcessResourceUsage? Resources = null);
 
 internal sealed record LatencyAggregateResult(
     string Mode,
@@ -150,7 +159,8 @@ internal sealed record BenchmarkSettings(
     int AsyncPacedMessages = 0,
     int AsyncPacedIntervalMilliseconds = 0,
     int AsyncBurstMessages = 0,
-    int AsyncBurstConcurrency = 0);
+    int AsyncBurstConcurrency = 0,
+    string SamplesFormat = "csv");
 
 internal sealed record BenchmarkReport(
     DateTimeOffset StartedAtUtc,

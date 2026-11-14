@@ -6,11 +6,11 @@ namespace SlimFaas.Local;
 public sealed class ManagedLocalProcess : IAsyncDisposable
 {
     private readonly Process _process;
-    private readonly StreamWriter _log;
+    private readonly LocalProcessOutput _log;
     private readonly string _tag;
     private readonly object _outputGate = new();
 
-    private ManagedLocalProcess(Process process, StreamWriter log, string tag)
+    private ManagedLocalProcess(Process process, LocalProcessOutput log, string tag)
     {
         _process = process;
         _log = log;
@@ -29,12 +29,15 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
         string logPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        var log = new StreamWriter(
+#pragma warning disable CA2000 // LocalProcessOutput owns the writer and is disposed with ManagedLocalProcess.
+        var writer = new StreamWriter(
             new FileStream(logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite),
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
         {
             AutoFlush = true
         };
+        var log = new LocalProcessOutput(writer, tag, logPath);
+#pragma warning restore CA2000
 
         ProcessStartInfo startInfo = CreateStartInfo(command, workingDirectory);
         foreach ((string name, string value) in environment)

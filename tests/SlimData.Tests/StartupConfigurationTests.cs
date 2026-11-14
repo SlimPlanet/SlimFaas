@@ -1,6 +1,7 @@
 using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
+using DotNext.IO.Log;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SlimData.Options;
@@ -9,6 +10,29 @@ namespace SlimData.Tests;
 
 public sealed class StartupConfigurationTests
 {
+    [Fact]
+    public async Task All_raft_consumers_share_the_durable_wal_after_snapshot_restoration()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(
+                new Dictionary<string, string?> { [SlimPersistentState.LogLocation] = root }).Build();
+            var services = new ServiceCollection();
+            services.AddSingleton(configuration).AddLogging();
+            new Startup(configuration).ConfigureServices(services);
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            await provider.GetRequiredService<SlimPersistentState>().RestoreAsync();
+            IPersistentState wal = provider.GetRequiredService<IPersistentState>();
+            Assert.IsType<DurableWriteAheadLog>(wal);
+            Assert.Same(wal, provider.GetRequiredService<IAuditTrail<IRaftLogEntry>>());
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Resolving_the_wal_before_snapshot_restore_fails_instead_of_replaying_partial_state()
     {

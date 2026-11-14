@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
+using MemoryPack;
 using Prometheus;
 using SlimData;
 using SlimData.Commands;
@@ -42,6 +43,17 @@ if (localCommandExitCode.HasValue)
     Environment.ExitCode = localCommandExitCode.Value;
     return;
 }
+
+// Collection element formatters may first be used while decoding another
+// node's persisted jobs. Root the generated implementations for Native AOT.
+MemoryPackFormatterProvider.Register<EnvVarInput>();
+MemoryPackFormatterProvider.Register<SecretRef>();
+MemoryPackFormatterProvider.Register<ConfigMapRef>();
+MemoryPackFormatterProvider.Register<FieldRef>();
+MemoryPackFormatterProvider.Register<ResourceFieldRef>();
+MemoryPackFormatterProvider.Register<CreateJobResources>();
+MemoryPackFormatterProvider.Register<ScheduleCreateJob>();
+MemoryPackFormatterProvider.Register<SlimfaasJob>();
 
 // Load configuration early
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -193,7 +205,7 @@ switch (envOrConfig)
         {
             bool useKubeConfig = bool.Parse(configurationRoot["UseKubeConfig"] ?? "false");
             return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig,
-                slimFaasOptions.KubernetesSkipTlsVerify);
+                slimFaasOptions.KubernetesSkipTlsVerify, slimFaasOptions.BaseSlimDataUrl);
         });
         isKubernetesOrchestrator = true;
         break;
@@ -237,6 +249,13 @@ serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 #pragma warning restore ASP0000
 IReplicasService replicasService = serviceProviderStarter.GetRequiredService<IReplicasService>();
+
+if (envOrConfig == "Process")
+{
+    IJobConfiguration initialJobs = serviceProviderStarter.GetRequiredService<IJobConfiguration>();
+    if (!await initialJobs.SyncJobsConfigurationAsync())
+        throw new InvalidOperationException("Local job configuration is unavailable; the node cannot start safely.");
+}
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 builder.WebHost.UseStaticWebAssets();
@@ -640,7 +659,7 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
 
 WebApplication app = builder.Build();
 // DotNext requires snapshot restoration before any service constructs the Raft WAL.
-await app.RestoreStateAsync<SlimPersistentState>();
+await app.Services.GetRequiredService<SlimPersistentState>().RestoreAsync();
 
 // X-Forwarded-For is ignored unless the operator declares the proxies allowed to set it.
 // Must run first so that every later caller classification sees the real client address.

@@ -1,0 +1,13 @@
+<linker>
+  <!-- The 11.0.0 Endpoints assembly embeds ILLink.Substitutions.xml targeting
+       Microsoft.AspNetCore.Components.Forms instead of its own assembly.
+       Its Blazor Hot Reload substitution is unused by this React host.
+       This annotation affects only IL2101 on the named framework assembly. -->
+  <assembly fullname="Microsoft.AspNetCore.Components.Endpoints">
+    <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+      <argument>Trimming</argument>
+      <argument>IL2101</argument>
+      <property name="Justification">ASP.NET Core 11.0.0 embeds a substitutions resource with the wrong assembly owner; the Blazor Hot Reload substitution is unused by SlimFaas.</property>
+    </attribute>
+  </assembly>
+</linker>

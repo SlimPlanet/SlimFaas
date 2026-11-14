@@ -1,3 +1,4 @@
+using ZLinq;
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
@@ -317,7 +318,7 @@ public static class Endpoints
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
             var value = memoryStream.ToArray();
 
-            var hashsetSet = MemoryPackSerializer.Deserialize<HashsetSet>(value);
+            var hashsetSet = MemoryPackPayload.Deserialize<HashsetSet>(value);
             await AddHashSetCommand(provider, hashsetSet.Key, hashsetSet.Values, expireAtUtcTicks, cluster, source);
         });
     }
@@ -451,7 +452,7 @@ public static class Endpoints
                         var last = qe.RetryQueueElements[^1];
                         if (last.IdTransaction != transactionId) continue;
                         
-                        values.Items.Add(new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry(), qe.GetLastRetryTimeTicks(), qe.GetHttpTimeoutTicks(), qe.GetLastReservedIp()));
+                        values.Items.Add(new QueueData(qe.Id, qe.Value.ToArray(), qe.GetTryNumber(), qe.IsLastTry(), qe.GetLastRetryTimeTicks(), qe.GetHttpTimeoutTicks(), qe.GetLastReservedIp()));
                     }
                 }
 
@@ -495,16 +496,16 @@ public static class Endpoints
     public static async Task<ListLeftPushBatchResponse> ListLeftPushBatchCommand(IRaftCluster cluster, byte[] value,
         CancellationTokenSource source)
     {
-        var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value)
+        var listLeftPushBatchRequest = MemoryPackPayload.Deserialize<ListLeftPushBatchRequest>(value)
                                        ?? throw new InvalidDataException("ListLeftPushBatch payload is empty");
 
         List<ListLeftPushBatchCommand.BatchItem> batchItems = new(listLeftPushBatchRequest.Items.Length);
         foreach (var item in listLeftPushBatchRequest.Items)
         {
             var key = item.Key;
-            var listLeftPushInput = MemoryPackSerializer.Deserialize<ListLeftPushInput>(item.Payload)
+            var listLeftPushInput = MemoryPackPayload.Deserialize<ListLeftPushInput>(item.Payload)
                                     ?? throw new InvalidDataException($"ListLeftPushBatch item '{key}' payload is empty");
-            var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(listLeftPushInput.RetryInformation)
+            var retryInformation = MemoryPackPayload.Deserialize<RetryInformation>(listLeftPushInput.RetryInformation)
                                    ?? throw new InvalidDataException($"ListLeftPushBatch item '{key}' retry information is empty");
 
             var batchItem = new ListLeftPushBatchCommand.BatchItem();
@@ -531,7 +532,7 @@ public static class Endpoints
             source.Token).ConfigureAwait(false);
 
         bool success = await SafeReplicateAsync(cluster, logEntry, source.Token);
-        var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => success ? b.Identifier : "").ToArray());
+        var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.AsValueEnumerable().Select(b => success ? b.Identifier : "").ToArray());
 
         return listLeftPushBatchResponse;
     }
@@ -552,7 +553,7 @@ public static class Endpoints
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
             var value = memoryStream.ToArray();
             
-            var list = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(value);
+            var list = MemoryPackPayload.Deserialize<ListQueueItemStatus>(value);
             if (list is null)
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -599,7 +600,7 @@ public static class Endpoints
         byte[] value,
         CancellationTokenSource source)
     {
-        var req = MemoryPackSerializer.Deserialize<ListCallbackBatchRequest>(value);
+        var req = MemoryPackPayload.Deserialize<ListCallbackBatchRequest>(value);
 
         var acks = new bool[req.Items.Length];
         if (req.Items.Length == 0)
@@ -612,7 +613,7 @@ public static class Endpoints
         {
             var item = req.Items[i];
 
-            var status = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(item.Payload);
+            var status = MemoryPackPayload.Deserialize<ListQueueItemStatus>(item.Payload);
             if (status?.Items is null || status.Items.Count == 0)
             {
                 acks[i] = true;
@@ -692,7 +693,7 @@ public static class Endpoints
         {
             await using var memoryStream = new MemoryStream();
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
-            var request = MemoryPackSerializer.Deserialize<KeyValueBatchRequest>(memoryStream.ToArray());
+            var request = MemoryPackPayload.Deserialize<KeyValueBatchRequest>(memoryStream.ToArray());
 
             var response = await AddKeyValueBatchCommand(request, cluster, source);
             var responseBytes = MemoryPackSerializer.Serialize(response);
@@ -712,14 +713,14 @@ public static class Endpoints
         if (requestItems.Length == 0)
             return new KeyValueBatchResponse(Array.Empty<KeyValueCommandResult>());
 
-        var results = Enumerable.Range(0, requestItems.Length)
+        var results = ZLinq.ValueEnumerable.Range(0, requestItems.Length)
             .Select(_ => new KeyValueCommandResult())
             .ToArray();
 
         var context = new KeyValueCommandBatchContext(results);
         var command = new AddKeyValueCommand
         {
-            Items = requestItems
+            Items = requestItems.AsValueEnumerable()
                 .Select(item => new AddKeyValueCommand.BatchItem
                 {
                     Operation = item.Operation,
@@ -816,7 +817,7 @@ public static class Endpoints
             SlimDataCommandBatchRequest request;
             try
             {
-                request = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(memoryStream.GetBuffer().AsSpan(0, checked((int)memoryStream.Length)))
+                request = MemoryPackPayload.Deserialize<SlimDataCommandBatchRequest>(memoryStream.GetBuffer().AsSpan(0, checked((int)memoryStream.Length)))
                     ?? throw new InvalidDataException("The SlimData command batch request is null.");
             }
             catch (Exception ex) when (ex is not InvalidDataException)

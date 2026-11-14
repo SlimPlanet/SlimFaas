@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "note": "Hashes of unmounted original images after their recorded runs. Before image archived prior to any corrective replay. Images retained; runtime replay may subsequently change the live before image.",
+  "images": [
+    {
+      "name": "before",
+      "sha256": "c8fb66e8637db230415fdfaeb3340ef469443e0c8979006eaf397e79742d8bb4",
+      "wsl_path": "/root/.cache/slimdata-lts/traffic-comparison-7e1/disk-journal-before-19b-resources/disk.img",
+      "bytes": 134217728
+    },
+    {
+      "name": "after",
+      "sha256": "c24c75a433dc566fb0cae9829cd4a505b6d8cfebf9b451011a946b97012cd51f",
+      "wsl_path": "/root/.cache/slimdata-lts/traffic-comparison-7e1/disk-journal-after-b002-resources/disk.img",
+      "bytes": 134217728
+    }
+  ],
+  "before_replay_archive": {
+    "sha256": "f4daff601d0d2970d6ccfcfcd6006d458e6cadb158ca9f04cd06eff22d47a9f4",
+    "wsl_path": "/root/.cache/slimdata-lts/traffic-comparison-7e1/artifacts/journal-before-recovery.tar.gz"
+  }
+}

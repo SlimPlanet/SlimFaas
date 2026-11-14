@@ -13,6 +13,27 @@ namespace SlimFaas.Tests.Jobs;
 /// </summary>
 public class JobConfigurationSyncTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Native_process_configuration_only_has_a_default_when_the_supervisor_declares_it(bool declaredDefault)
+    {
+        SlimfaasJob command = new("", [], Visibility: "Public");
+        Dictionary<string, SlimfaasJob> commands = new(StringComparer.OrdinalIgnoreCase) { ["task"] = command };
+        if (declaredDefault) commands.Add("default", command);
+        Mock<IKubernetesService> service = new();
+        service.Setup(value => value.ListJobsConfigurationAsync("local")).ReturnsAsync(new SlimFaasJobConfiguration(commands));
+        Mock<INamespaceProvider> namespaces = new();
+        namespaces.SetupGet(value => value.CurrentNamespace).Returns("local");
+        JobConfiguration configuration = new(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Orchestrator = "Process" }),
+            service.Object, NullLogger<JobConfiguration>.Instance, namespaces.Object);
+
+        Assert.Empty(configuration.Configuration.Configurations);
+        Assert.True(await configuration.SyncJobsConfigurationAsync());
+        Assert.Same(command, configuration.Configuration.Configurations["task"]);
+        Assert.Equal(declaredDefault, configuration.Configuration.Configurations.ContainsKey(JobConfiguration.Default));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static IOptions<SlimFaasOptions> Options(string? json = null) =>

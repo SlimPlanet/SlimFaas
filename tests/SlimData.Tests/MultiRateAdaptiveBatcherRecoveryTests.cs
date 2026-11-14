@@ -198,13 +198,16 @@ public sealed class MultiRateAdaptiveBatcherRecoveryTests
         batcher.RegisterKind<int, int>("commands", (requests, _) =>
         {
             Assert.Equal(1, Interlocked.Increment(ref activeHandlers));
-            if (Interlocked.Increment(ref calls) == 1)
-                time.Arm();
+            Interlocked.Increment(ref calls);
             Interlocked.Decrement(ref activeHandlers);
             return Task.FromResult<IReadOnlyList<int>>(requests.ToArray());
         }, timingProvider: () => Immediate);
 
         Assert.Equal(1, await batcher.EnqueueAsync<int, int>("commands", 1).WaitAsync(Deadline));
+        // Pause the retirement clock only after the producer observes its first
+        // result. Blocking the worker earlier can starve that continuation in
+        // an instrumented test runner before the race under test even begins.
+        time.Arm();
         Task<int> next;
         try
         {

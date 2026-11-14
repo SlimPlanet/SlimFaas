@@ -1,0 +1,436 @@
+{
+  "archive_sha256": "e95687b272dc8b88c5a83dc220f17550a260b5f97f69b10c1fb0950f32e65c1f",
+  "runtime_sha256": "cd9c8283660cca02468689d3da3cdb23ba3d82441e4322ece386761172001e12",
+  "note": "Fresh archive copy; only manifest paths relocated; no API mutations submitted.",
+  "samples": [
+    {
+      "utc": 1794182684.3046954,
+      "index": 0,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182684.5169737,
+      "index": 1,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182684.7277794,
+      "index": 2,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182684.937339,
+      "index": 3,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182685.1467805,
+      "index": 4,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182685.3566039,
+      "index": 5,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182685.5666118,
+      "index": 6,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182685.7756991,
+      "index": 7,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182685.993173,
+      "index": 8,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182686.2229934,
+      "index": 9,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182686.4620898,
+      "index": 10,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182686.6711667,
+      "index": 11,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182686.8811173,
+      "index": 12,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182687.09131,
+      "index": 13,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182687.3005292,
+      "index": 14,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182687.51153,
+      "index": 15,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182687.7205625,
+      "index": 16,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182687.9309056,
+      "index": 17,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182688.1399372,
+      "index": 18,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182688.3507056,
+      "index": 19,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182688.561391,
+      "index": 20,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182688.8040798,
+      "index": 21,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182689.0139813,
+      "index": 22,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182689.2245054,
+      "index": 23,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    },
+    {
+      "utc": 1794182689.435866,
+      "index": 24,
+      "values": [
+        "3",
+        "3",
+        "3"
+      ]
+    }
+  ],
+  "confirmed_data_verified": true,
+  "schema": 1,
+  "original_run": "42533199570",
+  "artifact_id": 13639105324,
+  "runtime_source_commit": "b00224c5831b918f426b44e0fcbda8edfa2c5494",
+  "original_report": {
+    "passed": false,
+    "error": "AssertionError('Mixed counter invariant: [2, 3, 3], confirmed=1, possible=174')",
+    "results": [
+      {
+        "phase": "job-environments",
+        "id": "d0c48696548e4a5787331dd13b779d49",
+        "passed": true
+      },
+      {
+        "phase": "job-supervisor-recovery",
+        "id": "74c000bdf07b4e899906a822dd500808",
+        "queue_id": "1a88c967-6ed3-4f5b-8398-fd03d1f9966b",
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 65536,
+        "chunked": false,
+        "id": "816aa18c6d3f4802a395783e4acfe458",
+        "seconds": 0.9220000000000255,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 262144,
+        "chunked": false,
+        "id": "f5bfef7d9d8b49cfbad78586714c142b",
+        "seconds": 0.9220000000000255,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 65536,
+        "chunked": true,
+        "id": "dc285ff01a484ef396a304ec80ebf413",
+        "seconds": 0.9370000000000118,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 262144,
+        "chunked": true,
+        "id": "f37459775a804952ac531cc25a37243b",
+        "seconds": 1.594000000000051,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 1048576,
+        "chunked": true,
+        "id": "3aefcd912ccb493abb168235ba7be9e1",
+        "seconds": 4.734000000000037,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2000000,
+        "chunked": false,
+        "id": "cc56fb4d63064962ac18ab8234f38709",
+        "seconds": 4.75,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2000000,
+        "chunked": true,
+        "id": "4f099469cca24512aab27308548c1d8a",
+        "seconds": 4.125,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 1048576,
+        "chunked": false,
+        "id": "85d728a546984030a9a275c0d88d0ffe",
+        "seconds": 4.9220000000000255,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2097152,
+        "chunked": false,
+        "id": "8baf64032f8e4f66ad36283183a7d548",
+        "seconds": 0.32799999999997453,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2097152,
+        "chunked": true,
+        "id": "b65e871569564141893d5b1f613f6dd7",
+        "seconds": 0.29700000000002547,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 4194304,
+        "chunked": false,
+        "id": "91bfd88781e34d6ca21b05dc79c3096d",
+        "seconds": 0.2659999999999627,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 4194304,
+        "chunked": true,
+        "id": "a53c0e97453246678f533f72e45fcffc",
+        "seconds": 0.29700000000002547,
+        "passed": true
+      },
+      {
+        "phase": "api-smoke",
+        "passed": true
+      },
+      {
+        "phase": "file-boundaries",
+        "passed": true
+      },
+      {
+        "phase": "retries-dlq-jobs",
+        "passed": true,
+        "job_ids": [
+          "a8687fc6f1894a1b944efbb15e4323b2",
+          "61f7c663bd654c19a9e547556df256e4",
+          "91364f03eb7b4b7ea382d6d51227c310"
+        ],
+        "dlq_id": "dlq-7fd2493d-7626-4836-b475-715c0a0896ab"
+      },
+      {
+        "phase": "absence-quorum-30s",
+        "fault": "process-suspension",
+        "nodes": [
+          1,
+          2
+        ],
+        "requested_absence_seconds": 30.0,
+        "actual_absence_seconds": 30.0,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 2.0470000000000255,
+        "full_recovery_seconds": 2.594000000000051,
+        "accepted": 113,
+        "unknown": 65,
+        "passed": true
+      },
+      {
+        "phase": "absence-quorum-60s",
+        "fault": "process-suspension",
+        "nodes": [
+          1,
+          2
+        ],
+        "requested_absence_seconds": 60.0,
+        "actual_absence_seconds": 60.01599999999996,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 3.2029999999999745,
+        "full_recovery_seconds": 4.030999999999949,
+        "accepted": 113,
+        "unknown": 250,
+        "passed": true
+      }
+    ],
+    "accepted": 113,
+    "unknown": 1391,
+    "missing": [],
+    "finished_utc": 1794179725.1917205
+  },
+  "initial_setup_attempt": {
+    "excluded": true,
+    "reason": "Required Native appsettings assets omitted in first extraction; no nodes reached startup",
+    "directory": "b002-quorum-archive-replay"
+  },
+  "raw_logs": {
+    "counter-observation-before-tests.log": {
+      "bytes": 921,
+      "sha256": "f75d47300e062d7ec5833da9cb7eb0d2ad523d2c25e360bc025bf18f82d46e6a"
+    },
+    "counter-observation-after-tests-02.log": {
+      "bytes": 124,
+      "sha256": "7d02b41758e32c27327fbab4c6d415736b3bb28ff258a73626030b025fa247b1"
+    },
+    "inspect-b002-quorum-replay-02.log": {
+      "bytes": 1707,
+      "sha256": "f7e046b89f7e2edeb7becea7719498191e5ad499c20825c3da41a869fd722c31"
+    },
+    "counter-confirmed-floor-before-tests.log": {
+      "bytes": 773,
+      "sha256": "10a3a93feaf414fdcc86039c262ef5758a825de32422a10dcc5d8781a6dca789"
+    },
+    "counter-confirmed-floor-after-tests.log": {
+      "bytes": 125,
+      "sha256": "aa9c1fdca3bc37ca0cc50ade8651b10d327f8f909d899ca03da1df1b3ca2e65a"
+    }
+  },
+  "counter_confirmed_floor_regression": {
+    "before_failed": true,
+    "after_tests_passed": 21,
+    "note": "Recovered value must also be at least the maximum confirmed increment response; count alone is insufficient."
+  }
+}
