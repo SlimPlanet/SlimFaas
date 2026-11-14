@@ -15,7 +15,10 @@ internal sealed record AsyncResourceUsage(
     double? RaftEntriesPerMessage,
     double? PeakWorkingSetBytes,
     double? CpuSeconds,
-    double? RaftEntries);
+    double? RaftEntries,
+    ClusterResourceSnapshot? InitialSnapshot = null,
+    ClusterResourceSnapshot? FinalProcessSnapshot = null,
+    ClusterResourceSnapshot? FinalDiagnosticsSnapshot = null);
 
 internal sealed record ProcessResourceUsage(
     double CpuSeconds,

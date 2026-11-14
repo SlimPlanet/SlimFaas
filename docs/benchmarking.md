@@ -77,6 +77,21 @@ complete sync, async, paced/burst and scaling evidence without requiring the
 20% CPU/message, 10% RSS and 2x Raft-entries/message limits. A missing measurement
 or failed reference produces **INCONCLUSIVE** (exit 2), never a passing result.
 
+Async resource collection waits for a fresh diagnostics sample on every node
+before sending measured requests. CPU and RSS come from the live process
+collectors across load and delivery drain. After drain, the collector waits for
+each node's five-second diagnostics exporter to refresh before reading the final
+Raft counter. This wait is outside the timed load and the CPU/RSS window; the
+Raft delta includes background entries within that exporter window. It does not
+extend the 180-second delivery deadline. Initial, final process and final
+diagnostics snapshots, including per-node timestamps and counters, are retained
+in `AsyncResources` / focused-workload `Resources` for audit. A missing counter,
+counter reset or refresh timeout cannot produce passing resource evidence.
+
+Earlier subsecond bursts could finish between periodic samples and report zero
+CPU or Raft work. Keep those observations as **INCONCLUSIVE** and rerun both
+revisions with the same corrected driver; do not backfill their missing samples.
+
 ### macOS, Linux ARM64 and Kubernetes campaigns
 
 Use `.bin/run-platform-workload.py` for one attributable run and
@@ -181,6 +196,26 @@ dedicated VM. If OCI startup reports `unable to create session key: disk quota
 exceeded`, raise that VM's quota (for example, `sudo sysctl -w
 kernel.keys.maxkeys=20000 kernel.keys.maxbytes=2000000`) and retain the original
 failed attempt. This is unrelated to filesystem capacity.
+
+`sysctl -w` settings are lost when the VM restarts. To preserve the campaign's
+validated key quotas and inotify limits across restarts, install a dedicated
+configuration inside that VM:
+
+```bash
+podman machine ssh sudo tee /etc/sysctl.d/90-slimfaas-pr506-rootless.conf <<'EOF'
+kernel.keys.maxkeys = 20000
+kernel.keys.maxbytes = 2000000
+fs.inotify.max_user_watches = 524288
+fs.inotify.max_user_instances = 524288
+EOF
+podman machine ssh sudo sysctl -p /etc/sysctl.d/90-slimfaas-pr506-rootless.conf
+```
+
+Recheck these values after a host/VM restart before resuming container campaigns.
+On macOS, prevent idle sleep for the measurement command's lifetime, for example
+with `caffeinate -ims python3 .bin/run-platform-matrix.py --config config.json
+--output artifacts/matrix`. A host suspension interrupts measurement isolation;
+retain the partial results and start a fresh complete ABBA block.
 
 The `normal` probe profile runs readiness and liveness checks with a 300-second
 startup allowance for retained-state recovery. The `endurance`

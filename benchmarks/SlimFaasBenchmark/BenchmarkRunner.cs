@@ -199,16 +199,15 @@ internal static class BenchmarkRunner
         string? runId = mode == "async"
             ? $"async-{payload.Length}-{concurrency}-{repetition}-{Guid.NewGuid():N}"
             : null;
+        await using ClusterResourceMonitor? clusterResources = mode == "async"
+            ? await ClusterResourceMonitor.StartAsync(client, options.NodeUrls)
+            : null;
         ProcessResourceSnapshot resourcesBefore = await ReadProcessResourcesAsync(client, options.NodeUrls);
         using var processMonitorCancellation = new CancellationTokenSource();
         Task<double> processMonitor = MonitorWorkingSetAsync(
             client, options.NodeUrls, resourcesBefore.WorkingSetBytes, processMonitorCancellation.Token);
         try
         {
-            using var resourceMonitorCancellation = mode == "async" ? new CancellationTokenSource() : null;
-            Task<IReadOnlyList<ClusterResourceSnapshot>>? resourceMonitor = resourceMonitorCancellation is null
-                ? null
-                : MonitorClusterResourcesAsync(client, options.NodeUrls, resourceMonitorCancellation.Token);
             var runSamples = new ConcurrentQueue<RequestSample>();
             TimeSpan elapsed = await ExecuteTimedLoadAsync(
                 client,
@@ -247,13 +246,6 @@ internal static class BenchmarkRunner
                     new Uri(options.DirectUrl, $"benchmark/observations/{runId}"));
             }
 
-            if (resourceMonitorCancellation is not null && resourceMonitor is not null)
-            {
-                await resourceMonitorCancellation.CancelAsync();
-                IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
-                asyncResources = BuildResourceUsage(resourceSamples, successful.LongLength);
-            }
-
             ProcessResourceSnapshot resourcesAfter = await ReadProcessResourcesAsync(client, options.NodeUrls);
             await processMonitorCancellation.CancelAsync();
             double peakWorkingSet = Math.Max(await processMonitor, resourcesAfter.WorkingSetBytes);
@@ -262,6 +254,9 @@ internal static class BenchmarkRunner
                 cpuSeconds,
                 successful.LongLength == 0 ? 0 : cpuSeconds * 1000 / successful.LongLength,
                 peakWorkingSet);
+
+            if (clusterResources is not null)
+                asyncResources = await clusterResources.CompleteAsync(successful.LongLength);
 
             var result = new LatencyRunResult(
                 mode,
@@ -616,9 +611,7 @@ internal static class BenchmarkRunner
         string runId = $"async-{loadShape}-{repetition}-{Guid.NewGuid():N}";
         Uri uri = new(options.SlimFaasUrl, $"async-function/{options.Function}/echo");
         var samples = new ConcurrentQueue<RequestSample>();
-        using var resourceMonitorCancellation = new CancellationTokenSource();
-        Task<IReadOnlyList<ClusterResourceSnapshot>> resourceMonitor =
-            MonitorClusterResourcesAsync(client, options.NodeUrls, resourceMonitorCancellation.Token);
+        await using var resourceMonitor = await ClusterResourceMonitor.StartAsync(client, options.NodeUrls);
         long started = Stopwatch.GetTimestamp();
 
         if (intervalMilliseconds > 0)
@@ -653,9 +646,7 @@ internal static class BenchmarkRunner
             : await WaitForAsyncDeliveryAsync(
                 client, options.DirectUrl, runId, successful.Length, options.AsyncDrainTimeout);
         await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
-        await resourceMonitorCancellation.CancelAsync();
-        IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
-        AsyncResourceUsage? resources = BuildResourceUsage(resourceSamples, successful.LongLength);
+        AsyncResourceUsage? resources = await resourceMonitor.CompleteAsync(successful.LongLength);
         using HttpResponseMessage _ = await client.DeleteAsync(
             new Uri(options.DirectUrl, $"benchmark/observations/{runId}"));
 
@@ -738,62 +729,6 @@ internal static class BenchmarkRunner
         }
     }
 
-    private static async Task<IReadOnlyList<ClusterResourceSnapshot>> MonitorClusterResourcesAsync(
-        HttpClient client,
-        IReadOnlyList<Uri> nodeUrls,
-        CancellationToken cancellationToken)
-    {
-        var samples = new List<ClusterResourceSnapshot>();
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                ClusterResourceSnapshot? sample = await ReadClusterResourcesAsync(
-                    client, nodeUrls, cancellationToken);
-                if (sample is not null)
-                    samples.Add(sample);
-                await Task.Delay(500, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-
-        return samples;
-    }
-
-    private static async Task<ClusterResourceSnapshot?> ReadClusterResourcesAsync(
-        HttpClient client,
-        IReadOnlyList<Uri> nodeUrls,
-        CancellationToken cancellationToken)
-    {
-        ClusterResourceSnapshot?[] nodes = await Task.WhenAll(nodeUrls.Select(async nodeUrl =>
-        {
-            try
-            {
-                string metrics = await client.GetStringAsync(new Uri(nodeUrl, "metrics"), cancellationToken);
-                return new ClusterResourceSnapshot(
-                    ParseMetric(metrics, "slimdata_process_cpu_seconds_total"),
-                    ParseMetric(metrics, "slimdata_command_batch_raft_total"),
-                    ParseMetric(metrics, "slimdata_process_working_set_bytes"));
-            }
-            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
-            {
-                return null;
-            }
-        }));
-        ClusterResourceSnapshot[] available = nodes.Where(node => node is not null).Cast<ClusterResourceSnapshot>().ToArray();
-        if (available.Length != nodeUrls.Count || available.Length == 0 ||
-            available.Any(node => !double.IsFinite(node.CpuSeconds) || node.CpuSeconds < 0 ||
-                !double.IsFinite(node.RaftEntries) || node.RaftEntries < 0 ||
-                !double.IsFinite(node.WorkingSetBytes) || node.WorkingSetBytes <= 0))
-            return null;
-        return new ClusterResourceSnapshot(
-            available.Sum(node => node.CpuSeconds),
-            available.Sum(node => node.RaftEntries),
-            available.Sum(node => node.WorkingSetBytes));
-    }
-
     internal static double ParseMetric(string metrics, string metricName)
     {
         foreach (string line in metrics.Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -806,22 +741,6 @@ internal static class BenchmarkRunner
                 : double.NaN;
         }
         return double.NaN;
-    }
-
-    private static AsyncResourceUsage? BuildResourceUsage(
-        IReadOnlyList<ClusterResourceSnapshot> samples,
-        long messages)
-    {
-        if (samples.Count < 2 || messages <= 0)
-            return null;
-        double cpuSeconds = Math.Max(0, samples[^1].CpuSeconds - samples[0].CpuSeconds);
-        double raftEntries = Math.Max(0, samples[^1].RaftEntries - samples[0].RaftEntries);
-        return new AsyncResourceUsage(
-            cpuSeconds * 1000d / messages,
-            raftEntries / messages,
-            samples.Max(sample => sample.WorkingSetBytes),
-            cpuSeconds,
-            raftEntries);
     }
 
     private static async Task<ScaleResult> RunScaleBenchmarkAsync(
@@ -1339,11 +1258,6 @@ internal static class BenchmarkRunner
         int Failed,
         double? FirstAcceptedMilliseconds,
         double AllAcceptedMilliseconds);
-
-    private sealed record ClusterResourceSnapshot(
-        double CpuSeconds,
-        double RaftEntries,
-        double WorkingSetBytes);
 
     internal static Stream CreateSamplesStream(string path, string format)
     {

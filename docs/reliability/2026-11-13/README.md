@@ -88,7 +88,50 @@ queue item immediately after its completion callback replicated on the leader.
 Both failed logs are retained. The fixture now applies the same follower read
 barrier already used for hash assertions before checking the local queue count.
 This changes the test's synchronization, with no runtime, request or test-timeout
-change. The updated CI result is required before calling that correction verified.
+change. On test/documentation head `a8b5a34e`, the
+[Windows coverage replay](https://github.com/SlimPlanet/SlimFaas/actions/runs/43463306234/job/132015701630)
+passes all 2,113 tests, with zero failures or skips, and the scanner completes
+successfully. This verifies the fixture correction; the external security
+quality gate remains separate. The Windows quick campaign on that same head
+passes its async payload checks before a Stream mutation returns an unknown
+HTTP outcome. That failure and the earlier async failures remain retained.
+
+A host reboot interrupted a later macOS comparison before the full ABBA block
+completed. Its partial observations remain excluded from performance acceptance.
+The dedicated toolchain has been restored outside temporary storage, and frozen
+publication hashes have been verified again. A subsequent attempt encountered
+host suspension and was also retained without a comparison verdict. Renewed
+campaigns hold a process-lifetime macOS sleep-prevention assertion. Compiler
+tasks and the dedicated C# project services are suspended during measurements;
+the editor, shared terminal and assistant services remain active. Raw observations
+from interrupted isolation attempts remain retained separately from complete
+runtime health controls.
+
+## Resource collection correction
+
+A later isolated native ABBA block completed its first reference and both
+candidate runs: each has 216 HTTP measurements, six paced/burst cases and scaling,
+with zero failed requests, missing IDs or extra deliveries. The final reference
+stopped at 1,217 of 1,231 observed IDs after the unchanged 180-second drain for
+2,097,152-byte bodies, concurrency 16, repetition 3. Its original data remains;
+this observation does not establish permanent loss.
+
+The comparator additionally rejected all complete reports because subsecond
+bursts lacked positive CPU/Raft resource evidence. The resource monitor started
+without awaiting its initial sample, stopped without a final sample and read
+diagnostics gauges updated every five seconds. These observations remain
+**INCONCLUSIVE**; the automatically started repeat was interrupted to correct
+instrumentation before collecting further acceptance data.
+
+A deterministic short-burst regression fails against the original collector.
+The corrected collector awaits an all-node diagnostics baseline, uses live CPU
+and RSS through load/drain, and waits for fresh all-node Raft counters afterward.
+The exporter wait is excluded from CPU/RSS accounting and timed load; raw
+boundary snapshots are retained. Three focused regressions and the full
+**2,116-test Release suite** pass with zero failures or skips. Runtime sources,
+Native AOT executables and production container bases remain unchanged, so the
+completed endurance evidence below still applies. Renewed performance acceptance
+requires fresh measurements using identical corrected drivers for both revisions.
 
 ## Renewed measurement protocol
 
