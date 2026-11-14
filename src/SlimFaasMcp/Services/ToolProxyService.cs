@@ -157,8 +157,12 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             };
         }
 
-        baseUrl ??= ExtractBaseUrl(swagger)
-                    ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            baseUrl = ExtractBaseUrl(swagger, swaggerUrl)
+                      ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+        }
+
         baseUrl = baseUrl.TrimEnd('/');
 
         Dictionary<string, JsonElement>? inputDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
@@ -562,36 +566,84 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return "application/json";
     }
 
-    public static string? ExtractBaseUrl(JsonDocument swagger)
+    // The API base URL described by the document: the first OpenAPI 3 server, with its variables set to their default
+    // values, or the Swagger 2.0 scheme, host and basePath. As both specifications define, a relative URL resolves
+    // against the URL of the document, a document without servers or host uses "/", and a Swagger 2.0 document
+    // without schemes uses the scheme of the document URL. A Swagger 2.0 document without host is served from the host
+    // of the document URL. A URL with a variable that has no default value has no base URL.
+    public static string? ExtractBaseUrl(JsonDocument swagger, string swaggerUrl)
     {
         JsonElement root = swagger.RootElement;
+        Uri? documentUri = Uri.TryCreate(swaggerUrl, UriKind.Absolute, out Uri? parsedDocumentUri)
+            ? parsedDocumentUri
+            : null;
 
+        string url = "/";
         if (root.TryGetProperty("servers", out JsonElement serversArr) &&
             serversArr.ValueKind == JsonValueKind.Array &&
-            serversArr.GetArrayLength() > 0)
+            serversArr.GetArrayLength() > 0 &&
+            serversArr[0].ValueKind == JsonValueKind.Object &&
+            serversArr[0].TryGetProperty("url", out JsonElement urlProp) &&
+            urlProp.ValueKind == JsonValueKind.String)
         {
-            JsonElement server = serversArr[0];
-            if (server.TryGetProperty("url", out JsonElement urlProp))
+            url = urlProp.GetString()!;
+            if (serversArr[0].TryGetProperty("variables", out JsonElement variables) &&
+                variables.ValueKind == JsonValueKind.Object)
             {
-                return urlProp.GetString();
+                foreach (JsonProperty variable in variables.EnumerateObject())
+                {
+                    if (variable.Value.ValueKind == JsonValueKind.Object &&
+                        variable.Value.TryGetProperty("default", out JsonElement defaultValue) &&
+                        defaultValue.ValueKind == JsonValueKind.String)
+                    {
+                        url = url.Replace($"{{{variable.Name}}}", defaultValue.GetString(), StringComparison.Ordinal);
+                    }
+                }
+            }
+        }
+        else
+        {
+            string? basePath = root.TryGetProperty("basePath", out JsonElement bp) && bp.ValueKind == JsonValueKind.String
+                ? bp.GetString()
+                : null;
+            string? scheme = root.TryGetProperty("schemes", out JsonElement schemes) &&
+                             schemes.ValueKind == JsonValueKind.Array &&
+                             schemes.GetArrayLength() > 0 &&
+                             schemes[0].ValueKind == JsonValueKind.String
+                ? schemes[0].GetString()
+                : null;
+            if (root.TryGetProperty("host", out JsonElement hostProp) && hostProp.ValueKind == JsonValueKind.String)
+            {
+                url = $"{scheme ?? documentUri?.Scheme ?? Uri.UriSchemeHttps}://{hostProp.GetString()}{basePath}";
+            }
+            else if (scheme is not null && documentUri is not null)
+            {
+                // Without host, the API is served from the host of the document, with the scheme the document declares.
+                string port = documentUri.IsDefaultPort ? string.Empty : $":{documentUri.Port}";
+                url = $"{scheme}://{documentUri.Host}{port}{basePath}";
+            }
+            else if (!string.IsNullOrEmpty(basePath))
+            {
+                url = basePath;
             }
         }
 
-        if (root.TryGetProperty("host", out JsonElement hostProp))
+        // A variable without a default value cannot be resolved, whether it is in the host or in the path.
+        if (url.Contains('{', StringComparison.Ordinal) || url.Contains('}', StringComparison.Ordinal))
         {
-            string scheme = "https";
-            if (root.TryGetProperty("schemes", out JsonElement schemes) && schemes.ValueKind == JsonValueKind.Array &&
-                schemes.GetArrayLength() > 0)
-            {
-                scheme = schemes[0].GetString() ?? scheme;
-            }
-
-            string? host = hostProp.GetString();
-            string? basePath = root.TryGetProperty("basePath", out JsonElement bp) ? bp.GetString() : "";
-            return $"{scheme}://{host}{basePath}";
+            return null;
         }
 
-        return null;
+        // On Unix, "/v1" parses as an absolute file URI, so only HTTP URLs are taken as they are.
+        if (Uri.TryCreate(url, UriKind.Absolute, out Uri? absoluteUri) &&
+            (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
+        {
+            return url;
+        }
+
+        return documentUri is not null && Uri.TryCreate(documentUri, url, out Uri? resolvedUri)
+            ? resolvedUri.AbsoluteUri
+            : null;
     }
 
     private static async Task<ProxyCallResult> ToProxyCallResult(HttpResponseMessage resp)
