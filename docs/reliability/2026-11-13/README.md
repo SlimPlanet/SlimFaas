@@ -183,11 +183,45 @@ for SLIMFAAS_ORDINAL in 1 2 3 4; do
 done
 ```
 
-The candidate runtime for these observations is `1ecba4d1`; subsequent report
-commits change documentation only. The JSON includes the 13 source hashes and
+The candidate runtime for these observations is `1ecba4d1`; subsequent changes
+cover reports and Kubernetes shutdown orchestration, with unchanged runtime
+products and benchmark source files. The JSON includes the 13 source hashes and
 both frozen driver hashes appear in the current publication provenance. The
 template has the same properties, compilation inputs and runtime references as
 the generated project used for these measurements, with configurable paths.
+
+## Kubernetes collection correction
+
+The shared Kubernetes launcher previously returned from `stop` immediately
+after scaling controllers to zero. Pods could still be terminating and flushing
+their WALs when the VM export began. The matrix also ignored a nonzero stop
+result. The [retained regression evidence](shutdown-regressions-net11-03.json)
+reproduces both problems through the public CLI paths.
+
+The launcher now scales only resources carrying its campaign label, then waits
+for controller pods to disappear and other labelled writers to finish. Completed
+Job pods remain. `controller/shutdown.json` records the pending pod UIDs and the
+final quiescence verdict, with a separate 180-second collection deadline. A failed
+stop prevents the archive and the next phase. Runtime publications, request
+deadlines, comparison algorithms and workload configurations are unchanged.
+
+Four regressions fail on the original code, and all **25 platform harness tests**
+pass after the correction. They run in an observed gap after the active Podman
+guest exits. Only the host launcher waits for this check; the guest workload and
+its isolation monitor continue throughout the measurement. The launcher then
+resumes automatically. The earlier six endurance originals already had an
+explicit coordinator-level shutdown barrier before their hashes were collected.
+The correction moves that guarantee into the shared command for upcoming
+Kubernetes performance exports.
+
+The first Podman reference stops at 1,145 of 1,160 observed IDs for 4,194,304-byte
+bodies, concurrency 16, repetition 2, after the unchanged 180-second drain. Its
+verdict is **INCONCLUSIVE**, without a permanent-loss claim. The first candidate
+completes all 216 HTTP cases, six focused cases and scaling, with zero failed
+requests, missing IDs or duplicates. All 78 async resource boundaries have
+positive CPU/RSS/Raft evidence across three nodes. Scaling accepts and delivers
+all 200 messages, reaches four ready replicas in 8.428 seconds and drains in
+20.999 seconds. The remaining comparative runs are still in progress.
 
 ## Current-source endurance
 

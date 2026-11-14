@@ -207,7 +207,7 @@ def run_one(config, suite, scenario, concurrency, variant, ordinal, output):
         if code == 0:
             code = invoke(base + ["wait"] + arguments + ["--timeout", "7200"], log)
         invoke(base + ["collect"] + arguments, log)
-        invoke(base + ["stop"] + arguments, log)
+        invoke(base + ["stop"] + arguments, log, check=True)
         raw = export_vm("runs/" + name, output)
     write(output / "execution.json", {"exit_code": code, "raw": str(raw), "finished": time.time()})
     return raw

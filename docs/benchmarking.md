@@ -169,6 +169,16 @@ diagnostics under `controller/`, alongside its workload reports. The launcher
 requires this controller directory to be new; existing phase metadata must not
 be used as the controller output or overwritten during a resume.
 
+Before exporting a Kubernetes phase, `stop` scales only Deployments and
+StatefulSets carrying that campaign's label. It then waits up to 180 seconds
+for their pods to disappear and for other labelled pod writers to finish;
+completed Job pods remain available as evidence. A deletion timestamp alone
+does not establish that a process has finished its final WAL flush.
+`controller/shutdown.json` retains pod UIDs, pending writers and the final
+quiescence verdict. A failed stop prevents the VM archive and the next phase
+from starting. This collection deadline is separate from the unchanged
+180-second async delivery drain and the leader-change deadline.
+
 HTTP and MemoryLab fixtures omit the fault-agent sidecar's `containerPort`
 declaration for both revisions; its control socket still listens normally.
 The historical runtime also bound declared sidecar ports, which conflicts with

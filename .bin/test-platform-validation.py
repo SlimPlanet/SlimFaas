@@ -35,9 +35,122 @@ MATRIX = load("platform_matrix", ROOT / ".bin/run-platform-matrix.py")
 DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
 KUBERNETES_DOTNET = load("kubernetes_dotnet", ROOT / ".bin/test-dotnet-sdk-kubernetes.py")
 KUBERNETES_BACKEND = load("kubernetes_backend", ROOT / ".bin/slimdata_kubernetes_backend.py")
+KUBERNETES_CAMPAIGN = load("kubernetes_campaign", ROOT / ".bin/run-kubernetes-campaign.py")
 
 
 class PlatformTests(unittest.TestCase):
+    def test_kubernetes_stop_waits_for_terminating_controllers_and_active_jobs(self):
+        namespace = "slimfaas-pr506-stop-test"
+        terminating = {"metadata": {"name": "slimfaas-0", "uid": "runtime-uid",
+            "deletionTimestamp": "2026-11-14T12:00:00Z", "labels": {"slimfaas-campaign": namespace},
+            "ownerReferences": [{"kind": "StatefulSet"}]}, "status": {"phase": "Running"}}
+        completed = {"metadata": {"name": "campaign-driver", "uid": "driver-uid",
+            "labels": {"slimfaas-campaign": namespace}, "ownerReferences": [{"kind": "Job"}]},
+            "status": {"phase": "Succeeded"}}
+        active_job = {"metadata": {"name": "function-job", "uid": "job-uid",
+            "labels": {"slimfaas-campaign": namespace}, "ownerReferences": [{"kind": "Job"}]},
+            "status": {"phase": "Running"}}
+        foreign = {"metadata": {"name": "unrelated", "uid": "foreign-uid",
+            "labels": {"slimfaas-campaign": "different"}, "ownerReferences": [{"kind": "ReplicaSet"}]},
+            "status": {"phase": "Running"}}
+        snapshots = [[terminating, completed, foreign], [active_job, completed, foreign], [completed, foreign]]
+        pod_reads = []
+
+        def command(arguments, **_kwargs):
+            if "scale" in arguments:
+                return SimpleNamespace(stdout="")
+            if "namespace" in arguments:
+                return SimpleNamespace(stdout=json.dumps({"metadata": {"labels": {"slimfaas-campaign": namespace}}}))
+            self.assertIn("pods", arguments)
+            pod_reads.append(arguments)
+            return SimpleNamespace(stdout=json.dumps({"items": snapshots.pop(0)}))
+
+        with tempfile.TemporaryDirectory() as directory:
+            arguments = ["campaign", "stop", "--kubeconfig", "isolated-config", "--namespace", namespace,
+                         "--output", directory]
+            with patch.object(sys, "argv", arguments), \
+                    patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command) as invoked, \
+                    patch.object(KUBERNETES_CAMPAIGN.time, "sleep"):
+                self.assertEqual(0, KUBERNETES_CAMPAIGN.main())
+            self.assertEqual(3, len(pod_reads))
+            proof = json.loads((Path(directory) / "shutdown.json").read_text())
+            self.assertTrue(proof["passed"])
+            self.assertEqual([], proof["polls"][-1]["remaining_writers"])
+            self.assertEqual(["driver-uid"], proof["polls"][-1]["completed_job_uids"])
+            self.assertTrue(all("delete" not in call.args[0] for call in invoked.call_args_list))
+            self.assertTrue(all("kind-slimfaas-pr506" in call.args[0] for call in invoked.call_args_list))
+
+    def test_kubernetes_stop_timeout_retains_the_unclosed_writer_identity(self):
+        namespace = "slimfaas-pr506-stop-timeout"
+        pod = {"metadata": {"name": "slimfaas-1", "uid": "still-writing",
+            "labels": {"slimfaas-campaign": namespace}, "ownerReferences": [{"kind": "StatefulSet"}]}}
+
+        def command(arguments, **_kwargs):
+            if "scale" in arguments:
+                return SimpleNamespace(stdout="")
+            if "namespace" in arguments:
+                return SimpleNamespace(stdout=json.dumps({"metadata": {"labels": {"slimfaas-campaign": namespace}}}))
+            return SimpleNamespace(stdout=json.dumps({"items": [pod]}))
+
+        with tempfile.TemporaryDirectory() as directory:
+            arguments = ["campaign", "stop", "--kubeconfig", "isolated-config", "--namespace", namespace,
+                         "--output", directory]
+            with patch.object(sys, "argv", arguments), \
+                    patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command), \
+                    patch.object(KUBERNETES_CAMPAIGN.time, "monotonic", side_effect=[0, 181]), \
+                    patch.object(KUBERNETES_CAMPAIGN.time, "sleep"):
+                with self.assertRaisesRegex(TimeoutError, "still have writers"):
+                    KUBERNETES_CAMPAIGN.main()
+            proof = json.loads((Path(directory) / "shutdown.json").read_text())
+            self.assertFalse(proof["passed"])
+            self.assertEqual("still-writing", proof["polls"][-1]["remaining_writers"][0]["uid"])
+
+    def test_kubernetes_stop_scales_only_the_campaign_label(self):
+        namespace = "slimfaas-pr506-stop-scope"
+
+        def command(arguments, **_kwargs):
+            if "scale" in arguments:
+                return SimpleNamespace(stdout="")
+            if "namespace" in arguments:
+                return SimpleNamespace(stdout=json.dumps({"metadata": {"labels": {"slimfaas-campaign": namespace}}}))
+            return SimpleNamespace(stdout='{"items":[]}')
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(sys, "argv", ["campaign", "stop", "--kubeconfig", "isolated-config",
+                    "--namespace", namespace, "--output", directory]), \
+                    patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command) as invoked:
+                self.assertEqual(0, KUBERNETES_CAMPAIGN.main())
+            scales = [call.args[0] for call in invoked.call_args_list if "scale" in call.args[0]]
+            self.assertEqual(2, len(scales))
+            for arguments in scales:
+                self.assertNotIn("--all", arguments)
+                self.assertEqual("slimfaas-campaign=" + namespace, arguments[arguments.index("--selector") + 1])
+
+    def test_kubernetes_matrix_refuses_to_archive_after_stop_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            phase = Path(directory) / "http-attempt-1" / "1-before"
+            phase.parent.mkdir()
+            configuration = {"environment": "kubernetes", "prefix": "slimfaas-pr506-test",
+                             "kubeconfig": "isolated-config", "before": "reference-runtime",
+                             "before_commit": "reference-source", "controller_image": "common-driver"}
+
+            def command(arguments, _log, check=False, **_kwargs):
+                if arguments[2] == "launch":
+                    Path(arguments[arguments.index("--output") + 1]).mkdir(parents=True)
+                if arguments[2] == "stop":
+                    if check:
+                        raise subprocess.CalledProcessError(1, arguments)
+                    return 1
+                return 0
+
+            with patch.object(MATRIX.shutil, "disk_usage", return_value=SimpleNamespace(free=40 * 1024**3)), \
+                    patch.object(MATRIX.subprocess, "check_output", return_value=f"Avail\n{40 * 1024**3}\n"), \
+                    patch.object(MATRIX, "invoke", side_effect=command), \
+                    patch.object(MATRIX, "export_vm") as archive:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    MATRIX.run_one.__wrapped__(configuration, "http", None, None, "before", 1, phase)
+                archive.assert_not_called()
+
     def test_matrix_keeps_kubernetes_controller_output_separate_from_existing_phase(self):
         with tempfile.TemporaryDirectory() as directory:
             phase = Path(directory) / "http-attempt-1" / "1-before"

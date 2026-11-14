@@ -231,6 +231,45 @@ def resources(options):
     return result, config
 
 
+def wait_for_campaign_quiescence(kubectl, namespace, output, timeout=180):
+    """Keep final WAL flushes and receipt writers out of evidence archiving."""
+    output.mkdir(parents=True, exist_ok=True)
+    proof = {"namespace": namespace, "started_utc": time.time(), "passed": False, "polls": []}
+    deadline = time.monotonic() + timeout
+    while True:
+        pods = json.loads(kubectl("get", "pods", "-n", namespace, "--selector",
+            "slimfaas-campaign=" + namespace, "-o", "json", capture_output=True).stdout)["items"]
+        remaining = []
+        completed_jobs = []
+        for pod in pods:
+            metadata = pod["metadata"]
+            if metadata.get("labels", {}).get("slimfaas-campaign") != namespace:
+                continue
+            owners = {owner["kind"] for owner in metadata.get("ownerReferences", [])}
+            completed = pod.get("status", {}).get("phase") in ("Succeeded", "Failed")
+            if owners.intersection(("StatefulSet", "ReplicaSet")) or not completed:
+                # A deletion timestamp or false Ready condition does not mean
+                # the process has exited and finished its final flush.
+                remaining.append({"name": metadata["name"], "uid": metadata["uid"],
+                    "owners": sorted(owners), "deletion_timestamp": metadata.get("deletionTimestamp")})
+            elif "Job" in owners:
+                completed_jobs.append(metadata["uid"])
+        proof["polls"].append({"utc": time.time(), "remaining_writers": remaining,
+                               "completed_job_uids": sorted(completed_jobs)})
+        expired = bool(remaining) and time.monotonic() >= deadline
+        proof["passed"] = not remaining
+        if not remaining or expired:
+            proof["finished_utc"] = time.time()
+        temporary = output / "shutdown.tmp"
+        temporary.write_text(json.dumps(proof, indent=2) + "\n")
+        temporary.replace(output / "shutdown.json")
+        if not remaining:
+            return
+        if expired:
+            raise TimeoutError("Campaign pods still have writers after the shutdown deadline; original state retained")
+        time.sleep(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("action", choices=("launch", "wait", "collect", "stop"))
@@ -287,7 +326,9 @@ def main():
         raise TimeoutError("Campaign job exceeded its explicit deadline; original resources are retained")
     if options.action == "stop":
         for kind in ("deployment", "statefulset"):
-            kubectl("scale", kind, "--all", "--replicas=0", "-n", options.namespace)
+            kubectl("scale", kind, "--selector", "slimfaas-campaign=" + options.namespace,
+                    "--replicas=0", "-n", options.namespace)
+        wait_for_campaign_quiescence(kubectl, options.namespace, options.output)
         return 0
     options.output.mkdir(parents=True, exist_ok=True)
     for kind in ("pods", "events", "jobs", "pvc", "statefulsets", "deployments"):
