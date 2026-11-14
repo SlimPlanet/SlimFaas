@@ -108,6 +108,13 @@ public static class AsyncFunctionEndpoints
         {
             return Results.NotFound();
         }
+
+        if (accessPolicy.ResolveVisibility(function, functionPath) == FunctionVisibility.Private &&
+            !accessPolicy.IsAllowedCaller(context, function))
+        {
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         if (function.Namespace == "websocket-virtual") functionName = function.Deployment;
 
         var defaultAsync = function.Configuration.DefaultAsync;

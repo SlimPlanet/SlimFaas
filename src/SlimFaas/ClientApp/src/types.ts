@@ -100,6 +100,7 @@ export interface FunctionStatusDetailed {
   SubscribeEvents: SubscribeEvent[] | null;
   PathsStartWithVisibility: PathVisibility[] | null;
   DependsOn: string[] | null;
+  AllowedCallers?: string[];
   Pods: PodStatus[] | null;
 }
 

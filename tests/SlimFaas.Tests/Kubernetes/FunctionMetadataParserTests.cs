@@ -110,6 +110,27 @@ public sealed class FunctionMetadataParserTests
         Assert.Equal(FunctionVisibility.Public, metadata.PathsStartWithVisibility[1].Visibility);
     }
 
+    [Theory]
+    [InlineData("frontend,batch-*", new[] { "frontend", "batch-*" })]
+    [InlineData(" frontend , ,batch-* ", new[] { "frontend", "batch-*" })]
+    [InlineData("", new string[0])]
+    public void Parse_ReadsTheAllowedCallers(string value, string[] expected)
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(
+            new Dictionary<string, string> { [FunctionAnnotationNames.AllowedCallers] = value },
+            "payments");
+
+        Assert.Equal(expected, metadata.AllowedCallers);
+    }
+
+    [Fact]
+    public void Parse_WithoutAllowedCallers_AllowsAnyInternalCaller()
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(new Dictionary<string, string>(), "payments");
+
+        Assert.Empty(metadata.AllowedCallers!);
+    }
+
     [Fact]
     public void Parse_AppliesDefaultsToOmittedConfigurationSections()
     {

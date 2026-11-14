@@ -125,7 +125,8 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                     NumberParallelRequestPerPod: function.Metadata.NumberParallelRequestPerPod,
                     SubscribeStreams: function.Metadata.SubscribeStreams,
                     StreamMaxAgeSeconds: function.Metadata.StreamMaxAgeSeconds,
-                    StreamMaxLength: function.Metadata.StreamMaxLength));
+                    StreamMaxLength: function.Metadata.StreamMaxLength,
+                    AllowedCallers: function.Metadata.AllowedCallers));
             }
         }
 

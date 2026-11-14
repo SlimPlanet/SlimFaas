@@ -135,6 +135,28 @@ env:
 
 Source addresses remain a weak identity: sidecars share the pod address, and a call that reaches a function pod without going through SlimFaas is not checked by SlimFaas. Use a NetworkPolicy to restrict the function ports to SlimFaas when that matters.
 
+### Restrict the callers of a Private function
+
+By default, every internal caller may call every Private function. `SlimFaas/AllowedCallers` narrows this down for one function: only the functions and jobs it lists may call its Private routes and publish the events of its Private subscriptions.
+
+```yaml
+metadata:
+    name: payments
+    annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/DefaultVisibility: "Private"
+        SlimFaas/AllowedCallers: "frontend,batch-*"
+```
+
+- The value is a comma-separated list of caller names. A function caller is named after its Deployment or StatefulSet, and a job caller after its job configuration (`daily-report` for the job run `daily-report-slimfaas-job-1a2b`). Names are compared exactly and are case-sensitive; `*` matches any sequence of characters, so `batch-*` allows `batch-import` and `batch-export`, and `*` alone allows any identified caller.
+- The list applies on top of the internal check, to the Private routes of the function (`SlimFaas/DefaultVisibility` and `SlimFaas/PathsStartWithVisibility`) on `/function/...` and `/async-function/...`, and to its Private subscriptions in [`SlimFaas/SubscribeEvents`](events.md#1-subscribe-to-events). Public routes and Public subscriptions stay open to everyone.
+- A caller that is not internal still receives `404`. An internal caller that is not in the list receives `403 Forbidden` and SlimFaas logs a warning with the caller name, its address and the function. A published event is not delivered to a Private subscriber that does not allow the publisher; the publication returns `404` when no subscriber is left.
+- When the annotation is absent or empty, any internal caller is accepted, as before.
+
+SlimFaas identifies the caller by the address of the TCP connection, as described above: the address must belong to the pod of exactly one function or job. A caller that SlimFaas cannot identify is refused when the list is set; this includes the SlimFaas pods, callers that share an address with another workload (`hostNetwork` pods), and tools on the loopback address. In [native local mode](native-local-mode.md), where workloads share the loopback address, SlimFaas uses the identity signed by the gateway of each local workload instead. WebSocket functions do not read this annotation.
+
+The list is only as strong as the address-based identity: whoever obtains the address of an allowed pod, for example a sidecar in that pod, is allowed too.
+
 ## 6. Function Configuration
 
 You can configure the synchronous HTTP timeout and the retry policies used by asynchronous and publish calls with `SlimFaas/Configuration`:
