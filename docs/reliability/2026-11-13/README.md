@@ -184,7 +184,7 @@ done
 ```
 
 The candidate runtime for these observations is `1ecba4d1`; subsequent changes
-cover reports and Kubernetes shutdown orchestration, with unchanged runtime
+cover reports, validation workflow triggers and Kubernetes shutdown orchestration, with unchanged runtime
 products and benchmark source files. The JSON includes the 13 source hashes and
 both frozen driver hashes appear in the current publication provenance. The
 template has the same properties, compilation inputs and runtime references as

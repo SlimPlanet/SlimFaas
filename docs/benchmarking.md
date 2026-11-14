@@ -178,6 +178,8 @@ does not establish that a process has finished its final WAL flush.
 quiescence verdict. A failed stop prevents the VM archive and the next phase
 from starting. This collection deadline is separate from the unchanged
 180-second async delivery drain and the leader-change deadline.
+The reliability workflow also runs for changes to the platform/Kubernetes
+harnesses and SDK probes, including pull requests without runtime changes.
 
 HTTP and MemoryLab fixtures omit the fault-agent sidecar's `containerPort`
 declaration for both revisions; its control socket still listens normally.
