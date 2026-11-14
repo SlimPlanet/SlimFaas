@@ -1,0 +1,214 @@
+{
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "reference_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+  "verdict": "INCONCLUSIVE",
+  "acceptance_excluded": true,
+  "reason": "Incomplete bracketing HTTP references plus an observed external Storybook wrapper in the final reference. No failed observation discarded.",
+  "first_reference": {
+    "runtime_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+    "environment": "Linux ARM64 managed/trimmed .NET 11 under Podman",
+    "phase": "artifacts/pr506/measurements/podman-net11-03-serial-01/http-attempt-1/1-before",
+    "log_sha256": "2b53640c3df1a8e4050c6b6f7e12f437db1bea97450ba8cb6a93c61af66b6a50",
+    "run_id": "async-4194304-16-2-05b773312acd4e4bb76e830456f1d880",
+    "observed_unique": 1145,
+    "accepted": 1160,
+    "total_observations": 1145,
+    "duplicates": 0,
+    "drain_seconds": 180,
+    "verdict": "INCONCLUSIVE",
+    "note": "Incomplete reference. Bounded observation does not establish permanent loss. Original VM files and verified raw archive retained; candidate runs continue without a deadline change."
+  },
+  "last_reference": {
+    "run_id": "async-4194304-4-1-631e251c9c7342e484a0353cd38121d2",
+    "observed_unique": 688,
+    "accepted": 689,
+    "duplicates": 0,
+    "drain_seconds": 180,
+    "log_sha256": "9c1e3f39d1b606a5dc299b42c4c95b07caa9e63e1f8e740a33919a35c548b61c"
+  },
+  "candidates": [
+    {
+      "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "results_sha256": "e11fa9d2a04c2ab40232fa424bd49c6555fede4ff599cc4bca4665aa76b8377e",
+      "latency_cases": 216,
+      "focused_cases": 6,
+      "failed_requests": 0,
+      "missing": 0,
+      "duplicates": 0,
+      "resource_cases": 78,
+      "all_positive_cpu_rss_raft": true,
+      "all_boundaries_three_nodes": true,
+      "scaling": {
+        "Messages": 200,
+        "Concurrency": 32,
+        "TargetReplicas": 4,
+        "Accepted": 200,
+        "Failed": 0,
+        "FirstAcceptedMilliseconds": 19.4641,
+        "AllAcceptedMilliseconds": 101.114,
+        "RequestedOneMilliseconds": 1078.5963,
+        "ReadyOneMilliseconds": 5288.801,
+        "RequestedTargetMilliseconds": 5288.801,
+        "ReadyTargetMilliseconds": 8428.2394,
+        "QueueDrainedMilliseconds": 20998.67,
+        "PeakReadyQueue": 200,
+        "TimedOut": false
+      }
+    },
+    {
+      "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "results_sha256": "c5df1a38322383ce7de6f3284de3443ecf74bf08e4f33917333b7f54a8635481",
+      "latency_cases": 216,
+      "focused_cases": 6,
+      "failed_requests": 0,
+      "missing": 0,
+      "duplicates": 0,
+      "resource_cases": 78,
+      "all_positive_cpu_rss_raft": true,
+      "all_boundaries_three_nodes": true,
+      "scaling": {
+        "Messages": 200,
+        "Concurrency": 32,
+        "TargetReplicas": 4,
+        "Accepted": 200,
+        "Failed": 0,
+        "FirstAcceptedMilliseconds": 15.7438,
+        "AllAcceptedMilliseconds": 93.0104,
+        "RequestedOneMilliseconds": 1084.788,
+        "ReadyOneMilliseconds": 4352.5728,
+        "RequestedTargetMilliseconds": 5438.3564,
+        "ReadyTargetMilliseconds": 6511.4318,
+        "QueueDrainedMilliseconds": 19751.0438,
+        "PeakReadyQueue": 200,
+        "TimedOut": false
+      }
+    }
+  ],
+  "external_activity": {
+    "utc": 1794680626.8083808,
+    "busy_samples": [
+      {
+        "utc": 1794680532.200644,
+        "load_average": [
+          6.068359375,
+          6.294921875,
+          6.1201171875
+        ],
+        "external_compilers_or_tests": [
+          {
+            "pid": 45051,
+            "ppid": 15129,
+            "cpu": 1.0,
+            "name": "node"
+          }
+        ],
+        "disk_free_bytes": 31751741440
+      }
+    ],
+    "note": "Isolation alert; observations retained. Process identity inspected before any signal."
+  },
+  "restart": {
+    "pid": 98324,
+    "started": 1794683603.895988,
+    "status": "restarted",
+    "coordinator_pid": 41769,
+    "matrix_pid": 74459,
+    "identities": {
+      "41769": "Sat Nov 14 15:18:25 2026     /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python artifacts/pr506/run-net11-03-serial-validation.py",
+      "74459": "Sat Nov 14 15:59:00 2026     /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python ${CANDIDATE}/.bin/run-platform-matrix.py --config ${CANDIDATE}/artifacts/pr506/configurations/podman-net11-03.json --output ${CANDIDATE}/artifacts/pr506/measurements/podman-net11-03-serial-01"
+    },
+    "active_phase": "${CANDIDATE}/artifacts/pr506/measurements/podman-net11-03-serial-01/set-c12-attempt-1/3-after",
+    "container": "slimfaas-pr506-net11-pbench-03-set-c12-attempt-1-3-after",
+    "reason": "Observed external Storybook build wrapper at utc1794680532.200644; preserve this matrix as incomplete/invalid and restart with fresh campaign IDs.",
+    "actions": [],
+    "host_launcher_paused_utc": 1794683604.123691,
+    "guest_exited_utc": 1794683709.638997,
+    "guest_status": {
+      "passed": true,
+      "error": null,
+      "statuses": [
+        {
+          "suite": "warmup",
+          "exit_code": 0
+        },
+        {
+          "suite": "load",
+          "exit_code": 0
+        }
+      ],
+      "finished_utc": 1794683707.3203392
+    },
+    "finished": 1794683714.741157,
+    "new_coordinator_pid": 745,
+    "mac_free_after": 31074041856,
+    "note": "Interrupted matrix has completed=false and isolation_valid=false; no acceptance data synthesized. All prior observations, VM originals and verified archives retained. Next attempt uses a new output and campaign prefix."
+  },
+  "quiescent_discard": {
+    "pid": 91875,
+    "launcher_pid": 74459,
+    "launcher_identity": "Sat Nov 14 15:59:00 2026     /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python ${CANDIDATE}/.bin/run-platform-matrix.py --config ${CANDIDATE}/artifacts/pr506/configurations/podman-net11-03.json --output ${CANDIDATE}/artifacts/pr506/measurements/podman-net11-03-serial-01",
+    "started": 1794676460.307476,
+    "status": "finished",
+    "container": "slimfaas-pr506-net11-pbench-03-http-attempt-1-3-after",
+    "note": "Only the host launcher waits. The guest workload and isolation monitor keep running. Discard touches only already unallocated filesystem blocks, after the guest exits; no file/image/volume removed.",
+    "host_launcher_paused_utc": 1794676460.5436149,
+    "guest_container_exited_utc": 1794679947.8533702,
+    "before": {
+      "utc": 1794679947.8533728,
+      "mac_free_bytes": 25415884800,
+      "vm_free_bytes": 64138936320
+    },
+    "no_active_guest_during_discard": true,
+    "reserve_samples": [
+      {
+        "utc": 1794679951.590085,
+        "mac_free_bytes": 32197808128,
+        "vm_free_bytes": 64139022336
+      },
+      {
+        "utc": 1794679961.778392,
+        "mac_free_bytes": 32197967872,
+        "vm_free_bytes": 64139022336
+      },
+      {
+        "utc": 1794679971.98776,
+        "mac_free_bytes": 32196960256,
+        "vm_free_bytes": 64139165696
+      },
+      {
+        "utc": 1794679982.201449,
+        "mac_free_bytes": 32196677632,
+        "vm_free_bytes": 64139165696
+      },
+      {
+        "utc": 1794679992.443101,
+        "mac_free_bytes": 32201535488,
+        "vm_free_bytes": 64139165696
+      },
+      {
+        "utc": 1794680002.6745548,
+        "mac_free_bytes": 32197853184,
+        "vm_free_bytes": 64139165696
+      },
+      {
+        "utc": 1794680012.914845,
+        "mac_free_bytes": 32199114752,
+        "vm_free_bytes": 64139165696
+      }
+    ],
+    "finished": 1794680023.1983302,
+    "after": {
+      "utc": 1794680012.914845,
+      "mac_free_bytes": 32199114752,
+      "vm_free_bytes": 64139165696
+    },
+    "target_30_gib_met": false,
+    "host_launcher_resumed_utc": 1794680023.2152882
+  },
+  "native_and_microbenchmarks_restarted": false,
+  "next_attempt": {
+    "output": "artifacts/pr506/measurements/podman-net11-03-serial-02",
+    "campaign_prefix": "slimfaas-pr506-net11-pbench-03-i2"
+  },
+  "note": "Both candidates retain complete zero-error/missing/duplicate workload observations. These integrity observations do not establish performance non-regression. Recovery waited for the current guest exit before closing the controller; original files, images and volumes retained. Shared editor/terminal/Codex roots were not suspended. No timeout or threshold relaxed."
+}

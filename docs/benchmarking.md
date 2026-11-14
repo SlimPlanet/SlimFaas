@@ -208,6 +208,18 @@ VM exports retain complete WALs and samples in `raw.tar.gz`, with its SHA-256 in
 original VM state remains in place. Extract the archive when inspecting the
 large raw members rather than keeping an additional uncompressed copy.
 
+After the current guest workload and its writers have exited, filesystem discard
+can return already unallocated Linux blocks to the Mac's sparse VM disk. Record
+host/VM free space before and after, and complete this housekeeping before the
+next timed load. It removes no file, image, WAL, snapshot or volume:
+
+```bash
+podman machine ssh sudo fstrim -v /
+```
+
+Retain the discard log and any interrupted observations. Filesystem discard is
+separate from deleting a cache or pruning an unused image.
+
 Long rootless campaigns also consume the Linux user's session-key quota. Inspect
 `/proc/key-users` and `sysctl kernel.keys.maxkeys kernel.keys.maxbytes` in the
 dedicated VM. If OCI startup reports `unable to create session key: disk quota

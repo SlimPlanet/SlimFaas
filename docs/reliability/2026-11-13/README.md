@@ -223,6 +223,46 @@ positive CPU/RSS/Raft evidence across three nodes. Scaling accepts and delivers
 all 200 messages, reaches four ready replicas in 8.428 seconds and drains in
 20.999 seconds. The remaining comparative runs are still in progress.
 
+## Retained Podman isolation attempt
+
+The [first Podman attempt](podman-isolation-net11-03.json) is excluded from
+performance acceptance and retained as **INCONCLUSIVE**. Its two candidates each
+complete 216 HTTP cases, six focused cases and 200-message scaling, with zero
+failed requests, missing IDs or duplicates. Both retain positive CPU/RSS/Raft
+evidence across all three nodes. The final candidate reaches four ready replicas
+in 6.511 seconds and drains in 19.751 seconds.
+
+Both bracketing references are incomplete at the unchanged 180-second drain:
+the first observes 1,145/1,160 IDs for 4,194,304-byte bodies at concurrency 16,
+repetition 2; the last observes 688/689 at concurrency 4, repetition 1. These
+bounded observations do not establish permanent loss. Neither reference supplies
+the mandatory complete comparison report.
+
+The final reference also records one external Node `build-storybook` wrapper
+in the isolation log. The original guard catches its child but misses the
+wrapper's suffixed command. The reservation now matches these variants and
+frontend test/coverage wrappers, continuously across environment transitions.
+Shared editor, terminal and Codex roots remain active. The invalid observation
+closes only after the current guest exits; original VM data and verified
+archives remain. A fresh complete Podman attempt uses new output and campaign
+identities; completed Native and microbenchmark work is preserved.
+
+Between the two completed candidates and the final reference, discarding already
+unallocated VM filesystem blocks returns about **6.32 GiB** to the Mac without
+deleting any file. Free space reaches 29.99 GiB; the strict 30 GiB housekeeping
+target remains false in its raw metadata. The 20 GiB startup threshold is not
+crossed during that interval. The later isolation restart also performs discard
+only after guest shutdown.
+
+On harness/workflow head `bcb744ba`, the
+[dashboard/documentation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43619681420),
+[Windows/Linux reliability](https://github.com/SlimPlanet/SlimFaas/actions/runs/43619681412)
+and [main validation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43619681423)
+workflows pass, as does FOSSA. Of 41 check runs, the separate SonarCloud quality
+gate remains failed: Security E, 38 open vulnerability findings and seven closed.
+The successful scanner job remains distinct from that gate. No finding or rule
+is suppressed.
+
 ## Current-source endurance
 
 The [six renewed endurance reports](endurance-net11-03.json) pass on the frozen
