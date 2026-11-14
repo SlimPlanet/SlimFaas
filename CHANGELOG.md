@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.88.1
+
+- [6897512d](https://github.com/SlimPlanet/SlimFaas/commit/6897512d6c19ef8234e187ba38d38be3ee5cc5ea) - fix(SlimFaas): wait for stopping nodes on Ctrl+Break and retry bundle cleanup on Windows (#401), 2026-11-14 by *Guillaume Delahaye*
+- [2adcbbe3](https://github.com/SlimPlanet/SlimFaas/commit/2adcbbe37b84c8e342d06d652ad6b96799a86488) - fix(slimfaas-mcp): read path item parameters and component parameter references (#516) (release), 2026-11-14 by *Asish*
+
+
+## 0.88.0
+
+
+
 ## v0.88.0
 
 - [766cb5ca](https://github.com/SlimPlanet/SlimFaas/commit/766cb5caafc634565abe94624eb06a1d2adc8b46) - feat(dashboard): pair workload queues and visualize Data traffic (#503) (release), 2026-11-07 by *Guillaume Chervet*
@@ -265,15 +275,6 @@
 
 
 ## 0.82.6
-
-
-
-## v0.82.6
-
-- [b8a688ea](https://github.com/SlimPlanet/SlimFaas/commit/b8a688eadda28cb6e243ddb775fc990f9e398791) - docs: Restore CloMonitor Legal compliance detection (#336) (release), 2026-09-08 by *Copilot*
-
-
-## 0.82.5
 
 
 
