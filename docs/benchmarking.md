@@ -18,6 +18,12 @@ Normal completion and an abrupt launcher exit both close the entire process
 tree. Occupied benchmark ports are rejected before starting or cleaning state.
 Run `python .bin/test-local-benchmark-host.py` to verify those lifecycle checks.
 
+Fresh Windows WALs use recorded 64 KiB data chunks; existing unmarked volumes
+keep their original geometry. Preserve `wal/slimdata-chunk-size` with the WAL.
+The [Windows investigation](reliability/2026-11-13/windows-benchmark.md) retains
+the failed controls, reproduction commands and validation of large messages,
+Streams and recovery. This changes neither the load nor its request deadlines.
+
 ## Run the three-node recovery scenario
 
 The restart-under-load scenario starts the same three-node SlimFaas Local
