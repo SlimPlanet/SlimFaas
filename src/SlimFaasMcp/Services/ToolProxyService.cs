@@ -513,19 +513,20 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
     // "ids=1,2" without explode, and an object {"role":"admin","id":5} becomes "role=admin&id=5", or
     // "filter=role,admin,id,5" without explode. The spaceDelimited and pipeDelimited styles join array values with a
     // space or "|" instead of ",", and deepObject sends "filter[role]=admin&filter[id]=5". A parameter described with
-    // content application/json is sent as JSON. A null value, an empty array and an empty object send nothing.
+    // content application/json is sent as JSON, including null. Otherwise a null
+    // value, an empty array and an empty object send nothing.
     private static void AddQueryPairs(List<string> pairs, Parameter parameter, JsonElement value)
     {
-        if (value.ValueKind == JsonValueKind.Null)
-        {
-            return;
-        }
-
         string name = Uri.EscapeDataString(parameter.Name!);
 
         if (parameter.IsJsonContent)
         {
             pairs.Add($"{name}={Uri.EscapeDataString(JsonSerializer.Serialize(value, AppJsonContext.Default.JsonElement))}");
+            return;
+        }
+
+        if (value.ValueKind == JsonValueKind.Null)
+        {
             return;
         }
 

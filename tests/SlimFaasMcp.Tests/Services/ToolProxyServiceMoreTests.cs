@@ -569,6 +569,31 @@ public class ToolProxyServiceMoreTests
     }
 
     [Fact]
+    public async Task ExecuteToolAsync_SendsExplicitNullForJsonContentQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "filter", In = "query", Style = "form", Explode = true, IsJsonContent = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"filter\":null}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?filter=null", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
     public async Task ExecuteToolAsync_SkipsNullAndEmptyQueryParameters()
     {
         var endpoints = new List<Endpoint>
