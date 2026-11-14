@@ -230,6 +230,129 @@ Available variables are:
 | `BENCHMARK_ASYNC_BURST_CONCURRENCY` | `64` | burst enqueue concurrency |
 | `BENCHMARK_RUN_ROOT` | timestamped artifacts path | exact output directory |
 | `BENCHMARK_SKIP_BUILD` | `false` | reuse existing Release binaries for repeated runs on the same checkout |
+| `BENCHMARK_RUNTIME_PATH` | unset | launch a prebuilt self-contained JIT or Native AOT `SlimFaas` executable; use with `BENCHMARK_SKIP_BUILD=true` |
+| `BENCHMARK_RUNTIME_MODE` | `jit` | record the runtime mode in the run manifest; it does not change the supplied executable |
+
+## Compare JIT and Native AOT on a new machine
+
+The [Apple M4 Pro ZLinq report](performance-benchmarks-m4.md) records the
+before/after measurements, resource definitions and limitations of this protocol.
+
+The four-variant campaign requires Python 3.11+ on macOS or Linux; its orchestration
+uses POSIX process groups, `ps` and host load averages. Rebuild and measure **both**
+revisions on the same host. Previous measurements
+from a different CPU or OS are historical context, not a baseline. Publish four
+isolated directories named `baseline-jit`, `candidate-jit`, `baseline-aot` and
+`candidate-aot` below a common directory. Use the same SDK and Release settings:
+
+```bash
+# Run from each revision, changing the output directory accordingly.
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 \
+  -p:SkipClientAppBuild=true -p:PublishAot=false -p:PublishTrimmed=false \
+  --self-contained true -o /absolute/path/publish/baseline-jit
+
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 \
+  -p:SkipClientAppBuild=true -o /absolute/path/publish/baseline-aot
+
+dotnet build benchmarks/SlimFaasBenchmark -c Release
+dotnet build tools/SlimFaas.MemoryLab -c Release
+
+python3 .bin/slimfaas-zlinq-benchmark.py \
+  --publish-root /absolute/path/publish \
+  --output artifacts/zlinq-comparison \
+  --rounds 3 --duration 20 --warmup 5 \
+  --payloads 64,4096,2097152 --concurrency 1,16 \
+  --data-duration 60 --stream-messages 200 --dispatch-parallelism 16
+
+python3 .bin/summarize-zlinq-benchmark.py artifacts/zlinq-comparison
+```
+
+Use the RID matching the host. The JIT publication is self-contained and
+untrimmed; the native publication uses the product's AOT settings. The campaign
+requires identical dashboard assets in all publications. `SkipClientAppBuild`
+skips compilation but can still copy an existing generated `wwwroot`; remove it
+from the **benchmark publication copies** for a backend-only comparison.
+The campaign
+never compiles during measurement. It runs variants sequentially, reverses their
+order on alternate rounds and rotates the third round. Every repetition starts
+a clean three-node `slimfaas local` cluster. The unchanged benchmark driver and
+target use the same JIT runtime for all four variants.
+
+Each round covers direct/synchronous/asynchronous HTTP, paced and burst queue
+traffic, scale-to-zero/scale-out, sustained sets, mixed set/delete/increment/
+hashset/async operations, cross-node file uploads/reads, and a bounded durable
+Stream burst. Set/hashset/counter state is checked on all three nodes; queue and
+Stream delivery checks reject missing or duplicate IDs. The Stream burst must
+reach zero lag and pending deliveries with committed ACKs. Microbenchmarks
+exercise larger collection populations separately.
+File payloads default to 256 KiB and can be changed with `--file-bytes`.
+The file workload reuses one ID per worker, uploads to one node and drains a read
+from the next. It measures warm repeated-file access and HTTP success, without
+byte-by-byte comparison. Unique 2 MiB async bodies exercise offload separately.
+`--dispatch-parallelism` defaults to 16 and sets both async dispatch limits on
+the benchmark function through a generated local overlay. The original manifest
+stays unchanged. Use 256 explicitly to retain the original high-parallelism
+stress profile. Sustained 2 MiB traffic exposed quorum interruptions and delivery
+deadlines at both capacities 256 and 16 on this three-node setup, including the
+baseline without ZLinq. Retain unsuccessful attempts alongside completed runs;
+performance medians conditional on successful completion cannot establish reliability.
+
+CPU and sampled peak RSS sum the runtime nodes, excluding the supervisor,
+functions and load generator. Async and Stream CPU windows include delivery and
+drain. RSS reflects process working sets, including shared/native pages; it is
+different from managed allocation per operation. Data resources include driver
+startup before load, but end before report serialization and state validation.
+Data operations may issue multiple HTTP requests. Stream throughput includes
+delivery/drain; its p95 is append acceptance latency.
+
+The summarizer rejects incomplete rounds and correctness failures. It retains
+every repetition in `comparison.json`, reports medians plus rate/CPU/RSS/p95 ranges, and
+includes the unchanged direct-target control. Compressed per-request HTTP samples,
+per-case resources, validation logs, binary hashes and settings remain in the
+campaign directory. A noisy direct control or overlapping repetition ranges
+limits conclusions about small differences; longer runs alone do not remove
+shared-host variance.
+
+After an interrupted campaign, repeat its exact command with `--resume`. The
+runner checks settings and executable/assembly hashes, skips completed variants,
+and archives incomplete attempts before restarting them with clean state.
+It waits for ports to become reusable and accepts TCP `TIME_WAIT` during restart.
+
+If instability prevents a planned repetition from completing, retain its logs and
+failure counts. An explicit `analysis.json` can limit repetitions symmetrically
+before/after within each runtime mode; `--resume` honors those limits and the
+summarizer displays the analyzed counts. Keep the original manifest unchanged:
+
+```json
+{
+  "rounds_by_variant": {
+    "baseline-jit": 3, "candidate-jit": 3,
+    "baseline-aot": 2, "candidate-aot": 2
+  },
+  "reason": "Stop AOT retries after repeated heavy-body failures; retain both completed repetitions per revision."
+}
+```
+
+These are conditional performance statistics, with fewer AOT repetitions. Report
+unsuccessful attempts alongside them; do not describe the workload as reliable.
+
+For more stable collection timing and allocation estimates, run the same
+benchmark sources against each revision:
+
+```bash
+dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks \
+  -p:SkipClientAppBuild=true -- --extended \
+  --filter '*DataFeatureBenchmarks*' '*CollectionPipelineBenchmarks*' \
+           '*RoutingQueryBenchmarks*' '*SlimDataQueueBenchmarks*' \
+           '*QueueSelectionBenchmarks*' \
+  --exporters json csv --join
+```
+
+`--extended` uses six warmup and twelve measured iterations with a 500 ms target
+iteration time. Queue mutation benchmarks retain their explicit invocation count
+and fresh-state setup; their short iterations make mutation timings exploratory.
+These microbenchmarks run in-process under JIT; the full
+local campaign supplies the actual JIT/AOT comparison.
 
 ## Interpret the result correctly
 

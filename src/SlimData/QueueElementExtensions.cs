@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
+using ZLinq;
 
 namespace SlimData;
 
@@ -196,34 +198,30 @@ public static class QueueElementExtensions
     // ---------- Sélections mono-pass ----------
     public static ImmutableArray<QueueElement> GetQueueTimeoutElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
-        foreach (var e in elements)
-            if (e.IsTimeout(nowTicks)) builder.Add(e);
-        return builder.ToImmutable();
+        if (elements.IsEmpty) return ImmutableArray<QueueElement>.Empty;
+        return ImmutableCollectionsMarshal.AsImmutableArray(
+            elements.AsValueEnumerable().Where(e => e.IsTimeout(nowTicks)).ToArray());
     }
 
     public static ImmutableArray<QueueElement> GetQueueRunningElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
-        foreach (var e in elements)
-            if (e.IsRunning(nowTicks)) builder.Add(e);
-        return builder.ToImmutable();
+        if (elements.IsEmpty) return ImmutableArray<QueueElement>.Empty;
+        return ImmutableCollectionsMarshal.AsImmutableArray(
+            elements.AsValueEnumerable().Where(e => e.IsRunning(nowTicks)).ToArray());
     }
 
     public static ImmutableArray<QueueElement> GetQueueWaitingForRetryElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
-        foreach (var e in elements)
-            if (e.IsWaitingForRetry(nowTicks)) builder.Add(e);
-        return builder.ToImmutable();
+        if (elements.IsEmpty) return ImmutableArray<QueueElement>.Empty;
+        return ImmutableCollectionsMarshal.AsImmutableArray(
+            elements.AsValueEnumerable().Where(e => e.IsWaitingForRetry(nowTicks)).ToArray());
     }
 
     public static ImmutableArray<QueueElement> GetQueueFinishedElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
-        foreach (var e in elements)
-            if (e.IsFinished(nowTicks)) builder.Add(e);
-        return builder.ToImmutable();
+        if (elements.IsEmpty) return ImmutableArray<QueueElement>.Empty;
+        return ImmutableCollectionsMarshal.AsImmutableArray(
+            elements.AsValueEnumerable().Where(e => e.IsFinished(nowTicks)).ToArray());
     }
 
     /// <summary>

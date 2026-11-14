@@ -1,3 +1,4 @@
+using ZLinq;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
@@ -167,14 +168,14 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         return new(
             snapshot.KeyValues.Count,
             snapshot.Hashsets.Count,
-            snapshot.Hashsets.Values.Sum(static hashset => hashset.Count),
+            snapshot.Hashsets.Values.AsValueEnumerable().Sum(static hashset => hashset.Count),
             snapshot.Queues.Count,
-            snapshot.Queues.Values.Sum(static queue => queue.Length),
+            snapshot.Queues.Values.AsValueEnumerable().Sum(static queue => queue.Length),
             snapshot.PayloadBytes);
     }
 
     public IReadOnlyList<SlimDataSkippedCommandMetric> GetSkippedCommandMetrics()
-        => _skippedCommands
+        => _skippedCommands.AsValueEnumerable()
             .OrderBy(static item => item.Key)
             .Select(static item => new SlimDataSkippedCommandMetric(item.Key, item.Value))
             .ToArray();

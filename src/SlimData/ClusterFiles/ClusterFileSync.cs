@@ -1,3 +1,4 @@
+using ZLinq;
 using System.Net;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Messaging;
@@ -96,7 +97,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
 
         // Itérer sur tous les nœuds (remotes) pour trouver celui qui a le fichier
-        var candidates = _bus.Members.Where(m => m.IsRemote).ToList();
+        var candidates = _bus.Members.AsValueEnumerable().Where(static m => m.IsRemote).ToList();
         if (candidates.Count == 0)
             return new FilePullResult(null);
         

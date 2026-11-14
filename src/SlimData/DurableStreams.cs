@@ -175,19 +175,108 @@ public static class DurableStreamStore
     {
         long retained = Math.Max(0, definition.Tail - Math.Max(subscription.StartSequence, definition.Earliest - 1));
         long acknowledged = Hash(payload, AcksKey(definition.Name, subscription.Generation)).Count;
-        var deliveries = Deliveries(payload, definition.Name, subscription.Function)
-            .Where(item => item.SubscriptionGeneration == subscription.Generation &&
-                Message(payload, definition.Name, item.MessageId) is not null).ToArray();
-        long failed = deliveries.Count(item => item.State == "Failed");
+        var messages = Hash(payload, MessagesKey(definition.Name));
+        var deliveries = Hash(payload, PendingKey(definition.Name, subscription.Function));
+        long pending = 0, waiting = 0, retry = 0, failed = 0;
+        foreach (var bytes in deliveries.Values)
+        {
+            var delivery = Decode<DurableStreamDelivery>(bytes);
+            if (delivery is null || delivery.SubscriptionGeneration != subscription.Generation ||
+                !MessagePresent(messages.GetValueOrDefault(delivery.MessageId)))
+                continue;
+            pending++;
+            if (delivery.State == "Failed") failed++;
+            if (delivery.State == "WaitingForCallback") waiting++;
+            if (delivery.State == "RetryScheduled") retry++;
+        }
         long lag = Math.Max(0, retained - acknowledged);
-        return new(lag, deliveries.Length, deliveries.Count(item => item.State == "WaitingForCallback"),
-            deliveries.Count(item => item.State == "RetryScheduled"), failed, Math.Max(0, lag - failed));
+        return new(lag, pending, waiting, retry, failed, Math.Max(0, lag - failed));
+    }
+
+    private static bool MessagePresent(ReadOnlyMemory<byte> bytes)
+    {
+        if (bytes.IsEmpty) return false;
+        // Fast path only for the complete current wire shape with verifiably
+        // decodable strings. Older shapes, Unicode UTF-8 and malformed values
+        // still use the generated decoder, preserving null/error behavior.
+        var remaining = bytes.Span;
+        if (remaining[0] == 5)
+        {
+            remaining = remaining[1..];
+            if (SkipMessageString(ref remaining) && remaining.Length >= 2 * sizeof(long))
+            {
+                remaining = remaining[(2 * sizeof(long))..];
+                if (SkipMessageString(ref remaining) && remaining.Length >= sizeof(long))
+                    return true;
+            }
+        }
+        return Decode<DurableStreamMessage>(bytes) is not null;
+    }
+
+    private static bool SkipMessageString(ref ReadOnlySpan<byte> remaining)
+    {
+        if (remaining.Length < sizeof(int)) return false;
+        int length = BinaryPrimitives.ReadInt32LittleEndian(remaining);
+        remaining = remaining[sizeof(int)..];
+        if (length is -1 or 0) return true;
+        if (length > 0)
+        {
+            if (length > remaining.Length / sizeof(char)) return false;
+            remaining = remaining[(length * sizeof(char))..];
+            return true;
+        }
+        int byteCount = ~length;
+        if (remaining.Length < sizeof(int) || byteCount > remaining.Length - sizeof(int)) return false;
+        int characterCount = BinaryPrimitives.ReadInt32LittleEndian(remaining);
+        remaining = remaining[sizeof(int)..];
+        if (characterCount != byteCount || remaining[..byteCount].ContainsAnyExceptInRange((byte)0, (byte)127))
+            return false;
+        remaining = remaining[byteCount..];
+        return true;
     }
 
     public static int Running(SlimDataPayload payload, string function, string? replica = null) =>
         Hash(payload, ActiveAttemptKey).Values.Select(Decode<DurableStreamDelivery>)
             .Count(item => item is not null && item.Function == function &&
                 item.State is "Running" or "WaitingForCallback" && (replica is null || item.Replica == replica));
+
+    public static IReadOnlyDictionary<string, int> RunningByReplica(SlimDataPayload payload, string function)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var bytes in Hash(payload, ActiveAttemptKey).Values)
+        {
+            var delivery = Decode<DurableStreamDelivery>(bytes);
+            if (delivery is not null && delivery.Replica is not null && delivery.Function == function && delivery.State is "Running" or "WaitingForCallback")
+                counts[delivery.Replica] = counts.GetValueOrDefault(delivery.Replica) + 1;
+        }
+        return counts;
+    }
+
+    private static (int Total, int Replica) ReservationRunning(SlimDataPayload payload, string function, string replica, long now)
+    {
+        int total = 0, perReplica = 0;
+        foreach (var bytes in Hash(payload, ActiveAttemptKey).Values)
+        {
+            var delivery = Decode<DurableStreamDelivery>(bytes);
+            if (delivery is null || delivery.Function != function || delivery.State is not ("Running" or "WaitingForCallback"))
+                continue;
+            total++;
+            if (delivery.Replica == replica) perReplica++;
+        }
+        if (payload.Queues.TryGetValue("Queue:" + function, out var queue))
+        {
+            foreach (var item in queue)
+            {
+                if (item.RetryQueueElements.Length == 0) continue;
+                var last = item.RetryQueueElements[^1];
+                if (last.EndTimeStamp != 0 || last.StartTimeStamp + item.HttpTimeoutSeconds * TimeSpan.TicksPerSecond <= now)
+                    continue;
+                total++;
+                if (last.ReservedIp == replica) perReplica++;
+            }
+        }
+        return (total, perReplica);
+    }
 
     public static (int Available, int PerReplica)? QueueCapacity(SlimDataPayload payload, string function, long now)
     {
@@ -344,10 +433,8 @@ public static class DurableStreamStore
             var subscription = Subscription(payload, mutation.Stream, mutation.Function);
             if (subscription?.Active != true)
                 return Error(404, "Subscription not found.");
-            int queueRunning = QueueRunning(payload, mutation.Function, mutation.NowTicks);
-            int replicaRunning = QueueRunning(payload, mutation.Function, mutation.NowTicks, mutation.Replica);
-            if (Running(payload, mutation.Function) + queueRunning >= mutation.MaximumParallel ||
-                Running(payload, mutation.Function, mutation.Replica) + replicaRunning >= mutation.MaximumPerReplica)
+            var running = ReservationRunning(payload, mutation.Function, mutation.Replica, mutation.NowTicks);
+            if (running.Total >= mutation.MaximumParallel || running.Replica >= mutation.MaximumPerReplica)
                 return new() { Status = 204 };
             var due = Deliveries(payload, mutation.Stream, mutation.Function)
                 .Where(item => item.State == "RetryScheduled" && item.RetryAtTicks <= mutation.NowTicks)

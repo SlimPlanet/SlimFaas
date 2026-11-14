@@ -24,6 +24,31 @@ See [client routing and failure semantics](clients.md#multi-node-routing-and-fai
 
 SlimFaas sits between callers and their applications. It routes HTTP requests, wakes idle workloads, queues asynchronous work, dispatches jobs and coordinates state through SlimData.
 
+Routing and wake-up queries use explicit [ZLinq](https://github.com/Cysharp/ZLinq)
+value enumeration for function lookup and first-ready-pod port selection.
+Function lookup remains ordinal, case-sensitive and first-match, and reads the
+current deployment snapshot on each call. Arrays and lists avoid query iterator
+allocations; other collection implementations remain supported. Materializing
+pipelines also use value enumeration for job caller resolution, HTTP headers,
+status and virtual-replica projections, local topology, metrics/activity workers,
+stream dispatch and SlimData batches. DLQ staging still deep-clones mutable
+queue attempts while sharing immutable payload memory; its wire format is unchanged.
+Value queries stay within synchronous scopes, and task/DTO collections are
+materialized before awaiting. Deferred `IEnumerable<T>` APIs remain deferred.
+Predicated counts and readiness checks keep .NET 10 LINQ, whose array/list fast paths
+already avoid iterator allocations. There is no global LINQ replacement.
+Queue-state selections also use value queries so sparse running/retry/finished
+snapshots allocate storage for their matches instead of a builder sized to the
+whole queue. The filtered value query materializes an owned array and wraps it
+as immutable without another copy; this also avoids growing immutable builders
+for dense selections. The selected elements retain their original identities and payload
+ownership. Stream counters scan pending deliveries once without a temporary
+array; key/value batch projections, queue result projections, batch statistics
+and file-transfer peer selection also use explicit value enumeration. File-tag
+sorting and active Stream counts retain LINQ after comparative measurements.
+See [performance measurements](performance-benchmarks.md#zlinq-routing-queries-issue-121)
+for local-cluster and allocation benchmarks.
+
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.
 
 ## Durable terminal failures

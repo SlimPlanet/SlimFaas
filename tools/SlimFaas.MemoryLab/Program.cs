@@ -193,6 +193,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
     int payloadBytes = arguments.GetInt("payload-bytes", 4096, 0, 1_048_576);
     int fileBytes = arguments.GetInt("file-bytes", 262_144, 1, 64 * 1024 * 1024);
     int firstPort = arguments.GetInt("first-port", 30021, 1, 65535);
+    string function = arguments.Get("function", "memory-function");
     int nodeCount = arguments.GetInt("nodes", 3, 1, 32);
     int keysPerWorker = arguments.GetInt("keys-per-worker", 16, 1, 10_000);
     double targetRequestsPerSecond = arguments.GetDouble(
@@ -242,6 +243,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         .Select(worker => RunWorkerAsync(
             worker,
             scenario,
+            function,
             nodeCount,
             firstPort,
             client,
@@ -306,6 +308,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
 static async Task RunWorkerAsync(
     int worker,
     string scenario,
+    string function,
     int nodeCount,
     int firstPort,
     HttpClient client,
@@ -342,6 +345,7 @@ static async Task RunWorkerAsync(
         {
             await ExecuteOperationAsync(
                 operation,
+                function,
                 worker,
                 node,
                 nodeCount,
@@ -388,6 +392,7 @@ static async Task RunWorkerAsync(
 
 static async Task ExecuteOperationAsync(
     Operation operation,
+    string function,
     int worker,
     int node,
     int nodeCount,
@@ -408,7 +413,7 @@ static async Task ExecuteOperationAsync(
         case Operation.Sync:
             await PostBytesAsync(
                 client,
-                new Uri(baseUri, "/function/memory-function/echo"),
+                new Uri(baseUri, $"/function/{Uri.EscapeDataString(function)}/echo"),
                 payload,
                 cancellationToken);
             break;
@@ -416,7 +421,7 @@ static async Task ExecuteOperationAsync(
         case Operation.Async:
             await PostBytesAsync(
                 client,
-                new Uri(baseUri, "/async-function/memory-function/echo"),
+                new Uri(baseUri, $"/async-function/{Uri.EscapeDataString(function)}/echo"),
                 payload,
                 cancellationToken);
             break;
@@ -1383,6 +1388,7 @@ static void PrintUsage()
           load [--scenario mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [--duration 60] [--phase-file PATH]
                [--concurrency 12] [--payload-bytes 4096] [--file-bytes 262144]
                [--first-port 30021] [--nodes 3] [--keys-per-worker 16]
+               [--function memory-function]
                [--target-rps 0]
                [--target-rps-per-replica 0]
                [--key-prefix memory-lab] [--validate true]

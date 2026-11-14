@@ -461,7 +461,7 @@ public class SlimQueuesWorker(
             TrackedHttpRequest request = completed.Request;
             if (request.Generation == generation && deadLetters?.IsManaged(request.FunctionName) == true)
             {
-                var function = replicasService.Deployments.Functions.FirstOrDefault(item => item.Deployment == request.FunctionName);
+                var function = replicasService.Deployments.FindFunction(request.FunctionName);
                 if (function is not null)
                     await deadLetters.ConfigureAsync(function).ConfigureAwait(false);
                 bool awaiting = completed.StatusCode == 202 && completed.Error is null;

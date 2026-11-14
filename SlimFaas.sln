@@ -50,6 +50,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasClient.Tests", "cli
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{80D71D57-90EC-E871-2C06-5F0AD5EC4188}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaas.CollectionProbe", "benchmarks\SlimFaas.CollectionProbe\SlimFaas.CollectionProbe.csproj", "{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -264,6 +266,18 @@ Global
 		{E0F3861F-2D7A-4A74-B1DA-E9F53692C070}.Release|x64.Build.0 = Release|Any CPU
 		{E0F3861F-2D7A-4A74-B1DA-E9F53692C070}.Release|x86.ActiveCfg = Release|Any CPU
 		{E0F3861F-2D7A-4A74-B1DA-E9F53692C070}.Release|x86.Build.0 = Release|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Debug|x64.Build.0 = Debug|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Debug|x86.Build.0 = Debug|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Release|x64.ActiveCfg = Release|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Release|x64.Build.0 = Release|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Release|x86.ActiveCfg = Release|Any CPU
+		{4347C5BB-3181-4E1A-AB1D-2E14E34496FC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

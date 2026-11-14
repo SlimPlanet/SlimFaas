@@ -9,6 +9,30 @@ namespace SlimData.Tests;
 public sealed class SlimDataCommandBatchTests
 {
     [Fact]
+    public async Task Pop_results_include_only_the_running_transaction_and_keep_payload_ownership_and_order()
+    {
+        long now = DateTime.UtcNow.Ticks;
+        byte[] owned = [1, 2];
+        byte[] sliced = [9, 3, 4, 9];
+        var state = NewState();
+        state.Queues = state.Queues.SetItem("queue",
+        [
+            new(owned, "a", now, 30, [], [new(now, "selected")], []),
+            new(new byte[] { 7 }, "other", now, 30, [], [new(now, "other")], []),
+            new(new ReadOnlyMemory<byte>(sliced, 1, 2), "b", now, 30, [], [new(now, "selected")], []),
+            new(new byte[] { 8 }, "available", now, 30, [], [], [])
+        ]);
+        var pop = Operation(SlimDataBatchOperationKind.ListRightPop, "pop", "queue");
+        pop.TransactionId = "selected"; pop.NowTicks = now; pop.Count = 0;
+        var response = await ApplyAsync(state, NewRequest(pop));
+        var items = response.Results[0].QueueItems!;
+        Assert.Equal(new[] { "a", "b" }, items.Select(item => item.Id));
+        Assert.Same(owned, items[0].Data);
+        Assert.Equal(new byte[] { 3, 4 }, items[1].Data);
+        Assert.NotSame(sliced, items[1].Data);
+    }
+
+    [Fact]
     public async Task Composite_batch_applies_set_delete_set_in_request_order()
     {
         var state = NewState();
