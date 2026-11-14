@@ -94,6 +94,98 @@ paths:
         Assert.Equal("GET",     ep.Verb);
     }
 
+    [Fact]
+    public void ParseEndpoints_Applies_Path_Item_Parameters_To_Each_Operation()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "components": { "parameters": {
+                "PetId": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+              } },
+              "paths": { "/pets/{id}": {
+                "summary": "One pet",
+                "description": "Operations on one pet",
+                "x-owner": "pets-team",
+                "servers": [ { "url": "https://pets.example" } ],
+                "parameters": [
+                  { "$ref": "#/components/parameters/PetId" },
+                  { "name": "X-Tenant", "in": "header", "description": "Shared tenant", "schema": { "type": "string" } }
+                ],
+                "get": { "summary": "Get a pet" },
+                "delete": {
+                  "summary": "Delete a pet",
+                  "parameters": [
+                    { "name": "x-tenant", "in": "header", "description": "Tenant that owns the pet", "schema": { "type": "string" } },
+                    { "name": "id", "in": "query", "schema": { "type": "string" } }
+                  ]
+                }
+              } }
+            }
+            """);
+
+        var endpoints = svc.ParseEndpoints(doc).ToList();
+
+        Assert.Equal(["GET", "DELETE"], endpoints.Select(e => e.Verb));
+        var get = endpoints[0].Parameters!;
+        Assert.Equal(["id:path", "X-Tenant:header"], get.Select(p => $"{p.Name}:{p.In}"));
+        Assert.True(get[0].Required);
+        Assert.Equal("integer", get[0].SchemaType);
+        var delete = endpoints[1].Parameters!;
+        Assert.Equal(["id:path", "x-tenant:header", "id:query"], delete.Select(p => $"{p.Name}:{p.In}"));
+        Assert.Equal("Tenant that owns the pet", delete[1].Description);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Resolves_Component_Parameter_References()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "components": { "parameters": {
+                "PetId": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } },
+                "Limit": { "name": "limit", "in": "query", "description": "Page size", "schema": { "type": "integer" } },
+                "PageSize": { "$ref": "#/components/parameters/Limit" }
+              } },
+              "paths": { "/pets/{id}/toys": { "get": { "parameters": [
+                { "$ref": "#/components/parameters/PetId" },
+                { "$ref": "#/components/parameters/PageSize" }
+              ] } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        Assert.Equal(["id:path", "limit:query"], parameters.Select(p => $"{p.Name}:{p.In}"));
+        Assert.True(parameters[0].Required);
+        Assert.Equal("integer", parameters[0].SchemaType);
+        Assert.Equal("Page size", parameters[1].Description);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Resolves_Swagger2_Path_Item_Parameter_References()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "swagger": "2.0",
+              "parameters": { "petId": { "name": "petId", "in": "path", "required": true, "type": "integer" } },
+              "paths": { "/pets/{petId}": {
+                "parameters": [ { "$ref": "#/parameters/petId" } ],
+                "get": { "summary": "Get a pet" }
+              } }
+            }
+            """);
+
+        var parameter = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.Equal("petId", parameter.Name);
+        Assert.Equal("path", parameter.In);
+        Assert.Equal("integer", parameter.SchemaType);
+    }
+
     // Nouveau : test du parsing YAML
     [Fact]
     public async Task GetSwagger_Yaml_Parses()
