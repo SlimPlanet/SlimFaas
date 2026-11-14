@@ -49,7 +49,7 @@ validates `benchmarks/slimfaas.local.benchmark.yaml`, starts a clean three-node
 cluster with `slimfaas local`, runs the matrix, and shuts down every managed
 process. Docker and Kubernetes are not required.
 
-It requires the repository's .NET 10 SDK plus Bash and `curl`. Ports 31020-31023,
+It requires the repository's .NET 11 SDK plus Bash and `curl`. Ports 31020-31023,
 3162-3164, 31080, and the 32000-32015 process pool must be free.
 
 Results are written below

@@ -1,3 +1,4 @@
+using MailKit;
 using GmailMailerApi.Models;
 using MailKit.Net.Smtp;
 using MailKit.Security;

@@ -19,6 +19,13 @@
     <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2104;IL3053</WarningsNotAsErrors>
   </PropertyGroup>
 
+  <!-- .NET 11's GSS native archive contains pointers rejected by Xcode 16's
+       classic x64 linker. Use the modern Apple linker for macOS Intel AOT,
+       including the sample executables packaged in the standalone bundle. -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net11.0' And '$(RuntimeIdentifier)' == 'osx-x64' And '$(PublishAot)' == 'true' And '$(UseLdClassicXCodeLinker)' == ''">
+    <UseLdClassicXCodeLinker>false</UseLdClassicXCodeLinker>
+  </PropertyGroup>
+
   <!--
     Analyzer profiles. They are added to EditorConfigFiles directly: GlobalAnalyzerConfigFiles is turned
     into EditorConfigFiles statically by Microsoft.Managed.Core.targets, which is imported before this file.

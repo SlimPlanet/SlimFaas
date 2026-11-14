@@ -32,18 +32,18 @@ This document provides essential guidelines for AI agents (like GitHub Copilot) 
 The native .NET services below have `<PublishAot>true</PublishAot>` in their `.csproj` files:
 
 - **SlimFaas** (`src/SlimFaas/SlimFaas.csproj`):
-  - Target Framework: `.NET 10.0`
+  - Target Framework: `.NET 11.0`
   - Full trimming enabled
   - Symbols stripped
   - Unsafe blocks allowed for performance
 
 - **SlimData** (`src/SlimData/SlimData.csproj`):
-  - Target Framework: `.NET 10.0`
+  - Target Framework: `.NET 11.0`
   - Optimization preference: Size
   - Full trimming enabled
 
 - **SlimFaasMcp** (`src/SlimFaasMcp/SlimFaasMcp.csproj`):
-  - Target Framework: `.NET 10.0`
+  - Target Framework: `.NET 11.0`
   - Full trimming enabled
   - Symbols stripped
   - Builds `ClientApp` with `npm ci` and `npm run build` before build/publish
@@ -106,9 +106,9 @@ Every dependency or lockfile change must comply with the [CNCF third-party licen
 
 ### Prerequisites
 
-- **.NET SDK**: Version `10.0.403` or later (see `global.json`)
-- **Node.js**: Version `24` or later (for UI/dashboard builds)
-- **pnpm**: Version `10.14.0` is used by CI for `src/SlimFaasSite` and `src/SlimFaasPlanetSaver`
+- **.NET SDK**: Version `11.0.100` or later (see `global.json`)
+- **Node.js**: Version `26` or later (for UI/dashboard builds)
+- **pnpm**: Version `12.18.0` is used by CI for `src/SlimFaasSite` and `src/SlimFaasPlanetSaver`
 - **Python/UV**: Python `>=3.10` with `uv` for `client/python/slimfaas-client`
 - **Docker** or **Podman** (optional, for containerized deployments)
 
@@ -155,7 +155,7 @@ Use repeatable `-f` overlays such as `slimfaas.local.dev.yaml` or `slimfaas.loca
 
 The precompiled tutorial bundles are built from the current checkout, keeping the
 standard SlimFaas runtime archives available separately. Build prerequisites are
-.NET 10, Node 24 and Python 3.11+; end users need none of those tools.
+.NET 11, Node 26 and Python 3.11+; end users need none of those tools.
 
 ```bash
 python3 .bin/package-local-demo.py --rid osx-arm64 --version local-check
@@ -434,14 +434,14 @@ All workflows live in `.github/workflows/`:
 
 2. **SiteBuild.yml** – Reusable documentation site build:
    - Builds Markdown documentation to static site
-   - Used by external-contributor checks; deployment happens in `main.yml`
+   - Used by dashboard/documentation checks; deployment happens in `main.yml`
 
 3. **Docker.yml** – Container builds:
    - Creates multi-platform Docker images
    - Publishes to Docker Hub
 
-4. **main-external-contrib.yml** – External contributor CI:
-   - Defines unit tests, SlimFaasPlanetSaver coverage, Docker builds without push, and site build checks
+4. **dashboard.yml** – Dashboard, documentation and client contracts:
+   - All pull requests, including forks and Dependabot, also run the main workflow with Docker publication disabled
 
 5. **publish-dotnet-nuget.yml** – .NET client package:
    - Builds, tests, packs, and publishes `client/dotnet/SlimFaasClient`
@@ -560,7 +560,7 @@ SlimFaas/
 
 | Aspect | Details |
 |--------|---------|
-| **Compilation** | AOT-first; SlimFaas, SlimData & SlimFaasMcp use `.NET 10.0` with `PublishAot: true` |
+| **Compilation** | AOT-first; SlimFaas, SlimData & SlimFaasMcp use `.NET 11.0` with `PublishAot: true` |
 | **Build** | `dotnet build` or `dotnet publish -c Release` for native executable |
 | **Test** | `dotnet test --collect "Code Coverage;Format=cobertura"`; run client/JS tests when those packages change |
 | **Run** | `dotnet run --project src/SlimFaas/`, `slimfaas local up`, or Docker/Podman Compose |

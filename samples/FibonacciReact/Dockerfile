@@ -1,16 +1,16 @@
 # ---- build ----
-FROM node:24.21.0-alpine3.24 AS build
+FROM node:26.13.0-alpine3.24 AS build
 WORKDIR /app
 ENV NODE_ENV=development
 
-RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
-COPY package.json pnpm-lock.yaml ./
+RUN npm install --global --ignore-scripts pnpm@12.18.0
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm run build   # produit /app/dist avec index.html + assets
 
 # ---- runtime ----
-FROM nginx:1.30.5-alpine3.24 AS runtime
+FROM nginx:1.30.6-alpine3.24 AS runtime
 # SPA fallback vers index.html
 COPY <<'NGINX' /etc/nginx/conf.d/default.conf
 server {

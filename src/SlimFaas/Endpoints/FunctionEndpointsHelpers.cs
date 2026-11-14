@@ -210,7 +210,7 @@ public static class FunctionEndpointsHelpers
         }
         else if (candidate.Count(c => c == ':') == 1)
         {
-            int separatorIndex = candidate.LastIndexOf(':');
+            int separatorIndex = candidate.LastIndexOf(':', StringComparison.Ordinal);
             if (separatorIndex > 0
                 && int.TryParse(candidate[(separatorIndex + 1)..], out _))
             {

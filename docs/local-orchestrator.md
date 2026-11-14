@@ -72,7 +72,7 @@ function, exercising an API, inspecting metrics, or testing failover.
 
 ### Prerequisites
 
-- the .NET 10 SDK;
+- the .NET 11 SDK;
 - `curl`;
 - ports `3262` to `3264`, `30021` to `30023`, and `5050` must be free.
 
@@ -90,7 +90,7 @@ repo_root="$PWD"
 publish_dir="$repo_root/artifacts/local-cluster/publish"
 run_dir="$repo_root/artifacts/local-cluster/run-$(date -u +%Y%m%dT%H%M%SZ)"
 lab_project="$repo_root/tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj"
-lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.MemoryLab.dll"
+lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
 
 mkdir -p "$publish_dir" "$run_dir"
 

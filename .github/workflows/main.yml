@@ -8,30 +8,34 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  PNPM_VERSION: 10.14.0
-  NODE_VERSION: "24"
+  PNPM_VERSION: 12.18.0
+  NODE_VERSION: "26.13.0"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   sonarcloud:
     name: SonarCloud
+    if: github.event_name == 'push' || (github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]')
     runs-on: windows-latest
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     steps:
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           java-version: 17
           distribution: 'zulu'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Cache SonarCloud packages
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~\sonar\cache
           key: ${{ runner.os }}-sonar
@@ -39,13 +43,13 @@ jobs:
 
       - name: Cache SonarCloud scanner
         id: cache-sonar-scanner
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .\.sonar\scanner
-          key: ${{ runner.os }}-sonar-scanner
+          key: ${{ runner.os }}-sonar-scanner-${{ hashFiles('global.json') }}
           restore-keys: ${{ runner.os }}-sonar-scanner
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -53,15 +57,15 @@ jobs:
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
         shell: powershell
         run: |
-          New-Item -Path .\.sonar\scanner -ItemType Directory
+          New-Item -Path .\.sonar\scanner -ItemType Directory -Force | Out-Null
           dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -77,10 +81,10 @@ jobs:
           Remove-Item -Path .\coverage\lcov-report -Recurse -Force
         working-directory: ./src/SlimFaasPlanetSaver
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
-      - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Test Python client with coverage
         shell: powershell
         run: |
@@ -110,13 +114,18 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
 
       - name: Test native Raft recovery harness
         run: python .bin/test-raft-recovery-harness.py
@@ -140,18 +149,14 @@ jobs:
           dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal
 
       - name: ReportGenerator
-        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        uses: danielpalme/ReportGenerator-GitHub-Action@861674232075b2c6bd1405a04c4bb9b150653e81 # 5.5.12
         with:
           reports: './**/TestResults/**/*.cobertura.xml'
           targetdir: 'coveragereport'
           reporttypes: 'MarkdownSummaryGithub'
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -169,20 +174,46 @@ jobs:
         run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
         shell: bash
 
+  native_local:
+    name: Native local smoke and persistent restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Publish native runtime
+        run: dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r linux-x64 -o artifacts/native-local/runtime
+      - name: Exercise source demo and persisted data
+        run: python .bin/test-native-local.py --runtime artifacts/native-local/runtime/SlimFaas
+      - name: Upload local diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-local-diagnostics
+          path: artifacts/native-local/*.log
+          if-no-files-found: warn
+
   tags:
+    permissions:
+      contents: write
     needs: [unit_tests]
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     outputs:
-      new_version: ${{ steps.tag.outputs.new_version }}
+      new_version: ${{ github.event_name == 'pull_request' && format('pr-{0}.{1}', github.event.number, github.run_number) || steps.tag.outputs.new_version }}
       tag: ${{ steps.tag.outputs.tag }}
       npm_tag: ${{ steps.tag.outputs.npm_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Determine Alpha, Beta or Release
+        if: github.event_name == 'push'
         id: which_tag
         run: |
           if [[ ${{ github.ref }} == refs/pull* ]]; then
@@ -204,20 +235,21 @@ jobs:
 
       - name: Bump version and push tag
         id: tag_release
-        if: steps.which_tag.outputs.tag == 'release'
-        uses: mathieudutour/github-tag-action@v6.0
+        if: github.event_name == 'push' && steps.which_tag.outputs.tag == 'release'
+        uses: mathieudutour/github-tag-action@af99e60ce8132224b8e6ebab5023449fe256ed46 # v7
         with:
           github_token: ${{ secrets.GIT_TOKEN  }}
 
       - name: Bump version and push tag
         id: tag_version
-        if: steps.which_tag.outputs.tag != 'release'
-        uses: mathieudutour/github-tag-action@v6.0
+        if: github.event_name == 'push' && steps.which_tag.outputs.tag != 'release'
+        uses: mathieudutour/github-tag-action@af99e60ce8132224b8e6ebab5023449fe256ed46 # v7
         with:
           github_token: ${{ secrets.GIT_TOKEN  }}
           dry_run: true
 
       - name: Compute new version number to publish
+        if: github.event_name == 'push'
         id: tag
         run: |
           if [[ '${{ steps.which_tag.outputs.tag }}' == 'release' ]]; then
@@ -254,11 +286,11 @@ jobs:
 
   build_slimfaas:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/slimfaas"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./Dockerfile"
@@ -274,11 +306,11 @@ jobs:
 
   build_slimfaas_dotnet:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/slimfaas-dotnet"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./Dockerfile.dotnet"
@@ -294,11 +326,11 @@ jobs:
 
   build_slimfaas_kafka:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/slimfaas-kafka"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./src/SlimFaasKafka/Dockerfile"
@@ -309,11 +341,11 @@ jobs:
 
   build_fibonacci_kafka_producer:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/fibonacci-kafka-producer"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./samples/FibonacciKafkaProducer/Dockerfile"
@@ -324,11 +356,11 @@ jobs:
 
   build_fibonacci_kafka_listener:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/fibonacci-kafka-listener"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./samples/FibonacciKafkaListener/Dockerfile"
@@ -339,11 +371,11 @@ jobs:
 
   build_fibonacci_api:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/fibonacci-api"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./samples/Fibonacci/Dockerfile"
@@ -354,11 +386,11 @@ jobs:
 
   build_fibonacci_mcp:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/slimfaas-mcp"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./src/SlimFaasMcp/Dockerfile"
@@ -374,11 +406,11 @@ jobs:
 
   build_fibonacci_batch:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/fibonacci-batch"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "."
       image_file: "./samples/FibonacciBatch/Dockerfile"
@@ -389,11 +421,11 @@ jobs:
 
   build_fibonacci_webapp:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     uses: ./.github/workflows/Docker.yml
     with:
       image_name: "axaguildev/fibonacci-webapp"
       image_version: "${{ needs.tags.outputs.new_version }}"
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       image_build_args: ""
       image_context: "./samples/FibonacciReact"
       image_file: "./samples/FibonacciReact/Dockerfile"
@@ -404,7 +436,6 @@ jobs:
 
   build_slimfaas_mcp_aot:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     strategy:
       matrix:
         include:
@@ -414,7 +445,7 @@ jobs:
           - os: windows-latest
             rid: win-x64
             zip: SlimFaasMcp-win-x64.zip
-          - os: macos-latest
+          - os: macos-15-intel
             rid: osx-x64
             zip: SlimFaasMcp-osx-x64.zip
           - os: macos-15
@@ -423,15 +454,15 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -462,7 +493,7 @@ jobs:
         shell: powershell
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.zip }}
           path: ${{ matrix.zip }}
@@ -470,7 +501,6 @@ jobs:
 
   build_slimfaas_aot:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     strategy:
       fail-fast: false
       matrix:
@@ -493,19 +523,19 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
 
@@ -567,7 +597,7 @@ jobs:
         run: python .bin/test-install-local-demo.py
 
       - name: Upload local demo bundle and checksum
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: SlimFaas-Local-${{ matrix.rid }}.zip
           path: |
@@ -589,29 +619,31 @@ jobs:
         shell: powershell
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.zip }}
           path: ${{ matrix.zip }}
           if-no-files-found: error
 
   publish_native_release:
+    permissions:
+      contents: write
     needs: [tags, build_slimfaas_mcp_aot, build_slimfaas_aot]
-    if: needs.tags.outputs.tag == 'release'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.tags.outputs.tag == 'release'
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: SlimFaas*.zip
           merge-multiple: true
 
       - name: Create GitHub Release & upload assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ needs.tags.outputs.new_version }}
           name: "SlimFaas ${{ needs.tags.outputs.new_version }}"
@@ -640,15 +672,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
           registry-url: https://registry.npmjs.org
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -677,19 +709,21 @@ jobs:
         working-directory: ./src/SlimFaasPlanetSaver
 
   deploy_website:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -708,18 +742,20 @@ jobs:
         working-directory: ./src/SlimFaasSite
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./src/SlimFaasSite/out
           cname: slimfaas.dev
 
   change_log:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
-    if: needs.tags.outputs.tag == 'release'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.tags.outputs.tag == 'release'
     needs: [ tags ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ secrets.GIT_TOKEN }}
           fetch-depth: 0

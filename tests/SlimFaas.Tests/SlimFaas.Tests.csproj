@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <RootNamespace>SlimFaas.Tests</RootNamespace>
     <EnableStaticNativeInstrumentation>False</EnableStaticNativeInstrumentation>
@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="MemoryPack" />
-    <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Microsoft.CodeCoverage" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
