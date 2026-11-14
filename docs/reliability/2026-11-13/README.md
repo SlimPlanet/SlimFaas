@@ -50,6 +50,46 @@ endurance campaigns on these exact publications now pass; complete
 performance comparisons remain in progress; the earlier completed endurance below remains evidence
 for its recorded `a8e1b5fd` runtime, rather than a result for the newer source.
 
+On documentation head `e1fc7d3f`, the renewed
+[dashboard/documentation workflow](https://github.com/SlimPlanet/SlimFaas/actions/runs/43565904282),
+[Windows/Linux reliability workflow](https://github.com/SlimPlanet/SlimFaas/actions/runs/43565904173)
+and [main validation workflow](https://github.com/SlimPlanet/SlimFaas/actions/runs/43565904276)
+also pass, as does FOSSA. The separate external security gate remains open.
+
+## Current-source native HTTP observations
+
+The [two complete ABBA attempts](native-http-net11-03.json) have an overall
+**INCONCLUSIVE** verdict. Each has an incomplete reference: the first attempt's
+initial reference observes 1,349 of 1,352 accepted IDs for 2,097,152-byte bodies,
+concurrency 16, repetition 1; the repeat's final reference observes 827 of 831
+for the same body size, concurrency 4, repetition 2. Both stop at the unchanged
+180-second drain limit, with zero observed duplicates. These bounded observations
+do not establish permanent loss. All original logs, samples and persisted state
+remain available. The one permitted complete repeat has been used.
+
+All four candidate runs complete their 216 HTTP measurements, six focused
+paced/burst measurements and 200-message scaling scenario. They record zero
+failed requests, missing IDs or duplicate deliveries. All 78 async resource
+measurements per run have positive CPU, RSS and Raft evidence, with three-node
+initial, final-process and final-diagnostics boundaries.
+
+Complete reference/candidate comparisons nevertheless retain **FAIL** verdicts
+for several tail-latency and throughput guardrails. In the repeat, 262,144-byte
+async requests at concurrency 16 show throughput reductions of 12.08% and
+14.33%, and HTTP p99 increases of 44.47% and 26.18%, against the initial reference.
+Resource guardrails and scaling pass in every complete comparison. No gain is
+claimed, and no threshold, drain bound or durability check has been relaxed.
+
+Both raw sync aggregates and normalized overhead appear in the linked data.
+For example, the repeat's 1,048,576-byte, concurrency-one reference has a slower
+direct target: its normalized rate ratio fails while actual proxy throughput
+changes from 378.73 to 369.47 requests/second, a 2.44% reduction. This sensitivity
+is reported alongside the failed normalized check; it does not waive that check.
+An authorized inactive-cache cleanup overlaps the first attempt's third run;
+the evidence records that interval. Compiler monitoring observes no external
+compilation. The VS Code restart did not restart the campaign or its workloads.
+MemoryLab, microbenchmark and container comparisons remain in progress.
+
 ## Current-source endurance
 
 The [six renewed endurance reports](endurance-net11-03.json) pass on the frozen
@@ -73,6 +113,12 @@ Kernel evidence covers 18 initial/restarted pod identities with a maximum
 1 GiB runtime limit, **2,141 memory-limit hits**, **3,701 socket-throttling
 events**, and zero observed OOM/kill events. This is measured memory pressure;
 the sampled maximum is not a bound on every instantaneous peak.
+
+The [complete correctness file index](correctness-raw-file-index-net11-03.json.gz)
+and its [size/hash metadata](correctness-raw-file-index-net11-03-metadata.json)
+cover the frozen Native and VM originals, including failed setup attempts.
+This is an index of retained local evidence; it does not provide a download of
+the original volumes or journals. The earlier source's index remains unchanged.
 
 All correctness controllers are stopped, and the original persisted files are
 hashed before the first timed comparison. Discarding already unallocated blocks
