@@ -1,0 +1,181 @@
+{
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "driver_source": "a3e28adcfe700bb5ad920e1170a72c781cffed76",
+  "baseline_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+  "sdk": "11.0.100",
+  "files": [
+    {
+      "path": "artifacts/pr506/builds/baseline-osx-net11-01/SlimFaas",
+      "sha256": "53adb6c45ebbed440d284cd5e0844b28888e9127d55dc9268f5f69132cf0d1f3",
+      "bytes": 57030696
+    },
+    {
+      "path": "artifacts/pr506/builds/candidate-osx-net11-03/SlimFaas",
+      "sha256": "e01e31a3a22275595604af269b63771bed8aff70b886983de6f381717620625c",
+      "bytes": 57262728
+    },
+    {
+      "path": "artifacts/pr506/builds/slimdata-osx-net11-03/SlimData",
+      "sha256": "06fea8beab7f937bedde9db434009cf6cc7c67f359729e6d780b3e51482d619a",
+      "bytes": 69274680
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-03/benchmark/SlimFaasBenchmark.dll",
+      "sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "bytes": 282112
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-02/memorylab/SlimFaas.MemoryLab.dll",
+      "sha256": "00d293fe4921fd29410da6f93e158096b58c9029e3b2234185e4690ae326d923",
+      "bytes": 117760
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-02/micro-before/SlimFaas.Benchmarks.dll",
+      "sha256": "4f5e38ffe19f9f319325e4897eff69f04451272f71609202903c675d4b0c55a3",
+      "bytes": 39424
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-03/micro-after/SlimFaas.Benchmarks.dll",
+      "sha256": "5bcee8637c255bda8e3f6c2a00978b93cf9313afa2b81b475e3ba6c7467dde45",
+      "bytes": 39424
+    }
+  ],
+  "frozen": 1794627627.642003,
+  "created_utc": 1794628627.368319,
+  "historical_net10_reference": "496e8739e5f7b4326f64520fe4caa4e0e23f8d06",
+  "node": "26.13.0",
+  "pnpm": "12.18.0",
+  "previous_provenance": "provenance.json",
+  "compilation_modes": {
+    "macos": "Native AOT ARM64",
+    "podman": "managed trimmed Linux musl ARM64",
+    "kubernetes": "same Podman images; in-cluster driver/functions",
+    "microbenchmarks": "managed ShortRunInProcess, identical source files against each revision"
+  },
+  "images": {
+    "candidate-net11-03": {
+      "config_sha256": "11b1f547f7ec9be3280ebd0ec987aae16813fdc01706f820d9a972c7870d1511",
+      "manifest_digest": "sha256:51ce38eb30ce24cadb0b1dde5403720c1292ddfffdd7b2ec17af2a6f8e64c918",
+      "architecture": "arm64",
+      "os": "linux",
+      "runtime_source_label": "1ecba4d13d29ae68909979e168ff5b53aae6fea1"
+    },
+    "baseline-net11-01": {
+      "config_sha256": "a491f8c7937eb21dfd0336b5e2fd754db494f346ec2bf37c7be8e890b1539e42",
+      "manifest_digest": "sha256:6a871a8a00621288682e1a0999004c9b54d1adb6c7ad6a5d89c990ed40cd234a",
+      "architecture": "arm64",
+      "os": "linux",
+      "runtime_source_label": "f36084643a75d803051a6918d2950d1a4f674ada"
+    },
+    "before-tools-net11-03": {
+      "config_sha256": "2a3eaa9ba22adda7827ed036bdcc796dc80271681d39ba7dfa5e7b24f7408c64",
+      "manifest_digest": "sha256:9b92d816a9bdeeb32c56711780db7fa496b4b19fa915db4627225870d250f7a8",
+      "architecture": "arm64",
+      "os": "linux",
+      "runtime_source_label": "f36084643a75d803051a6918d2950d1a4f674ada"
+    },
+    "after-tools-net11-04": {
+      "config_sha256": "eaa1cae01b91065e81eed421e5b93b555769b22bfb77e95310a502395017bfb5",
+      "manifest_digest": "sha256:5ddfe4ef7f7994c9ea729783f70273e5b02b9ed5f3481d68781e13faf2143e15",
+      "architecture": "arm64",
+      "os": "linux",
+      "runtime_source_label": "1ecba4d13d29ae68909979e168ff5b53aae6fea1"
+    },
+    "dotnet-worker-net11-01": {
+      "config_sha256": "30fb1f0be702a1138372fb9f84a8300803eb549584426db49c0923537b71189f",
+      "manifest_digest": "sha256:c90a7406161a95c01e349fbab70e71cdf37ee339b7175bcb62d9a72b0c6c92ff",
+      "architecture": "arm64",
+      "os": "linux",
+      "runtime_source_label": "8cac1116ad5022fb5e48374e557fd9689003be97"
+    }
+  },
+  "checks": {
+    "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+    "driver_source": "a3e28adcfe700bb5ad920e1170a72c781cffed76",
+    "full_dotnet_tests_passed": 2128,
+    "failed": 0,
+    "skipped": 0,
+    "logs": [
+      {
+        "path": "logs/resource-boundaries-merged-full-tests.log",
+        "sha256": "a10ec01963aacd6aa8f9d0ae892e44ca50c327ceed9589f77c499fa38f02c1b2"
+      },
+      {
+        "path": "logs/net11-03-publish-candidate-native.log",
+        "sha256": "3985a01d9b2822ec968ed08098bbb1f9f6bc2ad5f23e4df2c2a2d2045c1e1e7a"
+      },
+      {
+        "path": "logs/net11-03-publish-candidate-linux-managed.log",
+        "sha256": "bfb96e552ffc23c785afb3b54fb85aa12b632608cfad315691ff2d58ebb54bc3"
+      },
+      {
+        "path": "logs/net11-03-publish-slimdata-native.log",
+        "sha256": "3e9e53d4e7f78c994b3232acadb6be8b60cee0237f8777be03c275e48f342003"
+      }
+    ],
+    "publications": [
+      {
+        "path": "artifacts/pr506/builds/candidate-osx-net11-03/SlimFaas",
+        "sha256": "e01e31a3a22275595604af269b63771bed8aff70b886983de6f381717620625c",
+        "bytes": 57262728
+      },
+      {
+        "path": "artifacts/pr506/builds/slimdata-osx-net11-03/SlimData",
+        "sha256": "06fea8beab7f937bedde9db434009cf6cc7c67f359729e6d780b3e51482d619a",
+        "bytes": 69274680
+      },
+      {
+        "path": "artifacts/pr506/builds/candidate-linux-net11-03/SlimFaas",
+        "sha256": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "bytes": 31640
+      },
+      {
+        "path": "artifacts/pr506/builds/candidate-linux-net11-03/SlimFaas.dll",
+        "sha256": "b53cd5e070cd6f9e0eca357b62d63fccdbcbb83f2c097977cb3999f33e16e768",
+        "bytes": 3453440
+      },
+      {
+        "path": "artifacts/pr506/builds/candidate-linux-net11-03/SlimData.dll",
+        "sha256": "9ea29b40a6ebf144a448ffcb9746072135a594455ebc64ac0595c0e7630e4d54",
+        "bytes": 567808
+      },
+      {
+        "path": "artifacts/pr506/builds/drivers-net11-03/benchmark/SlimFaasBenchmark.dll",
+        "sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+        "bytes": 282112
+      }
+    ],
+    "utc": 1794625624.5453172
+  },
+  "ci": {
+    "checked_utc": 1794628382.330689,
+    "workflows": [
+      {
+        "id": 43549137145,
+        "name": "Dashboard and documentation",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SlimPlanet/SlimFaas/actions/runs/43549137145"
+      },
+      {
+        "id": 43549137043,
+        "name": "SlimData Local reliability",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SlimPlanet/SlimFaas/actions/runs/43549137043"
+      },
+      {
+        "id": 43549137155,
+        "name": "SlimFaas main CI",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SlimPlanet/SlimFaas/actions/runs/43549137155"
+      }
+    ],
+    "fossa": "success",
+    "sonar_external_gate": "failure",
+    "sonar_open_vulnerabilities": 38
+  },
+  "comparative_performance": "pending; no non-regression verdict yet",
+  "current_source_long_endurance": "pending; earlier a8e1b5fd runs remain historical evidence"
+}

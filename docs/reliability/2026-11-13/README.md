@@ -4,6 +4,49 @@ Validation is in progress. This report separates the integrated runtime from the
 completed historical .NET 10 campaigns. Neither performance non-regression nor
 LTS certification is established by the integration checks below.
 
+## Current source and checks (14 November)
+
+Runtime source `1ecba4d13d29ae68909979e168ff5b53aae6fea1` merges the
+Windows WAL geometry correction `eb7e1033` with resource collector correction
+`a3e28adc`. Both contributions were preserved without rewriting branch history.
+The [Windows report](windows-benchmark.md) explains the persisted chunk-size
+marker, compatibility constraints and retained failed controls. Fresh macOS and
+Linux WAL defaults are unchanged; existing unmarked Windows WALs are not migrated.
+
+The complete Release solution passes **2,128 tests, zero failed or skipped** on
+this merged source. Native macOS SlimFaas and standalone SlimData publish
+successfully, as does the managed/trimmed Linux ARM64 runtime. Native API/recovery,
+the live official Python client, 72 official .NET SDK payload cases and the
+empty-PATH native bundle pass on the new SlimFaas executable. The stale-leader
+route takes 8.983 seconds within its unchanged 15-second bound. All nine Linux
+network/disk fault repetitions pass. A failed loop-device setup after the VM
+reboot is retained separately; after restoring the prerequisite, that repetition
+passes in a fresh evidence directory.
+
+The renewed Kubernetes silent-follower control also passes, with 201.858 seconds
+from crash to listener availability and another 0.437 seconds for ready/write.
+The first interval remains an explicit startup limitation, separate from the
+unchanged 15-second healthy-majority check after the listener opens.
+
+The [current Windows/Linux reliability workflow](https://github.com/SlimPlanet/SlimFaas/actions/runs/43549137043),
+[dashboard/documentation workflow](https://github.com/SlimPlanet/SlimFaas/actions/runs/43549137145)
+and [main validation workflow](https://github.com/SlimPlanet/SlimFaas/actions/runs/43549137155)
+all complete successfully, including Native publications and the full unit suite.
+FOSSA License Compliance also passes. The separate SonarCloud quality gate still
+fails with 38 open vulnerability findings and new-code Security E; a successful
+scanner job does not clear this gate. No findings or rules were suppressed.
+
+The [current publication provenance](provenance-net11-03.json) records the
+merged-source executable, image and driver hashes. The new comparative driver
+is frozen from `a3e28adc`. Its identical managed DLL
+runs on macOS and in both Linux tool images. Direct file hashes also confirm
+identical native CLR, GC, JIT, OS release and libc between reference and candidate
+Linux images. Each of the three current Kubernetes runtime pods has the expected
+published executable/DLL hashes and occupies a distinct worker. Renewed long
+endurance campaigns and complete performance comparisons on these exact
+publications are pending; the earlier completed endurance below remains evidence
+for its recorded `a8e1b5fd` runtime, rather than a result for the newer source.
+
 ## Integrated sources
 
 | Input | Source | Integration commit |
@@ -128,10 +171,12 @@ The corrected collector awaits an all-node diagnostics baseline, uses live CPU
 and RSS through load/drain, and waits for fresh all-node Raft counters afterward.
 The exporter wait is excluded from CPU/RSS accounting and timed load; raw
 boundary snapshots are retained. Three focused regressions and the full
-**2,116-test Release suite** pass with zero failures or skips. Runtime sources,
-Native AOT executables and production container bases remain unchanged, so the
-completed endurance evidence below still applies. Renewed performance acceptance
-requires fresh measurements using identical corrected drivers for both revisions.
+**2,116-test Release suite** pass with zero failures or skips before the Windows
+correction is integrated. The collector change itself does not alter runtime
+sources or publications. The subsequent merged-source suite passes 2,128 tests;
+its new runtime publications receive separate campaigns as described above.
+Renewed performance acceptance requires fresh measurements using identical
+corrected drivers for both revisions.
 
 ## Renewed measurement protocol
 
@@ -148,7 +193,9 @@ no tracked edit to the reference checkout. Heavy-body screening is diagnostic an
 does not replace the complete matrix or its 180-second async drain bound.
 
 Integration artifacts use distinct `net11-01` names below `artifacts/pr506/`;
-the corrected runtime and frozen comparison drivers use `net11-02`. Configuration
+the completion correction and its comparison drivers use `net11-02`. Current
+merged-source publications and the corrected macro driver use `net11-03`; the
+current Linux tool image is `after-tools-net11-04`. Configuration
 files include both source SHAs and the SDK. Publications, container image
 inspection, raw receipts, original persisted state and failed attempts are
 retained. The [frozen source, executable, image and driver
