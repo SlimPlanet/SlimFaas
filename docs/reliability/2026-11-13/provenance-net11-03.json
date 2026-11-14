@@ -177,5 +177,6 @@
     "sonar_open_vulnerabilities": 38
   },
   "comparative_performance": "pending; no non-regression verdict yet",
-  "current_source_long_endurance": "all six roles launched; final reports pending"
+  "current_source_long_endurance": "all six roles passed; 92281 confirmed operations, zero confirmed loss/corruption; see endurance-net11-03.json",
+  "current_source_endurance_evidence": "endurance-net11-03.json"
 }

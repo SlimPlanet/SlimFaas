@@ -38,17 +38,48 @@ scanner job does not clear this gate. No findings or rules were suppressed.
 
 The [completed short controls](short-controls-net11-03.json) retain SDK case
 counts, fault history and raw resource boundary samples. All six renewed long
-roles have started; their final reconciliation and the complete performance
-matrices remain pending. The [current publication provenance](provenance-net11-03.json) records the
+roles now pass, including final reconciliation and original-volume restart.
+The complete performance matrices remain in progress. The [current publication provenance](provenance-net11-03.json) records the
 merged-source executable, image and driver hashes. The new comparative driver
 is frozen from `a3e28adc`. Its identical managed DLL
 runs on macOS and in both Linux tool images. Direct file hashes also confirm
 identical native CLR, GC, JIT, OS release and libc between reference and candidate
 Linux images. Each of the three current Kubernetes runtime pods has the expected
 published executable/DLL hashes and occupies a distinct worker. Renewed long
-endurance campaigns on these exact publications are running and complete
-performance comparisons remain pending; the earlier completed endurance below remains evidence
+endurance campaigns on these exact publications now pass; complete
+performance comparisons remain in progress; the earlier completed endurance below remains evidence
 for its recorded `a8e1b5fd` runtime, rather than a result for the newer source.
+
+## Current-source endurance
+
+The [six renewed endurance reports](endurance-net11-03.json) pass on the frozen
+`1ecba4d1` publications, including all six absence durations, successive crashes
+and complete restart with the original volumes. All **92,281 confirmed
+operations** reconcile without confirmed loss or corruption. Unknown client
+outcomes remain separate. One extra successful delivery is recorded in the
+Native quorum-fault campaign; the other five roles record none.
+
+| Environment / role | Confirmed | Unknown | Hour-long absence: ready / full reconciliation |
+|---|---:|---:|---:|
+| Native follower | 23,153 | 25 | 1.033 / 51.976 s |
+| Native leader | 23,071 | 30 | 0.733 / 51.839 s |
+| Native quorum | 145 | 26,119 | 1.033 / 23.890 s |
+| Kubernetes follower | 22,838 | 43 | 0.761 / 72.501 s |
+| Kubernetes leader | 22,895 | 33 | 0.610 / 71.827 s |
+| Kubernetes quorum | 179 | 8,950 | 3.781 / 26.070 s |
+
+Kernel evidence covers 18 initial/restarted pod identities with a maximum
+30.818-second sample gap. It records a **975.66 MiB sampled peak** against the
+1 GiB runtime limit, **2,141 memory-limit hits**, **3,701 socket-throttling
+events**, and zero observed OOM/kill events. This is measured memory pressure;
+the sampled maximum is not a bound on every instantaneous peak.
+
+All correctness controllers are stopped, and the original persisted files are
+hashed before the first timed comparison. Discarding already unallocated blocks
+of the VM filesystem returns about 4.2 GiB to the Mac without removing any file,
+image, WAL, snapshot or volume. The fresh Native ABBA matrix is running with the
+corrected common driver; HTTP/MemoryLab non-regression and microbenchmark
+conclusions remain pending. Earlier failed or interrupted runs are retained.
 
 ## Integrated sources
 
