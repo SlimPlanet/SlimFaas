@@ -93,6 +93,10 @@ public class ToolProxyServiceTests
         "https://pets.example.com/pets")]
     [InlineData("""{ "swagger": "2.0", "basePath": "/api", """ + PetsOperation + "}",
         "https://api.example.com/api/pets")]
+    [InlineData("""{ "swagger": "2.0", "basePath": "/api", "schemes": ["http"], """ + PetsOperation + "}",
+        "http://api.example.com/api/pets")]
+    [InlineData("""{ "swagger": "2.0", "schemes": ["http"], """ + PetsOperation + "}",
+        "http://api.example.com/pets")]
     public async Task ExecuteToolAsync_Without_BaseUrl_Calls_The_Document_Base_Url(string swaggerJson, string expectedUrl)
     {
         var (svc, requestedUrls) = CreateWithDocument(swaggerJson);
@@ -134,10 +138,25 @@ public class ToolProxyServiceTests
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_Without_BaseUrl_Rejects_A_Server_Url_With_An_Undefined_Variable()
+    public async Task ExecuteToolAsync_Without_BaseUrl_Uses_The_Declared_Scheme_For_A_Swagger2_Document_Without_Host()
     {
+        const string documentUrl = "http://api.example.com:8080/docs/openapi.json";
         var (svc, requestedUrls) = CreateWithDocument(
-            """{ "openapi": "3.0.0", "servers": [ { "url": "https://{env}.example.com" } ], """ + PetsOperation + "}");
+            """{ "swagger": "2.0", "basePath": "/api", "schemes": ["https"], """ + PetsOperation + "}", documentUrl);
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        await svc.ExecuteToolAsync(documentUrl, "get_pets", argsDoc.RootElement);
+
+        Assert.Equal("https://api.example.com:8080/api/pets", requestedUrls[^1]);
+    }
+
+    [Theory]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "https://{env}.example.com" } ], """ + PetsOperation + "}")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "/api/{version}", "variables": { "version": { } } } ], """ + PetsOperation + "}")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "https://pets.example.com/api/{version}" } ], """ + PetsOperation + "}")]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Rejects_A_Server_Url_With_An_Undefined_Variable(string swaggerJson)
+    {
+        var (svc, requestedUrls) = CreateWithDocument(swaggerJson);
         using var argsDoc = JsonDocument.Parse("{}");
 
         await Assert.ThrowsAsync<ArgumentException>(() =>

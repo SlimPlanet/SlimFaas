@@ -569,7 +569,8 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
     // The API base URL described by the document: the first OpenAPI 3 server, with its variables set to their default
     // values, or the Swagger 2.0 scheme, host and basePath. As both specifications define, a relative URL resolves
     // against the URL of the document, a document without servers or host uses "/", and a Swagger 2.0 document
-    // without schemes uses the scheme of the document URL.
+    // without schemes uses the scheme of the document URL. A Swagger 2.0 document without host is served from the host
+    // of the document URL. A URL with a variable that has no default value has no base URL.
     public static string? ExtractBaseUrl(JsonDocument swagger, string swaggerUrl)
     {
         JsonElement root = swagger.RootElement;
@@ -605,20 +606,32 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             string? basePath = root.TryGetProperty("basePath", out JsonElement bp) && bp.ValueKind == JsonValueKind.String
                 ? bp.GetString()
                 : null;
+            string? scheme = root.TryGetProperty("schemes", out JsonElement schemes) &&
+                             schemes.ValueKind == JsonValueKind.Array &&
+                             schemes.GetArrayLength() > 0 &&
+                             schemes[0].ValueKind == JsonValueKind.String
+                ? schemes[0].GetString()
+                : null;
             if (root.TryGetProperty("host", out JsonElement hostProp) && hostProp.ValueKind == JsonValueKind.String)
             {
-                string scheme = root.TryGetProperty("schemes", out JsonElement schemes) &&
-                                schemes.ValueKind == JsonValueKind.Array &&
-                                schemes.GetArrayLength() > 0 &&
-                                schemes[0].ValueKind == JsonValueKind.String
-                    ? schemes[0].GetString()!
-                    : documentUri?.Scheme ?? Uri.UriSchemeHttps;
-                url = $"{scheme}://{hostProp.GetString()}{basePath}";
+                url = $"{scheme ?? documentUri?.Scheme ?? Uri.UriSchemeHttps}://{hostProp.GetString()}{basePath}";
+            }
+            else if (scheme is not null && documentUri is not null)
+            {
+                // Without host, the API is served from the host of the document, with the scheme the document declares.
+                string port = documentUri.IsDefaultPort ? string.Empty : $":{documentUri.Port}";
+                url = $"{scheme}://{documentUri.Host}{port}{basePath}";
             }
             else if (!string.IsNullOrEmpty(basePath))
             {
                 url = basePath;
             }
+        }
+
+        // A variable without a default value cannot be resolved, whether it is in the host or in the path.
+        if (url.Contains('{', StringComparison.Ordinal) || url.Contains('}', StringComparison.Ordinal))
+        {
+            return null;
         }
 
         // On Unix, "/v1" parses as an absolute file URI, so only HTTP URLs are taken as they are.

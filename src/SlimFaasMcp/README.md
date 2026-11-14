@@ -81,6 +81,6 @@ An OpenAPI `in: header` parameter is a tool argument named like the header, and 
 Tool calls are sent to the `base_url` query parameter when it is set. Without `base_url`, SlimFaasMcp uses the base URL that the OpenAPI document describes:
 
 - OpenAPI 3: the first entry of `servers`, with its `variables` set to their `default` values. For `"url": "https://{env}.example.com/v1"` with `"env": {"default": "api"}`, tools call `https://api.example.com/v1`.
-- Swagger 2.0: the first entry of `schemes`, followed by `host` and `basePath`. Without `schemes`, the scheme of the `openapi_url` is used.
+- Swagger 2.0: the first entry of `schemes`, followed by `host` and `basePath`. Without `schemes`, the scheme of the `openapi_url` is used. Without `host`, the host of the `openapi_url` is used, with the scheme from `schemes`.
 
-As both specifications define, a relative URL such as `/v1` resolves against the `openapi_url`, and a document without `servers` or `host` uses `/`. For `openapi_url=https://api.example.com/docs/openapi.json`, `"url": "/v1"` calls `https://api.example.com/v1`, and a document without servers calls `https://api.example.com`. A server URL with a variable that has no default value makes the tool call fail, and the API is not called.
+As both specifications define, a relative URL such as `/v1` resolves against the `openapi_url`, and a document without `servers` or `host` uses `/`. For `openapi_url=https://api.example.com/docs/openapi.json`, `"url": "/v1"` calls `https://api.example.com/v1`, and a document without servers calls `https://api.example.com`. A server URL with a variable that has no default value, in the host or in the path, makes the tool call fail, and the API is not called.
