@@ -565,7 +565,8 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             Resources: resources,
             SubscribeStreams: metadata.SubscribeStreams,
             StreamMaxAgeSeconds: metadata.StreamMaxAgeSeconds,
-            StreamMaxLength: metadata.StreamMaxLength
+            StreamMaxLength: metadata.StreamMaxLength,
+            AllowedCallers: metadata.AllowedCallers
         );
 
         deployments.Add(di);

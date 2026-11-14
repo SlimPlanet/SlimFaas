@@ -104,6 +104,7 @@ function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
         Visibility: asString(pick(path, 'Visibility', 'visibility')),
       })),
       DependsOn: asArray<string>(pick(entry, 'DependsOn', 'dependsOn')),
+      AllowedCallers: asArray<string>(pick(entry, 'AllowedCallers', 'allowedCallers')),
       Pods: asArray(pick(entry, 'Pods', 'pods')).map((pod) => ({
         Name: asString(pick(pod, 'Name', 'name')),
         Status: asString(pick(pod, 'Status', 'status')),

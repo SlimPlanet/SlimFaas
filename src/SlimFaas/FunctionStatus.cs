@@ -43,7 +43,8 @@ public record FunctionStatusDetailed(
     IList<SubscribeEvent>? SubscribeEvents,
     IList<PathVisibility>? PathsStartWithVisibility,
     IList<string>? DependsOn,
-    IList<PodStatus> Pods);
+    IList<PodStatus> Pods,
+    IList<string>? AllowedCallers = null);
 
 public record RetryConfig(
     RetryConfigEntry? DefaultAsync,

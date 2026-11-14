@@ -37,6 +37,7 @@ public class FunctionStatusMappingTests
                 new("/admin", FunctionVisibility.Private)
             },
             Resources: new ResourcesConfiguration("100m", "500m", "128Mi", "512Mi"),
+            AllowedCallers: new List<string> { "frontend", "batch-*" },
             Schedule: new ScheduleConfig
             {
                 TimeZoneID = "UTC",
@@ -73,6 +74,9 @@ public class FunctionStatusMappingTests
         Assert.Equal(2, result.DependsOn.Count);
         Assert.Contains("dep-a", result.DependsOn);
         Assert.Contains("dep-b", result.DependsOn);
+
+        // AllowedCallers
+        Assert.Equal(["frontend", "batch-*"], result.AllowedCallers);
 
         // Events
         Assert.NotNull(result.SubscribeEvents);
@@ -113,6 +117,7 @@ public class FunctionStatusMappingTests
         Assert.Equal(10, result.NumberParallelRequest); // default
         Assert.Equal(10, result.NumberParallelRequestPerPod); // default
         Assert.Null(result.DependsOn);
+        Assert.Null(result.AllowedCallers);
         Assert.Null(result.Resources);
         Assert.Empty(result.Pods);
     }

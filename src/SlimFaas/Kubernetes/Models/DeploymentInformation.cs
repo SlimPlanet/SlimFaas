@@ -45,7 +45,8 @@ public record DeploymentInformation(
     ResourcesConfiguration? Resources = null,
     IList<SubscribeStream>? SubscribeStreams = null,
     int StreamMaxAgeSeconds = 86400,
-    int StreamMaxLength = 100000
+    int StreamMaxLength = 100000,
+    IList<string>? AllowedCallers = null
 );
 
 public record PodInformation(

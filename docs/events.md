@@ -18,6 +18,7 @@ metadata:
 - **Public events** can be sent from any source.
 - **Private event**s can only be sent by trusted pods or within the same namespace.
 - If you omit `Public:` or `Private:`, it defaults to `SlimFaas/DefaultVisibility`.
+- When the function also declares [`SlimFaas/AllowedCallers`](functions.md#restrict-the-callers-of-a-private-function), its **Private** events are delivered only when the publisher is one of the listed functions or jobs.
 
 ---
 

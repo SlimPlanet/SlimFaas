@@ -21,6 +21,7 @@ public static class FunctionAnnotationNames
     public const string DefaultVisibility = "SlimFaas/DefaultVisibility";
     public const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
     public const string DefaultTrust = "SlimFaas/DefaultTrust";
+    public const string AllowedCallers = "SlimFaas/AllowedCallers";
     public const string Configuration = "SlimFaas/Configuration";
     public const string Schedule = "SlimFaas/Schedule";
     public const string Scale = "SlimFaas/Scale";
@@ -43,7 +44,8 @@ public sealed record FunctionMetadata(
     int NumberParallelRequestPerPod,
     IList<SubscribeStream>? SubscribeStreams = null,
     int StreamMaxAgeSeconds = 86400,
-    int StreamMaxLength = 100000);
+    int StreamMaxLength = 100000,
+    IList<string>? AllowedCallers = null);
 
 public sealed record SubscribeStream(string Name, FunctionVisibility Visibility);
 
@@ -89,7 +91,8 @@ public static class FunctionMetadataParser
             ParseInt(annotations, FunctionAnnotationNames.NumberParallelRequestPerPod, 10, minimum: 1),
             ParseStreams(annotations, visibility),
             ParseStreamMaxAge(annotations),
-            ParseInt(annotations, FunctionAnnotationNames.StreamMaxLength, 100000, minimum: 1));
+            ParseInt(annotations, FunctionAnnotationNames.StreamMaxLength, 100000, minimum: 1),
+            ParseCsv(annotations, FunctionAnnotationNames.AllowedCallers));
     }
 
     private static List<SubscribeStream> ParseStreams(

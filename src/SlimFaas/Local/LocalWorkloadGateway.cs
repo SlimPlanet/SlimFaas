@@ -186,6 +186,17 @@ internal sealed class LocalWorkloadGateway : IAsyncDisposable
     internal static string CreatePodSignature(string podName, string token)
         => CreateSignature("pod:" + podName, token);
 
+    internal static bool IsSignatureValid(string workloadName, string token, string signature)
+        => SignaturesEqual(signature, CreateSignature(workloadName, token));
+
+    internal static bool IsPodSignatureValid(string podName, string token, string signature)
+        => SignaturesEqual(signature, CreatePodSignature(podName, token));
+
+    private static bool SignaturesEqual(string supplied, string expected)
+        => CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(supplied),
+            Encoding.UTF8.GetBytes(expected));
+
     private static int FindHeaderEnd(byte[] buffer, int length)
     {
         for (var index = 0; index <= length - 4; index++)

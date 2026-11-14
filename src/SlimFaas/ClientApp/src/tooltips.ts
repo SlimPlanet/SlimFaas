@@ -18,6 +18,9 @@ export const FN = {
   pathVisibility:
     'Per-path visibility override (SlimFaas/PathsStartWithVisibility). Allows mixing Public and Private routes on the same function.',
 
+  allowedCallers:
+    'Functions and jobs allowed to call the Private routes and Private event subscriptions of this function (SlimFaas/AllowedCallers). Empty = any internal caller.',
+
   subscribeEvents:
     'Events this function subscribes to (SlimFaas/SubscribeEvents). When an event is published via POST /publish-event/<eventName>/<path>, every subscribed replica receives it.',
 

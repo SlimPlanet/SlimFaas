@@ -116,6 +116,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - Mark functions as **public** or **private**:
     - Private: only accessible from within the cluster or from trusted pods.
     - Public: fronted by Ingress / API Gateways as usual.
+- Restrict a Private function to the functions and jobs listed in `SlimFaas/AllowedCallers`.
 
 ### 📣 Publish/Subscribe Internal Events
 

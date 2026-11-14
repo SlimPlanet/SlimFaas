@@ -162,7 +162,8 @@ public partial class KubernetesService
                         resources,
                         metadata.SubscribeStreams,
                         metadata.StreamMaxAgeSeconds,
-                        metadata.StreamMaxLength
+                        metadata.StreamMaxLength,
+                        metadata.AllowedCallers
                     );
                     deploymentInformationList.Add(deploymentInformation);
                 }
@@ -391,7 +392,8 @@ public partial class KubernetesService
                         resources,
                         metadata.SubscribeStreams,
                         metadata.StreamMaxAgeSeconds,
-                        metadata.StreamMaxLength);
+                        metadata.StreamMaxLength,
+                        metadata.AllowedCallers);
 
                     deploymentInformationList.Add(deploymentInformation);
                 }

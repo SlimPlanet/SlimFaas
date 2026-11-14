@@ -4,6 +4,7 @@ using Microsoft.Extensions.Primitives;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
+using SlimFaas.Security;
 using SlimFaas.WebSocket;
 
 namespace SlimFaas.Endpoints;
@@ -35,8 +36,9 @@ public static class SyncFunctionEndpoints
                 IJobService jobService,
                 IWebSocketSendClient webSocketSendClient,
                 IWebSocketFunctionRepository webSocketFunctionRepository,
+                IFunctionAccessPolicy accessPolicy,
                 NetworkActivityTracker activityTracker) =>
-                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository, activityTracker))
+                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository, accessPolicy, activityTracker))
             .WithName("HandleSyncFunctionRoot")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
@@ -53,6 +55,7 @@ public static class SyncFunctionEndpoints
         [FromServices] IJobService jobService,
         [FromServices] IWebSocketSendClient webSocketSendClient,
         [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository,
+        [FromServices] IFunctionAccessPolicy accessPolicy,
         [FromServices] NetworkActivityTracker activityTracker)
     {
         functionPath ??= "";
@@ -88,6 +91,11 @@ public static class SyncFunctionEndpoints
         {
             logger.LogNotFound404BecauseIsPrivate(functionName);
             return Results.NotFound();
+        }
+
+        if (visibility == FunctionVisibility.Private && !accessPolicy.IsAllowedCaller(context, function))
+        {
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
         }
 
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(

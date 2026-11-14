@@ -13,7 +13,7 @@ This inventory describes the routes registered by the SlimFaas runtime in this c
 
 Use `http://127.0.0.1:30020` for the native-local entrypoint, or `http://127.0.0.1:30021` for the tutorial's Kubernetes port-forward and Docker Compose. WebSockets use `/ws` on the entrypoint in native local mode and a dedicated port, `5003` by default, in the other orchestrators.
 
-HTTP function, event, job and dashboard endpoints check the configured SlimFaas ports. Visibility and trust are evaluated by the relevant endpoint; there is no universal bearer-token authentication scheme supplied by these routes. Private functions return `404` to untrusted callers. Callers are classified by their connection address; `X-Forwarded-For` is honoured only from the proxies declared in `SlimFaas:TrustedProxies` (see [Functions](functions.md#how-callers-are-classified)). Native local mode shares the host network.
+HTTP function, event, job and dashboard endpoints check the configured SlimFaas ports. Visibility and trust are evaluated by the relevant endpoint; there is no universal bearer-token authentication scheme supplied by these routes. Private functions return `404` to untrusted callers, and `403` to internal callers that their `SlimFaas/AllowedCallers` list excludes. Callers are classified by their connection address; `X-Forwarded-For` is honoured only from the proxies declared in `SlimFaas:TrustedProxies` (see [Functions](functions.md#how-callers-are-classified)). Native local mode shares the host network.
 
 JSON property names below preserve the server's casing. In particular, generated data IDs are JSON strings for sets/hashsets, plain text for files, and `{"Id":"..."}` for jobs/schedules. A `202` means acceptance, not completion. CPU load shedding can produce `429` with `Retry-After`; storage capacity or availability can also produce `429`, `413` or `503` on data/queue paths.
 
@@ -45,9 +45,9 @@ See [synchronous calls](guided-tour.md#3-call-functions-synchronously) and [asyn
 
 | Methods | Route | Contract / response |
 |---|---|---|
-| GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS | `/function/{functionName}/{**functionPath}` | Proxy path, query, body and response to a function; wait for readiness. Unknown or inaccessible function: `404`. Application response otherwise. |
+| GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS | `/function/{functionName}/{**functionPath}` | Proxy path, query, body and response to a function; wait for readiness. Unknown or inaccessible function: `404`; internal caller excluded by `SlimFaas/AllowedCallers`: `403`. Application response otherwise. |
 | GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS | `/function/{functionName}` | Same behavior, with an empty forwarded path. |
-| GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS | `/async-function/{functionName}/{**functionPath}` | Persist request for later dispatch; `202`. Unknown or inaccessible function: `404`. |
+| GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS | `/async-function/{functionName}/{**functionPath}` | Persist request for later dispatch; `202`. Unknown or inaccessible function: `404`; internal caller excluded by `SlimFaas/AllowedCallers`: `403`. |
 | GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS | `/async-function/{functionName}` | Same behavior, with an empty forwarded path. |
 | POST | `/async-function-callback/{functionName}/{elementId}/{status}` | Worker completion callback: `200`; invalid input `400`, unknown/inaccessible function `404`. |
 

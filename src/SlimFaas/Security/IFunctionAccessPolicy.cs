@@ -12,6 +12,12 @@ public interface IFunctionAccessPolicy
     bool CanAccessFunction(HttpContext context,
         DeploymentInformation function, string path);
 
-    // Filtre les subscribers d’un event (public => toujours, private => seulement si interne)
+    // Visibilité appliquée à un chemin (SlimFaas/PathsStartWithVisibility puis SlimFaas/DefaultVisibility)
+    FunctionVisibility ResolveVisibility(DeploymentInformation function, string path);
+
+    // SlimFaas/AllowedCallers : absent => tout appelant interne, sinon l'appelant doit figurer dans la liste
+    bool IsAllowedCaller(HttpContext context, DeploymentInformation function);
+
+    // Filtre les subscribers d’un event (public => toujours, private => seulement si interne et autorisé)
     List<DeploymentInformation> GetAllowedSubscribers(HttpContext context, string eventName);
 }

@@ -561,7 +561,8 @@ public static class FunctionEndpointsHelpers
             SubscribeEvents: f.SubscribeEvents,
             PathsStartWithVisibility: f.PathsStartWithVisibility,
             DependsOn: f.DependsOn,
-            Pods: pods
+            Pods: pods,
+            AllowedCallers: f.AllowedCallers
         );
     }
 }
