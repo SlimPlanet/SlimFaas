@@ -214,15 +214,6 @@ explicit coordinator-level shutdown barrier before their hashes were collected.
 The correction moves that guarantee into the shared command for upcoming
 Kubernetes performance exports.
 
-The first Podman reference stops at 1,145 of 1,160 observed IDs for 4,194,304-byte
-bodies, concurrency 16, repetition 2, after the unchanged 180-second drain. Its
-verdict is **INCONCLUSIVE**, without a permanent-loss claim. The first candidate
-completes all 216 HTTP cases, six focused cases and scaling, with zero failed
-requests, missing IDs or duplicates. All 78 async resource boundaries have
-positive CPU/RSS/Raft evidence across three nodes. Scaling accepts and delivers
-all 200 messages, reaches four ready replicas in 8.428 seconds and drains in
-20.999 seconds. The remaining comparative runs are still in progress.
-
 ## Retained Podman isolation attempt
 
 The [first Podman attempt](podman-isolation-net11-03.json) is excluded from
@@ -262,6 +253,41 @@ workflows pass, as does FOSSA. Of 41 check runs, the separate SonarCloud quality
 gate remains failed: Security E, 38 open vulnerability findings and seven closed.
 The successful scanner job remains distinct from that gate. No finding or rule
 is suppressed.
+
+## Current-source Podman HTTP observations (15 November)
+
+The [fresh ABBA block](podman-http-net11-03.json), using new campaign IDs after
+the invalid isolation attempt above, is **INCONCLUSIVE**. Both references stop
+at the unchanged 180-second async drain: the initial reference observes
+2,778/2,786 IDs for 2,097,152-byte bodies, concurrency 16, repetition 2; the final
+reference observes 1,548/1,551 for 2,000,000-byte bodies, concurrency 16,
+repetition 1. Both record zero duplicates. These bounded observations do not
+establish permanent loss. Neither reference supplies a mandatory complete
+comparison report; no complete pair or performance gain is claimed. Both
+references yield the same inconclusive result, so the contradictory-bracket
+repeat does not apply.
+
+Both candidate runs complete all 216 HTTP cases, six focused paced/burst cases
+and 200-message scaling with zero failed requests, missing IDs or duplicates.
+Each retains 78 positive CPU/RSS/Raft measurements with initial, final-process
+and final-diagnostics boundaries covering three distinct nodes. Four replicas
+are ready in 5.361 and 5.379 seconds; queues drain in 18.619 and 19.904 seconds.
+The linked data includes raw sync aggregates and normalized overhead, settings,
+report/log hashes and verified archive metadata. Original per-request samples
+and persisted state remain retained on the Mac and VM.
+
+The frozen runtime, driver, images, resource limits and request deadlines are
+unchanged. Between closed guest phases, filesystem discard returns already
+unallocated VM blocks to the Mac; it removes no files or images and overlaps no
+timed guest workload. Isolation monitoring continues through the matrix; its
+final audit, Podman MemoryLab and Kubernetes performance results remain pending.
+
+On report head `46f3bfb5`, the
+[dashboard/documentation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43631519374),
+[Windows/Linux reliability](https://github.com/SlimPlanet/SlimFaas/actions/runs/43631519348)
+and [main validation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43631519293)
+workflows pass, as does FOSSA. The separate SonarCloud security gate remains
+failed; scanner completion does not establish gate acceptance.
 
 ## Current-source endurance
 
