@@ -48,6 +48,57 @@ def cleanup_finished_job(request, job_id):
         error.close()
 
 
+def stop_supervisor(process, timeout=45):
+    """Ask the supervisor to stop its process trees and wait; force-kill only past the deadline."""
+    if process.poll() is not None:
+        return
+    try:
+        process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
+    except OSError:
+        if process.poll() is None:
+            raise
+        # The supervisor can exit after poll() but before the signal is delivered.
+        return
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            try:
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                               check=True, timeout=timeout)
+            except subprocess.CalledProcessError:
+                if process.poll() is None:
+                    raise
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                if process.poll() is None:
+                    raise
+        process.wait(timeout=timeout)
+
+
+def ensure_clean_shutdown(process, log_path):
+    """A supervisor that fails while stopping its nodes may leave them holding bundle files."""
+    if process.returncode == 0:
+        return
+    print(log_path.read_text(encoding="utf-8", errors="replace")[-14000:])
+    raise RuntimeError(f"Local supervisor exited with code {process.returncode} while stopping")
+
+
+def remove_tree(root, timeout=30):
+    """Windows refuses to delete a file a stopping node still holds; retry until the deadline."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            shutil.rmtree(root)
+            return
+        except PermissionError as error:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"Bundle file still in use after shutdown: {error.filename}") from error
+        time.sleep(min(.25, max(0, deadline - time.monotonic())))
+
+
 def validate_bundle_scripts(archive):
     """Check the shipped bytes, including ZIPs produced from Windows checkouts."""
     for name in ("start.sh", "demo/smoke-tour.sh", "demo/async-scale-tour.sh"):
@@ -69,7 +120,7 @@ def main():
     args = parse_arguments()
     overlay_arguments = [argument for path in args.manifest_overlay
                          for argument in ("-f", str(path.resolve()))]
-    with tempfile.TemporaryDirectory(prefix="SlimFaas bundle with spaces ") as temporary:
+    with tempfile.TemporaryDirectory(prefix="SlimFaas bundle with spaces ", ignore_cleanup_errors=True) as temporary:
         root = Path(temporary)
         with zipfile.ZipFile(args.archive) as archive:
             validate_bundle_scripts(archive)
@@ -131,16 +182,12 @@ def main():
                 print(log_path.read_text(encoding="utf-8", errors="replace")[-14000:])
                 raise
             finally:
-                if process.poll() is None:
-                    process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
-                    try:
-                        process.wait(timeout=45)
-                    except subprocess.TimeoutExpired:
-                        if os.name == "nt":
-                            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], check=False)
-                        else:
-                            os.killpg(process.pid, signal.SIGKILL)
-                        process.wait()
+                stop_supervisor(process)
+        ensure_clean_shutdown(process, log_path)
+        # The supervisor waited for its nodes, but Windows can still report the
+        # last handle of an exited process as open for a moment. Remove the
+        # bundle explicitly so a slow release is retried instead of failing.
+        remove_tree(root)
 
 
 if __name__ == "__main__":

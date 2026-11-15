@@ -278,5 +278,121 @@ class FinishedJobCleanupTests(unittest.TestCase):
                 request.assert_called_once()
 
 
+class ShutdownTests(unittest.TestCase):
+    def setUp(self):
+        self.now = 0.0
+        self.clock = patch.object(bundle.time, "monotonic", side_effect=lambda: self.now)
+        self.sleep = patch.object(bundle.time, "sleep", side_effect=self.advance)
+        self.clock.start()
+        self.sleep.start()
+        self.addCleanup(self.clock.stop)
+        self.addCleanup(self.sleep.stop)
+
+    def advance(self, seconds):
+        self.now += seconds
+
+    def test_stop_signals_the_supervisor_and_waits_for_it(self):
+        process = Mock(pid=4242)
+        process.poll.return_value = None
+        with patch.object(bundle.subprocess, "run") as run:
+            bundle.stop_supervisor(process)
+        process.send_signal.assert_called_once()
+        process.wait.assert_called_once_with(timeout=45)
+        run.assert_not_called()
+
+    def test_stop_force_kills_the_tree_only_after_the_deadline(self):
+        process = Mock(pid=4242)
+        process.poll.return_value = None
+        process.wait.side_effect = [bundle.subprocess.TimeoutExpired("slimfaas", 45), 0]
+        with patch.object(bundle.subprocess, "run") as run, patch.object(bundle.os, "killpg", create=True) as killpg:
+            bundle.stop_supervisor(process)
+        self.assertEqual(process.wait.call_count, 2)
+        if bundle.os.name == "nt":
+            run.assert_called_once_with(["taskkill", "/PID", "4242", "/T", "/F"], check=True, timeout=45)
+        else:
+            killpg.assert_called_once_with(4242, bundle.signal.SIGKILL)
+        self.assertEqual(process.wait.call_args_list, [call(timeout=45), call(timeout=45)])
+
+    def test_stop_accepts_exit_between_poll_and_signal(self):
+        process = Mock()
+        process.poll.side_effect = [None, 0]
+        process.send_signal.side_effect = ProcessLookupError("Already exited")
+        bundle.stop_supervisor(process)
+        process.wait.assert_not_called()
+
+    def test_stop_preserves_signal_failure_while_supervisor_is_running(self):
+        process = Mock()
+        process.poll.return_value = None
+        process.send_signal.side_effect = OSError("Signal denied")
+        with self.assertRaisesRegex(OSError, "Signal denied"):
+            bundle.stop_supervisor(process)
+
+    def test_stop_does_not_wait_forever_after_force_kill(self):
+        process = Mock(pid=4242)
+        process.poll.return_value = None
+        process.wait.side_effect = bundle.subprocess.TimeoutExpired("slimfaas", 45)
+        with patch.object(bundle.subprocess, "run"), patch.object(bundle.os, "killpg", create=True):
+            with self.assertRaises(bundle.subprocess.TimeoutExpired):
+                bundle.stop_supervisor(process)
+        self.assertEqual(process.wait.call_args_list, [call(timeout=45), call(timeout=45)])
+
+    @unittest.skipUnless(bundle.os.name == "nt", "Windows taskkill handling")
+    def test_stop_preserves_taskkill_failure_while_supervisor_is_running(self):
+        process = Mock(pid=4242)
+        process.poll.return_value = None
+        process.wait.side_effect = bundle.subprocess.TimeoutExpired("slimfaas", 45)
+        failure = bundle.subprocess.CalledProcessError(1, "taskkill")
+        with patch.object(bundle.subprocess, "run", side_effect=failure):
+            with self.assertRaises(bundle.subprocess.CalledProcessError):
+                bundle.stop_supervisor(process)
+
+    @unittest.skipUnless(bundle.os.name == "nt", "Windows taskkill handling")
+    def test_stop_accepts_supervisor_exit_before_taskkill(self):
+        process = Mock(pid=4242)
+        process.poll.side_effect = [None, 0]
+        process.wait.side_effect = [bundle.subprocess.TimeoutExpired("slimfaas", 45), 0]
+        with patch.object(bundle.subprocess, "run", side_effect=bundle.subprocess.CalledProcessError(1, "taskkill")):
+            bundle.stop_supervisor(process)
+        self.assertEqual(process.wait.call_args_list, [call(timeout=45), call(timeout=45)])
+
+    def test_stop_leaves_an_exited_supervisor_alone(self):
+        process = Mock()
+        process.poll.return_value = 0
+        bundle.stop_supervisor(process)
+        process.send_signal.assert_not_called()
+
+    def test_clean_shutdown_accepts_exit_code_zero(self):
+        bundle.ensure_clean_shutdown(Mock(returncode=0), Mock())
+
+    def test_shutdown_failure_prints_the_log_and_fails(self):
+        log = Mock()
+        log.read_text.return_value = "[node/slimfaas-2] stop failed"
+        with patch("builtins.print") as printed, self.assertRaisesRegex(RuntimeError, "exited with code 1 while stopping"):
+            bundle.ensure_clean_shutdown(Mock(returncode=1), log)
+        printed.assert_called_once_with("[node/slimfaas-2] stop failed")
+
+    def test_removal_retries_while_a_file_is_still_held(self):
+        held = PermissionError(13, "The process cannot access the file", "wal/data/0")
+        with patch.object(bundle.shutil, "rmtree", side_effect=[held, held, None]) as rmtree:
+            bundle.remove_tree("bundle")
+        self.assertEqual(rmtree.call_args_list, [call("bundle")] * 3)
+        self.assertEqual(self.now, .5)
+
+    def test_removal_gives_up_at_the_deadline_naming_the_file(self):
+        held = PermissionError(13, "The process cannot access the file", "wal/data/0")
+        with patch.object(bundle.shutil, "rmtree", side_effect=held) as rmtree:
+            with self.assertRaisesRegex(RuntimeError, "still in use after shutdown: wal/data/0") as raised:
+                bundle.remove_tree("bundle", timeout=1)
+        self.assertIs(raised.exception.__cause__, held)
+        self.assertEqual(self.now, 1)
+        self.assertEqual(rmtree.call_count, 5)
+
+    def test_removal_does_not_retry_other_errors(self):
+        with patch.object(bundle.shutil, "rmtree", side_effect=FileNotFoundError("gone")) as rmtree:
+            with self.assertRaises(FileNotFoundError):
+                bundle.remove_tree("bundle")
+        rmtree.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
