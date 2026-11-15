@@ -914,7 +914,7 @@ public static class SlimDataInterpreter
                 result.KeyValueResult = new KeyValueCommandResult
                 {
                     Status = admissionResult.Applied ? KeyValueCommandStatus.Applied : KeyValueCommandStatus.NotCommitted,
-                    Value = MemoryPackSerializer.Serialize(admissionResult),
+                    Value = MemoryPackPayload.Serialize(admissionResult),
                     ErrorMessage = admissionResult.Error
                 };
                 result.Applied = admissionResult.Applied;

@@ -1,5 +1,10 @@
 # Async memory, WAL geometry and Files reliability investigation
 
+The latest [admission initialization investigation](admission-root-registration.md)
+retains five passing source-f13 fault/refusal controls and a failed source511
+performance reference, together with deterministic root-formatter regressions.
+Earlier observations below remain attached to their tested sources.
+
 This follow-up preserves the [completed 1ecba4d1 validation](../2026-11-13/README.md)
 and its failed or inconclusive performance verdicts. The bounded diagnostics below
 are separate from the formal HTTP/MemoryLab matrices. They do not establish LTS

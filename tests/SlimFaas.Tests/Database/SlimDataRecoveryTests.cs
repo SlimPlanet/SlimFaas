@@ -16,7 +16,7 @@ using SlimFaas.Options;
 
 namespace SlimFaas.Tests.Database;
 
-public sealed class SlimDataRecoveryTests
+public sealed partial class SlimDataRecoveryTests
 {
     private static readonly TimeSpan TestDeadline = TimeSpan.FromSeconds(12);
 

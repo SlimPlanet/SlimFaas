@@ -10,6 +10,46 @@ public sealed class MemoryPackRegistrationCollection;
 [Collection("MemoryPack formatter registration")]
 public sealed class MemoryPackReplayTests
 {
+    [Fact]
+    public async Task Admission_result_publication_does_not_use_a_pending_root_formatter()
+    {
+        long now = DateTime.UtcNow.Ticks;
+        FileAdmissionMutation mutation = new()
+        {
+            Action = FileAdmissionAction.Begin, FileId = "physical", Token = Guid.NewGuid().ToString("N"),
+            DeadlineUtcTicks = now + TimeSpan.FromMinutes(2).Ticks, RequiredCopies = 2
+        };
+        byte[] expected = MemoryPackSerializer.Serialize(new FileAdmissionResult
+        {
+            Applied = true, Phase = FileAdmissionPhase.Pending
+        });
+        ExecuteBatchCommand command = new() { Payload = SlimDataRaftBatchEnvelopeCodec.Serialize(new()
+        {
+            Requests = [new() { ProducerId = "owner", GenerationId = "generation", Sequence = 1, RequestId = "request",
+                Operations = [new() { Kind = SlimDataBatchOperationKind.FileAdmission, RequestId = "begin",
+                    Key = FileAdmissionStore.IndexKey, NowTicks = now, Value = MemoryPackPayload.Serialize(mutation) }] }]
+        }) };
+        SlimDataState state = new(
+            ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+            ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
+        Action restore = SuspendFormatter<FileAdmissionResult>();
+        try
+        {
+            SlimDataCommandBatchContext context = new();
+            await SlimDataInterpreter.DoExecuteBatchAsync(command, state, context);
+            var operation = Assert.Single(Assert.Single(context.Responses).Results);
+            Assert.True(operation.Applied);
+            Assert.Equal(expected, operation.KeyValueResult!.Value);
+            Assert.Equal(mutation.Token, FileAdmissionStore.Find(state.CapturePayload(), mutation.FileId)!.Token);
+            Assert.Empty(state.Queues);
+        }
+        finally
+        {
+            restore();
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -9,7 +9,6 @@ using System.Text;
 using DotNext;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Consensus.Raft;
-using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimData.Commands;
@@ -340,10 +339,10 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task<FileAdmissionResult> ExecuteFileAdmissionAsync(FileAdmissionMutation mutation)
     {
         var operation = NewOperation(SlimDataBatchOperationKind.FileAdmission, FileAdmissionStore.IndexKey);
-        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        operation.Value = MemoryPackExactSerializer.Serialize(mutation);
         var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
         return response.KeyValueResult?.Value is { } value
-            ? MemoryPackSerializer.Deserialize<FileAdmissionResult>(value)
+            ? MemoryPackPayload.Deserialize<FileAdmissionResult>(value)
                 ?? throw new DataException("Missing file admission result.")
             : throw new DataException("Missing file admission result.");
     }
@@ -359,7 +358,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task<DurableStreamMutationResult> ExecuteStreamAsync(DurableStreamMutation mutation)
     {
         var operation = NewOperation(SlimDataBatchOperationKind.Stream, DurableStreamStore.DefinitionPrefix + mutation.Stream);
-        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        operation.Value = MemoryPackExactSerializer.Serialize(mutation);
         var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
         return response.StreamResult ?? throw new DataException("Missing durable Stream result.");
     }
@@ -367,7 +366,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task<DeadLetterMutationResult> ExecuteDeadLetterAsync(DeadLetterMutation mutation)
     {
         var operation = NewOperation(SlimDataBatchOperationKind.DeadLetter, "Queue:" + mutation.Function);
-        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        operation.Value = MemoryPackExactSerializer.Serialize(mutation);
         var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
         return response.DeadLetterResult ?? throw new DataException("Missing durable DLQ result.");
     }
@@ -413,7 +412,9 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             RequestId = Guid.NewGuid().ToString("N"),
             Operations = batch.ToArray()
         };
-        var payload = MemoryPackSerializer.Serialize(request);
+        // Generated dispatch bypasses partially published root formatters;
+        // exact sizing also avoids a second payload-sized temporary buffer.
+        var payload = MemoryPackExactSerializer.Serialize(request);
         var attempt = 0;
 
         while (true)
@@ -499,7 +500,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
         if (response.StatusCode == HttpStatusCode.Conflict && bytes.Length > 0)
         {
-            return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(bytes)
+            return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(bytes)
                    ?? throw new DataException("The unified SlimData endpoint returned an empty conflict response.");
         }
 
@@ -507,7 +508,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         if (!response.IsSuccessStatusCode)
             throw new DataException($"The unified SlimData endpoint returned HTTP {(int)response.StatusCode}.");
 
-        return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(bytes)
+        return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(bytes)
                ?? throw new DataException("The unified SlimData endpoint returned a null response.");
     }
 

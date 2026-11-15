@@ -40,7 +40,11 @@ the two-copy budget failures are retained. CPU to first confirmed drain and CPU
 through the full idle/cleanup observation are separate scopes. A short batch
 does not replace timed HTTP/MemoryLab comparisons. Subsequent
 [pooled verification microprobes](reliability/2026-11-15/pooled-file-verification.md)
-and component tests require their own application validation.
+and component tests require their own application validation. The subsequent
+[admission initialization investigation](reliability/2026-11-15/admission-root-registration.md)
+retains an HTTP 500 in the first source511 reference. An incomplete or unhealthy
+reference cannot establish non-regression; its original state and per-ID
+accounting remain preserved while the reproduced serializer defect is corrected.
 
 ## Run the benchmark
 

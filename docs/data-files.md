@@ -527,6 +527,12 @@ not durable resumable artifacts. Later reference scans revisit failed repairs.
 
 ## Quick reference
 
+Admission mutations and persisted-copy results use generated MemoryPack dispatch,
+including their surrounding SlimData batches. This avoids the first-use formatter
+initialization window reproduced as an HTTP 500 under concurrent uploads; the
+wire format and durability/acceptance rules are unchanged. See the
+[initialization investigation](reliability/2026-11-15/admission-root-registration.md).
+
 - Store: `POST /data/files?id={id?}&ttl={ms?}`
 - Download: `GET /data/files/{id}`
 - Delete: `DELETE /data/files/{id}`

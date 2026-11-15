@@ -20,6 +20,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="SlimData.Tests" />
+        <InternalsVisibleTo Include="SlimFaas" />
         <InternalsVisibleTo Include="SlimFaas.Benchmarks" />
         <InternalsVisibleTo Include="SlimFaas.CollectionProbe" />
     </ItemGroup>
