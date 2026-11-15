@@ -86,3 +86,19 @@ from WAL geometry and threshold changes. Compare 4/8/16/32/64 KiB on fresh WALs,
 then 1 MiB/512/256/128 KiB offload thresholds at fixed geometry. Do not change a
 default before the targeted faults and repeated measurements support it. Two
 stored copies do not imply exactly-once function execution.
+
+## Admission-aware cleanup correction
+
+The later admission component adds durable pending pins. The original cleaner
+does not recognize them: its new regression fixture fails five of six cases
+(four unsafe-deletion cases and one positive retirement control). The correction
+retains pending/current owners and requires an authoritative Raft retirement
+before deleting managed bytes. A committed pending index also protects a local
+copy whose marker is absent. Managed metadata no longer uses the legacy orphan
+heuristic or an unconditional stale-TTL delete. Expired public aliases are
+removed only when they still match that admission's bytes.
+
+Retirement and the persisted clock fence late commands/copies after collection.
+Invalid persisted clocks fail closed. Seven cleanup regressions pass in the
+combined 2,388-test full runtime suite; native/live fault validation remains
+separate and pending. The opt-in HTTP path is connected by the runtime follow-up.

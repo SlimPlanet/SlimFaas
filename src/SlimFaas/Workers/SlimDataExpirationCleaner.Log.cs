@@ -3,6 +3,8 @@ namespace SlimData.Expiration
 {
     internal static partial class SlimDataExpirationCleanerLog
     {
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "Invalid file admission marker; retaining body. id={Id}")]
+        internal static partial void LogInvalidFileAdmissionMarker(this global::Microsoft.Extensions.Logging.ILogger logger, string id);
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "Deleting expired keyvalue. key={Key}")]
         internal static partial void LogDeletingExpiredKeyvalueKey(this global::Microsoft.Extensions.Logging.ILogger logger, string key);
 

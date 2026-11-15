@@ -72,6 +72,8 @@ public sealed class SlimDataExpirationCleaner
                 continue;
 
             var baseKey = ttlKey[..^SlimDataInterpreter.TimeToLivePostfix.Length];
+            if (keyValues.TryGetValue(baseKey, out var expiringMetadata) && IsManagedFileMetadata(baseKey, expiringMetadata))
+                continue;
             _logger.LogDeletingExpiredKeyvalueKey(baseKey);
 
             try
@@ -116,6 +118,20 @@ public sealed class SlimDataExpirationCleaner
         await foreach (var entry in _files.EnumerateAllMetadataAsync(ct).ConfigureAwait(false))
         {
             ct.ThrowIfCancellationRequested();
+            if (FileAdmissionTags.IsManaged(entry.Metadata.Tags) || FileAdmissionStore.Find(payload, entry.Id) is not null)
+            {
+                try
+                {
+                    if (await CanDeleteAdmittedFileAsync(entry, payload, nowTicks).ConfigureAwait(false))
+                        await _files.DeleteVersionAsync(entry.Id, entry.Metadata.Sha256Hex, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch (Exception ex)
+                {
+                    _logger.LogFailedToDeleteLocalFileWithout(ex, entry.Id);
+                }
+                continue;
+            }
             string candidateKey = DiskCandidatePrefix + entry.Id + ":" + entry.Metadata.Sha256Hex;
             bool queueIsActive = entry.Metadata.Tags is not null &&
                 entry.Metadata.Tags.TryGetValue(QueueElementIdTagKey, out string? queueId) &&
@@ -161,7 +177,7 @@ public sealed class SlimDataExpirationCleaner
                 continue;
             }
 
-            if (meta?.Tags is null)
+            if (meta?.Tags is null || FileAdmissionTags.IsManaged(meta.Tags))
                 continue;
 
             if (!meta.Tags.TryGetValue(QueueElementIdTagKey, out var queueElementId) ||
@@ -211,6 +227,55 @@ public sealed class SlimDataExpirationCleaner
         observedCycles = Math.Min(observedCycles + 1, _orphanConfirmationCycles);
         _orphanCandidates[candidateKey] = observedCycles;
         return observedCycles >= _orphanConfirmationCycles;
+    }
+
+    private async Task<bool> CanDeleteAdmittedFileAsync(FileMetadataEntry file, SlimDataPayload payload, long nowTicks)
+    {
+        var admission = FileAdmissionStore.Find(payload, file.Id);
+        string token;
+        long deadline;
+        if (file.Metadata.Tags is not null && FileAdmissionTags.IsManaged(file.Metadata.Tags))
+        {
+            if (!FileAdmissionTags.TryRead(file.Metadata.Tags, out token, out deadline))
+            {
+                _logger.LogInvalidFileAdmissionMarker(file.Id);
+                return false;
+            }
+        }
+        else if (admission is not null)
+        {
+            token = admission.Token;
+            deadline = admission.DeadlineUtcTicks;
+        }
+        else
+        {
+            _logger.LogInvalidFileAdmissionMarker(file.Id);
+            return false;
+        }
+        if (admission is not null)
+        {
+            if (admission.Token != token) return false;
+            if (admission.Phase == FileAdmissionPhase.Retired) return true;
+            if (FileAdmissionStore.IsReferenced(payload, admission, nowTicks)) return false;
+        }
+        else if (deadline > nowTicks) return false;
+
+        var result = await _db.ExecuteFileAdmissionAsync(new()
+        {
+            Action = FileAdmissionAction.Retire, FileId = file.Id, Token = token, DeadlineUtcTicks = deadline
+        }).ConfigureAwait(false);
+        return result.Applied && result.Phase == FileAdmissionPhase.Retired;
+    }
+
+    private static bool IsManagedFileMetadata(string key, ReadOnlyMemory<byte> value)
+    {
+        if (!key.StartsWith(DataFileKeys.MetaPrefix, StringComparison.Ordinal) ||
+            !key.EndsWith(DataFileKeys.MetaSuffix, StringComparison.Ordinal)) return false;
+        try
+        {
+            return FileAdmissionTags.IsManaged(MemoryPackSerializer.Deserialize<DataSetMetadata>(value.Span)?.Tags);
+        }
+        catch (MemoryPackSerializationException) { return false; }
     }
 
     private async Task DeleteOrphanMetadataAsync(IReadOnlyCollection<string> keys)

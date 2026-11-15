@@ -152,7 +152,14 @@ public static class FileAdmissionStore
             throw new InvalidDataException("Invalid file admission leader timestamp.");
         var snapshot = state.Capture();
         var staged = new SlimDataState(snapshot.Hashsets, snapshot.KeyValues, snapshot.Queues);
-        long floor = staged.KeyValues.TryGetValue(ClockKey, out var clock) ? BitConverter.ToInt64(clock.Span) : 0;
+        long floor = 0;
+        if (staged.KeyValues.TryGetValue(ClockKey, out var clock))
+        {
+            if (clock.Length != sizeof(long)) throw new InvalidDataException("Invalid persisted file admission clock.");
+            floor = BitConverter.ToInt64(clock.Span);
+            if (floor < 0 || floor > DateTime.MaxValue.Ticks)
+                throw new InvalidDataException("Invalid persisted file admission clock.");
+        }
         long now = Math.Max(floor, nowTicks);
         staged.KeyValues = staged.KeyValues.SetItem(ClockKey, BitConverter.GetBytes(now));
         var result = ApplyCore(mutation, staged, now);
@@ -186,6 +193,12 @@ public static class FileAdmissionStore
         }
         else
         {
+            // A delayed copy can arrive after the retired pin was collected.
+            // Its original deadline, carried in the local file tags, is fenced
+            // by the same persisted clock that rejects a delayed Begin.
+            if (entry is null && mutation.Action == FileAdmissionAction.Retire &&
+                mutation.DeadlineUtcTicks > 0 && mutation.DeadlineUtcTicks <= now)
+                return new() { Applied = true, Phase = FileAdmissionPhase.Retired };
             if (entry is null || entry.Token != mutation.Token)
                 return Reject("The admission is absent or its token differs.", entry);
             if (mutation.Action == FileAdmissionAction.Forget)
@@ -200,6 +213,9 @@ public static class FileAdmissionStore
                 if (IsReferenced(state.CapturePayload(), entry, now))
                     return Reject("The file still has a live admission or owner.", entry);
                 entry.Phase = FileAdmissionPhase.Retired;
+                if (!string.IsNullOrEmpty(entry.AliasKey) && entry.AliasExpireAtUtcTicks <= now &&
+                    state.KeyValues.TryGetValue(entry.AliasKey, out var alias) && alias.Span.SequenceEqual(entry.AliasValue))
+                    state.KeyValues = state.KeyValues.Remove(entry.AliasKey).Remove(SlimDataInterpreter.TtlKey(entry.AliasKey));
                 if (!string.IsNullOrEmpty(entry.MetadataKey))
                     state.KeyValues = state.KeyValues.Remove(entry.MetadataKey).Remove(SlimDataInterpreter.TtlKey(entry.MetadataKey));
             }

@@ -183,6 +183,8 @@ public sealed class FileAdmissionTests
         Assert.False(Apply(state, Maintenance(FileAdmissionAction.Retire)).Applied);
         Assert.True(Apply(state, Maintenance(FileAdmissionAction.Retire), commit.AliasExpireAtUtcTicks).Applied);
         Assert.False(state.KeyValues.ContainsKey(commit.MetadataKey));
+        Assert.False(state.KeyValues.ContainsKey(commit.AliasKey));
+        Assert.False(state.KeyValues.ContainsKey(SlimDataInterpreter.TtlKey(commit.AliasKey)));
     }
 
     [Fact]
@@ -301,6 +303,33 @@ public sealed class FileAdmissionTests
         Assert.False(Apply(state, begin).Applied);
         Assert.False(Apply(state, Commit(true)).Applied);
         Assert.True(Apply(state, Maintenance(FileAdmissionAction.Forget), begin.DeadlineUtcTicks).Applied);
+    }
+
+    [Fact]
+    public void A_late_copy_after_forgetting_can_be_deleted_without_reopening_its_admission()
+    {
+        var state = Create(); var begin = Begin(); Apply(state, begin);
+        var retire = Maintenance(FileAdmissionAction.Retire); retire.DeadlineUtcTicks = begin.DeadlineUtcTicks;
+        Assert.True(Apply(state, retire, begin.DeadlineUtcTicks).Applied);
+        Assert.True(Apply(state, Maintenance(FileAdmissionAction.Forget), begin.DeadlineUtcTicks).Applied);
+        Assert.True(Apply(state, retire, Now).Applied);
+        Assert.Null(FileAdmissionStore.Find(state.CapturePayload(), FileId));
+        Assert.False(Apply(state, begin, Now).Applied);
+        Assert.False(Apply(state, Commit(), Now).Applied);
+        retire.DeadlineUtcTicks++;
+        Assert.False(Apply(state, retire, Now).Applied);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(long.MaxValue)]
+    public void Invalid_persisted_clock_fails_closed_without_expiring_live_references(long clock)
+    {
+        var state = Create(); Apply(state, Begin()); Apply(state, Commit(true));
+        state.KeyValues = state.KeyValues.SetItem(FileAdmissionStore.ClockKey, BitConverter.GetBytes(clock));
+        var snapshot = state.Capture();
+        Assert.Throws<InvalidDataException>(() => Apply(state, Maintenance(FileAdmissionAction.Retire)));
+        Assert.Same(snapshot, state.Capture());
     }
 
     private static SlimDataBatchOperation Operation(FileAdmissionMutation mutation) => new()
