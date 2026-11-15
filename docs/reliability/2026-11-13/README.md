@@ -1,10 +1,12 @@
 # PR #506: integrated .NET 11 validation
 
-Validation is in progress. This report separates the integrated runtime from the
-completed historical .NET 10 campaigns. Neither performance non-regression nor
-LTS certification is established by the integration checks below.
+The frozen .NET 11 campaign set is complete. Performance non-regression is
+**not established**: references are incomplete, several guardrails fail, and one
+Kubernetes candidate records ten duplicate deliveries. These observations remain
+available while targeted diagnosis continues. Historical .NET 10 campaigns have
+separate provenance. No LTS certification is established.
 
-## Current source and checks (14 November)
+## Current source and checks (15 November)
 
 Runtime source `1ecba4d13d29ae68909979e168ff5b53aae6fea1` merges the
 Windows WAL geometry correction `eb7e1033` with resource collector correction
@@ -39,15 +41,16 @@ scanner job does not clear this gate. No findings or rules were suppressed.
 The [completed short controls](short-controls-net11-03.json) retain SDK case
 counts, fault history and raw resource boundary samples. All six renewed long
 roles now pass, including final reconciliation and original-volume restart.
-The complete performance matrices remain in progress. The [current publication provenance](provenance-net11-03.json) records the
+The [completed performance summary](performance-summary-net11-03.json) retains
+every matrix attempt and verdict. The [current publication provenance](provenance-net11-03.json) records the
 merged-source executable, image and driver hashes. The new comparative driver
 is frozen from `a3e28adc`. Its identical managed DLL
 runs on macOS and in both Linux tool images. Direct file hashes also confirm
 identical native CLR, GC, JIT, OS release and libc between reference and candidate
 Linux images. Each of the three current Kubernetes runtime pods has the expected
 published executable/DLL hashes and occupies a distinct worker. Renewed long
-endurance campaigns on these exact publications now pass; complete
-performance comparisons remain in progress; the earlier completed endurance below remains evidence
+endurance campaigns on these exact publications pass; the comparative results
+below prevent performance acceptance. The earlier completed endurance remains evidence
 for its recorded `a8e1b5fd` runtime, rather than a result for the newer source.
 
 On documentation head `e1fc7d3f`, the renewed
@@ -88,8 +91,7 @@ is reported alongside the failed normalized check; it does not waive that check.
 An authorized inactive-cache cleanup overlaps the first attempt's third run;
 the evidence records that interval. Compiler monitoring observes no external
 compilation. The VS Code restart did not restart the campaign or its workloads.
-Native MemoryLab and microbenchmark results follow below; container comparisons
-remain in progress.
+Native MemoryLab, microbenchmark and container comparisons follow below.
 
 ## Current-source native MemoryLab observations
 
@@ -281,7 +283,7 @@ unchanged. The final isolation audit covers 3,416 samples with zero external
 compilation observations and a 7.440-second maximum gap. All 24 filesystem
 discards occur after the guest exits, returning already unallocated VM blocks
 without deleting files or images. The complete audit is included in the
-MemoryLab evidence below. Kubernetes performance results remain pending.
+MemoryLab evidence below. Completed Kubernetes observations follow below.
 
 On report head `5fd1b607`, the
 [dashboard/documentation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43651613271),
@@ -316,9 +318,9 @@ No root cause or ZLinq remedy is established by these measurements alone.
 The overall platform matrix remains **INCONCLUSIVE** because HTTP lacks complete
 references and Set C48 remains contradictory. This does not clear the explicit
 mixed C48 performance failure. All originals, including the excluded isolation
-attempt, remain retained. Kubernetes now measures the same Linux images.
+attempt, remain retained. Kubernetes uses the same frozen Linux images.
 
-## Current-source Kubernetes observations in progress
+## Current-source Kubernetes HTTP observations
 
 The first Kubernetes reference observes 2,040/2,049 IDs for 2,000,000-byte
 bodies at concurrency 16, repetition 2, with zero duplicates after the unchanged
@@ -326,6 +328,10 @@ bodies at concurrency 16, repetition 2, with zero duplicates after the unchanged
 permanent-loss claim. The first candidate completes all 216 HTTP cases, six
 focused cases and scaling without failed requests, missing IDs or duplicates.
 Four replicas are ready in 6.476 seconds and its queue drains in 19.907 seconds.
+The final reference observes 1,199/1,213 IDs for 2,000,000-byte bodies at
+concurrency 16, repetition one, with zero duplicates at 180 seconds. Both
+references lack a complete report, so the [closed HTTP comparison](kubernetes-http-net11-03.json)
+is **INCONCLUSIVE**. No complete performance pair or gain is claimed.
 
 The [second candidate observation](kubernetes-candidate-anomaly-net11-03.json)
 is **FAIL**: its 1,048,576-byte, concurrency-16, repetition-two case records
@@ -340,8 +346,7 @@ The second candidate reaches four replicas in 5.416 seconds and drains its
 No pod replacement, runtime restart or OOM is observed during these candidates.
 The runtime logs contain unplanned Raft term changes; their cause and the
 duplicate mechanism remain under investigation. This failure prevents an
-acceptance claim. The remaining reference and MemoryLab blocks continue with
-the frozen publications, preserving every observation before a product change.
+acceptance claim. All HTTP observations are closed before any product change.
 
 The HTTP target exports aggregate receipt counts from memory; individual
 duplicate IDs were not exported before shutdown and its receipt directory is
@@ -354,7 +359,46 @@ proof waits through terminating writers before archive collection, retaining
 completed driver Jobs. Subsequent filesystem discard also waits for that
 quiescence proof; the first two earlier housekeeping checkpoints occur after
 the timed driver ends but before runtime shutdown and remain separately recorded.
-No workload, probe, image or volume is changed by housekeeping.
+No workload, probe, image or volume is changed by this discard procedure.
+
+## Current-source Kubernetes MemoryLab observations
+
+The [complete MemoryLab evidence](kubernetes-memory-net11-03.json) contains
+**24 measured runs**, including the one allowed full repeat for Set C48 and
+mixed C48. Every warmup/load passes operation checks, validation on all three
+nodes and independent receipt reconciliation. Set-only runs have no async
+receipts; they do not establish an async-delivery result.
+
+| Block | Verdict | Retained observation |
+|---|---|---|
+| Set C12 | **FAIL** | Candidate ordinal two reaches 117.39 operations/s versus 142.60/144.13: 82.31%/81.44%, below 90%. Ordinal three reaches 140.21 and passes both references. p99 and RSS pass. |
+| Set C48 | **INCONCLUSIVE** | Both ABBA blocks have contradictory reference verdicts. Initial-reference throughput ratios fall to 83.74% in the first block and 86.41% in the repeat. p99 and RSS pass; the repeat budget is used. |
+| Mixed C12 | **PASS** | All four bracket comparisons pass throughput, p99, RSS and integrity. |
+| Mixed C48 | **INCONCLUSIVE**, with explicit failed guards | The first block loses 21.51–24.02% throughput against both references; three of four p99 comparisons fail. Both blocks retain contradictory criterion/reference results after the allowed repeat. The repeat's second candidate reaches 1,088.53 operations/s and 360.77 ms p99 versus 1,982.64/1,639.18 and 42.51/232.15 ms; it fails both references. RSS and integrity pass. |
+
+The disk preflight stops before mixed C48 repeat ordinal three starts, after
+ordinal two completes. Inactive build/dependency caches, downloaded Codex/Copilot
+artifacts and verified unused image caches are reclaimed outside measurements.
+Some retired import archives now require rebuilding or downloading; their
+metadata/hashes remain. Sources, installed SDKs, published executables, current
+images/import archives, sessions, campaign volumes, WALs, snapshots, logs and raw
+evidence remain. The Mac returns to **30.07 GiB** before resuming only the two
+missing ordinals with unchanged configuration and reverified publications.
+
+The before/after monitoring segments retain a **1,011-second maintenance gap**;
+no timed workload is interrupted. All 22 completed ordinals retain their
+original execution/status hashes. The closed Kubernetes isolation segments
+contain 4,183 samples, zero external compilation observations and a maximum
+within-segment gap of 6.317 seconds. All 24 MemoryLab discard checkpoints wait
+for driver completion and stopped runtime/function writers. The runtime-pod
+watch retains 102 pod groups, including rejected deployments, with zero observed
+UID replacements, restarts or OOMKilled events. It does not watch function pods.
+Normal controlled-stop exit 137 is recorded separately from an OOM reason.
+
+The overall Kubernetes verdict remains **INCONCLUSIVE**, with the independent
+HTTP duplicate failure and failed MemoryLab guardrails explicitly retained.
+No threshold, durability condition or deadline is relaxed. These frozen results
+precede the subsequent causal experiments and do not establish their outcome.
 
 ## Kubernetes storage-label correction
 
@@ -375,9 +419,34 @@ Two public-CLI regressions fail on the original code; all **27 harness tests
 pass** afterward, including endpoint checks using the frozen MemoryLab assembly.
 The real API rejects the original volume and accepts the corrected version in
 server dry runs. No product executable, image, request deadline or comparison
-threshold changes. The failed deployment evidence remains, and MemoryLab will
-replay with new identities. Completed HTTP observations remain attached to
-their original runs and are not remeasured by this harness correction.
+threshold changes. The failed deployment evidence remains; MemoryLab's fresh
+identity replay is now complete, with all 24 runs passing integrity checks.
+The replay explicitly imports the closed HTTP block solely to skip already
+completed work. Its original identity, timestamps, incomplete references and
+candidate failure remain attached to the original runs.
+
+## Frozen performance evidence and current CI
+
+The [performance file index](performance-raw-file-index-net11-03.json.gz)
+covers nine local roots and 65 VM originals, including incomplete/invalid
+attempts. It is generated after all campaign writers stop. The compressed SHA-256
+is `ff47769bd14c3b1f2ea7e337242ab0dfef8a4893838e88d3ab415c4cffc8f1ae`;
+the [metadata](performance-raw-file-index-metadata-net11-03.json) also records the
+expanded hash and the separate [monitoring index](monitoring-raw-file-index-net11-03.json.gz).
+The latter identifies 243 closed monitoring files or immutable end-of-campaign
+snapshots. Private process commands are not published. Original raw contents
+remain on the campaign host; the public indices publish their paths, sizes and
+hashes, rather than hosting the full volumes. The earlier correctness index is
+unchanged. Neither immutable evidence set is overwritten by follow-up profiles.
+
+On harness head `54c87c6d`, the
+[main validation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43677078485),
+[dashboard/documentation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43677078488)
+and [reliability](https://github.com/SlimPlanet/SlimFaas/actions/runs/43677078477)
+workflows complete successfully, and FOSSA License Compliance passes. Conditional
+publication/deployment jobs remain skipped. The separate
+[SonarCloud check](https://github.com/SlimPlanet/SlimFaas/runs/132701793213)
+still fails; no findings or analysis rules are suppressed.
 
 ## Current-source endurance
 
@@ -413,8 +482,9 @@ All correctness controllers are stopped, and the original persisted files are
 hashed before the first timed comparison. Discarding already unallocated blocks
 of the VM filesystem returns about 4.2 GiB to the Mac without removing any file,
 image, WAL, snapshot or volume. The renewed Native ABBA measurements use the corrected common driver. Their
-completed HTTP, MemoryLab and microbenchmark observations are reported above;
-container conclusions remain pending.
+completed Native and container HTTP/MemoryLab observations, and the managed
+microbenchmarks, are reported above. The resulting failures and incomplete
+references prevent performance acceptance.
 Earlier failed or interrupted runs are retained.
 
 ## Integrated sources

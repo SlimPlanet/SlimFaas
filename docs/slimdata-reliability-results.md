@@ -21,6 +21,18 @@ subsequent macOS/Podman/Kubernetes work and the ordered integration of PR #504
 and PR #514. Its .NET 11 campaigns and preserved .NET 10 observations have
 separate source provenance and verdicts.
 
+The frozen `1ecba4d1` .NET 11 matrices are now complete. The integrated report
+retains **INCONCLUSIVE** HTTP comparisons in all three environments because
+mandatory references are incomplete. Native mixed C48 fails RSS; Podman mixed
+C48 fails throughput/p99; Kubernetes retains a ten-duplicate candidate failure,
+Set C12 throughput failure and inconclusive C48 blocks after their allowed
+repeats. Six renewed endurances reconcile 92,281 confirmed operations without
+confirmed loss/corruption, but these passes do not clear the performance failures.
+The [performance summary](reliability/2026-11-13/performance-summary-net11-03.json)
+and [raw index metadata](reliability/2026-11-13/performance-raw-file-index-metadata-net11-03.json)
+preserve attempts, source provenance and separate maintenance/isolation segments.
+Targeted diagnosis continues; no acceptance or certification is implied.
+
 ## Versions and evidence
 
 The baseline is `496e8739e5f7b4326f64520fe4caa4e0e23f8d06` (v0.88.0).

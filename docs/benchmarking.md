@@ -4,6 +4,14 @@ SlimFaas includes a reproducible native-local benchmark for the warm synchronous
 proxy path, asynchronous enqueue and delivery, and scale-to-zero followed by
 PromQL scale-out.
 
+The [completed .NET 11 campaign report](reliability/2026-11-13/README.md)
+retains macOS Native AOT and Podman/Kubernetes managed ARM64 comparisons,
+failed guardrails, incomplete HTTP references and a Kubernetes duplicate-delivery
+failure. Its [performance summary](reliability/2026-11-13/performance-summary-net11-03.json)
+and [file-index metadata](reliability/2026-11-13/performance-raw-file-index-metadata-net11-03.json)
+identify the frozen sources, outputs and separate maintenance/isolation segments.
+The completed campaigns do not establish non-regression or LTS certification.
+
 ## Run the benchmark
 
 The quick profile is intended for a smoke test and takes a few minutes:
