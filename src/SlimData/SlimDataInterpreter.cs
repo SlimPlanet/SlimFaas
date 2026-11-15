@@ -852,7 +852,7 @@ public static class SlimDataInterpreter
             Results = results
         };
 
-        var responseBytes = MemoryPackSerializer.Serialize(response);
+        var responseBytes = SlimDataCommandBatchResponseCodec.Serialize(response);
         var producerSession = new SlimDataProducerSession
         {
             GenerationId = request.GenerationId,

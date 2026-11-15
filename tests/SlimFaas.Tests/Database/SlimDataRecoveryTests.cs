@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO.Pipelines;
 using System.Net;
 using DotNext.IO.Log;
 using DotNext.Net.Cluster.Consensus.Raft;
@@ -18,6 +19,78 @@ namespace SlimFaas.Tests.Database;
 public sealed class SlimDataRecoveryTests
 {
     private static readonly TimeSpan TestDeadline = TimeSpan.FromSeconds(12);
+
+    [Theory]
+    [InlineData(SlimDataBatchMode.Global)]
+    [InlineData(SlimDataBatchMode.PartitionedByKey)]
+    public async Task Known_length_body_that_never_arrives_times_out_and_retries_the_same_batch(SlimDataBatchMode mode)
+    {
+        var pipe = new Pipe();
+        var requests = new ConcurrentQueue<byte[]>();
+        using var handler = new Handler(async (request, token) =>
+        {
+            byte[] bytes = await request.Content!.ReadAsByteArrayAsync(token);
+            requests.Enqueue(bytes);
+            if (requests.Count == 1)
+            {
+                var content = new StreamContent(pipe.Reader.AsStream());
+                content.Headers.ContentLength = 1;
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+            }
+            return Reply(MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(bytes)!, "accepted");
+        });
+        await using var fixture = await Fixture.CreateAsync(handler, TimeSpan.FromSeconds(1), mode);
+        try
+        {
+            IList<QueueData>? result = await fixture.Service.ListRightPopAsync("Job:recovery", "transaction").WaitAsync(TestDeadline);
+
+            Assert.Equal("accepted", Assert.Single(result!).Id);
+            byte[][] sent = requests.ToArray();
+            Assert.Equal(2, sent.Length);
+            Assert.Equal(sent[0], sent[1]);
+        }
+        finally
+        {
+            await pipe.Writer.CompleteAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData(SlimDataBatchMode.Global)]
+    [InlineData(SlimDataBatchMode.PartitionedByKey)]
+    public async Task Large_batch_reply_is_read_from_its_stream_without_duplicating_the_body(SlimDataBatchMode mode)
+    {
+        byte[] value = Enumerable.Range(0, 1048576).Select(static index => (byte)(index % 251)).ToArray();
+        StreamedContent? content = null;
+        using var handler = new Handler(async (request, token) =>
+        {
+            byte[] bytes = await request.Content!.ReadAsByteArrayAsync(token);
+            SlimDataCommandBatchRequest batch = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(bytes)!;
+            SlimDataBatchOperation operation = Assert.Single(batch.Operations);
+            content = new StreamedContent(MemoryPackSerializer.Serialize(new SlimDataCommandBatchResponse
+            {
+                ProducerId = batch.ProducerId,
+                Sequence = batch.Sequence,
+                RequestId = batch.RequestId,
+                Results = [new SlimDataBatchOperationResult
+                {
+                    Kind = operation.Kind,
+                    RequestId = operation.RequestId,
+                    Applied = true,
+                    QueueItems = [new QueueData("large", value, 0, false, 0, 0)]
+                }]
+            }));
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        });
+        await using var fixture = await Fixture.CreateAsync(handler, mode: mode);
+
+        IList<QueueData>? result = await fixture.Service.ListRightPopAsync("Job:recovery", "transaction").WaitAsync(TestDeadline);
+
+        Assert.Equal(value, Assert.Single(result!).Data);
+        Assert.NotNull(content);
+        Assert.Equal(0, content.BufferCopies);
+        Assert.True(content.Disposed);
+    }
 
     [Theory]
     [InlineData(SlimDataBatchMode.Global, false)]
@@ -351,6 +424,23 @@ public sealed class SlimDataRecoveryTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => send(request, cancellationToken);
+    }
+
+    private sealed class StreamedContent(byte[] bytes) : HttpContent
+    {
+        public int BufferCopies { get; private set; }
+        public bool Disposed { get; private set; }
+        protected override bool TryComputeLength(out long length) { length = bytes.Length; return true; }
+        protected override Task<Stream> CreateContentReadStreamAsync()
+            => Task.FromResult<Stream>(new MemoryStream(bytes, writable: false));
+        protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
+            => CreateContentReadStreamAsync();
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            BufferCopies++;
+            return stream.WriteAsync(bytes).AsTask();
+        }
+        protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
     }
 
     private sealed class StalledContent : HttpContent

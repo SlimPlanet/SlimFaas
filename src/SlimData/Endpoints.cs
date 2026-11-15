@@ -832,7 +832,7 @@ public static class Endpoints
                     checked((int)memoryStream.Length),
                     source.Token)
                 .ConfigureAwait(false);
-            var responseBytes = MemoryPackSerializer.Serialize(response);
+            var responseBytes = SlimDataCommandBatchResponseCodec.Serialize(response);
 
             context.Response.StatusCode = response.SequenceGap
                 ? StatusCodes.Status409Conflict

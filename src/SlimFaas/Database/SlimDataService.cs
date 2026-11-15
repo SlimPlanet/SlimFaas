@@ -467,16 +467,17 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             Content = new ByteArrayContent(payload)
         };
         HttpClient httpClient = _batchHttpClient ??= _httpClientFactory.CreateClient(HttpClientName);
-        // The body is consumed in full below. Keep HttpClient.Timeout active until
-        // it has arrived; ResponseHeadersRead leaves body reads without a deadline
-        // and can permanently block this producer's ordered mutation queue.
+        // Headers-only completion avoids HttpClient's full-body buffer followed
+        // by ReadAsByteArrayAsync's second large copy. Keep the configured timeout
+        // over the whole exchange, including the body, as well as both epochs.
+        consensusCancellation.CancelAfter(httpClient.Timeout);
         using var response = await httpClient.SendAsync(
                 request,
-                HttpCompletionOption.ResponseContentRead,
+                HttpCompletionOption.ResponseHeadersRead,
                 requestToken)
             .ConfigureAwait(false);
 
-        var bytes = await response.Content.ReadAsByteArrayAsync(requestToken).ConfigureAwait(false);
+        byte[] bytes = await ReadCommandBatchBodyAsync(httpClient, response, requestToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
             throw new InvalidDataException(
@@ -497,6 +498,25 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
         return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(bytes)
                ?? throw new DataException("The unified SlimData endpoint returned a null response.");
+    }
+
+    private static async Task<byte[]> ReadCommandBatchBodyAsync(
+        HttpClient client, HttpResponseMessage response, CancellationToken token)
+    {
+        if (response.Content.Headers.ContentLength is not { } length)
+        {
+            // Preserve the configured buffer limit for older or chunked peers.
+            await response.Content.LoadIntoBufferAsync(client.MaxResponseContentBufferSize, token).ConfigureAwait(false);
+            return await response.Content.ReadAsByteArrayAsync(token).ConfigureAwait(false);
+        }
+
+        if (length > client.MaxResponseContentBufferSize || length > Array.MaxLength)
+            throw new HttpRequestException("The unified SlimData response exceeds the configured buffer limit.");
+
+        byte[] bytes = GC.AllocateUninitializedArray<byte>(checked((int)length));
+        await using var stream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        await stream.ReadExactlyAsync(bytes, token).ConfigureAwait(false);
+        return bytes;
     }
 
     private CancellationTokenSource CreateLeaderRequestCancellation(CancellationToken cancellationToken)

@@ -410,6 +410,18 @@ unchanged, so existing producer receipts can still be replayed after an upgrade.
 These allocation reductions do not remove the need to size memory for queued
 payloads and concurrent deliveries.
 
+Large dequeue replies also avoid a response-sized pooled serialization buffer.
+The generated formatter first measures its output with reusable scratch storage,
+then writes the same bytes into the final array. Small replies keep the existing
+serialization path. A formatter's oversized final reservation is staged in a
+scratch tail so UTF-8 strings do not add padding or change the wire format.
+
+The batch HTTP client reads a known Content-Length directly into one response
+array. The configured HTTP timeout remains active through the response body,
+together with leader and consensus cancellation. Older or chunked peers retain
+bounded buffering; changing to headers-only completion does not permit an
+unbounded body wait.
+
 The consumer stops after 15 seconds of inactivity and starts again when a command
 arrives. Admission, retirement and disposal are synchronized so that a command
 arriving during retirement remains owned by exactly one consumer. An unexpected
