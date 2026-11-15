@@ -24,6 +24,82 @@ public sealed class AsyncQueueWorkerTests
     public AsyncQueueWorkerTests() => Proxy.IpAddresses.Clear();
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Expired_snapshot_does_not_redispatch_a_locally_owned_delivery(bool completedDuringSnapshot)
+    {
+        var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var snapshotEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseSnapshot = new TaskCompletionSource<QueueDispatchState>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nextCycle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var signal = new SlimDataQueueSignal();
+        CustomRequest request = new([], [1], "function", "/work", "POST", "");
+        var message = new QueueData("item", MemoryPackSerializer.Serialize(request), 0, false, 0,
+            TimeSpan.FromSeconds(8).Ticks, "10.0.0.42");
+        int snapshots = 0;
+        var queue = new Mock<ISlimFaasQueue>();
+        queue.Setup(value => value.GetDispatchStateAsync("function")).Returns(async () =>
+        {
+            int snapshot = Interlocked.Increment(ref snapshots);
+            if (snapshot == 2)
+            {
+                snapshotEntered.TrySetResult();
+                return await releaseSnapshot.Task;
+            }
+            if (snapshot > 2)
+            {
+                nextCycle.TrySetResult();
+                return QueueDispatchState.Empty;
+            }
+            return new QueueDispatchState(1, 0, 0, []);
+        });
+        queue.Setup(value => value.DequeueAsync("function", It.IsAny<int>(), It.IsAny<IList<string>?>()))
+            .ReturnsAsync([message]);
+        queue.Setup(value => value.ListCallbackAsync("function", It.IsAny<ListQueueItemStatus>()))
+            .Returns(Task.CompletedTask);
+        var client = new Mock<ISendClient>();
+        client.Setup(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+            It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(() => { sent.TrySetResult(); return response.Task; });
+        using var worker = BuildWorker(queue.Object, signal, Task.CompletedTask, client.Object,
+            readyObserved: ready, parallelism: 2);
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            signal.Pulse();
+            await sent.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            signal.Pulse();
+            await snapshotEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (completedDuringSnapshot)
+            {
+                long version = signal.Version;
+                response.SetResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+                Assert.True(await signal.WaitForChangeAsync(version, TimeSpan.FromSeconds(5), CancellationToken.None) > version);
+            }
+            // The Raft view now considers this same ID available again, while
+            // this worker still owns its outbound request or completed receipt.
+            releaseSnapshot.SetResult(new QueueDispatchState(1, 0, 0, []));
+            signal.Pulse();
+            await nextCycle.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            queue.Verify(value => value.DequeueAsync("function", It.IsAny<int>(), It.IsAny<IList<string>?>()), Times.Once);
+            client.Verify(value => value.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()), Times.Once);
+        }
+        finally
+        {
+            releaseSnapshot.TrySetResult(QueueDispatchState.Empty);
+            response.TrySetResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            await worker.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Theory]
     [InlineData(200)]
     [InlineData(500)]
     [InlineData(202)]
@@ -486,7 +562,8 @@ public sealed class AsyncQueueWorkerTests
         Func<bool>? isMaster = null,
         TaskCompletionSource? readyObserved = null,
         NetworkActivityTracker? tracker = null,
-        DeadLetterService? deadLetters = null)
+        DeadLetterService? deadLetters = null,
+        int parallelism = 1)
     {
         var replicas = new Mock<IReplicasService>();
         replicas.Setup(service => service.Deployments).Returns(new DeploymentsInformations(
@@ -496,7 +573,7 @@ public sealed class AsyncQueueWorkerTests
                     Replicas: 1,
                     Deployment: "function",
                     Namespace: "default",
-                    NumberParallelRequest: 1,
+                    NumberParallelRequest: parallelism,
                     ReplicasMin: 0,
                     ReplicasAtStart: 1,
                     TimeoutSecondBeforeSetReplicasMin: 300,
