@@ -75,4 +75,3 @@ def execute(command,log,working=ROOT):
   stop.set(); watcher.join()
  save(log.with_suffix('.execution.json'),{'exit_code':code,'finished':time.time(),'isolation_valid':not contaminated,'external_activity':contaminated})
  return code,not contaminated
-

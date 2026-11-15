@@ -1,0 +1,11 @@
+{
+  "file": "delivery-ledgers-15.json.gz",
+  "cases": 5,
+  "receipts": 1708,
+  "original_files": 9,
+  "compressed_bytes": 187614,
+  "compressed_sha256": "9a73e4b226162c749ae9d72023588e871cdef6317dfafedb7095c3f12fd2de6c",
+  "expanded_sha256": "6b6eaf7f560a0e60dfef6bdab21ce7c5aeaf1fe51bf4fe6cf2c4cb24799289c4",
+  "expanded_bytes": 1335154,
+  "scope": "Closed threshold screen 15 and its readiness control only. The original formal ten-duplicate case did not export per-ID receipts and is not reconstructed here."
+}

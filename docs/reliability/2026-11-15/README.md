@@ -221,6 +221,61 @@ used a zero placeholder; the public observations replace it with actual stat
 measurements. Retained post-compaction file sizes/counts are not cumulative WAL
 writes or peak file counts. No original index or state was rewritten.
 
+## Async offload threshold screen
+
+Commit `f14b05b3` makes the strict threshold configurable through
+`SlimFaas__AsyncBodyOffloadThresholdBytes`, preserving the 1 MiB default.
+Twelve boundary regressions fail when the endpoint ignores the setting; all
+49 endpoint cases and nine option controls pass after correction. They cover
+128/256/512/1024 KiB minus one/equal/plus one, root/path routes and known/unknown
+Content-Length. All **2,226 full solution tests** pass without failures/skips,
+with UI builds and active analyzers/audits. Both macOS Native AOT publications
+and native API/payload/Files/Streams/job/retry/DLQ/crash/restart controls pass:
+213 confirmed operations and 11 unknown outcomes remain separate.
+
+The initial Kubernetes screen holds a fresh 64 KiB WAL fixed, with the same
+`f14b05b3` managed/trimmed image, 128-capacity receipt fixture, 1 GiB per runtime,
+normal probes, 200 × 1 MiB at C16, known Content-Length and a full 180-second
+post-send window. Its instrumentation differs from diagnostics 11–14, so their
+timings are not direct comparison brackets.
+
+| Threshold | Send duration | Extra deliveries | Runtime errors | Acceptance p99 | Delivery p99 | Sampled aggregate RSS | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 MiB | 15.725 s | 54 | 2 | 4.666 s | 15.214 s | 2,241.4 MiB | FAIL |
+| 512 KiB | 1.335 s | 0 | 0 | 0.148 s | 2.010 s | 544.9 MiB | PASS |
+| 256 KiB | 1.267 s | 0 | 0 | 0.156 s | 1.632 s | 560.3 MiB | PASS |
+| 128 KiB | 1.348 s | 0 | 0 | 0.159 s | 1.702 s | 547.6 MiB | PASS |
+
+All four deliver 200 confirmed IDs, without unknowns, confirmed missing
+deliveries, observed managed OOM or restarts, with complete observed runtime
+log history. The default pass has temporary quorum/read-barrier failures and
+leadership instability. Healthy extra deliveries and internal failures retain
+the failing verdict.
+
+The three lower thresholds all offload this same 1 MiB body. They therefore
+screen the Files path against inline storage; they do not establish which lower
+boundary is best for smaller bodies. No default or production recommendation
+changes from this single sequential screen. Repeated brackets, other sizes,
+concurrences and chunked application workloads remain required.
+
+Acceptance uses client HTTP elapsed time; delivery runs from the client intent
+timestamp through the first successful handler completion, before receipt
+fsync. All pods share this VM's UTC clock. Resource observations cover all three
+runtime processes. Through the first all-confirmed reconciliation sample, CPU
+cost is 105.9/53.1/53.2/52.2 ms per confirmed message and cumulative allocation
+is 37,337,575/1,698,365/1,732,171/1,723,507 bytes per confirmed message. That
+sample occurs within the five-second observer cadence; these windows include
+their real wait/measurement overhead and the default's retries. RSS is sampled
+each second. Kernel I/O combines WAL and Files; pod traffic includes functions,
+probes and measurement traffic. These are scoped diagnostic observations,
+not formal non-regression acceptance or an isolated durability-cost comparison.
+
+The [complete observations](async-offload-screen-15.json),
+[closed raw index](diagnostic-15-raw-file-index.json.gz),
+[index metadata](diagnostic-15-raw-file-index-summary.json),
+[per-ID ledgers](delivery-ledgers-15.json.gz) and
+[ledger metadata](delivery-ledgers-15-summary.json) retain the original controls.
+
 ## Local file integrity correction
 
 Commit `19031477` verifies actual body length and streamed SHA-256 before a local
@@ -255,6 +310,43 @@ The [closed regression evidence index](storage-integrity-tests-index.json.gz)
 and [index metadata](storage-integrity-tests-index-summary.json) retain the
 failing/passing tests, full-suite logs and documentation build. The latter
 checks 23 rendered pages, 1,672 local links/assets and 401 search entries.
+
+## Revision and lifetime correction
+
+Commit `0e98ed08` preserves checksum-selected revisions while an earlier Raft
+reference still names their bytes. Two regressions fail on `f14b05b3`:
+replacing a body makes its earlier checksum unavailable, including to a pull
+using that earlier reference. Fresh IDs and same-checksum repairs retain the
+historical layout; changed checksums retain revision metadata/body names and a
+hard link for the historical current-body path. Multiple links on the same
+volume remain one replica.
+
+The cleaner checks durable checksums and queue/DLQ ownership before deleting
+one revision. A separate regression reproduces premature deletion when local
+upload expiry has elapsed but the Raft metadata TTL is still live. Its failing
+control uses the original `f14b05b3` cleaner over the draft repository to isolate
+that ordering; it is not an unmodified application benchmark. Both temporary
+source overlays were restored with hash verification. Legacy layout migration,
+retiring either old/current revisions, revision metadata temporaries and a body
+disappearing after HTTP metadata lookup are covered too. Missing bodies return
+404 and remain eligible for peer repair.
+
+All **2,236 full solution tests** pass without failures or skips, with full UI
+builds and active analyzers/audits. Intermediate analyzer, fixture and test
+compilation failures remain retained. Native/container application checks for
+this commit remain pending. Earlier `f14b05b3` measurements do not contain it.
+This correction does not provide a durable pending-admission pin, file/directory
+persistence barriers, remote persisted-copy acknowledgement or reference-based
+background catch-up. Their fault tests and isolated costs remain open work.
+
+The [closed regression index](file-revision-tests-index.json.gz) and
+[index metadata](file-revision-tests-index-summary.json) preserve those controls.
+The remote branch subsequently received a merge of `main` containing Windows
+shutdown/bundle cleanup and MCP parameter fixes. Signed merge `85b628d5`
+retains both histories; its combined source passes **2,247 full solution tests**
+with zero failures/skips. The updated local-bundle helpers pass 30 tests, with
+two platform-specific skips on macOS. This is
+separate validation, not a reassignment of older measurements to the merge.
 
 ## Reproduction and provenance
 
