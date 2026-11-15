@@ -102,8 +102,20 @@ then fails a separate replay fixture: generic `campaign.ready()` waits for the
 function deliberately kept behind the delivery gate. Replay is unverified, and
 the separately confirmed async seed remains pending behind that gate. Its
 [original failure and state index](wal-replay-gated-readiness-failure.json) remain
-preserved; runtime-only readiness and verified-copy seed recovery follow. This
+preserved independently of the subsequent verified-copy recovery. This
 fixture failure does not change the closed same-guarantee ABBA verdict above.
+
+The [verified-copy recovery](wal-gated-seed-recovery-evidence.json) now passes:
+all 203 original confirmed operations reconcile, including one successful
+delivery of the pending async seed, without resubmission. Set/Files seeds are
+verified before releasing only the copied gate, then the full 180-second
+observation runs. All 445 original files remain hash-identical after shutdown;
+the separate copied tree has 427 indexed files. Complete runtime history shows
+zero managed OOM. The fixture correction checks runtime readiness while gated
+and full function readiness after release; its two regressions fail before and
+pass afterward. The [closed recovery index](wal-gated-seed-recovery-index.json.gz)
+retains both copies and the correction sources. Fresh full geometry checks are
+separate observations.
 
 [Complete application evidence](persisted-copy-application-evidence-189.json),
 [raw index](admission-root-application-index-04.json.gz) (625 local files, nine
