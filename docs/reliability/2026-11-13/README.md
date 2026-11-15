@@ -318,6 +318,44 @@ references and Set C48 remains contradictory. This does not clear the explicit
 mixed C48 performance failure. All originals, including the excluded isolation
 attempt, remain retained. Kubernetes now measures the same Linux images.
 
+## Current-source Kubernetes observations in progress
+
+The first Kubernetes reference observes 2,040/2,049 IDs for 2,000,000-byte
+bodies at concurrency 16, repetition 2, with zero duplicates after the unchanged
+180-second drain. Its incomplete report remains **INCONCLUSIVE**, without a
+permanent-loss claim. The first candidate completes all 216 HTTP cases, six
+focused cases and scaling without failed requests, missing IDs or duplicates.
+Four replicas are ready in 6.476 seconds and its queue drains in 19.907 seconds.
+
+The [second candidate observation](kubernetes-candidate-anomaly-net11-03.json)
+is **FAIL**: its 1,048,576-byte, concurrency-16, repetition-two case records
+**48 deliveries for 38 unique accepted IDs, including ten duplicates**. There
+are zero missing IDs and zero failed HTTP requests. The runner completes all
+216 HTTP and six focused cases plus scaling, then returns exit code one because
+of this duplicate count. The final 4 MiB case itself completes. Both candidates
+retain all 78 positive CPU/RSS/Raft measurements with three-node boundaries.
+The second candidate reaches four replicas in 5.416 seconds and drains its
+200-message scaling queue in 18.481 seconds.
+
+No pod replacement, runtime restart or OOM is observed during these candidates.
+The runtime logs contain unplanned Raft term changes; their cause and the
+duplicate mechanism remain under investigation. This failure prevents an
+acceptance claim. The remaining reference and MemoryLab blocks continue with
+the frozen publications, preserving every observation before a product change.
+
+The HTTP target exports aggregate receipt counts from memory; individual
+duplicate IDs were not exported before shutdown and its receipt directory is
+empty. Full client samples, runtime logs and persisted Raft state remain. This
+limits retrospective per-ID diagnosis and will be addressed in the reproducer;
+the confirmed aggregate duplicate count is retained without inventing identities.
+
+The corrected controller stop has now passed against real campaign pods. Its
+proof waits through terminating writers before archive collection, retaining
+completed driver Jobs. Subsequent filesystem discard also waits for that
+quiescence proof; the first two earlier housekeeping checkpoints occur after
+the timed driver ends but before runtime shutdown and remain separately recorded.
+No workload, probe, image or volume is changed by housekeeping.
+
 ## Current-source endurance
 
 The [six renewed endurance reports](endurance-net11-03.json) pass on the frozen
