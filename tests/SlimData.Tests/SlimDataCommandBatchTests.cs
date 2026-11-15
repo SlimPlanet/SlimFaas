@@ -201,6 +201,53 @@ public sealed class SlimDataCommandBatchTests
         Assert.Equal("1", Encoding.UTF8.GetString(state.KeyValues["counter"].Span));
     }
 
+    [Theory]
+    [InlineData(65536)]
+    [InlineData(1048576)]
+    public async Task Large_cached_pop_survives_legacy_replay_then_next_sequence_without_a_second_delivery(int payloadBytes)
+    {
+        var state = NewState();
+        byte[] payload = Enumerable.Range(0, payloadBytes).Select(static index => (byte)(index % 251)).ToArray();
+        state.Queues = state.Queues.SetItem("queue",
+            [new QueueElement(payload, "element", 1, 30, [], [], [])]);
+        var pop = Operation(SlimDataBatchOperationKind.ListRightPop, "pop", "queue");
+        pop.TransactionId = "transaction";
+        pop.Count = 1;
+        pop.NowTicks = 2;
+        var request = NewRequest(pop);
+        SlimDataCommandBatchResponse first = await ApplyAsync(state, request);
+
+        // A pre-upgrade snapshot contains the original generated format. Replay
+        // must return that exact receipt without executing the pop a second time.
+        string sessionKey = SlimDataCommandBatchValidator.ProducerSessionKeyPrefix + request.ProducerId;
+        var legacySession = new SlimDataProducerSession
+        {
+            GenerationId = request.GenerationId,
+            Sequence = request.Sequence,
+            RequestId = request.RequestId,
+            Response = MemoryPackSerializer.Serialize(first)
+        };
+        state.KeyValues = state.KeyValues.SetItem(sessionKey, MemoryPackSerializer.Serialize(legacySession));
+
+        SlimDataCommandBatchResponse duplicate = await ApplyAsync(state, request);
+
+        Assert.True(duplicate.Duplicate);
+        Assert.Equal(payload, Assert.Single(Assert.Single(duplicate.Results).QueueItems!).Data);
+        Assert.Single(Assert.Single(state.Queues["queue"]).RetryQueueElements);
+
+        var next = NewRequest(KeyValue("set", "key", "next"));
+        next.Sequence = 2;
+        next.RequestId = "batch-2";
+        SlimDataCommandBatchResponse applied = await ApplyAsync(state, next);
+        Assert.False(applied.SequenceGap);
+        Assert.False(applied.Duplicate);
+        Assert.Equal("next", Encoding.UTF8.GetString(state.KeyValues["key"].Span));
+        SlimDataProducerSession restored = MemoryPackPayload.Deserialize<SlimDataProducerSession>(state.KeyValues[sessionKey].Span)!;
+        Assert.Equal(2, restored.Sequence);
+        Assert.Equal("batch-2", restored.RequestId);
+        Assert.Single(Assert.Single(state.Queues["queue"]).RetryQueueElements);
+    }
+
     [Fact]
     public async Task Sequence_gap_is_rejected_without_applying_mutations()
     {

@@ -401,6 +401,15 @@ request's 100-second default timeout. A previously committed attempt is resolved
 through the existing batch deduplication; no request is skipped to unblock the
 queue. The configured HTTP timeout still bounds a request within a valid epoch.
 
+Each producer retains its last response for this deduplication. Reading its next
+sequence borrows the persisted response bytes instead of copying a potentially
+large dequeue reply. Responses of at least 64 KiB are serialized directly into
+their final session buffer, avoiding another large pooled intermediate. The
+generated MemoryPack format, cached response contents and sequence checks remain
+unchanged, so existing producer receipts can still be replayed after an upgrade.
+These allocation reductions do not remove the need to size memory for queued
+payloads and concurrent deliveries.
+
 The consumer stops after 15 seconds of inactivity and starts again when a command
 arrives. Admission, retirement and disposal are synchronized so that a command
 arriving during retirement remains owned by exactly one consumer. An unexpected

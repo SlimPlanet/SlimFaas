@@ -763,30 +763,30 @@ public static class SlimDataInterpreter
         var sessionKey = SlimDataCommandBatchValidator.ProducerSessionKeyPrefix + request.ProducerId;
         if (state.KeyValues.TryGetValue(sessionKey, out var sessionBytes))
         {
-            SlimDataProducerSession? session;
+            SlimDataProducerSessionView? session;
             try
             {
-                session = MemoryPackPayload.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
+                session = SlimDataProducerSessionCodec.Deserialize(sessionBytes);
             }
             catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
             {
                 throw new InvalidDataException("The persisted SlimData producer session is invalid.", ex);
             }
 
-            if (session is not null)
+            if (session is { } cachedSession)
             {
-                if (string.Equals(session.GenerationId, request.GenerationId, StringComparison.Ordinal))
+                if (string.Equals(cachedSession.GenerationId, request.GenerationId, StringComparison.Ordinal))
                 {
-                    if (session.Sequence == request.Sequence &&
-                        string.Equals(session.RequestId, request.RequestId, StringComparison.Ordinal))
+                    if (cachedSession.Sequence == request.Sequence &&
+                        string.Equals(cachedSession.RequestId, request.RequestId, StringComparison.Ordinal))
                     {
-                        var duplicate = DeserializeCachedResponse(session.Response);
+                        var duplicate = DeserializeCachedResponse(cachedSession.Response.Span);
                         duplicate.Duplicate = true;
                         return duplicate;
                     }
 
-                    if (request.Sequence != session.Sequence + 1)
-                        return CreateSequenceGapResponse(request, session.Sequence + 1);
+                    if (request.Sequence != cachedSession.Sequence + 1)
+                        return CreateSequenceGapResponse(request, cachedSession.Sequence + 1);
                 }
                 else if (request.Sequence != 1)
                 {
@@ -862,12 +862,12 @@ public static class SlimDataInterpreter
         };
         state.KeyValues = state.KeyValues.SetItem(
             sessionKey,
-            MemoryPackSerializer.Serialize(producerSession));
+            SlimDataProducerSessionCodec.Serialize(producerSession));
 
         return response;
     }
 
-    private static SlimDataCommandBatchResponse DeserializeCachedResponse(byte[] response)
+    private static SlimDataCommandBatchResponse DeserializeCachedResponse(ReadOnlySpan<byte> response)
     {
         try
         {
