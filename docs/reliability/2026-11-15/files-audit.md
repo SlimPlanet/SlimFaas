@@ -102,3 +102,15 @@ Retirement and the persisted clock fence late commands/copies after collection.
 Invalid persisted clocks fail closed. Seven cleanup regressions pass in the
 combined 2,388-test full runtime suite; native/live fault validation remains
 separate and pending. The opt-in HTTP path is connected by the runtime follow-up.
+
+## Bounded Range continuation
+
+Three regressions fail before this correction: a truncated range aborts rather
+than continuing at the received offset; a zero-byte read incorrectly starts HTTP;
+and the new bounded-retry control observes only the original attempt. The
+stream now retries I/O/transport interruptions at its successfully returned
+offset, at most twice for the complete stream. It does not retry cancellation
+or chunk timeouts. The complete body still passes SaveVerified before publication.
+The original four response-disposal/deadline controls remain green. Process
+restart still starts an unfinished file again from zero; partial bytes are not
+a separately durable resumable artifact.
