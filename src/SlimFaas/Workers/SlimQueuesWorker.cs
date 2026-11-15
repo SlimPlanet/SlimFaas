@@ -145,6 +145,23 @@ public class SlimQueuesWorker(
                 }
                 CompleteAwaiting202(functionName, awaiting202, queueState.RunningReservations);
 
+                int locallyReserved = 0;
+                for (var index = 0; index < queueState.RunningReservations.Count; index++)
+                {
+                    if (active.ContainsKey(queueState.RunningReservations[index].Id))
+                        locallyReserved++;
+                }
+                if (locallyReserved < active.Count)
+                {
+                    // A reservation can expire while its HTTP request or known
+                    // completion is still locally owned. A slow snapshot may
+                    // also have let completions arrive after the first drain.
+                    // Persist them before another dequeue can reserve these IDs;
+                    // otherwise a free slot can redispatch the same message.
+                    await DrainCompletedRequestsAsync(processingRequests, awaiting202Requests).ConfigureAwait(false);
+                    continue;
+                }
+
                 int readyPods = function.Pods?.Count(pod =>
                     pod.Ready == true && !string.IsNullOrEmpty(pod.Ip)) ?? 1;
                 int maximumParallelism = Math.Min(
@@ -301,9 +318,10 @@ public class SlimQueuesWorker(
         {
             QueueData message = messages[index];
             CustomRequest request;
+            Stream? inlineBody;
             try
             {
-                request = MemoryPackSerializer.Deserialize<CustomRequest>(message.Data);
+                (request, inlineBody) = QueuedHttpRequestCodec.DeserializeForDispatch(message.Data);
             }
             catch (Exception exception)
             {
@@ -317,7 +335,7 @@ public class SlimQueuesWorker(
                 continue;
             }
 
-            prepared[index] = new PreparedHttpMessage(message, request, null);
+            prepared[index] = new PreparedHttpMessage(message, request, inlineBody);
             if (!string.IsNullOrEmpty(request.OffloadedFileId))
                 offloadedIndexes.Add(index);
         }

@@ -287,6 +287,20 @@ sequenceDiagram
 
 Committed mutations signal workers immediately; periodic polling remains a recovery fallback. Dispatch uses a lightweight queue snapshot of counts, running IDs and reservations rather than copying every payload. Completion mailboxes group durable callbacks, release response resources promptly and perform offloaded-body cleanup separately. Results completed after leadership loss are discarded locally so the current leader controls callback and retry decisions.
 
+An expired Raft reservation does not release a request that the current HTTP
+worker still owns. If its snapshot no longer lists such a request as running,
+the worker drains completed responses again and defers another dequeue for that
+function until ownership is resolved. This prevents free slots from reserving
+the same ID while its HTTP request or durable callback is still pending. It does
+not consume an extra retry, alter the configured timeout or change Raft commands.
+
+For inline HTTP bodies of at least 64 KiB, dispatch reads the body through a
+read-only stream over its owned queue packet. Preparing a batch no longer clones
+each large body before sending any request. The stream remains owned until the
+HTTP attempt completes or is canceled. Small bodies and file references retain
+their existing paths; the persisted request format and file-offload threshold
+are unchanged.
+
 ## Events
 
 ```mermaid
