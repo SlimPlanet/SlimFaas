@@ -39,6 +39,60 @@ KUBERNETES_CAMPAIGN = load("kubernetes_campaign", ROOT / ".bin/run-kubernetes-ca
 
 
 class PlatformTests(unittest.TestCase):
+    def test_kubernetes_launch_with_a_maximum_length_namespace_keeps_all_labels_valid(self):
+        prefix = "slimfaas-pr506-"
+        namespace = prefix + "m" * (63 - len(prefix))
+        self.assertEqual(63, len(namespace))
+        applied = []
+
+        def command(arguments, **_kwargs):
+            if "namespace" in arguments:
+                return SimpleNamespace(stdout="")
+            self.assertIn("apply", arguments)
+            document = json.loads(Path(arguments[arguments.index("-f") + 1]).read_text())
+            for resource in document["items"]:
+                for value in resource["metadata"].get("labels", {}).values():
+                    self.assertLessEqual(len(value), 63, resource["metadata"]["name"])
+            applied.extend(document["items"])
+            return SimpleNamespace(stdout="")
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "campaign"
+            arguments = ["campaign", "launch", "--kubeconfig", "isolated-config",
+                         "--namespace", namespace, "--output", str(output), "--image", "runtime",
+                         "--suite", "memory"]
+            with patch.object(sys, "argv", arguments), \
+                    patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command), \
+                    patch.object(KUBERNETES_CAMPAIGN.subprocess, "check_output", return_value="source-sha\n"):
+                self.assertEqual(0, KUBERNETES_CAMPAIGN.main())
+        volumes = [resource for resource in applied if resource["kind"] == "PersistentVolume"]
+        self.assertEqual(3, len(volumes))
+        self.assertEqual(3, len({volume["metadata"]["name"] for volume in volumes}))
+        self.assertEqual(3, len({volume["spec"]["hostPath"]["path"] for volume in volumes}))
+        self.assertEqual({f"state-slimfaas-{index}" for index in range(3)},
+                         {volume["spec"]["claimRef"]["name"] for volume in volumes})
+        for volume in volumes:
+            self.assertEqual(namespace, volume["metadata"]["labels"]["slimfaas-campaign"])
+            self.assertEqual(namespace, volume["spec"]["claimRef"]["namespace"])
+            self.assertEqual("Retain", volume["spec"]["persistentVolumeReclaimPolicy"])
+
+    def test_kubernetes_rejects_an_oversized_namespace_before_any_api_call(self):
+        prefix = "slimfaas-pr506-"
+        namespace = prefix + "m" * (64 - len(prefix))
+        self.assertEqual(64, len(namespace))
+        response = SimpleNamespace(stdout=json.dumps({"metadata": {
+            "labels": {"slimfaas-campaign": namespace}}, "items": []}))
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(sys, "argv", ["campaign", "stop", "--kubeconfig", "isolated-config",
+                "--namespace", namespace, "--output", directory]), \
+                patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", return_value=response) as command, \
+                patch.object(sys, "stderr", io.StringIO()) as error:
+            with self.assertRaises(SystemExit) as failure:
+                KUBERNETES_CAMPAIGN.main()
+        self.assertEqual(2, failure.exception.code)
+        self.assertIn("63", error.getvalue())
+        command.assert_not_called()
+
     def test_kubernetes_stop_waits_for_terminating_controllers_and_active_jobs(self):
         namespace = "slimfaas-pr506-stop-test"
         terminating = {"metadata": {"name": "slimfaas-0", "uid": "runtime-uid",

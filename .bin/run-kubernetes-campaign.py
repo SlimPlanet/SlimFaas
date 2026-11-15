@@ -22,7 +22,10 @@ def resources(options):
     def resource(kind, name, spec=None, **extra):
         versions = {"StatefulSet": "apps/v1", "Deployment": "apps/v1", "Job": "batch/v1",
                     "Role": "rbac.authorization.k8s.io/v1", "RoleBinding": "rbac.authorization.k8s.io/v1"}
-        metadata = {"name": name, "labels": labels | {"app": name}}
+        metadata = {"name": name, "labels": labels.copy()}
+        # PV names may exceed the 63-character label limit and have no app selector.
+        if kind != "PersistentVolume":
+            metadata["labels"]["app"] = name
         if kind not in ("Namespace", "PersistentVolume"):
             metadata["namespace"] = ns
         result = {"apiVersion": versions.get(kind, "v1"), "kind": kind, "metadata": metadata} | extra
@@ -288,8 +291,8 @@ def main():
     parser.add_argument("--ordinal", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=14400)
     options, options.workload_args = parser.parse_known_args()
-    if not re.fullmatch(r"slimfaas-pr506-[a-z0-9-]+", options.namespace):
-        parser.error("A dedicated slimfaas-pr506-* namespace is required")
+    if len(options.namespace) > 63 or not re.fullmatch(r"slimfaas-pr506-[a-z0-9-]+", options.namespace):
+        parser.error("A dedicated slimfaas-pr506-* namespace of at most 63 characters is required")
     prefix = ["kubectl", "--kubeconfig", str(options.kubeconfig.resolve()), "--context", "kind-slimfaas-pr506"]
 
     def kubectl(*args, **kwargs):

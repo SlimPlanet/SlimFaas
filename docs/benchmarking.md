@@ -164,6 +164,13 @@ The launcher creates dedicated labelled namespaces, retained persistent volumes,
 three anti-affined StatefulSet nodes, actual function Deployments and Jobs.
 Generators and functions run inside the cluster through Services and pod DNS.
 Port-forwarding is unnecessary for measurements.
+Campaign namespaces must fit Kubernetes' 63-character limit, including the
+matrix block, attempt and ordinal suffixes. PersistentVolume names append a
+storage suffix and can exceed the label-value limit, so volumes carry the
+campaign ownership label without an `app` label. Their unique names, claim
+references and retained storage paths identify each node's data. A launch with
+unbound claims has no valid workload measurement; preserve its API errors and
+replay after correcting the deployment with fresh campaign identities.
 Each matrix phase keeps launcher manifests, ownership records and Kubernetes
 diagnostics under `controller/`, alongside its workload reports. The launcher
 requires this controller directory to be new; existing phase metadata must not

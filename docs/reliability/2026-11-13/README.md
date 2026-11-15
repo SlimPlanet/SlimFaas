@@ -356,6 +356,29 @@ quiescence proof; the first two earlier housekeeping checkpoints occur after
 the timed driver ends but before runtime shutdown and remain separately recorded.
 No workload, probe, image or volume is changed by housekeeping.
 
+## Kubernetes storage-label correction
+
+The first MemoryLab attempts never reach a workload. Their generated volume
+names are copied into an `app` label, producing 64- or 65-character values for
+otherwise valid campaign namespaces. The API rejects all three PVs; their PVCs
+remain Pending, runtime pods never start, and the readiness-only driver reaches
+its existing 180-second deadline. These observations are **INCONCLUSIVE** for
+MemoryLab and establish no runtime data-validation failure.
+
+The [retained reproduction](storage-label-regressions-net11-03.json) includes
+the rejected manifest and API diagnostic. Volumes now carry their campaign
+ownership label without the unused `app` label, preserving unique volume names,
+claim references, node storage paths and the Retain policy. The CLI also rejects
+namespaces longer than 63 characters before any API call.
+
+Two public-CLI regressions fail on the original code; all **27 harness tests
+pass** afterward, including endpoint checks using the frozen MemoryLab assembly.
+The real API rejects the original volume and accepts the corrected version in
+server dry runs. No product executable, image, request deadline or comparison
+threshold changes. The failed deployment evidence remains, and MemoryLab will
+replay with new identities. Completed HTTP observations remain attached to
+their original runs and are not remeasured by this harness correction.
+
 ## Current-source endurance
 
 The [six renewed endurance reports](endurance-net11-03.json) pass on the frozen
