@@ -38,6 +38,7 @@ SINK = load("platform_sink", ROOT / ".bin/slimdata_receipt_sink.py")
 MATRIX = load("platform_matrix", ROOT / ".bin/run-platform-matrix.py")
 DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
 KUBERNETES_DOTNET = load("kubernetes_dotnet", ROOT / ".bin/test-dotnet-sdk-kubernetes.py")
+StorageTests = load("kubernetes_storage_tests", ROOT / ".bin/test-kubernetes-storage.py").StorageTests
 KUBERNETES_BACKEND = load("kubernetes_backend", ROOT / ".bin/slimdata_kubernetes_backend.py")
 KUBERNETES_CAMPAIGN = load("kubernetes_campaign", ROOT / ".bin/run-kubernetes-campaign.py")
 

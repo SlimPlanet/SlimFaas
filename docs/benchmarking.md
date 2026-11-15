@@ -700,3 +700,25 @@ MEMORY_LAB_DATA_STREAM=1 WARMUP_SECONDS=2 COOLDOWN_SECONDS=1 \
 For a baseline with front tracking enabled and no inventory viewer, use `MEMORY_LAB_ENABLE_FRONT=true` without `MEMORY_LAB_DATA_STREAM`. Set `MEMORY_LAB_PUBLISH_DIR` and `MEMORY_LAB_SKIP_PUBLISH=1` to compare prebuilt binaries. The stream must connect and stay alive throughout measurement; its frames are saved in the run artifacts.
 
 For browser load, build the dashboard Storybook and open **Dashboard / Live / 10,000 jobs + 10,000 replicas**. It emits 1,000 events per second and refreshes the workload snapshot every second. Pan and zoom for five minutes; search for `fibonacci1-09999` and `daily-report-slimfaas-job-09999` to verify the final instances remain reachable. Record actual canvas draws, heap after collection, viewport and browser version.
+
+## Safe storage initialization for dedicated kind faults
+
+The dedicated PV-content-loss fixture uses `.bin/slimdata_kubernetes_storage.py`
+to keep its one-shot bootstrap consumption record outside every data PV. The
+coordinator must first prove its owned namespace and VM run root absent before
+preparing that control directory. Restarted pods verify the existing WAL chunk
+marker; an unknown or conflicting geometry fails closed. An empty replacement
+data volume receives its requested geometry without a new bootstrap permission.
+These helpers are test infrastructure and do not change product WAL defaults.
+
+```bash
+python3 .bin/test-kubernetes-storage.py
+python3 .bin/test-platform-validation.py
+```
+
+The platform suite includes the seven storage regressions on Unix. They cover
+fresh/repeated initialization, complete data-volume loss, incompatible/unmarked
+WALs, a missing WAL with retained state, missing control proof and lost bootstrap
+control. Windows skips this Unix directory-fsync fixture. Record the entire
+rendered Kubernetes manifest, controller source and control proof with each
+fault campaign. Preserve original data before recovery or logical PV-content loss.
