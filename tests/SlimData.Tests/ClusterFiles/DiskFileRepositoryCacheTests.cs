@@ -15,6 +15,28 @@ public sealed class DiskFileRepositoryCacheTests : IDisposable
             Directory.Delete(_directory, recursive: true);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_local_body_with_valid_metadata_but_invalid_bytes_is_not_available(bool truncate)
+    {
+        var repository = CreateRepository(new TrackingCacheControl());
+        using var content = new MemoryStream([1, 2, 3]);
+        FilePutResult stored = await repository.SaveAsync(
+            "damaged-body", content, "application/octet-stream", false, null, CancellationToken.None);
+        string bodyPath = Assert.Single(Directory.GetFiles(_directory, "*.bin"));
+        await using (var body = new FileStream(bodyPath, FileMode.Open, FileAccess.Write, FileShare.Read))
+        {
+            if (truncate)
+                body.SetLength(2);
+            else
+                await body.WriteAsync(new byte[] { 3, 2, 1 });
+        }
+
+        Assert.NotNull(await repository.TryGetMetadataAsync("damaged-body", CancellationToken.None));
+        Assert.False(await repository.ExistsAsync("damaged-body", stored.Sha256Hex, CancellationToken.None));
+    }
+
     [Fact]
     public async Task Readers_can_open_a_version_while_replacement_retains_its_write_handle()
     {

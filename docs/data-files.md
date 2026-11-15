@@ -61,6 +61,11 @@ empty artifact and verifies its SHA-256 just like a nonempty file. Earlier
 versions incorrectly treated zero as a missing peer Content-Length, making an
 accepted empty upload unavailable on nodes that had to fetch its bytes.
 
+Local availability checks read the stored body and compare its length and
+SHA-256 with the metadata. A truncated or modified local body is treated as
+unavailable so the existing peer-pull path can attempt repair. Verification is
+streamed with bounded memory; it adds a local read and hash calculation.
+
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/data/files?id={id?}&ttl={ms?}` | Store a binary artifact (request body = raw bytes) |

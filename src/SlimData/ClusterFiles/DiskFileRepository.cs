@@ -132,9 +132,25 @@ public sealed class DiskFileRepository : IFileRepository
     public async Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct)
     {
         var meta = await TryGetMetadataAsync(id, ct).ConfigureAwait(false);
-        return meta is not null &&
-               meta.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase) &&
-               File.Exists(GetPaths(id).FilePath);
+        if (meta is null || !meta.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        try
+        {
+            await using Stream body = await OpenReadAsync(id, ct).ConfigureAwait(false);
+            if (body.Length != meta.Length)
+                return false;
+            byte[] actualHash = await SHA256.HashDataAsync(body, ct).ConfigureAwait(false);
+            return Convert.ToHexString(actualHash).Equals(sha256Hex, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
     }
 
     public async Task<FileMetadata?> TryGetMetadataAsync(string id, CancellationToken ct)
