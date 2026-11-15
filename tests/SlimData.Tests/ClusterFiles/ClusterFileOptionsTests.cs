@@ -17,6 +17,7 @@ public sealed class ClusterFileOptionsTests
         Assert.Equal(128, options.MaxPendingTransfers);
         Assert.Equal(30, options.QueueWaitTimeoutSeconds);
         Assert.True(options.DropPageCache);
+        Assert.False(options.DurableWrites);
     }
 
     [Fact]
@@ -90,5 +91,22 @@ public sealed class ClusterFileOptionsTests
         {
             Environment.SetEnvironmentVariable(variable, null);
         }
+    }
+
+    [Fact]
+    public void Durable_writes_bind_only_on_supported_directory_barrier_platforms()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["SlimData:Files:DurableWrites"] = "true"
+        }).Build();
+        var services = new ServiceCollection();
+        services.AddClusterFileOptions(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            Assert.True(provider.GetRequiredService<IOptions<ClusterFileOptions>>().Value.DurableWrites);
+        else
+            Assert.Throws<OptionsValidationException>(() => provider.GetRequiredService<IOptions<ClusterFileOptions>>().Value);
     }
 }

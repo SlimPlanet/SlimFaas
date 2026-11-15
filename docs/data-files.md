@@ -391,7 +391,8 @@ The defaults can be overridden with `SlimData__Files__...` environment variables
       "UnknownLengthReservationBytes": 268435456,
       "MaxPendingTransfers": 128,
       "QueueWaitTimeoutSeconds": 30,
-      "DropPageCache": true
+      "DropPageCache": true,
+      "DurableWrites": false
     }
   }
 }
@@ -399,6 +400,35 @@ The defaults can be overridden with `SlimData__Files__...` environment variables
 
 When the pending queue is full or a transfer waits longer than the configured timeout,
 SlimFaas returns `429 Too Many Requests` with `Retry-After: 1`.
+
+### Local persistence barriers
+
+On Linux and macOS, `SlimData__Files__DurableWrites=true` flushes body and
+metadata files to disk and synchronizes the directories that publish them
+before the repository reports success. A flush or directory-sync failure is
+returned as an error. The default remains `false` while the additional cost is
+measured. Enabling this local policy does not confirm a remote copy or provide
+the two-node acceptance guarantee under investigation.
+
+Directory publication needs its own synchronization after file writes and
+renames; see the [Linux fsync documentation](https://man7.org/linux/man-pages/man2/fsync.2.html).
+.NET 11 uses `F_FULLFSYNC` on macOS with an `fsync` fallback and propagates
+errors, as shown by its [runtime implementation](https://github.com/dotnet/runtime/blob/v11.0.0/src/native/libs/System.Native/pal_io.c).
+This policy requires a filesystem that honors these barriers; Windows directory
+durability is not claimed by this setting.
+
+The built-in repository can also produce an explicit persistence receipt for a
+requested ID, checksum and length. It rereads and verifies the body, flushes
+body/metadata and publishes the directories before returning a storage identity
+persisted at the configured data root. The cluster copy primitive uses the
+existing message bus and Range transfer to obtain such a receipt from a known
+peer; announcement confirmations do not satisfy it. It rejects mismatched
+identity/checksum/length and a shared declared storage identity.
+
+These are primitives for the acceptance guarantee under development. The normal
+upload and async endpoints do not yet invoke the remote confirmation primitive.
+Distinct root markers identify declared storage domains; independent backing
+volumes remain a deployment requirement and are not proven by the markers.
 
 ### 404 Not Found on download
 - metadata expired or was deleted

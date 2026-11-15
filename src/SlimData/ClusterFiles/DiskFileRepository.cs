@@ -5,7 +5,7 @@ using MemoryPack;
 
 namespace SlimData.ClusterFiles;
 
-public sealed class DiskFileRepository : IFileRepository
+public sealed class DiskFileRepository : IDurableFileRepository
 {
     private const string MetaExt = ".meta.mp";
     // Versions are written to temporary files. ReplaceFile temporarily retains
@@ -14,20 +14,28 @@ public sealed class DiskFileRepository : IFileRepository
     private readonly string _root;
     private readonly ILogger<DiskFileRepository> _logger;
     private readonly IFileCacheControl _cacheControl;
+    private readonly IFileDurability _durability;
+    private readonly Lazy<string> _storageIdentity;
+    private readonly string _storageRoot;
+    private readonly List<string> _createdDirectoryParents;
     private readonly KeyedAsyncLock _mutations = new(long.MaxValue);
 
     public DiskFileRepository(
         string pathDirectory,
         ILogger<DiskFileRepository> logger,
-        bool dropPageCache = true)
-        : this(pathDirectory, logger, new LinuxFileCacheControl(dropPageCache, logger))
+        bool dropPageCache = true,
+        bool durableWrites = false,
+        string? storageRoot = null)
+        : this(pathDirectory, logger, new LinuxFileCacheControl(dropPageCache, logger), new FileDurability(durableWrites), storageRoot)
     {
     }
 
     internal DiskFileRepository(
         string pathDirectory,
         ILogger<DiskFileRepository> logger,
-        IFileCacheControl cacheControl)
+        IFileCacheControl cacheControl,
+        IFileDurability? durability = null,
+        string? storageRoot = null)
     {
         if (string.IsNullOrWhiteSpace(pathDirectory))
             throw new ArgumentException("pathDirectory is required", nameof(pathDirectory));
@@ -35,7 +43,83 @@ public sealed class DiskFileRepository : IFileRepository
         _root = pathDirectory;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cacheControl = cacheControl ?? throw new ArgumentNullException(nameof(cacheControl));
+        _durability = durability ?? new FileDurability(enabled: false);
+        string identityRoot = Path.GetFullPath(storageRoot ?? _root);
+        _storageRoot = identityRoot;
+        string relative = Path.GetRelativePath(identityRoot, Path.GetFullPath(_root));
+        if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            throw new ArgumentException("Files storage identity root must contain the file repository.", nameof(storageRoot));
+        _storageIdentity = new Lazy<string>(() => FileStorageIdentity.LoadOrCreate(identityRoot));
+        var createdParents = new List<string>();
+        {
+            string? current = Path.GetFullPath(_root);
+            while (current is not null && !Directory.Exists(current))
+            {
+                current = Path.GetDirectoryName(current);
+                if (current is not null)
+                    createdParents.Add(current);
+            }
+        }
+        _createdDirectoryParents = createdParents;
         Directory.CreateDirectory(_root);
+        string rootParent = Path.GetDirectoryName(Path.GetFullPath(_root)) ?? _root;
+        if (_durability.Enabled && !createdParents.Contains(rootParent, StringComparer.Ordinal))
+            createdParents.Add(rootParent);
+        foreach (string parent in createdParents)
+            _durability.FlushDirectory(parent);
+    }
+
+    public string StorageIdentity => _storageIdentity.Value;
+
+    public async Task<FilePersistenceReceipt> PersistVersionAsync(string id, string sha256Hex, long length, CancellationToken ct)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(length);
+        await using var mutation = await _mutations.AcquireAsync(id, ct).ConfigureAwait(false);
+        FileMetadata? metadata = await TryGetVersionMetadataAsync(id, sha256Hex, ct).ConfigureAwait(false);
+        if (metadata is null || metadata.Length != length)
+            throw new IOException("The requested file revision metadata is unavailable.");
+        string bodyPath = VersionBodyPath(id, sha256Hex);
+        string metadataPath = VersionMetadataPath(id, sha256Hex);
+        bool archived = File.Exists(metadataPath);
+        if (!archived)
+        {
+            bodyPath = GetPaths(id).FilePath;
+            metadataPath = GetPaths(id).MetaPath;
+        }
+        var durability = new FileDurability(enabled: true);
+        await using (var body = new FileStream(bodyPath, FileMode.Open, FileAccess.ReadWrite, ReadSharing,
+                         bufferSize: 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+        {
+            try
+            {
+                if (body.Length != length)
+                    throw new IOException("The requested file revision length is invalid.");
+                byte[] actual = await SHA256.HashDataAsync(body, ct).ConfigureAwait(false);
+                if (!Convert.ToHexString(actual).Equals(sha256Hex, StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("The requested file revision checksum is invalid.");
+                ct.ThrowIfCancellationRequested();
+                durability.FlushFile(body);
+            }
+            finally
+            {
+                _cacheControl.Drop(body);
+            }
+        }
+        using (var storedMetadata = new FileStream(metadataPath, FileMode.Open, FileAccess.ReadWrite, ReadSharing))
+            durability.FlushFile(storedMetadata);
+        if (archived)
+            durability.FlushDirectory(Path.Combine(_root, ".versions"));
+        string? directory = Path.GetFullPath(_root);
+        while (directory is not null)
+        {
+            durability.FlushDirectory(directory);
+            if (string.Equals(directory, _storageRoot, StringComparison.Ordinal))
+                break;
+            directory = Path.GetDirectoryName(directory);
+        }
+        foreach (string parent in _createdDirectoryParents)
+            durability.FlushDirectory(parent);
+        return new FilePersistenceReceipt(id, metadata.Sha256Hex, length, StorageIdentity);
     }
 
     public Task<FilePutResult> SaveAsync(
@@ -104,6 +188,7 @@ public sealed class DiskFileRepository : IFileRepository
                 }
 
                 await fs.FlushAsync(ct).ConfigureAwait(false);
+                _durability.FlushFile(fs);
                 _cacheControl.Drop(fs);
             }
 
@@ -126,13 +211,14 @@ public sealed class DiskFileRepository : IFileRepository
                 // Fresh immutable IDs and same-hash repairs keep the historical
                 // two-file layout. They do not need extra revision metadata or links.
                 MoveIntoPlace(tmp, filePath, overwrite);
-                await WriteMetadataAsync(metaPath, meta, _logger, ct).ConfigureAwait(false);
+                await WriteMetadataAsync(metaPath, meta, _logger, _durability, ct).ConfigureAwait(false);
+                _durability.FlushDirectory(_root);
                 return new FilePutResult(shaHex, contentType, total);
             }
             Directory.CreateDirectory(Path.Combine(_root, ".versions"));
             if (previous is not null && IsHash(previous.Sha256Hex))
             {
-                await WriteMetadataAsync(VersionMetadataPath(id, previous.Sha256Hex), previous, _logger, ct).ConfigureAwait(false);
+                await WriteMetadataAsync(VersionMetadataPath(id, previous.Sha256Hex), previous, _logger, _durability, ct).ConfigureAwait(false);
                 string previousBody = VersionBodyPath(id, previous.Sha256Hex);
                 if (File.Exists(filePath) && !File.Exists(previousBody))
                     MoveIntoPlace(filePath, previousBody, overwrite: false);
@@ -140,9 +226,9 @@ public sealed class DiskFileRepository : IFileRepository
 
             // Metadata may briefly describe an unavailable pending body; no
             // reader considers it available until the corresponding bytes exist.
-            await WriteMetadataAsync(VersionMetadataPath(id, shaHex), meta, _logger, ct).ConfigureAwait(false);
+            await WriteMetadataAsync(VersionMetadataPath(id, shaHex), meta, _logger, _durability, ct).ConfigureAwait(false);
             MoveIntoPlace(tmp, VersionBodyPath(id, shaHex), overwrite: true);
-            await WriteMetadataAsync(metaPath, meta, _logger, ct).ConfigureAwait(false);
+            await WriteMetadataAsync(metaPath, meta, _logger, _durability, ct).ConfigureAwait(false);
             // Keep the historical current-body path readable by older releases
             // without storing a second copy of the body on the same volume.
             string alias = filePath + ".tmp." + Guid.NewGuid().ToString("N");
@@ -155,6 +241,8 @@ public sealed class DiskFileRepository : IFileRepository
             {
                 TryDelete(alias);
             }
+            _durability.FlushDirectory(Path.Combine(_root, ".versions"));
+            _durability.FlushDirectory(_root);
 
             return new FilePutResult(shaHex, contentType, total);
         }
@@ -404,7 +492,7 @@ public sealed class DiskFileRepository : IFileRepository
         return MemoryPackPayload.Deserialize<FileMetadata>(bytes);
     }
 
-    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, ILogger<DiskFileRepository> logger, CancellationToken ct)
+    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, ILogger<DiskFileRepository> logger, IFileDurability durability, CancellationToken ct)
     {
         var tmp = metaPath + ".tmp." + Guid.NewGuid().ToString("N");
         try
@@ -417,6 +505,7 @@ public sealed class DiskFileRepository : IFileRepository
             {
                 await stream.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
                 await stream.FlushAsync(ct).ConfigureAwait(false);
+                durability.FlushFile(stream);
             }
 
             MoveIntoPlace(tmp, metaPath, overwrite: true);

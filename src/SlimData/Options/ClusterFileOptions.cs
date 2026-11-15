@@ -15,6 +15,8 @@ public sealed class ClusterFileOptions
     public int QueueWaitTimeoutSeconds { get; set; } = 30;
 
     public bool DropPageCache { get; set; } = true;
+
+    public bool DurableWrites { get; set; }
 }
 
 public static class ClusterFileOptionsExtensions
@@ -36,5 +38,8 @@ public static class ClusterFileOptionsExtensions
             .Validate(
                 options => options.QueueWaitTimeoutSeconds > 0,
                 "SlimData file queue wait timeout must be positive.")
+            .Validate(
+                options => !options.DurableWrites || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+                "Durable Files directory publication is supported on Linux and macOS.")
             .ValidateOnStart();
 }

@@ -187,7 +187,9 @@ public class Startup(IConfiguration configuration)
            services.AddSingleton<IFileRepository>(sp => new DiskFileRepository(
                Path.Combine(stateRoot, "files"),
                sp.GetRequiredService<ILogger<DiskFileRepository>>(),
-               sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DropPageCache));
+               sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DropPageCache,
+               sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DurableWrites,
+               storageRoot: path));
            services.AddSingleton<ClusterFileAnnounceQueue>();
            services.AddHostedService<ClusterFileAnnounceWorker>();
 

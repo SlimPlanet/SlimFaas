@@ -8,7 +8,7 @@ using SlimData.Options;
 
 namespace SlimData.ClusterFiles;
 
-public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
+public sealed class ClusterFileSync : IDurableClusterFileSync, IAsyncDisposable
 {
     private readonly IMessageBus _bus;
     private readonly IFileRepository _repo;
@@ -31,7 +31,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             fileOptions.MaxPendingTransfers,
             TimeSpan.FromSeconds(fileOptions.QueueWaitTimeoutSeconds));
 
-        _channel = new ClusterFileSyncChannel(announceQueue);
+        _channel = new ClusterFileSyncChannel(announceQueue, ReceiveCopyAsync);
         _bus.AddListener(_channel);
     }
 
@@ -39,6 +39,62 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     {
         _bus.RemoveListener(_channel);
         return ValueTask.CompletedTask;
+    }
+
+    public async Task<FileCopyReceipt> ConfirmRemoteCopyAsync(string id, string sha256Hex, long length, CancellationToken ct)
+    {
+        if (_repo is not IDurableFileRepository durable)
+            throw new NotSupportedException("The file repository cannot confirm persistence.");
+        FilePersistenceReceipt local = await durable.PersistVersionAsync(id, sha256Hex, length, ct).ConfigureAwait(false);
+        foreach (ISubscriber member in _bus.Members)
+        {
+            if (!member.IsRemote)
+                continue;
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                var request = FileCopyProtocol.Request(new FileCopyRequest(id, sha256Hex, length, local.StorageIdentity));
+                FileCopyReceipt receipt = await member.SendMessageAsync<FileCopyReceipt>(request,
+                    static async (message, token) => await FileCopyProtocol.ReadReceiptAsync(message, token).ConfigureAwait(false),
+                    deadline.Token).ConfigureAwait(false);
+                if (FileCopyProtocol.Matches(local, member.Id.ToString(), receipt) &&
+                    _bus.Members.AsValueEnumerable().Any(candidate => candidate.IsRemote && candidate.Id == member.Id))
+                    return receipt;
+                _logger.LogRemoteFilePersistenceReceiptRejected(SafeNode(member), id);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                _logger.LogRemoteFilePersistenceConfirmationFailed(ex, SafeNode(member), id);
+            }
+        }
+        throw new IOException("No distinct remote persisted file copy could be confirmed.");
+    }
+
+    private async Task<FileCopyReceipt> ReceiveCopyAsync(ISubscriber sender, FileCopyRequest request, CancellationToken ct)
+    {
+        if (_repo is not IDurableFileRepository durable || !sender.IsRemote ||
+            !_bus.Members.AsValueEnumerable().Any(member => member.IsRemote && member.Id == sender.Id))
+            return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, "", "", false, "Unsupported repository or unknown sender.");
+        string localNode = _bus.Members.AsValueEnumerable().First(member => !member.IsRemote).Id.ToString();
+        try
+        {
+            if (string.Equals(durable.StorageIdentity, request.SourceStorageIdentity, StringComparison.OrdinalIgnoreCase))
+                return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode, durable.StorageIdentity, false, "Shared storage identity.");
+            FilePullResult pulled = await PullFileIfMissingAsync(request.Id, request.Sha256Hex, SafeNode(sender), ct).ConfigureAwait(false);
+            if (pulled.Stream is null)
+                return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode, durable.StorageIdentity, false, "File copy unavailable.");
+            await pulled.Stream.DisposeAsync().ConfigureAwait(false);
+            FilePersistenceReceipt stored = await durable.PersistVersionAsync(request.Id, request.Sha256Hex, request.Length, ct).ConfigureAwait(false);
+            return new FileCopyReceipt(stored.Id, stored.Sha256Hex, stored.Length, localNode, stored.StorageIdentity, true);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogRemoteFilePersistenceConfirmationFailed(ex, SafeNode(sender), request.Id);
+            return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode, "", false, "File copy verification or persistence failed.");
+        }
     }
 
     public async Task<FilePutResult> BroadcastFilePutAsync(
