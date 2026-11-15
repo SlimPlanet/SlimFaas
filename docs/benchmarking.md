@@ -12,6 +12,12 @@ and [file-index metadata](reliability/2026-11-13/performance-raw-file-index-meta
 identify the frozen sources, outputs and separate maintenance/isolation segments.
 The completed campaigns do not establish non-regression or LTS certification.
 
+The [15 November follow-up](reliability/2026-11-15/README.md) retains bounded
+Kubernetes reproductions, managed-OOM audits, failed healthy-delivery controls and
+separate allocation regressions. Its corrections preserve wire formats, queue
+deadlines and WAL geometry defaults. These diagnostic passes do not replace the
+formal matrices; each runtime revision requires its own final validation.
+
 ## Run the benchmark
 
 The quick profile is intended for a smoke test and takes a few minutes:

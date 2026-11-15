@@ -1,0 +1,10 @@
+{
+  "file": "diagnostic-raw-file-index.json.gz",
+  "compressed_bytes": 1330094,
+  "compressed_sha256": "58c250560b7d36af69948fe69cb236e401dc2740bd515edff972e3135c87edb6",
+  "expanded_bytes": 12610442,
+  "expanded_sha256": "79c2d9904729010fcf83d70467f21f67cf4f1ab48c7fd1f689aa15434c6840c0",
+  "local_files": 1671,
+  "vm_roots": 26,
+  "scope": "Closed follow-up diagnostics 04-10, original VM state indices, red/green regressions, isolated allocation probes and native correctness controls 04-06. Active guards, disk monitoring, new diagnostic 11, regenerable bin/obj caches and unrelated sources are excluded. Earlier formal indices remain immutable."
+}

@@ -1,0 +1,344 @@
+# Async memory, WAL geometry and Files reliability investigation
+
+This follow-up preserves the [completed 1ecba4d1 validation](../2026-11-13/README.md)
+and its failed or inconclusive performance verdicts. The bounded diagnostics below
+are separate from the formal HTTP/MemoryLab matrices. They do not establish LTS
+certification or close the unverified guarantees in issue #505.
+
+## Reproduced failures
+
+Each diagnostic sends 200 messages of 1,048,576 bytes at concurrency 16 to real
+Kubernetes functions, with a 1 GiB runtime limit, normal probes and a full
+180-second observation after sending. Function journals fsync per-ID started and
+completed records, including the payload SHA-256, queue element, delivery attempt,
+writer and pod UID. This instrumentation differs from the aggregate-only formal
+HTTP target. Both variants use identical resources, snapshot policy, probes,
+load driver and fresh-volume bootstrap policy.
+
+The original runtime is `1ecba4d13d29ae68909979e168ff5b53aae6fea1`.
+The first correction is `766ada9b9b92b5ad520c27c43b4ba770bce45e33`.
+All eight passes below completed their observation window with valid host
+isolation. Their writers were stopped before original VM state was indexed.
+
+| WAL geometry | Order | Runtime | Accepted / unknown | Not delivered at 180 s | Extra successful deliveries | Maximum container restarts |
+| --- | --- | --- | --- | --- | --- | --- |
+| 4 KiB | A1 | original | 200 / 0 | 176 | 0 | 3 |
+| 4 KiB | B2 | first correction | 200 / 0 | 0 | 17 | 0 |
+| 4 KiB | B3 | first correction | 200 / 0 | 0 | 71 | 0 |
+| 4 KiB | A4 | original | 200 / 0 | 182 | 0 | 3 |
+| 64 KiB | A1 | original | 200 / 0 | 183 | 0 | 4 |
+| 64 KiB | B2 | first correction | 200 / 0 | 0 | 0 | 0 |
+| 64 KiB | B3 | first correction | 200 / 0 | 0 | 64 | 0 |
+| 64 KiB | A4 | original | 200 / 0 | 181 | 0 | 4 |
+
+Missing at this observation bound is not evidence of permanent loss. Original
+volumes and accepted/unknown ledgers remain retained for recovery checks. Healthy
+extra deliveries remain failures. The final original 64 KiB pass also failed its
+final capture with HTTP 503; its completed observation and failure are preserved.
+Detailed records: [4 KiB block](producer-receipts-07.json),
+[64 KiB block](producer-receipts-08.json).
+
+The first fault was a managed `OutOfMemoryException` while serializing a persisted
+producer session during Raft apply. A session contains its last response, rather
+than an unbounded response history. The first correction borrows that response on
+metadata reads and writes large sessions into an exactly sized array, preserving
+the generated MemoryPack format and sequence checks.
+
+This correction was insufficient. The second corrected 64 KiB pass logged 26
+managed-OOM occurrences in its leader's current log despite zero restarts. Stacks
+identify HTTP response serialization (`ReusableLinkedArrayBufferWriter.ToArrayAndReset`)
+and the client's buffered `ReadAsByteArrayAsync` copy. Log occurrences are not a
+count of distinct exceptions. Kubernetes OOMKilled and restart counters alone
+cannot detect this failure. This evidence does not establish the cause of the
+original ten formal HTTP duplicates, whose per-ID receipts were not exported.
+
+A single clean 64 KiB pass does not establish that a geometry change fixes the
+problem. Product WAL defaults remain unchanged.
+
+## Batch response correction
+
+Commit `c2fa989a068256a09e4fa7a2192f373eee00ad91` reduces the remaining copies:
+
+- Large dequeue replies use the generated formatter twice: a counting pass with
+  reusable scratch storage, followed by a write into their final array. A final
+  oversized UTF-8 reservation uses a scratch tail and commits only actual bytes.
+  Small replies keep the previous serialization path.
+- The HTTP client reads a known Content-Length directly into one array. Its
+  configured timeout still covers the whole body and remains linked to both
+  leader and consensus epochs. Unknown-length peers keep bounded buffering.
+- Persisted session layout, response bytes, duplicate and sequence behavior,
+  queue retry settings, deadlines and dependencies are unchanged.
+
+All **2,150 .NET tests pass**, with zero failures or skips. Two client copy
+regressions fail with the original reader. Existing epoch/shutdown/body-timeout
+checks and two new known-length stalled-body checks pass. Six large-reply tests
+compare exact old/new wire bytes and decoded delivery fields. An intermediate
+prototype failed three of these controls because a formatter's final reservation
+exceeded its committed UTF-8 size; the failure and corrected replay are retained.
+
+The isolated managed serializer probe uses 64 distinct 2 MiB arrays. With the
+same 320 MiB GC heap limit, the legacy API fails with OOM and the corrected writer
+succeeds. Its 134,220,372-byte output matches the unbounded legacy control's
+SHA-256 `93dae168ab925248d7388be2e92dc154f4451755a4f49e267cf2009fd3ad024a`.
+This is a reproducible allocation regression, not an application throughput, RSS
+or peak-memory comparison. [Probe observations](batch-serializer-memory-probe.json).
+
+Both macOS ARM64 Native AOT publications, the Linux ARM64 managed/trimmed
+publication, full UI builds and native API/payload/Files/Streams/job/retry/DLQ/crash
+and original-state restart controls pass. The subsequent blocks compare
+`766ada9b` (A) with `c2fa989a` (B), with all eight observation windows completed:
+
+| WAL geometry | Order | Accepted / unknown | Missing at 180 s | Extra deliveries | Restarts | Managed OOM log occurrences | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 4 KiB | A1 | 200 / 0 | 0 | 63 | 0 | 0 | FAIL |
+| 4 KiB | B2 | 200 / 0 | 0 | 16 | 0 | 0 | FAIL |
+| 4 KiB | B3 | 200 / 0 | 0 | 51 | 0 | 0 | FAIL |
+| 4 KiB | A4 | 200 / 0 | 0 | 15 | 0 | 0 | FAIL |
+| 64 KiB | A1 | 200 / 0 | 0 | 0 | 0 | 0 | PASS |
+| 64 KiB | B2 | 200 / 0 | 0 | 0 | 0 | 0 | PASS |
+| 64 KiB | B3 | 200 / 0 | 0 | 0 | 0 | 6 | FAIL |
+| 64 KiB | A4 | 200 / 0 | 0 | 0 | 0 | 0 | PASS |
+
+The host verdict includes an explicit managed-OOM log audit. The third 64 KiB
+pass fails despite successful delivery accounting and zero restarts: its stack
+is now `CustomRequest.Deserialize` in `SlimQueuesWorker.PrepareMessagesAsync`.
+The first corrected 4 KiB pass logs only the initial leader on each node;
+leadership loss does not explain those duplicates. These observations again do
+not justify changing product WAL defaults. See the [4 KiB results](batch-response-09.json)
+and [64 KiB results](batch-response-10.json).
+
+## Local ownership and queued body correction
+
+Commit `e5883fa8e28ba2775c4dee8e5e6a31a850d22c82` addresses two reproduced paths:
+
+- A queue snapshot can return after an in-flight reservation expires, or after
+  its HTTP completion enters the mailbox. With spare parallel slots, the worker
+  could reserve that same ID again and overwrite its local tracking. Two tests
+  gate the snapshot and completion explicitly; both fail before the correction.
+  The worker now drains completions again and defers a new dequeue for that
+  function while an expired delivery remains locally owned. It does not consume
+  another retry or change reservation timestamps or timeouts.
+- Preparing a dequeued batch cloned every inline request body before any send.
+  Bodies of at least 64 KiB now use a read-only stream over their original owned
+  packet. The generated request format, metadata, small-body behavior and file
+  reference path remain unchanged. Tests verify the exact backing array,
+  byte-compatible metadata, malformed input rejection, dispatch and disposal.
+
+All **2,161 .NET tests pass**, with zero failures or skips and full UI builds.
+The isolated request preparation probe retains 96 distinct 2 MiB packets. The
+legacy decoder fails under a 320 MiB GC heap limit; the borrowed-body path
+succeeds under the same limit with 201,326,592 body bytes and aggregate SHA-256
+`99aabde3d1ea67d0e617d1e311e9cd44d37c2b640a8b4f98b31171089637fa43`,
+identical to the unbounded legacy control. This does not measure peak RSS or
+application throughput, and does not prove that the original formal ten
+duplicates had the same cause.
+
+The new Linux ARM64 managed/trimmed image is built and imported on all four
+dedicated kind nodes. Both macOS ARM64 Native AOT publications and native
+API/payload/Files/Streams/job/retry/DLQ/crash/original-state restart controls pass.
+The native campaign reconciles 198 confirmed operations without confirmed loss
+or corruption; 12 unknown outcomes and 13 extra deliveries during fault scenarios
+remain counted separately. The healthy-majority leader-route check takes
+6.331 seconds, below its unchanged 15-second bound. Subsequent diagnostics are
+recorded below. Older runtime passes do not validate this source retroactively.
+
+## Further dispatch diagnostics
+
+The normal 4 KiB block compares `c2fa989a` (A) with `e5883fa8` (B):
+
+| Order | Confirmed / unknown | Missing confirmed | Extra confirmed deliveries | Restarts | Current-log OOM occurrences |
+| --- | --- | --- | --- | --- | --- |
+| A1 | 200 / 0 | 0 | 70 | 0 | 0 |
+| B2 | 178 / 22 | 0 | 110 | 0 | 0 |
+| B3 | 200 / 0 | 0 | 85 | 0 | 0 |
+| A4 | 181 / 19 | 0 | 46 | 0 | 0 |
+
+All four fail. Both candidate passes also show leader changes and temporary
+quorum unavailability under load. The local ownership correction does not resolve
+all redispatch paths. Unknown client outcomes remain separate, including when
+later function receipts exist.
+
+The separate 64 KiB block completes all 200 confirmed deliveries without unknowns
+or extras in every pass. A1, B3 and A4 pass their then-current controls. B2 fails
+with one runtime restart and six connection-refused samples. Its current logs
+contain no managed OOM, but the previous process log was not exported. Kubernetes
+events show failed liveness probes followed by a restart; exit 137 with reason
+`Error` does not establish OOMKilled. The original process failure remains
+unexplained. This observation motivated the log-collection correction rather
+than a retrospective passing verdict.
+
+The complete per-pass observations are retained separately for
+[4 KiB](dispatch-ownership-net11-11.json) and
+[64 KiB](dispatch-ownership-net11-12.json).
+
+Collector commit `0fd04a59` retains timestamped current/previous logs by pod UID,
+container ID and restart index, including retrieval errors and missing history.
+Two regressions fail with the original collector; all 33 platform tests pass
+without skips. The healthy-workload audit also rejects error-level, critical and
+unhandled runtime failures even when receipts reconcile and no OOM is logged.
+
+## WAL block screen at fixed offload threshold
+
+All five passes use the same `e5883fa8` managed/trimmed image, 1 GiB runtime
+limit, normal probes, 200 × 1 MiB at C16 and a full 180-second observation.
+Every WAL is fresh with its own marker. The strict 1 MiB Files threshold remains
+fixed, so these bodies remain inline.
+
+| WAL block | Send duration | Confirmed / unknown | Extra deliveries | Runtime errors during workload | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| 4 KiB | 43.136 s | 200 / 0 | 118 | 14 | FAIL |
+| 8 KiB | 15.407 s | 200 / 0 | 9 | 7 | FAIL |
+| 16 KiB | 9.212 s | 200 / 0 | 6 | 1 | FAIL |
+| 32 KiB | 5.340 s | 200 / 0 | 0 | 2 | FAIL |
+| 64 KiB | 3.674 s | 200 / 0 | 0 | 1 | FAIL |
+
+All five have complete observed runtime log coverage, zero managed-OOM log
+occurrences, zero runtime restarts and zero missing confirmed deliveries.
+Send duration is for this bounded batch, not an acceptance/delivery latency
+distribution or formal throughput result. Larger blocks improve this observation,
+but no geometry is accepted from this screen. The 16/32/64 KiB errors include
+failed body transfers with connection reset by peer, followed by successful
+retries. Successful delivery attempts include two retries at 32 KiB and one at
+64 KiB. These errors are retained as failures.
+
+The fixture image's Python 3.14 TCP accept backlog is five, while SlimFaas can
+dispatch 64 requests to its function pod. A gated 64-connection socket test fails
+with the original capacity and passes with 128. A separate, fixed-64-KiB
+Kubernetes control completed once per capacity (5, then 128). Both delivered all
+200 confirmed messages without unknowns, extras, restarts, observed managed OOM
+or error-level runtime logs. Both had complete observed log history and zero
+TCP ListenDrops/ListenOverflows deltas on the same function pod. Send durations
+were 4.367 s and 3.963 s. This control does not establish the cause of the earlier
+resets; neither the socket regression nor this single pair proves that causal
+link. No runtime geometry or offload default is changed.
+The [TCP control observations](tcp-backlog-net11-14.json) include the full
+per-pod counter deltas and exact source for each pass.
+
+The [screen observations](wal-block-screen-13.json) include a separate read-only
+allocation inventory, with every original WAL size/hash reverified after all
+writers stopped. The initial private coordinator's unavailable allocation field
+used a zero placeholder; the public observations replace it with actual stat
+measurements. Retained post-compaction file sizes/counts are not cumulative WAL
+writes or peak file counts. No original index or state was rewritten.
+
+## Local file integrity correction
+
+Commit `19031477` verifies actual body length and streamed SHA-256 before a local
+copy is considered available. Both truncated-body and same-length corruption
+regressions fail before correction. All **374 SlimData tests** and **2,163 full
+solution tests** pass with zero failures or skips, including full UI builds and
+active analyzers/audits. Verification adds a bounded local read/hash cost.
+Local Native AOT/container publications and application performance checks for
+this correction remain pending. Earlier `e5883fa8` images do not contain it.
+
+The [Files audit](files-audit.md) traces the original save, announcement,
+metadata, enqueue, acceptance, delivery and cleanup path. Remote durable
+confirmation, admission protection, version races, reference reconciliation and
+their measured cost remain implementation/validation work. This integrity
+correction alone does not establish the requested two-copy acceptance guarantee.
+
+Commit `24e36d71` fixes a separate, reproduced peer-replacement failure: a
+checksum mismatch previously published the invalid body and then deleted the
+ID, destroying an earlier valid local version. The regression fails on that
+source; its truncated-transfer control already passes. Peer pulls now use
+`SaveVerifiedAsync`, checking the existing streaming hash and actual length
+before the temporary body is published. Failed validation leaves the previous
+body/metadata intact without a second hashing pass. Empty and valid replacements,
+wrong expected lengths and temporary-file cleanup are covered. All **380
+SlimData tests** and **2,169 full solution tests** pass without failures/skips,
+with full UI builds and analyzers/audits. The initial helper signature failed
+CA1068 and was corrected without suppressing the analyzer; its log is retained.
+Native publications and application performance checks for this source remain
+pending. This does not yet make file/metadata publication jointly atomic or
+provide the requested remote durable acknowledgement.
+The [closed regression evidence index](storage-integrity-tests-index.json.gz)
+and [index metadata](storage-integrity-tests-index-summary.json) retain the
+failing/passing tests, full-suite logs and documentation build. The latter
+checks 23 rendered pages, 1,672 local links/assets and 401 search entries.
+
+## Reproduction and provenance
+
+The [bounded Kubernetes reproducer](producer-receipts-reproducer/README.md)
+retains the driver, observer and isolation checks used for the first diagnostic.
+The [serializer probe](serializer-probe/README.md) provides the separate limited
+heap regression. These controls retain failures and reject reused campaign
+names or existing WAL directories.
+
+The dedicated cluster uses an explicit kubeconfig/context. Runtime source,
+image hashes and actual executable/DLL hashes are checked independently. Original
+state is never cold-bootstrapped or reinterpreted to obtain recovery.
+
+The [delivery ledger export](delivery-ledgers.json.gz) and
+[export metadata](delivery-ledgers-summary.json) retain 10,098 per-ID receipt
+records across 32 closed diagnostics 05–12. Complete original JSONL files are
+also archived losslessly, with every original size/SHA-256 checked against the
+retained VM index. Public records expose the controlled client/receipt fields
+needed to correlate IDs, attempts, hashes and pod/writer identities. They omit
+arbitrary request/response fields. Unknown outcomes remain distinct. The original
+formal ten-duplicate observation has no exported per-ID receipts and is not
+reconstructed by these later diagnostics.
+
+A [separate ledger export for diagnostics 13–14](delivery-ledgers-13-14.json.gz)
+and its [metadata](delivery-ledgers-13-14-summary.json) preserve the subsequent
+WAL/TCP-screen IDs without rewriting the earlier export. The
+[closed raw index for diagnostics 11–14](diagnostic-11-14-raw-file-index.json.gz)
+and [index metadata](diagnostic-11-14-raw-file-index-summary.json) cover 625 local
+files and 15 original VM indices, including the available log generations and
+the separate post-stop allocation measurements. Missing previous-process logs
+in diagnostic 12 remain a recorded gap.
+
+The measured runtime source `e5883fa8` remains available on
+`codex/pr506-evidence-e5883fa8`. Its missing DCO trailer was corrected, with the
+user's approval, by replacing only that commit with identical-tree `f94030d2`
+after measurements closed. The leased push preserved all dirty work and the
+original source object. Binary/image provenance remains attached to the actual
+build source; the metadata-only correction does not change those artifacts.
+
+The [source/publication provenance](followup-provenance.json) records Native AOT
+and managed/trimmed Linux modes separately. The closed
+[raw file index](diagnostic-raw-file-index.json.gz) and
+[index metadata](diagnostic-raw-file-index-summary.json) retain 1,671 local file
+hashes and 26 original VM state indices from diagnostics 04–10, regressions,
+allocation probes and native controls 04–06. Active monitoring and diagnostic 11
+are explicitly excluded; they require a later closed index. Verify and expand:
+
+```bash
+shasum -a 256 docs/reliability/2026-11-15/diagnostic-raw-file-index.json.gz
+gzip -dc docs/reliability/2026-11-15/diagnostic-raw-file-index.json.gz > /tmp/slimfaas-followup-index.json
+shasum -a 256 /tmp/slimfaas-followup-index.json
+```
+
+Compressed SHA-256:
+`58c250560b7d36af69948fe69cb236e401dc2740bd515edff972e3135c87edb6`.
+Expanded SHA-256:
+`79c2d9904729010fcf83d70467f21f67cf4f1ab48c7fd1f689aa15434c6840c0`.
+
+Earlier fixture and observer failures are retained too. Diagnostic 04 precreated
+a WAL marker without enabling fresh bootstrap, so the conservative existing-state
+guard prevented readiness; its unmarked control became ready. This is an invalid
+fixture, not evidence of a product bootstrap defect. Diagnostic 05 sent traffic
+but its observer stopped on a connection failure before the full window; all four
+observations are incomplete. Diagnostic 06 corrected the observer and completed
+all windows on `1ecba4d1`; all four failed, with accepted operations still missing
+at the bound and runtime restarts. Missing at a bound remains distinct from
+confirmed permanent loss. Their original state and failed captures remain indexed.
+
+## CI and remaining work
+
+The `766ada9b` main, dashboard and reliability workflows pass, including the
+five Native AOT platforms, standalone bundles, .NET/Python SDK contracts and
+Linux/Windows fault checks. FOSSA License Compliance passes; the external
+SonarCloud Code Analysis gate still fails. No analyzer or audit was disabled.
+For `c2fa989a`, dashboard/documentation, Linux/Windows reliability and FOSSA pass.
+Its main workflow fails in the Windows Sonar job: the concurrent PrivateMemory
+WAL test reaches its existing 20-second deadline, and an early-response WebSocket
+test times out while connecting to a peer. Other main-workflow Native AOT and
+bundle jobs pass. These failures remain open; no deadline was extended and no
+test was skipped.
+The earlier `b7aed84c` Ubuntu job-diskfull run failed its 300-second readiness
+bound. Its original artifact and isolated filesystem image remain preserved;
+a later successful workflow does not establish that this availability defect
+has been corrected.
+
+Formal non-regression, original-state recovery for bounded missing receipts,
+renewed endurances and final-source performance comparisons remain open.

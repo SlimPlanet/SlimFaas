@@ -1,0 +1,96 @@
+{
+  "started": 1794742950.545114,
+  "variants": {
+    "before": {
+      "source": "c2fa989a068256a09e4fa7a2192f373eee00ad91",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-06",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "359e569e529e25405c2c2dc77ba2edf08994b09affc21af06bdbea623a846ef9",
+        "slimdata_dll": "3b3dfde1cfe18745c56d34f5eec8fccab1960eab2b2b5a0fd390c212aebe3df0"
+      },
+      "image_config_sha256": "612ac278a0c04eed701fff54e4275c5a3d6ac4807891c2a5551bbba2bbe036fa"
+    },
+    "after": {
+      "source": "e5883fa8e28ba2775c4dee8e5e6a31a850d22c82",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-07",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "ad6a7aa6bee1b07feedce4c553906bfca51e25a7d5498eaf743fcd0d36009187",
+        "slimdata_dll": "ccd446f4db4b54f3c9f7eeb52003c182d7de5bf0a21f45b3f348028cc4fb584d"
+      },
+      "image_config_sha256": "4e7c96b543b026891ae16bed7132626a39dcbe8613592088c23fc3e664307d81"
+    }
+  },
+  "scope": "Controlled diagnostic, no formal performance acceptance. Controlled WAL geometry diagnostic after dispatch/body fixes: original / candidate / candidate / original, all with 65536-byte Linux WAL geometry; managed OOM logs must also remain empty, one-shot fresh bootstrap, identical 1 GiB resources and full 180-second observation.",
+  "phases": [
+    {
+      "variant": "before",
+      "ordinal": 1,
+      "chunk_size": 65536,
+      "namespace": "slimfaas-pr506-do12-1-before",
+      "exit_code": 0,
+      "isolation_valid": true,
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/dispatch-ownership-net11-12/slimfaas-pr506-do12-1-before",
+      "passed": true,
+      "workload_started": true,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 4.464744227996562,
+      "repeated_deliveries": {}
+    },
+    {
+      "variant": "after",
+      "ordinal": 2,
+      "chunk_size": 65536,
+      "namespace": "slimfaas-pr506-do12-2-after",
+      "exit_code": 1,
+      "isolation_valid": true,
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/dispatch-ownership-net11-12/slimfaas-pr506-do12-2-after",
+      "passed": false,
+      "workload_started": true,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 3.7427276209928095,
+      "repeated_deliveries": {}
+    },
+    {
+      "variant": "after",
+      "ordinal": 3,
+      "chunk_size": 65536,
+      "namespace": "slimfaas-pr506-do12-3-after",
+      "exit_code": 0,
+      "isolation_valid": true,
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/dispatch-ownership-net11-12/slimfaas-pr506-do12-3-after",
+      "passed": true,
+      "workload_started": true,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 4.036889484006679,
+      "repeated_deliveries": {}
+    },
+    {
+      "variant": "before",
+      "ordinal": 4,
+      "chunk_size": 65536,
+      "namespace": "slimfaas-pr506-do12-4-before",
+      "exit_code": 0,
+      "isolation_valid": true,
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/dispatch-ownership-net11-12/slimfaas-pr506-do12-4-before",
+      "passed": true,
+      "workload_started": true,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 3.890866764006205,
+      "repeated_deliveries": {}
+    }
+  ],
+  "finished": 1794743875.665341,
+  "verdict": "diagnostic-complete",
+  "formal_performance_acceptance": false,
+  "original_coordinator": {
+    "path": "profiles/dispatch-ownership-net11-12/abba.json",
+    "sha256": "47d45b60e7c5512a03eedce3b86c827fa7addf208a9757280024b4c037766e88"
+  },
+  "runtime_log_coverage": "Current process logs only; the previous process log of diagnostic 12 ordinal 2 is unavailable. Zero current-log OOM occurrences does not establish absence of managed OOM in that instance."
+}

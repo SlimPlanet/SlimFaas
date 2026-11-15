@@ -33,6 +33,14 @@ and [raw index metadata](reliability/2026-11-13/performance-raw-file-index-metad
 preserve attempts, source provenance and separate maintenance/isolation segments.
 Targeted diagnosis continues; no acceptance or certification is implied.
 
+The [15 November investigation](reliability/2026-11-15/README.md) follows managed
+OOM across persisted producer receipts, batch response serialization/HTTP
+buffering and queued HTTP body preparation. It also reproduces local redispatch
+while a prior delivery remains owned. Failed and incomplete controls, per-ID
+receipts, original-state indices and separate red/green allocation tests remain
+preserved. Later fixes have separate source provenance and do not override the
+frozen comparison verdicts or establish LTS certification.
+
 ## Versions and evidence
 
 The baseline is `496e8739e5f7b4326f64520fe4caa4e0e23f8d06` (v0.88.0).
