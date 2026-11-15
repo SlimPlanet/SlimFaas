@@ -66,6 +66,12 @@ SHA-256 with the metadata. A truncated or modified local body is treated as
 unavailable so the existing peer-pull path can attempt repair. Verification is
 streamed with bounded memory; it adds a local read and hash calculation.
 
+Peer downloads verify the expected length and SHA-256 while the body is still
+temporary. A truncated transfer or checksum mismatch is discarded without
+replacing or deleting a previously valid local version. This uses the upload's
+existing streaming hash calculation. It does not add a remote durable-copy
+acknowledgement to the upload contract.
+
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/data/files?id={id?}&ttl={ms?}` | Store a binary artifact (request body = raw bytes) |

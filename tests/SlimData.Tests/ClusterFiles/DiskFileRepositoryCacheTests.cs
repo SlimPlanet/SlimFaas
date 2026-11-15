@@ -54,6 +54,43 @@ public sealed class DiskFileRepositoryCacheTests : IDisposable
         Assert.Equal(put.Sha256Hex, (await sut.TryGetMetadataAsync("id", CancellationToken.None))!.Sha256Hex);
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    public async Task A_download_with_the_wrong_expected_length_is_never_published(int expectedLength)
+    {
+        var repository = CreateRepository(new TrackingCacheControl());
+        using var content = new MemoryStream(new byte[] { 1, 2, 3 });
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(content.ToArray()));
+
+        await Assert.ThrowsAsync<IOException>(() => repository.SaveVerifiedAsync(
+            "unpublished", content, new FilePutResult(hash, "text/plain", expectedLength), null, CancellationToken.None));
+
+        Assert.Null(await repository.TryGetMetadataAsync("unpublished", CancellationToken.None));
+        Assert.Empty(Directory.GetFiles(_directory));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public async Task A_verified_download_replaces_a_previous_version_after_validation(int length)
+    {
+        var repository = CreateRepository(new TrackingCacheControl());
+        using var original = new MemoryStream(new byte[] { 9 });
+        await repository.SaveAsync("replace", original, "text/plain", false, null, CancellationToken.None);
+        byte[] expectedBytes = new byte[length];
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(expectedBytes));
+        using var content = new MemoryStream(expectedBytes);
+
+        FilePutResult result = await repository.SaveVerifiedAsync("replace", content,
+            new FilePutResult(hash, "application/octet-stream", length), null, CancellationToken.None);
+
+        Assert.Equal(length, result.Length);
+        Assert.True(await repository.ExistsAsync("replace", hash, CancellationToken.None));
+        Assert.Equal("application/octet-stream", (await repository.TryGetMetadataAsync("replace", CancellationToken.None))!.ContentType);
+        Assert.Empty(Directory.GetFiles(_directory, "*.tmp.*"));
+    }
+
     [Fact]
     public async Task Open_readers_keep_their_version_when_the_id_is_replaced_and_deleted()
     {

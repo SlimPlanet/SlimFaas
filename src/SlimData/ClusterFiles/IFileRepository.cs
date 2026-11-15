@@ -16,7 +16,18 @@ public interface IFileRepository
         long? expireAtUtcTicks,
         CancellationToken ct,
         IDictionary<string, string>? tags = null);
-    
+
+    /// <summary>
+    /// Replaces a file only after the temporary body matches the expected length and hash.
+    /// A failed transfer leaves the previous version intact.
+    /// </summary>
+    Task<FilePutResult> SaveVerifiedAsync(
+        string id,
+        Stream content,
+        FilePutResult expected,
+        long? expireAtUtcTicks,
+        CancellationToken ct,
+        IDictionary<string, string>? tags = null);
 
     Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct);
 

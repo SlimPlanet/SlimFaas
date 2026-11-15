@@ -37,7 +37,7 @@ public sealed class DiskFileRepository : IFileRepository
         Directory.CreateDirectory(_root);
     }
 
-    public async Task<FilePutResult> SaveAsync(
+    public Task<FilePutResult> SaveAsync(
         string id,
         Stream content,
         string contentType,
@@ -45,6 +45,30 @@ public sealed class DiskFileRepository : IFileRepository
         long? expireAtUtcTicks,
         CancellationToken ct,
         IDictionary<string, string>? tags=null)
+        => SaveCoreAsync(id, content, contentType, overwrite, expireAtUtcTicks, tags, expected: null, ct);
+
+    public Task<FilePutResult> SaveVerifiedAsync(
+        string id,
+        Stream content,
+        FilePutResult expected,
+        long? expireAtUtcTicks,
+        CancellationToken ct,
+        IDictionary<string, string>? tags = null)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        ArgumentOutOfRangeException.ThrowIfNegative(expected.Length);
+        return SaveCoreAsync(id, content, expected.ContentType, overwrite: true, expireAtUtcTicks, tags, expected, ct);
+    }
+
+    private async Task<FilePutResult> SaveCoreAsync(
+        string id,
+        Stream content,
+        string contentType,
+        bool overwrite,
+        long? expireAtUtcTicks,
+        IDictionary<string, string>? tags,
+        FilePutResult? expected,
+        CancellationToken ct)
     {
         var (filePath, metaPath) = GetPaths(id);
         var tmp = filePath + ".tmp." + Guid.NewGuid().ToString("N");
@@ -79,9 +103,16 @@ public sealed class DiskFileRepository : IFileRepository
                 _cacheControl.Drop(fs);
             }
 
+            var shaHex = ToLowerHex(hash.GetHashAndReset());
+            if (expected is not null &&
+                (total != expected.Length || !shaHex.Equals(expected.Sha256Hex, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new IOException("Downloaded file does not match its expected length and SHA-256.");
+            }
+
+            ct.ThrowIfCancellationRequested();
             MoveIntoPlace(tmp, filePath, overwrite);
 
-            var shaHex = ToLowerHex(hash.GetHashAndReset());
             var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks, tags);
             await WriteMetadataAsync(metaPath, meta, _logger, ct).ConfigureAwait(false);
 

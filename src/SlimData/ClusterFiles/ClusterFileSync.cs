@@ -200,23 +200,13 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                         _logger.LogGETLengthContentTypeExpireAtUtcTicksTags(fileUri, headResp.StatusCode, length.Value, contentType, expireAtUtcTicks, tags == null ? "null" : string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
                     }
 
-                    var put = await _repo.SaveAsync(
+                    await _repo.SaveVerifiedAsync(
                         id: id,
                         content: rangeStream,
-                        contentType: contentType,
-                        overwrite: true,
+                        expected: new FilePutResult(sha256Hex, contentType, length.Value),
                         expireAtUtcTicks: expireAtUtcTicks,
                         tags: tags,
                         ct: ct).ConfigureAwait(false);
-
-                    // Vérif intégrité
-                    if (!put.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase) || put.Length != length.Value)
-                    {
-                        _logger.LogClusterPullIntegrityMismatchFromId(fileUri, id, sha256Hex, put.Sha256Hex, length.Value, put.Length);
-
-                        await _repo.DeleteAsync(id, ct).ConfigureAwait(false);
-                        continue; // essaie un autre nœud
-                    }
 
                     // OK
                     return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
