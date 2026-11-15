@@ -7,7 +7,8 @@
   "verdict": "INCONCLUSIVE",
   "contradictory_brackets": false,
   "repeat_budget_exhausted": false,
-  "note": "Both references are incomplete, so no complete non-regression comparison is possible. All four runs and original persisted state remain. Both candidates complete with zero errors, missing IDs or duplicates. Raw sync and normalized overhead are included. No threshold or deadline changed. Host isolation is monitored continuously; final matrix audit remains pending. The prior invalid attempt remains separate.",
+  "note": "Both references are incomplete, so no complete non-regression comparison is possible. All four runs and original persisted state remain. Both candidates complete with zero errors, missing IDs or duplicates. Raw sync and normalized overhead are included. No threshold or deadline changed. The complete matrix isolation audit is valid (3416 samples, zero external compilation observations); it appears in the companion Podman MemoryLab report. The prior invalid attempt remains separate.",
+  "isolation_valid": true,
   "attempts": [
     {
       "attempt": 1,

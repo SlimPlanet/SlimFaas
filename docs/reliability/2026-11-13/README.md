@@ -277,17 +277,46 @@ report/log hashes and verified archive metadata. Original per-request samples
 and persisted state remain retained on the Mac and VM.
 
 The frozen runtime, driver, images, resource limits and request deadlines are
-unchanged. Between closed guest phases, filesystem discard returns already
-unallocated VM blocks to the Mac; it removes no files or images and overlaps no
-timed guest workload. Isolation monitoring continues through the matrix; its
-final audit, Podman MemoryLab and Kubernetes performance results remain pending.
+unchanged. The final isolation audit covers 3,416 samples with zero external
+compilation observations and a 7.440-second maximum gap. All 24 filesystem
+discards occur after the guest exits, returning already unallocated VM blocks
+without deleting files or images. The complete audit is included in the
+MemoryLab evidence below. Kubernetes performance results remain pending.
 
-On report head `46f3bfb5`, the
-[dashboard/documentation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43631519374),
-[Windows/Linux reliability](https://github.com/SlimPlanet/SlimFaas/actions/runs/43631519348)
-and [main validation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43631519293)
+On report head `5fd1b607`, the
+[dashboard/documentation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43651613271),
+[Windows/Linux reliability](https://github.com/SlimPlanet/SlimFaas/actions/runs/43651613277)
+and [main validation](https://github.com/SlimPlanet/SlimFaas/actions/runs/43651613279)
 workflows pass, as does FOSSA. The separate SonarCloud security gate remains
 failed; scanner completion does not establish gate acceptance.
+
+## Current-source Podman MemoryLab observations
+
+The [complete MemoryLab evidence](podman-memory-net11-03.json) retains all 20
+runs, including the permitted full Set C48 repeat. All warmups and measured
+loads have zero operation errors, zero validation failures across the three
+nodes and successful independent async receipt reconciliation. Set-only loads
+have no async receipts, rather than an async integrity claim.
+
+| Block | Verdict | Guardrail observations |
+|---|---|---|
+| Set C12 | **PASS** | All four comparisons pass throughput, p99 and RSS. |
+| Set C48 | **INCONCLUSIVE** | Both ABBA blocks give contradictory reference verdicts. Candidate/reference throughput ratios fall to 88.22% in the first block and 86.58% in the repeat; p99 and RSS pass. The one permitted repeat is used. |
+| Mixed C12 | **PASS** | All four comparisons pass throughput, p99 and RSS. |
+| Mixed C48 | **FAIL** | Both candidates fail throughput and p99 against both references; RSS and integrity pass. |
+
+Mixed C48 reference rates are 2,029.70 and 1,964.67 operations/second, versus
+1,617.88 and 1,640.07 for the candidates: **16.52–20.29% lower**, exceeding the
+10% allowance. Candidate p99 values of 51.25 and 50.60 ms compare with 38.13
+and 41.25 ms: **22.65–34.39% higher**, exceeding 20%. Candidate sampled node
+RSS peaks are 192.17 and 182.91 MiB, versus 192.13 and 205.39 MiB references.
+Both references agree on the failed mixed-block verdict, so no repeat applies.
+No root cause or ZLinq remedy is established by these measurements alone.
+
+The overall platform matrix remains **INCONCLUSIVE** because HTTP lacks complete
+references and Set C48 remains contradictory. This does not clear the explicit
+mixed C48 performance failure. All originals, including the excluded isolation
+attempt, remain retained. Kubernetes now measures the same Linux images.
 
 ## Current-source endurance
 

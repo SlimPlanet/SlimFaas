@@ -1,0 +1,4346 @@
+{
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "reference_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+  "driver_source": "a3e28adcfe700bb5ad920e1170a72c781cffed76",
+  "environment": "Podman Linux ARM64 managed/trimmed .NET 11",
+  "isolation_attempt": 2,
+  "isolation_valid": true,
+  "memory_verdict": "FAIL",
+  "overall_matrix_verdict": "INCONCLUSIVE",
+  "isolation_audit": {
+    "checked_utc": 1794701237.034653,
+    "isolation_valid": true,
+    "activity_log": "artifacts/pr506/logs/matrix-podman-net11-03-02.activity.jsonl",
+    "activity_log_sha256": "83e80f41c17e0cf07ba87a974fd3ee65ad3d9cd0e8d63b48d2ada1250756e178",
+    "samples": 3416,
+    "first_utc": 1794683737.353593,
+    "last_utc": 1794700967.362394,
+    "max_sample_gap_seconds": 7.440147876739502,
+    "external_activity_samples": [],
+    "discard_steps": 24,
+    "all_discards_after_guest_exit": true,
+    "discard_proof": {
+      "pid": 11078,
+      "launcher_pid": 1189,
+      "launcher_identity": "Sat Nov 14 20:15:37 2026     /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python ${CANDIDATE}/.bin/run-platform-matrix.py --config ${CANDIDATE}/artifacts/pr506/configurations/podman-net11-03-isolation-2.json --output ${CANDIDATE}/artifacts/pr506/measurements/podman-net11-03-serial-02",
+      "started": 1794684179.54229,
+      "updated": 1794700972.387806,
+      "steps": [
+        {
+          "phase": "http-attempt-1/1-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-http-attempt-1-1-before",
+          "launcher_paused_utc": 1794684179.7877939,
+          "status": "finished",
+          "guest_exited_utc": 1794686843.792634,
+          "before": {
+            "utc": 1794686843.79264,
+            "mac_free_bytes": 29169205248,
+            "vm_free_bytes": 63411576832
+          },
+          "after": {
+            "utc": 1794686848.454901,
+            "mac_free_bytes": 31006797824,
+            "vm_free_bytes": 63411576832
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794686848.652735
+        },
+        {
+          "phase": "http-attempt-1/2-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-http-attempt-1-2-after",
+          "launcher_paused_utc": 1794686854.704992,
+          "status": "finished",
+          "guest_exited_utc": 1794690599.884444,
+          "before": {
+            "utc": 1794690599.884452,
+            "mac_free_bytes": 28099915776,
+            "vm_free_bytes": 63243169792
+          },
+          "after": {
+            "utc": 1794690604.585377,
+            "mac_free_bytes": 30529433600,
+            "vm_free_bytes": 63242280960
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794690604.780261
+        },
+        {
+          "phase": "http-attempt-1/3-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-http-attempt-1-3-after",
+          "launcher_paused_utc": 1794690610.8725069,
+          "status": "finished",
+          "guest_exited_utc": 1794694953.336284,
+          "before": {
+            "utc": 1794694953.336287,
+            "mac_free_bytes": 27859234816,
+            "vm_free_bytes": 62989606912
+          },
+          "after": {
+            "utc": 1794694958.2744598,
+            "mac_free_bytes": 30164852736,
+            "vm_free_bytes": 62989606912
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794694958.470006
+        },
+        {
+          "phase": "http-attempt-1/4-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-http-attempt-1-4-before",
+          "launcher_paused_utc": 1794694965.1166668,
+          "status": "finished",
+          "guest_exited_utc": 1794697487.445884,
+          "before": {
+            "utc": 1794697487.445887,
+            "mac_free_bytes": 27715080192,
+            "vm_free_bytes": 62715977728
+          },
+          "after": {
+            "utc": 1794697491.980117,
+            "mac_free_bytes": 29478187008,
+            "vm_free_bytes": 62715977728
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794697492.179893
+        },
+        {
+          "phase": "set-c12-attempt-1/1-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-1-before",
+          "launcher_paused_utc": 1794697497.7613592,
+          "status": "finished",
+          "guest_exited_utc": 1794697665.836886,
+          "before": {
+            "utc": 1794697665.836889,
+            "mac_free_bytes": 29239410688,
+            "vm_free_bytes": 62700191744
+          },
+          "after": {
+            "utc": 1794697668.964169,
+            "mac_free_bytes": 29255438336,
+            "vm_free_bytes": 62700191744
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794697669.175745
+        },
+        {
+          "phase": "set-c12-attempt-1/2-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-2-after",
+          "launcher_paused_utc": 1794697670.696919,
+          "status": "finished",
+          "guest_exited_utc": 1794697838.971008,
+          "before": {
+            "utc": 1794697838.971012,
+            "mac_free_bytes": 29207621632,
+            "vm_free_bytes": 62679920640
+          },
+          "after": {
+            "utc": 1794697842.120428,
+            "mac_free_bytes": 29247139840,
+            "vm_free_bytes": 62679949312
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794697842.319062
+        },
+        {
+          "phase": "set-c12-attempt-1/3-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-3-after",
+          "launcher_paused_utc": 1794697843.818959,
+          "status": "finished",
+          "guest_exited_utc": 1794698011.952488,
+          "before": {
+            "utc": 1794698011.952491,
+            "mac_free_bytes": 29173911552,
+            "vm_free_bytes": 62655463424
+          },
+          "after": {
+            "utc": 1794698015.127451,
+            "mac_free_bytes": 29217165312,
+            "vm_free_bytes": 62655463424
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794698015.32742
+        },
+        {
+          "phase": "set-c12-attempt-1/4-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-4-before",
+          "launcher_paused_utc": 1794698016.8603,
+          "status": "finished",
+          "guest_exited_utc": 1794698185.017528,
+          "before": {
+            "utc": 1794698185.017531,
+            "mac_free_bytes": 29162876928,
+            "vm_free_bytes": 62630961152
+          },
+          "after": {
+            "utc": 1794698188.221044,
+            "mac_free_bytes": 29208395776,
+            "vm_free_bytes": 62630961152
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794698188.4369879
+        },
+        {
+          "phase": "set-c48-attempt-1/1-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-1-before",
+          "launcher_paused_utc": 1794698190.48256,
+          "status": "finished",
+          "guest_exited_utc": 1794698358.621398,
+          "before": {
+            "utc": 1794698358.621403,
+            "mac_free_bytes": 29128151040,
+            "vm_free_bytes": 62538096640
+          },
+          "after": {
+            "utc": 1794698361.745672,
+            "mac_free_bytes": 29198987264,
+            "vm_free_bytes": 62538096640
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794698361.947475
+        },
+        {
+          "phase": "set-c48-attempt-1/2-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-2-after",
+          "launcher_paused_utc": 1794698363.9905548,
+          "status": "finished",
+          "guest_exited_utc": 1794698532.2033532,
+          "before": {
+            "utc": 1794698532.203358,
+            "mac_free_bytes": 28979552256,
+            "vm_free_bytes": 62463676416
+          },
+          "after": {
+            "utc": 1794698535.302506,
+            "mac_free_bytes": 29034803200,
+            "vm_free_bytes": 62463705088
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794698535.505101
+        },
+        {
+          "phase": "set-c48-attempt-1/3-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-3-after",
+          "launcher_paused_utc": 1794698537.518251,
+          "status": "finished",
+          "guest_exited_utc": 1794698705.711572,
+          "before": {
+            "utc": 1794698705.711576,
+            "mac_free_bytes": 28840316928,
+            "vm_free_bytes": 62391599104
+          },
+          "after": {
+            "utc": 1794698708.826702,
+            "mac_free_bytes": 28898631680,
+            "vm_free_bytes": 62391599104
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794698709.023701
+        },
+        {
+          "phase": "set-c48-attempt-1/4-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-4-before",
+          "launcher_paused_utc": 1794698711.031917,
+          "status": "finished",
+          "guest_exited_utc": 1794698879.246763,
+          "before": {
+            "utc": 1794698879.246767,
+            "mac_free_bytes": 28710264832,
+            "vm_free_bytes": 62302302208
+          },
+          "after": {
+            "utc": 1794698882.310412,
+            "mac_free_bytes": 28779962368,
+            "vm_free_bytes": 62302302208
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794698882.515418
+        },
+        {
+          "phase": "set-c48-attempt-2/1-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-1-before",
+          "launcher_paused_utc": 1794698885.049912,
+          "status": "finished",
+          "guest_exited_utc": 1794699053.206723,
+          "before": {
+            "utc": 1794699053.2067251,
+            "mac_free_bytes": 28714446848,
+            "vm_free_bytes": 62229934080
+          },
+          "after": {
+            "utc": 1794699056.317634,
+            "mac_free_bytes": 28785459200,
+            "vm_free_bytes": 62229962752
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794699056.511163
+        },
+        {
+          "phase": "set-c48-attempt-2/2-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-2-after",
+          "launcher_paused_utc": 1794699058.531082,
+          "status": "finished",
+          "guest_exited_utc": 1794699226.7637372,
+          "before": {
+            "utc": 1794699226.7637398,
+            "mac_free_bytes": 28594290688,
+            "vm_free_bytes": 62154174464
+          },
+          "after": {
+            "utc": 1794699229.887367,
+            "mac_free_bytes": 28650872832,
+            "vm_free_bytes": 62154174464
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794699230.1024241
+        },
+        {
+          "phase": "set-c48-attempt-2/3-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-3-after",
+          "launcher_paused_utc": 1794699232.1198459,
+          "status": "finished",
+          "guest_exited_utc": 1794699400.2745988,
+          "before": {
+            "utc": 1794699400.274601,
+            "mac_free_bytes": 28466081792,
+            "vm_free_bytes": 62073143296
+          },
+          "after": {
+            "utc": 1794699403.3877819,
+            "mac_free_bytes": 28531617792,
+            "vm_free_bytes": 62073143296
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794699403.586252
+        },
+        {
+          "phase": "set-c48-attempt-2/4-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-4-before",
+          "launcher_paused_utc": 1794699405.607114,
+          "status": "finished",
+          "guest_exited_utc": 1794699573.882008,
+          "before": {
+            "utc": 1794699573.8820102,
+            "mac_free_bytes": 28322050048,
+            "vm_free_bytes": 61976924160
+          },
+          "after": {
+            "utc": 1794699577.994689,
+            "mac_free_bytes": 28396642304,
+            "vm_free_bytes": 61976952832
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794699578.190402
+        },
+        {
+          "phase": "mixed-c12-attempt-1/1-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-1-before",
+          "launcher_paused_utc": 1794699580.73297,
+          "status": "finished",
+          "guest_exited_utc": 1794699748.859293,
+          "before": {
+            "utc": 1794699748.859296,
+            "mac_free_bytes": 28256186368,
+            "vm_free_bytes": 61940559872
+          },
+          "after": {
+            "utc": 1794699752.9433558,
+            "mac_free_bytes": 28266983424,
+            "vm_free_bytes": 61940617216
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794699753.152767
+        },
+        {
+          "phase": "mixed-c12-attempt-1/2-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-2-after",
+          "launcher_paused_utc": 1794699755.187213,
+          "status": "finished",
+          "guest_exited_utc": 1794699923.425205,
+          "before": {
+            "utc": 1794699923.425208,
+            "mac_free_bytes": 28192313344,
+            "vm_free_bytes": 61900353536
+          },
+          "after": {
+            "utc": 1794699926.6444921,
+            "mac_free_bytes": 28223315968,
+            "vm_free_bytes": 61900353536
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794699926.855135
+        },
+        {
+          "phase": "mixed-c12-attempt-1/3-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-3-after",
+          "launcher_paused_utc": 1794699928.9304068,
+          "status": "finished",
+          "guest_exited_utc": 1794700097.145468,
+          "before": {
+            "utc": 1794700097.145472,
+            "mac_free_bytes": 27985637376,
+            "vm_free_bytes": 61865230336
+          },
+          "after": {
+            "utc": 1794700100.2578409,
+            "mac_free_bytes": 27991097344,
+            "vm_free_bytes": 61865230336
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794700100.473419
+        },
+        {
+          "phase": "mixed-c12-attempt-1/4-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-4-before",
+          "launcher_paused_utc": 1794700102.0440068,
+          "status": "finished",
+          "guest_exited_utc": 1794700270.208496,
+          "before": {
+            "utc": 1794700270.208501,
+            "mac_free_bytes": 27913269248,
+            "vm_free_bytes": 61831299072
+          },
+          "after": {
+            "utc": 1794700273.335542,
+            "mac_free_bytes": 27942903808,
+            "vm_free_bytes": 61831299072
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794700273.538782
+        },
+        {
+          "phase": "mixed-c48-attempt-1/1-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-1-before",
+          "launcher_paused_utc": 1794700275.56047,
+          "status": "finished",
+          "guest_exited_utc": 1794700443.67086,
+          "before": {
+            "utc": 1794700443.670866,
+            "mac_free_bytes": 27774574592,
+            "vm_free_bytes": 61646307328
+          },
+          "after": {
+            "utc": 1794700446.813023,
+            "mac_free_bytes": 27824144384,
+            "vm_free_bytes": 61646336000
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794700447.013906
+        },
+        {
+          "phase": "mixed-c48-attempt-1/2-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-2-after",
+          "launcher_paused_utc": 1794700449.5594492,
+          "status": "finished",
+          "guest_exited_utc": 1794700617.818387,
+          "before": {
+            "utc": 1794700617.8183901,
+            "mac_free_bytes": 27459649536,
+            "vm_free_bytes": 61541208064
+          },
+          "after": {
+            "utc": 1794700620.919272,
+            "mac_free_bytes": 27488432128,
+            "vm_free_bytes": 61541208064
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794700621.136883
+        },
+        {
+          "phase": "mixed-c48-attempt-1/3-after",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-3-after",
+          "launcher_paused_utc": 1794700623.668025,
+          "status": "finished",
+          "guest_exited_utc": 1794700791.867778,
+          "before": {
+            "utc": 1794700791.8677812,
+            "mac_free_bytes": 27200303104,
+            "vm_free_bytes": 61416427520
+          },
+          "after": {
+            "utc": 1794700795.021388,
+            "mac_free_bytes": 27241754624,
+            "vm_free_bytes": 61416484864
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794700795.221542
+        },
+        {
+          "phase": "mixed-c48-attempt-1/4-before",
+          "container": "slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-4-before",
+          "launcher_paused_utc": 1794700797.765329,
+          "status": "finished",
+          "guest_exited_utc": 1794700966.0175092,
+          "before": {
+            "utc": 1794700966.0175118,
+            "mac_free_bytes": 26923175936,
+            "vm_free_bytes": 61235879936
+          },
+          "after": {
+            "utc": 1794700969.11727,
+            "mac_free_bytes": 26971324416,
+            "vm_free_bytes": 61227491328
+          },
+          "no_active_guest_during_discard": true,
+          "launcher_resumed_utc": 1794700969.30866
+        }
+      ],
+      "note": "Host launcher waits; guest workload and serial isolation monitor continue. Only unallocated VM filesystem blocks discarded after guest exit. No file/image/volume removed.",
+      "finished": 1794700972.3878021
+    },
+    "note": "Only completed isolation attempt2; the earlier invalid/incomplete attempt remains separate. Other project process identities are private and are not published."
+  },
+  "blocks": {
+    "set-c12": {
+      "attempts": [
+        {
+          "pairs": {
+            "a1-b2": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 80.66593633852797,
+                "p99_ms": 250.241512,
+                "rss_mib": 160.83203125
+              },
+              "candidate": {
+                "rate": 144.52746527836342,
+                "p99_ms": 242.825094,
+                "rss_mib": 164.47265625
+              },
+              "ratios": {
+                "rate": 1.7916790139499523,
+                "p99_ms": 0.970362958804373,
+                "rss_mib": 1.0226361936220338
+              }
+            },
+            "a1-b3": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 80.66593633852797,
+                "p99_ms": 250.241512,
+                "rss_mib": 160.83203125
+              },
+              "candidate": {
+                "rate": 133.94466321804362,
+                "p99_ms": 247.289448,
+                "rss_mib": 166.70703125
+              },
+              "ratios": {
+                "rate": 1.6604860650959612,
+                "p99_ms": 0.9882031403326879,
+                "rss_mib": 1.0365287931411362
+              }
+            },
+            "a4-b2": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 127.36104512052171,
+                "p99_ms": 246.88515,
+                "rss_mib": 167.1875
+              },
+              "candidate": {
+                "rate": 144.52746527836342,
+                "p99_ms": 242.825094,
+                "rss_mib": 164.47265625
+              },
+              "ratios": {
+                "rate": 1.1347854843810141,
+                "p99_ms": 0.9835548796677321,
+                "rss_mib": 0.9837616822429907
+              }
+            },
+            "a4-b3": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 127.36104512052171,
+                "p99_ms": 246.88515,
+                "rss_mib": 167.1875
+              },
+              "candidate": {
+                "rate": 133.94466321804362,
+                "p99_ms": 247.289448,
+                "rss_mib": 166.70703125
+              },
+              "ratios": {
+                "rate": 1.0516925571024627,
+                "p99_ms": 1.0016375954568348,
+                "rss_mib": 0.9971261682242991
+              }
+            }
+          },
+          "contradictory_brackets": false,
+          "verdict": "PASS"
+        }
+      ],
+      "verdict": "PASS"
+    },
+    "set-c48": {
+      "attempts": [
+        {
+          "pairs": {
+            "a1-b2": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 912.7671875408865,
+                "p99_ms": 136.02638499999998,
+                "rss_mib": 170.90234375
+              },
+              "candidate": {
+                "rate": 875.4273299359967,
+                "p99_ms": 147.57009999999994,
+                "rss_mib": 164.40625
+              },
+              "ratios": {
+                "rate": 0.9590915864257914,
+                "p99_ms": 1.0848637931530707,
+                "rss_mib": 0.9619894402413659
+              }
+            },
+            "a1-b3": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 912.7671875408865,
+                "p99_ms": 136.02638499999998,
+                "rss_mib": 170.90234375
+              },
+              "candidate": {
+                "rate": 901.2918538232531,
+                "p99_ms": 149.62039999999993,
+                "rss_mib": 164.171875
+              },
+              "ratios": {
+                "rate": 0.9874279730096899,
+                "p99_ms": 1.0999366042110137,
+                "rss_mib": 0.9606180430161596
+              }
+            },
+            "a4-b2": {
+              "verdict": "FAIL",
+              "checks": {
+                "throughput": false,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 992.3718247733063,
+                "p99_ms": 137.46647000000002,
+                "rss_mib": 172.8203125
+              },
+              "candidate": {
+                "rate": 875.4273299359967,
+                "p99_ms": 147.57009999999994,
+                "rss_mib": 164.40625
+              },
+              "ratios": {
+                "rate": 0.8821565748664579,
+                "p99_ms": 1.0734988684877114,
+                "rss_mib": 0.9513132317707156
+              }
+            },
+            "a4-b3": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 992.3718247733063,
+                "p99_ms": 137.46647000000002,
+                "rss_mib": 172.8203125
+              },
+              "candidate": {
+                "rate": 901.2918538232531,
+                "p99_ms": 149.62039999999993,
+                "rss_mib": 164.171875
+              },
+              "ratios": {
+                "rate": 0.908219914475243,
+                "p99_ms": 1.0884137782835328,
+                "rss_mib": 0.9499570543827133
+              }
+            }
+          },
+          "contradictory_brackets": true,
+          "verdict": "INCONCLUSIVE"
+        },
+        {
+          "pairs": {
+            "a1-b2": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 904.4302614927486,
+                "p99_ms": 139.73720000000006,
+                "rss_mib": 171.0
+              },
+              "candidate": {
+                "rate": 934.7964986329916,
+                "p99_ms": 151.330884,
+                "rss_mib": 170.94921875
+              },
+              "ratios": {
+                "rate": 1.0335749901712974,
+                "p99_ms": 1.0829677709300025,
+                "rss_mib": 0.999703033625731
+              }
+            },
+            "a1-b3": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 904.4302614927486,
+                "p99_ms": 139.73720000000006,
+                "rss_mib": 171.0
+              },
+              "candidate": {
+                "rate": 859.7005586208737,
+                "p99_ms": 147.088124,
+                "rss_mib": 164.19921875
+              },
+              "ratios": {
+                "rate": 0.9505437790216692,
+                "p99_ms": 1.0526053477527813,
+                "rss_mib": 0.9602293494152047
+              }
+            },
+            "a4-b2": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 992.9043554234828,
+                "p99_ms": 126.30266400000001,
+                "rss_mib": 166.01171875
+              },
+              "candidate": {
+                "rate": 934.7964986329916,
+                "p99_ms": 151.330884,
+                "rss_mib": 170.94921875
+              },
+              "ratios": {
+                "rate": 0.9414768839787115,
+                "p99_ms": 1.198160665874791,
+                "rss_mib": 1.029741876279442
+              }
+            },
+            "a4-b3": {
+              "verdict": "FAIL",
+              "checks": {
+                "throughput": false,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 992.9043554234828,
+                "p99_ms": 126.30266400000001,
+                "rss_mib": 166.01171875
+              },
+              "candidate": {
+                "rate": 859.7005586208737,
+                "p99_ms": 147.088124,
+                "rss_mib": 164.19921875
+              },
+              "ratios": {
+                "rate": 0.8658442819038734,
+                "p99_ms": 1.164568658662655,
+                "rss_mib": 0.9890820960493188
+              }
+            }
+          },
+          "contradictory_brackets": true,
+          "verdict": "INCONCLUSIVE"
+        }
+      ],
+      "verdict": "INCONCLUSIVE"
+    },
+    "mixed-c12": {
+      "attempts": [
+        {
+          "pairs": {
+            "a1-b2": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 395.83253228484045,
+                "p99_ms": 90.849136,
+                "rss_mib": 153.0625
+              },
+              "candidate": {
+                "rate": 377.17332473091955,
+                "p99_ms": 91.85793000000002,
+                "rss_mib": 156.5546875
+              },
+              "ratios": {
+                "rate": 0.9528608539419045,
+                "p99_ms": 1.0111040571701202,
+                "rss_mib": 1.022815434871376
+              }
+            },
+            "a1-b3": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 395.83253228484045,
+                "p99_ms": 90.849136,
+                "rss_mib": 153.0625
+              },
+              "candidate": {
+                "rate": 380.20657088881904,
+                "p99_ms": 91.015955,
+                "rss_mib": 159.9453125
+              },
+              "ratios": {
+                "rate": 0.9605238071114959,
+                "p99_ms": 1.0018362199944313,
+                "rss_mib": 1.0449673336055534
+              }
+            },
+            "a4-b2": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 363.9197941963099,
+                "p99_ms": 104.36057199999996,
+                "rss_mib": 164.90234375
+              },
+              "candidate": {
+                "rate": 377.17332473091955,
+                "p99_ms": 91.85793000000002,
+                "rss_mib": 156.5546875
+              },
+              "ratios": {
+                "rate": 1.036418822899917,
+                "p99_ms": 0.8801976478243149,
+                "rss_mib": 0.9493781831102689
+              }
+            },
+            "a4-b3": {
+              "verdict": "PASS",
+              "checks": {
+                "throughput": true,
+                "p99": true,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 363.9197941963099,
+                "p99_ms": 104.36057199999996,
+                "rss_mib": 164.90234375
+              },
+              "candidate": {
+                "rate": 380.20657088881904,
+                "p99_ms": 91.015955,
+                "rss_mib": 159.9453125
+              },
+              "ratios": {
+                "rate": 1.0447537533056626,
+                "p99_ms": 0.8721297062266009,
+                "rss_mib": 0.9699395949307118
+              }
+            }
+          },
+          "contradictory_brackets": false,
+          "verdict": "PASS"
+        }
+      ],
+      "verdict": "PASS"
+    },
+    "mixed-c48": {
+      "attempts": [
+        {
+          "pairs": {
+            "a1-b2": {
+              "verdict": "FAIL",
+              "checks": {
+                "throughput": false,
+                "p99": false,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 2029.6972923413819,
+                "p99_ms": 38.13270700000002,
+                "rss_mib": 192.125
+              },
+              "candidate": {
+                "rate": 1617.8814882053614,
+                "p99_ms": 51.248175,
+                "rss_mib": 192.16796875
+              },
+              "ratios": {
+                "rate": 0.7971048167182776,
+                "p99_ms": 1.3439427471015886,
+                "rss_mib": 1.000223649967469
+              }
+            },
+            "a1-b3": {
+              "verdict": "FAIL",
+              "checks": {
+                "throughput": false,
+                "p99": false,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 2029.6972923413819,
+                "p99_ms": 38.13270700000002,
+                "rss_mib": 192.125
+              },
+              "candidate": {
+                "rate": 1640.0687506409831,
+                "p99_ms": 50.59568000000001,
+                "rss_mib": 182.9140625
+              },
+              "ratios": {
+                "rate": 0.8080361326929998,
+                "p99_ms": 1.32683158318658,
+                "rss_mib": 0.9520575797007157
+              }
+            },
+            "a4-b2": {
+              "verdict": "FAIL",
+              "checks": {
+                "throughput": false,
+                "p99": false,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 1964.667538768113,
+                "p99_ms": 41.250524,
+                "rss_mib": 205.39453125
+              },
+              "candidate": {
+                "rate": 1617.8814882053614,
+                "p99_ms": 51.248175,
+                "rss_mib": 192.16796875
+              },
+              "ratios": {
+                "rate": 0.823488685123696,
+                "p99_ms": 1.2423642182096888,
+                "rss_mib": 0.9356041155550484
+              }
+            },
+            "a4-b3": {
+              "verdict": "FAIL",
+              "checks": {
+                "throughput": false,
+                "p99": false,
+                "rss": true
+              },
+              "baseline": {
+                "rate": 1964.667538768113,
+                "p99_ms": 41.250524,
+                "rss_mib": 205.39453125
+              },
+              "candidate": {
+                "rate": 1640.0687506409831,
+                "p99_ms": 50.59568000000001,
+                "rss_mib": 182.9140625
+              },
+              "ratios": {
+                "rate": 0.8347818235289519,
+                "p99_ms": 1.2265463585383791,
+                "rss_mib": 0.8905498183754588
+              }
+            }
+          },
+          "contradictory_brackets": false,
+          "verdict": "FAIL"
+        }
+      ],
+      "verdict": "FAIL"
+    }
+  },
+  "health": [
+    {
+      "block": "set-c12",
+      "attempt": 1,
+      "ordinal": 1,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794697652.2943027
+      },
+      "status_sha256": "cfa6204495ff08fcab96f670602b7b59e1c131ebd31c7d686c34730ae238ef2f",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "cf36c1fb0a72edecd374dabc2adc1185a913d7d2ffc7f3273df85ae7a8ae4fd5",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-1-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.1987564,
+          "Completed": 3245,
+          "Failed": 0,
+          "Rate": 107.45475598458749,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 3245,
+              "Failed": 0,
+              "RatePerSecond": 107.45475598458749,
+              "P50Milliseconds": 27.2293,
+              "P95Milliseconds": 240.32792,
+              "P99Milliseconds": 247.529132,
+              "MaxMilliseconds": 597.0294
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 3245,
+              "Failed": 0,
+              "RatePerSecond": 107.45475598458749,
+              "P50Milliseconds": 27.2293,
+              "P95Milliseconds": 240.32792,
+              "P99Milliseconds": 247.529132,
+              "MaxMilliseconds": 597.0294
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.1002609,
+          "Completed": 9688,
+          "Failed": 0,
+          "Rate": 80.66593633852797,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 9688,
+              "Failed": 0,
+              "RatePerSecond": 80.66593633852797,
+              "P50Milliseconds": 161.0277,
+              "P95Milliseconds": 246.050975,
+              "P99Milliseconds": 250.241512,
+              "MaxMilliseconds": 265.6805
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 9688,
+              "Failed": 0,
+              "RatePerSecond": 80.66593633852797,
+              "P50Milliseconds": 161.0277,
+              "P95Milliseconds": 246.050975,
+              "P99Milliseconds": 250.241512,
+              "MaxMilliseconds": 265.6805
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c12",
+      "attempt": 1,
+      "ordinal": 2,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794697825.160469
+      },
+      "status_sha256": "22529eb95b4fe2188203479e877d8f0c79b179d8cd2e6c3c8bccade02f025999",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "9463e09706924edcafdf806203a549e62b8c8547a5acc03c18a734ac5bffb118",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-2-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0980456,
+          "Completed": 3243,
+          "Failed": 0,
+          "Rate": 107.74785988097513,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 3243,
+              "Failed": 0,
+              "RatePerSecond": 107.74785988097513,
+              "P50Milliseconds": 56.705,
+              "P95Milliseconds": 246.07810999999998,
+              "P99Milliseconds": 251.084232,
+              "MaxMilliseconds": 634.72
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 3243,
+              "Failed": 0,
+              "RatePerSecond": 107.74785988097513,
+              "P50Milliseconds": 56.705,
+              "P95Milliseconds": 246.07810999999998,
+              "P99Milliseconds": 251.084232,
+              "MaxMilliseconds": 634.72
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.060225,
+          "Completed": 17352,
+          "Failed": 0,
+          "Rate": 144.52746527836342,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 17352,
+              "Failed": 0,
+              "RatePerSecond": 144.52746527836342,
+              "P50Milliseconds": 49.4195,
+              "P95Milliseconds": 213.130455,
+              "P99Milliseconds": 242.825094,
+              "MaxMilliseconds": 255.9615
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 17352,
+              "Failed": 0,
+              "RatePerSecond": 144.52746527836342,
+              "P50Milliseconds": 49.4195,
+              "P95Milliseconds": 213.130455,
+              "P99Milliseconds": 242.825094,
+              "MaxMilliseconds": 255.9615
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c12",
+      "attempt": 1,
+      "ordinal": 3,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794697998.2473183
+      },
+      "status_sha256": "1fdf6f082fe934ad6a1cc89928cbf296323045007a45beca07e9c51be9955648",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "0aafa27a4c7ecd8ba7aebf3e9af055af9446b9bb7c402afbfc8df07f06c11640",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-3-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.1239714,
+          "Completed": 2934,
+          "Failed": 0,
+          "Rate": 97.39751645096835,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 2934,
+              "Failed": 0,
+              "RatePerSecond": 97.39751645096835,
+              "P50Milliseconds": 112.5127,
+              "P95Milliseconds": 248.66589,
+              "P99Milliseconds": 258.12489600000015,
+              "MaxMilliseconds": 656.3446
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 2934,
+              "Failed": 0,
+              "RatePerSecond": 97.39751645096835,
+              "P50Milliseconds": 112.5127,
+              "P95Milliseconds": 248.66589,
+              "P99Milliseconds": 258.12489600000015,
+              "MaxMilliseconds": 656.3446
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0495758,
+          "Completed": 16080,
+          "Failed": 0,
+          "Rate": 133.94466321804362,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 16080,
+              "Failed": 0,
+              "RatePerSecond": 133.94466321804362,
+              "P50Milliseconds": 81.61675,
+              "P95Milliseconds": 217.5215849999997,
+              "P99Milliseconds": 247.289448,
+              "MaxMilliseconds": 259.4133
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 16080,
+              "Failed": 0,
+              "RatePerSecond": 133.94466321804362,
+              "P50Milliseconds": 81.61675,
+              "P95Milliseconds": 217.5215849999997,
+              "P99Milliseconds": 247.289448,
+              "MaxMilliseconds": 259.4133
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c12",
+      "attempt": 1,
+      "ordinal": 4,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794698172.3736553
+      },
+      "status_sha256": "bc9df9a5452735d78c4c1f0c9982dd513c6b76f5b81f2d65b4cf4dc47a4106e1",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "cf5419fcf4e91416fd593fa2c58f8cf14d889ba7928bae9bc02e8788e1008738",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c12-attempt-1-4-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.1767812,
+          "Completed": 2358,
+          "Failed": 0,
+          "Rate": 78.1395465729791,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 2358,
+              "Failed": 0,
+              "RatePerSecond": 78.1395465729791,
+              "P50Milliseconds": 174.59570000000002,
+              "P95Milliseconds": 242.67498,
+              "P99Milliseconds": 245.641985,
+              "MaxMilliseconds": 265.727
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 2358,
+              "Failed": 0,
+              "RatePerSecond": 78.1395465729791,
+              "P50Milliseconds": 174.59570000000002,
+              "P95Milliseconds": 242.67498,
+              "P99Milliseconds": 245.641985,
+              "MaxMilliseconds": 265.727
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0602585,
+          "Completed": 15291,
+          "Failed": 0,
+          "Rate": 127.36104512052171,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 15291,
+              "Failed": 0,
+              "RatePerSecond": 127.36104512052171,
+              "P50Milliseconds": 61.1953,
+              "P95Milliseconds": 238.91845,
+              "P99Milliseconds": 246.88515,
+              "MaxMilliseconds": 255.2372
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 15291,
+              "Failed": 0,
+              "RatePerSecond": 127.36104512052171,
+              "P50Milliseconds": 61.1953,
+              "P95Milliseconds": 238.91845,
+              "P99Milliseconds": 246.88515,
+              "MaxMilliseconds": 255.2372
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 1,
+      "ordinal": 1,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794698346.3319404
+      },
+      "status_sha256": "c238f75a8406cb66a04a9c3a20e151ff475a4075b59aefd6d12b53f35cfb5147",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "1c149d39bfbe50febdd1ed187cbcf74c92f84c471424ffac0ba0bc698bd16d45",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-1-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0895429,
+          "Completed": 27315,
+          "Failed": 0,
+          "Rate": 907.790460319688,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 27315,
+              "Failed": 0,
+              "RatePerSecond": 907.790460319688,
+              "P50Milliseconds": 44.9619,
+              "P95Milliseconds": 116.55695999999998,
+              "P99Milliseconds": 210.75397600000002,
+              "MaxMilliseconds": 280.6358
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 27315,
+              "Failed": 0,
+              "RatePerSecond": 907.790460319688,
+              "P50Milliseconds": 44.9619,
+              "P95Milliseconds": 116.55695999999998,
+              "P99Milliseconds": 210.75397600000002,
+              "MaxMilliseconds": 280.6358
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0043138,
+          "Completed": 109536,
+          "Failed": 0,
+          "Rate": 912.7671875408865,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 109536,
+              "Failed": 0,
+              "RatePerSecond": 912.7671875408865,
+              "P50Milliseconds": 46.8134,
+              "P95Milliseconds": 106.657375,
+              "P99Milliseconds": 136.02638499999998,
+              "MaxMilliseconds": 188.0332
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 109536,
+              "Failed": 0,
+              "RatePerSecond": 912.7671875408865,
+              "P50Milliseconds": 46.8134,
+              "P95Milliseconds": 106.657375,
+              "P99Milliseconds": 136.02638499999998,
+              "MaxMilliseconds": 188.0332
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 1,
+      "ordinal": 2,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794698519.1342773
+      },
+      "status_sha256": "1e4940fae82fb558fee58af051284cbbe2712ef204840fe137ce3a5d8c4c0ff5",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "48567e779002f0c0630a6bf56d5a5872df369b8c2c88c5418be018ef84877285",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-2-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0387202,
+          "Completed": 26166,
+          "Failed": 0,
+          "Rate": 871.0757257894096,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 26166,
+              "Failed": 0,
+              "RatePerSecond": 871.0757257894096,
+              "P50Milliseconds": 46.3044,
+              "P95Milliseconds": 138.25527499999998,
+              "P99Milliseconds": 241.36124499999988,
+              "MaxMilliseconds": 686.1274
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 26166,
+              "Failed": 0,
+              "RatePerSecond": 871.0757257894096,
+              "P50Milliseconds": 46.3044,
+              "P95Milliseconds": 138.25527499999998,
+              "P99Milliseconds": 241.36124499999988,
+              "MaxMilliseconds": 686.1274
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0339496,
+          "Completed": 105081,
+          "Failed": 0,
+          "Rate": 875.4273299359967,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 105081,
+              "Failed": 0,
+              "RatePerSecond": 875.4273299359967,
+              "P50Milliseconds": 46.2039,
+              "P95Milliseconds": 109.8997,
+              "P99Milliseconds": 147.57009999999994,
+              "MaxMilliseconds": 192.4189
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 105081,
+              "Failed": 0,
+              "RatePerSecond": 875.4273299359967,
+              "P50Milliseconds": 46.2039,
+              "P95Milliseconds": 109.8997,
+              "P99Milliseconds": 147.57009999999994,
+              "MaxMilliseconds": 192.4189
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 1,
+      "ordinal": 3,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794698693.5681968
+      },
+      "status_sha256": "55caca8b34c922caeaa5fbe4db4890ddeb3f793eb11e19f05b37d63534a49d23",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "7056d75fb1fe3bfaac144915c1a74cb51facf672002c9f69a31e39f1a68499d3",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-3-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0293803,
+          "Completed": 27542,
+          "Failed": 0,
+          "Rate": 917.1684438656232,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 27542,
+              "Failed": 0,
+              "RatePerSecond": 917.1684438656232,
+              "P50Milliseconds": 47.047650000000004,
+              "P95Milliseconds": 72.45376999999999,
+              "P99Milliseconds": 174.20195400000003,
+              "MaxMilliseconds": 679.7962
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 27542,
+              "Failed": 0,
+              "RatePerSecond": 917.1684438656232,
+              "P50Milliseconds": 47.047650000000004,
+              "P95Milliseconds": 72.45376999999999,
+              "P99Milliseconds": 174.20195400000003,
+              "MaxMilliseconds": 679.7962
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0310416,
+          "Completed": 108183,
+          "Failed": 0,
+          "Rate": 901.2918538232531,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 108183,
+              "Failed": 0,
+              "RatePerSecond": 901.2918538232531,
+              "P50Milliseconds": 45.1379,
+              "P95Milliseconds": 115.40951999999986,
+              "P99Milliseconds": 149.62039999999993,
+              "MaxMilliseconds": 201.1577
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 108183,
+              "Failed": 0,
+              "RatePerSecond": 901.2918538232531,
+              "P50Milliseconds": 45.1379,
+              "P95Milliseconds": 115.40951999999986,
+              "P99Milliseconds": 149.62039999999993,
+              "MaxMilliseconds": 201.1577
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 1,
+      "ordinal": 4,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794698867.249532
+      },
+      "status_sha256": "420a08928c844672d5d7dc7cf5835227d7a943a6919aca9af9f05d07519618c1",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "4cc6078058923f9def3444d4db74bd79d7eb4bc16b25acf96e491302c66ef59e",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-1-4-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.080214,
+          "Completed": 20762,
+          "Failed": 0,
+          "Rate": 690.2211533468478,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 20762,
+              "Failed": 0,
+              "RatePerSecond": 690.2211533468478,
+              "P50Milliseconds": 56.40215,
+              "P95Milliseconds": 133.95842500000003,
+              "P99Milliseconds": 233.511059,
+              "MaxMilliseconds": 288.657
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 20762,
+              "Failed": 0,
+              "RatePerSecond": 690.2211533468478,
+              "P50Milliseconds": 56.40215,
+              "P95Milliseconds": 133.95842500000003,
+              "P99Milliseconds": 233.511059,
+              "MaxMilliseconds": 288.657
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0275915,
+          "Completed": 119112,
+          "Failed": 0,
+          "Rate": 992.3718247733063,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 119112,
+              "Failed": 0,
+              "RatePerSecond": 992.3718247733063,
+              "P50Milliseconds": 44.85865,
+              "P95Milliseconds": 90.59333999999998,
+              "P99Milliseconds": 137.46647000000002,
+              "MaxMilliseconds": 185.1549
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 119112,
+              "Failed": 0,
+              "RatePerSecond": 992.3718247733063,
+              "P50Milliseconds": 44.85865,
+              "P95Milliseconds": 90.59333999999998,
+              "P99Milliseconds": 137.46647000000002,
+              "MaxMilliseconds": 185.1549
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 2,
+      "ordinal": 1,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794699040.3131535
+      },
+      "status_sha256": "e50b8153472073aae9104a9cd2d2b49e35d6f6a04c45d9a79c03ba741cce53e5",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "578c384b897e99cbeffac349113e7047fe2a0b038ccac30a2cc3340f8c76b508",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-1-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0349712,
+          "Completed": 29283,
+          "Failed": 0,
+          "Rate": 974.9634785732705,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 29283,
+              "Failed": 0,
+              "RatePerSecond": 974.9634785732705,
+              "P50Milliseconds": 43.8438,
+              "P95Milliseconds": 71.95087000000001,
+              "P99Milliseconds": 216.76489400000003,
+              "MaxMilliseconds": 638.0689
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 29283,
+              "Failed": 0,
+              "RatePerSecond": 974.9634785732705,
+              "P50Milliseconds": 43.8438,
+              "P95Milliseconds": 71.95087000000001,
+              "P99Milliseconds": 216.76489400000003,
+              "MaxMilliseconds": 638.0689
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.059008,
+          "Completed": 108585,
+          "Failed": 0,
+          "Rate": 904.4302614927486,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 108585,
+              "Failed": 0,
+              "RatePerSecond": 904.4302614927486,
+              "P50Milliseconds": 44.7255,
+              "P95Milliseconds": 129.5273199999999,
+              "P99Milliseconds": 139.73720000000006,
+              "MaxMilliseconds": 184.2506
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 108585,
+              "Failed": 0,
+              "RatePerSecond": 904.4302614927486,
+              "P50Milliseconds": 44.7255,
+              "P95Milliseconds": 129.5273199999999,
+              "P99Milliseconds": 139.73720000000006,
+              "MaxMilliseconds": 184.2506
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 2,
+      "ordinal": 2,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794699214.326226
+      },
+      "status_sha256": "c564653b9a5b1de454a5f58607f4bdb590002793b5ebaacbccaf9507f1209f48",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "f45d3af393f295c436de7658cf181eb72a210f15921583e9a9883bc340c95039",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-2-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0388405,
+          "Completed": 22482,
+          "Failed": 0,
+          "Rate": 748.4310188337663,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 22482,
+              "Failed": 0,
+              "RatePerSecond": 748.4310188337663,
+              "P50Milliseconds": 49.22935,
+              "P95Milliseconds": 138.14596,
+              "P99Milliseconds": 190.99846399999996,
+              "MaxMilliseconds": 870.1287
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 22482,
+              "Failed": 0,
+              "RatePerSecond": 748.4310188337663,
+              "P50Milliseconds": 49.22935,
+              "P95Milliseconds": 138.14596,
+              "P99Milliseconds": 190.99846399999996,
+              "MaxMilliseconds": 870.1287
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0550068,
+          "Completed": 112227,
+          "Failed": 0,
+          "Rate": 934.7964986329916,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 112227,
+              "Failed": 0,
+              "RatePerSecond": 934.7964986329916,
+              "P50Milliseconds": 44.1749,
+              "P95Milliseconds": 103.40993999999999,
+              "P99Milliseconds": 151.330884,
+              "MaxMilliseconds": 202.8055
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 112227,
+              "Failed": 0,
+              "RatePerSecond": 934.7964986329916,
+              "P50Milliseconds": 44.1749,
+              "P95Milliseconds": 103.40993999999999,
+              "P99Milliseconds": 151.330884,
+              "MaxMilliseconds": 202.8055
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 2,
+      "ordinal": 3,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794699387.1051455
+      },
+      "status_sha256": "4a7602ea3a1eef239b49340f382576253fb002fa5fb486e1776eeb4641aea237",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "b6c22aa98c2d357669e0160995d242493fc1ec1654a4d6067ed1f97dd87a4f0c",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-3-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0594897,
+          "Completed": 27276,
+          "Failed": 0,
+          "Rate": 907.4006336175428,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 27276,
+              "Failed": 0,
+              "RatePerSecond": 907.4006336175428,
+              "P50Milliseconds": 44.91905,
+              "P95Milliseconds": 73.14015,
+              "P99Milliseconds": 231.939275,
+              "MaxMilliseconds": 685.3568
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 27276,
+              "Failed": 0,
+              "RatePerSecond": 907.4006336175428,
+              "P50Milliseconds": 44.91905,
+              "P95Milliseconds": 73.14015,
+              "P99Milliseconds": 231.939275,
+              "MaxMilliseconds": 685.3568
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0069012,
+          "Completed": 103170,
+          "Failed": 0,
+          "Rate": 859.7005586208737,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 103170,
+              "Failed": 0,
+              "RatePerSecond": 859.7005586208737,
+              "P50Milliseconds": 45.6285,
+              "P95Milliseconds": 136.04279499999993,
+              "P99Milliseconds": 147.088124,
+              "MaxMilliseconds": 186.2162
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 103170,
+              "Failed": 0,
+              "RatePerSecond": 859.7005586208737,
+              "P50Milliseconds": 45.6285,
+              "P95Milliseconds": 136.04279499999993,
+              "P99Milliseconds": 147.088124,
+              "MaxMilliseconds": 186.2162
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "set-c48",
+      "attempt": 2,
+      "ordinal": 4,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794699561.866132
+      },
+      "status_sha256": "f3370c12dcc51d591cd08171d28b40a18d18119caf28523582f41fc6548e265c",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "a3f516a2c0418c809f8ec72e68427b858da350c5614be6c8efe78c1f7766f200",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-set-c48-attempt-2-4-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0896626,
+          "Completed": 25089,
+          "Failed": 0,
+          "Rate": 833.8079536990222,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 25089,
+              "Failed": 0,
+              "RatePerSecond": 833.8079536990222,
+              "P50Milliseconds": 48.8225,
+              "P95Milliseconds": 111.00241999999997,
+              "P99Milliseconds": 157.67147199999997,
+              "MaxMilliseconds": 660.8123
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 25089,
+              "Failed": 0,
+              "RatePerSecond": 833.8079536990222,
+              "P50Milliseconds": 48.8225,
+              "P95Milliseconds": 111.00241999999997,
+              "P99Milliseconds": 157.67147199999997,
+              "MaxMilliseconds": 660.8123
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-set",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0447952,
+          "Completed": 119193,
+          "Failed": 0,
+          "Rate": 992.9043554234828,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 119193,
+              "Failed": 0,
+              "RatePerSecond": 992.9043554234828,
+              "P50Milliseconds": 44.629,
+              "P95Milliseconds": 81.4271799999999,
+              "P99Milliseconds": 126.30266400000001,
+              "MaxMilliseconds": 192.0544
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 119193,
+              "Failed": 0,
+              "RatePerSecond": 992.9043554234828,
+              "P50Milliseconds": 44.629,
+              "P95Milliseconds": 81.4271799999999,
+              "P99Milliseconds": 126.30266400000001,
+              "MaxMilliseconds": 192.0544
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 0,
+          "observed": 0,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "506bb24b95fc3fc328acdfeb5f4b9ac4e26c513c18638d4a43bc7145fc804df7"
+      }
+    },
+    {
+      "block": "mixed-c12",
+      "attempt": 1,
+      "ordinal": 1,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794699743.0062501
+      },
+      "status_sha256": "b73689fa953a3ccd1c6ac6a96c0f42b8a4d8a67e2c85c63de9ad657f45f1dbc1",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "9af8cd7f1f8ca90a7959fa8d6e0fb14bfc8a4212554bbad43f4f15e2c517473b",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-1-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0493622,
+          "Completed": 11244,
+          "Failed": 0,
+          "Rate": 374.1843146341389,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 11244,
+              "Failed": 0,
+              "RatePerSecond": 374.1843146341389,
+              "P50Milliseconds": 13.1739,
+              "P95Milliseconds": 89.364265,
+              "P99Milliseconds": 101.703728,
+              "MaxMilliseconds": 805.4708
+            },
+            {
+              "Operation": "Async",
+              "Completed": 1404,
+              "Failed": 0,
+              "RatePerSecond": 46.723121464454906,
+              "P50Milliseconds": 12.97265,
+              "P95Milliseconds": 16.48831,
+              "P99Milliseconds": 21.513086000000005,
+              "MaxMilliseconds": 52.9118
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 2803,
+              "Failed": 0,
+              "RatePerSecond": 93.27985004620164,
+              "P50Milliseconds": 14.017,
+              "P95Milliseconds": 89.84313,
+              "P99Milliseconds": 211.98048200000014,
+              "MaxMilliseconds": 805.4708
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 1403,
+              "Failed": 0,
+              "RatePerSecond": 46.68984288791327,
+              "P50Milliseconds": 12.2599,
+              "P95Milliseconds": 86.23133,
+              "P99Milliseconds": 88.888696,
+              "MaxMilliseconds": 795.6655
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 2111,
+              "Failed": 0,
+              "RatePerSecond": 70.25107507939053,
+              "P50Milliseconds": 12.7972,
+              "P95Milliseconds": 89.628,
+              "P99Milliseconds": 180.41630000000697,
+              "MaxMilliseconds": 800.9034
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 2115,
+              "Failed": 0,
+              "RatePerSecond": 70.38418938555708,
+              "P50Milliseconds": 13.805,
+              "P95Milliseconds": 90.73308,
+              "P99Milliseconds": 111.256468,
+              "MaxMilliseconds": 804.0403
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 1408,
+              "Failed": 0,
+              "RatePerSecond": 46.856235770621446,
+              "P50Milliseconds": 13.5856,
+              "P95Milliseconds": 89.429175,
+              "P99Milliseconds": 110.45010500000059,
+              "MaxMilliseconds": 240.3678
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 1404,
+          "observed": 1404,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "0426f8faea3dac1b78be2b4b786a14e82349012f61bd613b2b641bc240a6263b"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0431903,
+          "Completed": 47517,
+          "Failed": 0,
+          "Rate": 395.83253228484045,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 47517,
+              "Failed": 0,
+              "RatePerSecond": 395.83253228484045,
+              "P50Milliseconds": 12.8284,
+              "P95Milliseconds": 88.67784,
+              "P99Milliseconds": 90.849136,
+              "MaxMilliseconds": 133.0437
+            },
+            {
+              "Operation": "Async",
+              "Completed": 5934,
+              "Failed": 0,
+              "RatePerSecond": 49.43220840074591,
+              "P50Milliseconds": 12.5616,
+              "P95Milliseconds": 14.967929999999999,
+              "P99Milliseconds": 17.268277,
+              "MaxMilliseconds": 29.5604
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 11872,
+              "Failed": 0,
+              "RatePerSecond": 98.8977381418361,
+              "P50Milliseconds": 13.294699999999999,
+              "P95Milliseconds": 89.071285,
+              "P99Milliseconds": 91.334104,
+              "MaxMilliseconds": 128.8012
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 5939,
+              "Failed": 0,
+              "RatePerSecond": 49.473860076176265,
+              "P50Milliseconds": 12.2651,
+              "P95Milliseconds": 86.64600999999999,
+              "P99Milliseconds": 89.262748,
+              "MaxMilliseconds": 111.5674
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 8914,
+              "Failed": 0,
+              "RatePerSecond": 74.25660695723779,
+              "P50Milliseconds": 12.7258,
+              "P95Milliseconds": 88.98031,
+              "P99Milliseconds": 91.22588900000001,
+              "MaxMilliseconds": 133.0437
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 8916,
+              "Failed": 0,
+              "RatePerSecond": 74.27326762740992,
+              "P50Milliseconds": 12.89435,
+              "P95Milliseconds": 88.735975,
+              "P99Milliseconds": 90.919285,
+              "MaxMilliseconds": 132.7368
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 5942,
+              "Failed": 0,
+              "RatePerSecond": 49.49885108143447,
+              "P50Milliseconds": 13.129850000000001,
+              "P95Milliseconds": 88.988665,
+              "P99Milliseconds": 91.105062,
+              "MaxMilliseconds": 128.5473
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 5934,
+          "observed": 5934,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "331e49d778412d05edcbfc53633b993121225a838342b0d2db66129c8de9ca9c"
+      }
+    },
+    {
+      "block": "mixed-c12",
+      "attempt": 1,
+      "ordinal": 2,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794699916.9183125
+      },
+      "status_sha256": "d8cff8cb87bc9334299ae8635d94869ec29e36f731a2d45b05865e0b3ab88a24",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "a59aa8f081e3b311902fd4099915557550c78e8e52b87b5bddcfd02223cebf0d",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-2-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0332636,
+          "Completed": 10029,
+          "Failed": 0,
+          "Rate": 333.9297431531883,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 10029,
+              "Failed": 0,
+              "RatePerSecond": 333.9297431531883,
+              "P50Milliseconds": 15.6774,
+              "P95Milliseconds": 89.1597,
+              "P99Milliseconds": 210.97038799999999,
+              "MaxMilliseconds": 643.793
+            },
+            {
+              "Operation": "Async",
+              "Completed": 1248,
+              "Failed": 0,
+              "RatePerSecond": 41.55392556138987,
+              "P50Milliseconds": 15.089649999999999,
+              "P95Milliseconds": 18.740099999999995,
+              "P99Milliseconds": 24.534319999999983,
+              "MaxMilliseconds": 32.171
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 2506,
+              "Failed": 0,
+              "RatePerSecond": 83.44081526990627,
+              "P50Milliseconds": 16.4717,
+              "P95Milliseconds": 89.72829999999999,
+              "P99Milliseconds": 214.533935,
+              "MaxMilliseconds": 643.793
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 1255,
+              "Failed": 0,
+              "RatePerSecond": 41.78700046437844,
+              "P50Milliseconds": 13.5343,
+              "P95Milliseconds": 58.623419999999996,
+              "P99Milliseconds": 89.525068,
+              "MaxMilliseconds": 635.4263
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 1886,
+              "Failed": 0,
+              "RatePerSecond": 62.79703814806194,
+              "P50Milliseconds": 16.035249999999998,
+              "P95Milliseconds": 90.13535,
+              "P99Milliseconds": 212.20545500000023,
+              "MaxMilliseconds": 636.5245
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 1883,
+              "Failed": 0,
+              "RatePerSecond": 62.69714890392398,
+              "P50Milliseconds": 17.3596,
+              "P95Milliseconds": 89.60278,
+              "P99Milliseconds": 210.92755,
+              "MaxMilliseconds": 639.8314
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 1251,
+              "Failed": 0,
+              "RatePerSecond": 41.65381480552782,
+              "P50Milliseconds": 17.4374,
+              "P95Milliseconds": 88.4336,
+              "P99Milliseconds": 209.51105,
+              "MaxMilliseconds": 252.2304
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 1248,
+          "observed": 1248,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "0b09d2e14c9bb85e594f112a90e4034589309a0ca4de647597289eb63862fa79"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0084869,
+          "Completed": 45264,
+          "Failed": 0,
+          "Rate": 377.17332473091955,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 45264,
+              "Failed": 0,
+              "RatePerSecond": 377.17332473091955,
+              "P50Milliseconds": 14.58055,
+              "P95Milliseconds": 88.04882500000001,
+              "P99Milliseconds": 91.85793000000002,
+              "MaxMilliseconds": 237.3412
+            },
+            {
+              "Operation": "Async",
+              "Completed": 5656,
+              "Failed": 0,
+              "RatePerSecond": 47.13000010335102,
+              "P50Milliseconds": 14.2275,
+              "P95Milliseconds": 16.8584,
+              "P99Milliseconds": 18.53321,
+              "MaxMilliseconds": 27.6936
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 11313,
+              "Failed": 0,
+              "RatePerSecond": 94.26833295070901,
+              "P50Milliseconds": 15.0053,
+              "P95Milliseconds": 88.74946,
+              "P99Milliseconds": 94.22993199999999,
+              "MaxMilliseconds": 236.4885
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 5655,
+              "Failed": 0,
+              "RatePerSecond": 47.121667359344066,
+              "P50Milliseconds": 13.9606,
+              "P95Milliseconds": 84.05105999999999,
+              "P99Milliseconds": 87.958868,
+              "MaxMilliseconds": 237.3211
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 8486,
+              "Failed": 0,
+              "RatePerSecond": 70.71166564304045,
+              "P50Milliseconds": 14.52425,
+              "P95Milliseconds": 88.55154999999999,
+              "P99Milliseconds": 94.05086999999999,
+              "MaxMilliseconds": 237.3412
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 8492,
+              "Failed": 0,
+              "RatePerSecond": 70.7616621070822,
+              "P50Milliseconds": 14.831399999999999,
+              "P95Milliseconds": 88.357055,
+              "P99Milliseconds": 93.23787800000001,
+              "MaxMilliseconds": 237.2848
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 5662,
+              "Failed": 0,
+              "RatePerSecond": 47.17999656739277,
+              "P50Milliseconds": 15.07615,
+              "P95Milliseconds": 88.555625,
+              "P99Milliseconds": 102.53259500000003,
+              "MaxMilliseconds": 237.2468
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 5656,
+          "observed": 5656,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "4df227f895897e1ef10f0659ace5b3103d5685559bdd5c7d7097e31422189613"
+      }
+    },
+    {
+      "block": "mixed-c12",
+      "attempt": 1,
+      "ordinal": 3,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794700086.230081
+      },
+      "status_sha256": "4192e5761dc05b95f57fbf35fceebb69005f0b2ae572551e4f6a215ba57e5433",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "454bbd268a2f92b966a76dad47473e91cc590ac55ebf62636be27eb772495bf3",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-3-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0078521,
+          "Completed": 9804,
+          "Failed": 0,
+          "Rate": 326.714486839263,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 9804,
+              "Failed": 0,
+              "RatePerSecond": 326.714486839263,
+              "P50Milliseconds": 15.67205,
+              "P95Milliseconds": 89.419175,
+              "P99Milliseconds": 212.3988779999999,
+              "MaxMilliseconds": 833.1894
+            },
+            {
+              "Operation": "Async",
+              "Completed": 1224,
+              "Failed": 0,
+              "RatePerSecond": 40.7893239383168,
+              "P50Milliseconds": 14.89685,
+              "P95Milliseconds": 18.910189999999997,
+              "P99Milliseconds": 26.047152,
+              "MaxMilliseconds": 44.1889
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 2452,
+              "Failed": 0,
+              "RatePerSecond": 81.71194632087646,
+              "P50Milliseconds": 16.429299999999998,
+              "P95Milliseconds": 90.544175,
+              "P99Milliseconds": 212.85673999999997,
+              "MaxMilliseconds": 833.1894
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 1227,
+              "Failed": 0,
+              "RatePerSecond": 40.889297771498946,
+              "P50Milliseconds": 13.6835,
+              "P95Milliseconds": 58.27741000000001,
+              "P99Milliseconds": 91.10237,
+              "MaxMilliseconds": 822.869
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 1840,
+              "Failed": 0,
+              "RatePerSecond": 61.31728435171806,
+              "P50Milliseconds": 15.5755,
+              "P95Milliseconds": 90.78569499999999,
+              "P99Milliseconds": 212.856261,
+              "MaxMilliseconds": 823.0753
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 1837,
+              "Failed": 0,
+              "RatePerSecond": 61.21731051853591,
+              "P50Milliseconds": 17.2906,
+              "P95Milliseconds": 90.97072,
+              "P99Milliseconds": 212.856888,
+              "MaxMilliseconds": 826.3708
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 1224,
+              "Failed": 0,
+              "RatePerSecond": 40.7893239383168,
+              "P50Milliseconds": 25.436799999999998,
+              "P95Milliseconds": 87.031015,
+              "P99Milliseconds": 208.481995,
+              "MaxMilliseconds": 245.2965
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 1224,
+          "observed": 1224,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "8724a308f166f2fa486be0579a6820cce4ff83fb65d490156fcbc66f8fcebc61"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0294879,
+          "Completed": 45636,
+          "Failed": 0,
+          "Rate": 380.20657088881904,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 45636,
+              "Failed": 0,
+              "RatePerSecond": 380.20657088881904,
+              "P50Milliseconds": 14.4024,
+              "P95Milliseconds": 88.06302500000001,
+              "P99Milliseconds": 91.015955,
+              "MaxMilliseconds": 237.7851
+            },
+            {
+              "Operation": "Async",
+              "Completed": 5702,
+              "Failed": 0,
+              "RatePerSecond": 47.50499314593843,
+              "P50Milliseconds": 14.00515,
+              "P95Milliseconds": 16.78518,
+              "P99Milliseconds": 18.645114999999997,
+              "MaxMilliseconds": 35.2891
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 11405,
+              "Failed": 0,
+              "RatePerSecond": 95.01831757794244,
+              "P50Milliseconds": 14.9028,
+              "P95Milliseconds": 88.78768,
+              "P99Milliseconds": 91.65381999999998,
+              "MaxMilliseconds": 236.3519
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 5701,
+              "Failed": 0,
+              "RatePerSecond": 47.49666185987285,
+              "P50Milliseconds": 13.8709,
+              "P95Milliseconds": 85.5652,
+              "P99Milliseconds": 88.6484,
+              "MaxMilliseconds": 237.7653
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 8557,
+              "Failed": 0,
+              "RatePerSecond": 71.29081486316997,
+              "P50Milliseconds": 14.2996,
+              "P95Milliseconds": 88.44658,
+              "P99Milliseconds": 91.741316,
+              "MaxMilliseconds": 237.7851
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 8563,
+              "Failed": 0,
+              "RatePerSecond": 71.34080257956344,
+              "P50Milliseconds": 14.6427,
+              "P95Milliseconds": 88.46167999999999,
+              "P99Milliseconds": 91.83216799999992,
+              "MaxMilliseconds": 237.4875
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 5708,
+              "Failed": 0,
+              "RatePerSecond": 47.55498086233191,
+              "P50Milliseconds": 14.6903,
+              "P95Milliseconds": 88.48145,
+              "P99Milliseconds": 92.57584700000001,
+              "MaxMilliseconds": 237.3299
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 5702,
+          "observed": 5702,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "1fc1612e63b4ed4d05e8ff1608cb8879076589cb2ad9b5fcef690a5913088d11"
+      }
+    },
+    {
+      "block": "mixed-c12",
+      "attempt": 1,
+      "ordinal": 4,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794700264.622037
+      },
+      "status_sha256": "8c9182118d6b5e4c0e76844afc8da2d7a62b587c616fbba03626c2ca06efca2d",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "f8d5630b51045b9d920ace84e6ee9d0f4b93d181709cce49aab6ff41d203c646",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c12-attempt-1-4-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0426713,
+          "Completed": 10446,
+          "Failed": 0,
+          "Rate": 347.70543190678256,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 10446,
+              "Failed": 0,
+              "RatePerSecond": 347.70543190678256,
+              "P50Milliseconds": 13.432500000000001,
+              "P95Milliseconds": 90.25287499999999,
+              "P99Milliseconds": 211.12043,
+              "MaxMilliseconds": 769.8979
+            },
+            {
+              "Operation": "Async",
+              "Completed": 1300,
+              "Failed": 0,
+              "RatePerSecond": 43.27178455665492,
+              "P50Milliseconds": 13.02825,
+              "P95Milliseconds": 16.543125,
+              "P99Milliseconds": 22.219315,
+              "MaxMilliseconds": 29.5258
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 2602,
+              "Failed": 0,
+              "RatePerSecond": 86.61014108955085,
+              "P50Milliseconds": 13.804400000000001,
+              "P95Milliseconds": 90.908885,
+              "P99Milliseconds": 211.178959,
+              "MaxMilliseconds": 769.8979
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 1307,
+              "Failed": 0,
+              "RatePerSecond": 43.50478647349845,
+              "P50Milliseconds": 12.0225,
+              "P95Milliseconds": 63.50933000000002,
+              "P99Milliseconds": 91.018924,
+              "MaxMilliseconds": 760.0069
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 1966,
+              "Failed": 0,
+              "RatePerSecond": 65.44025264491044,
+              "P50Milliseconds": 13.4667,
+              "P95Milliseconds": 91.49680000000001,
+              "P99Milliseconds": 211.65247499999998,
+              "MaxMilliseconds": 759.3052
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 1966,
+              "Failed": 0,
+              "RatePerSecond": 65.44025264491044,
+              "P50Milliseconds": 14.6272,
+              "P95Milliseconds": 91.48455000000001,
+              "P99Milliseconds": 211.98830999999998,
+              "MaxMilliseconds": 763.5825
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 1305,
+              "Failed": 0,
+              "RatePerSecond": 43.43821449725744,
+              "P50Milliseconds": 17.1915,
+              "P95Milliseconds": 88.46185999999999,
+              "P99Milliseconds": 211.08606800000004,
+              "MaxMilliseconds": 216.5855
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 1300,
+          "observed": 1300,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "d9b55e3e55ff7fd9e4163fff815eacec59c9b902e157c1f70d4ae815a22cb8d9"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 12,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0594216,
+          "Completed": 43692,
+          "Failed": 0,
+          "Rate": 363.9197941963099,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 43692,
+              "Failed": 0,
+              "RatePerSecond": 363.9197941963099,
+              "P50Milliseconds": 13.4474,
+              "P95Milliseconds": 88.44167,
+              "P99Milliseconds": 104.36057199999996,
+              "MaxMilliseconds": 259.25
+            },
+            {
+              "Operation": "Async",
+              "Completed": 5456,
+              "Failed": 0,
+              "RatePerSecond": 45.44416362572248,
+              "P50Milliseconds": 12.73625,
+              "P95Milliseconds": 15.31735,
+              "P99Milliseconds": 17.285929999999997,
+              "MaxMilliseconds": 34.3733
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 10916,
+              "Failed": 0,
+              "RatePerSecond": 90.9216440869477,
+              "P50Milliseconds": 14.58465,
+              "P95Milliseconds": 89.247775,
+              "P99Milliseconds": 115.36232500000001,
+              "MaxMilliseconds": 240.4129
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 5459,
+              "Failed": 0,
+              "RatePerSecond": 45.46915125234953,
+              "P50Milliseconds": 12.7689,
+              "P95Milliseconds": 84.68683999999996,
+              "P99Milliseconds": 100.45323800000001,
+              "MaxMilliseconds": 240.6
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 8196,
+              "Failed": 0,
+              "RatePerSecond": 68.26619594509191,
+              "P50Milliseconds": 13.5686,
+              "P95Milliseconds": 88.78905,
+              "P99Milliseconds": 115.63090000000001,
+              "MaxMilliseconds": 259.1076
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 8201,
+              "Failed": 0,
+              "RatePerSecond": 68.30784198947032,
+              "P50Milliseconds": 13.663,
+              "P95Milliseconds": 89.0125,
+              "P99Milliseconds": 112.2049,
+              "MaxMilliseconds": 259.25
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 5464,
+              "Failed": 0,
+              "RatePerSecond": 45.510797296727944,
+              "P50Milliseconds": 13.509599999999999,
+              "P95Milliseconds": 88.73477499999998,
+              "P99Milliseconds": 115.78849999999997,
+              "MaxMilliseconds": 240.6817
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 5456,
+          "observed": 5456,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "9680bf25f5018dfdaf24aa858e6647574f0569b4e2b590f99b0f7605156a335c"
+      }
+    },
+    {
+      "block": "mixed-c48",
+      "attempt": 1,
+      "ordinal": 1,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794700438.4006424
+      },
+      "status_sha256": "03d0b22523ee5adfbb8ed75447d7f2946707088c0f3f6858e231290d0c777d63",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "7a17b50b1f8f32035ea7aa50630f151a7299f9e6d70aedcef52035416301a8d5",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-1-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0142607,
+          "Completed": 62037,
+          "Failed": 0,
+          "Rate": 2066.917476997859,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 62037,
+              "Failed": 0,
+              "RatePerSecond": 2066.917476997859,
+              "P50Milliseconds": 21.3687,
+              "P95Milliseconds": 33.37414,
+              "P99Milliseconds": 38.136792,
+              "MaxMilliseconds": 620.431
+            },
+            {
+              "Operation": "Async",
+              "Completed": 7752,
+              "Failed": 0,
+              "RatePerSecond": 258.27722619867825,
+              "P50Milliseconds": 21.49125,
+              "P95Milliseconds": 33.492205,
+              "P99Milliseconds": 38.105927,
+              "MaxMilliseconds": 610.6473
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 15513,
+              "Failed": 0,
+              "RatePerSecond": 516.8543098581135,
+              "P50Milliseconds": 21.4106,
+              "P95Milliseconds": 33.40558,
+              "P99Milliseconds": 38.237391999999986,
+              "MaxMilliseconds": 620.431
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 7754,
+              "Failed": 0,
+              "RatePerSecond": 258.3438611899576,
+              "P50Milliseconds": 21.30025,
+              "P95Milliseconds": 33.38066499999999,
+              "P99Milliseconds": 38.212911,
+              "MaxMilliseconds": 614.5767
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 11633,
+              "Failed": 0,
+              "RatePerSecond": 387.58242677621575,
+              "P50Milliseconds": 21.3061,
+              "P95Milliseconds": 33.25356,
+              "P99Milliseconds": 37.900924,
+              "MaxMilliseconds": 616.2549
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 11631,
+              "Failed": 0,
+              "RatePerSecond": 387.5157917849364,
+              "P50Milliseconds": 21.4484,
+              "P95Milliseconds": 33.4476,
+              "P99Milliseconds": 38.14719000000001,
+              "MaxMilliseconds": 617.8855
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 7754,
+              "Failed": 0,
+              "RatePerSecond": 258.3438611899576,
+              "P50Milliseconds": 21.1986,
+              "P95Milliseconds": 33.124375,
+              "P99Milliseconds": 37.99992000000002,
+              "MaxMilliseconds": 612.4786
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 7752,
+          "observed": 7752,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "84cbec08521b78dcd8b9b722c1b809b238882a516dab8925196dde2df08ca9e3"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0090284,
+          "Completed": 243582,
+          "Failed": 0,
+          "Rate": 2029.6972923413819,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 243582,
+              "Failed": 0,
+              "RatePerSecond": 2029.6972923413819,
+              "P50Milliseconds": 21.5836,
+              "P95Milliseconds": 33.62283499999998,
+              "P99Milliseconds": 38.13270700000002,
+              "MaxMilliseconds": 4040.6604
+            },
+            {
+              "Operation": "Async",
+              "Completed": 30443,
+              "Failed": 0,
+              "RatePerSecond": 253.6725811872334,
+              "P50Milliseconds": 21.7037,
+              "P95Milliseconds": 33.81088,
+              "P99Milliseconds": 38.279851999999984,
+              "MaxMilliseconds": 4040.6604
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 60905,
+              "Failed": 0,
+              "RatePerSecond": 507.5034837962241,
+              "P50Milliseconds": 21.5751,
+              "P95Milliseconds": 33.54373999999999,
+              "P99Milliseconds": 38.03554,
+              "MaxMilliseconds": 4040.1597
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 30449,
+              "Failed": 0,
+              "RatePerSecond": 253.72257742568308,
+              "P50Milliseconds": 21.6101,
+              "P95Milliseconds": 33.6956,
+              "P99Milliseconds": 38.318320000000014,
+              "MaxMilliseconds": 4040.1032
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 45667,
+              "Failed": 0,
+              "RatePerSecond": 380.5297035468708,
+              "P50Milliseconds": 21.4964,
+              "P95Milliseconds": 33.504239999999996,
+              "P99Milliseconds": 37.849019999999975,
+              "MaxMilliseconds": 4040.1194
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 45673,
+              "Failed": 0,
+              "RatePerSecond": 380.5796997853205,
+              "P50Milliseconds": 21.71,
+              "P95Milliseconds": 33.9119,
+              "P99Milliseconds": 38.5535,
+              "MaxMilliseconds": 4040.1772
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 30445,
+              "Failed": 0,
+              "RatePerSecond": 253.68924660004996,
+              "P50Milliseconds": 21.3648,
+              "P95Milliseconds": 33.21641999999999,
+              "P99Milliseconds": 37.593468,
+              "MaxMilliseconds": 4040.2589
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 30443,
+          "observed": 30443,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "0c5fdb0648877ad462127fc4a22e72d7dadb3ef34a1949731e9ab9e1827d79e3"
+      }
+    },
+    {
+      "block": "mixed-c48",
+      "attempt": 1,
+      "ordinal": 2,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794700612.342049
+      },
+      "status_sha256": "1544fe0bd7c98105209aad8578c94d8716c9dc5eb6015d98883005e3e6b8b2c7",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "79c5293200561d32ba5ad3930e504eb1b1f57b29587f2f8a573f75e0fb4897d2",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-2-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0211138,
+          "Completed": 45915,
+          "Failed": 0,
+          "Rate": 1529.4236018651648,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 45915,
+              "Failed": 0,
+              "RatePerSecond": 1529.4236018651648,
+              "P50Milliseconds": 29.0592,
+              "P95Milliseconds": 44.13345999999998,
+              "P99Milliseconds": 52.92249,
+              "MaxMilliseconds": 653.1685
+            },
+            {
+              "Operation": "Async",
+              "Completed": 5740,
+              "Failed": 0,
+              "RatePerSecond": 191.19876891442982,
+              "P50Milliseconds": 29.0907,
+              "P95Milliseconds": 43.87682000000001,
+              "P99Milliseconds": 52.516376,
+              "MaxMilliseconds": 643.4207
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 11477,
+              "Failed": 0,
+              "RatePerSecond": 382.2976081586953,
+              "P50Milliseconds": 29.1576,
+              "P95Milliseconds": 44.45636,
+              "P99Milliseconds": 53.678875999999974,
+              "MaxMilliseconds": 653.1685
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 5742,
+              "Failed": 0,
+              "RatePerSecond": 191.26538869453938,
+              "P50Milliseconds": 28.933349999999997,
+              "P95Milliseconds": 43.73889499999999,
+              "P99Milliseconds": 52.257506,
+              "MaxMilliseconds": 647.574
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 8606,
+              "Failed": 0,
+              "RatePerSecond": 286.6649138114256,
+              "P50Milliseconds": 28.97795,
+              "P95Milliseconds": 44.310675,
+              "P99Milliseconds": 52.761335000000024,
+              "MaxMilliseconds": 644.9504
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 8609,
+              "Failed": 0,
+              "RatePerSecond": 286.76484348158993,
+              "P50Milliseconds": 29.2274,
+              "P95Milliseconds": 44.41719999999999,
+              "P99Milliseconds": 53.076584,
+              "MaxMilliseconds": 651.949
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 5741,
+              "Failed": 0,
+              "RatePerSecond": 191.23207880448462,
+              "P50Milliseconds": 28.8909,
+              "P95Milliseconds": 43.7762,
+              "P99Milliseconds": 52.942960000000035,
+              "MaxMilliseconds": 647.4008
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 5740,
+          "observed": 5740,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "ef9064f9d373274aaef1574236a2cfb96ea3fafd1431112afcd1165777d42c82"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0124987,
+          "Completed": 194166,
+          "Failed": 0,
+          "Rate": 1617.8814882053614,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 194166,
+              "Failed": 0,
+              "RatePerSecond": 1617.8814882053614,
+              "P50Milliseconds": 28.3349,
+              "P95Milliseconds": 42.945724999999996,
+              "P99Milliseconds": 51.248175,
+              "MaxMilliseconds": 134.7131
+            },
+            {
+              "Operation": "Async",
+              "Completed": 24274,
+              "Failed": 0,
+              "RatePerSecond": 202.26226653841016,
+              "P50Milliseconds": 28.347450000000002,
+              "P95Milliseconds": 42.913244999999996,
+              "P99Milliseconds": 51.18744700000001,
+              "MaxMilliseconds": 64.77
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 48537,
+              "Failed": 0,
+              "RatePerSecond": 404.43287595677737,
+              "P50Milliseconds": 28.5545,
+              "P95Milliseconds": 43.27926,
+              "P99Milliseconds": 51.65362399999999,
+              "MaxMilliseconds": 134.1879
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 24268,
+              "Failed": 0,
+              "RatePerSecond": 202.21227174565945,
+              "P50Milliseconds": 28.109,
+              "P95Milliseconds": 42.727754999999995,
+              "P99Milliseconds": 51.120993999999996,
+              "MaxMilliseconds": 134.1755
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 36402,
+              "Failed": 0,
+              "RatePerSecond": 303.3184076184892,
+              "P50Milliseconds": 28.15685,
+              "P95Milliseconds": 42.75626499999999,
+              "P99Milliseconds": 51.04325099999999,
+              "MaxMilliseconds": 134.1722
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 36407,
+              "Failed": 0,
+              "RatePerSecond": 303.36006994578145,
+              "P50Milliseconds": 28.5363,
+              "P95Milliseconds": 43.22175,
+              "P99Milliseconds": 51.31252400000001,
+              "MaxMilliseconds": 134.7131
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 24278,
+              "Failed": 0,
+              "RatePerSecond": 202.29559640024394,
+              "P50Milliseconds": 28.1233,
+              "P95Milliseconds": 42.61981999999999,
+              "P99Milliseconds": 50.516714,
+              "MaxMilliseconds": 134.154
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 24274,
+          "observed": 24274,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "03cb1b21f88252e48f45f390102c5e1ac102cac1cc183e9dd76251a472343526"
+      }
+    },
+    {
+      "block": "mixed-c48",
+      "attempt": 1,
+      "ordinal": 3,
+      "variant": "after",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794700786.7546499
+      },
+      "status_sha256": "c93c90904b2dee854ff97042125437ff367499e05e37f66c2ea3db4e659ce336",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "010e0db85beece9c3e77c3e7f111d12414c9be80ff9e8793b5b12c3d40f93b12",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-3-after",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.0040062,
+          "Completed": 46977,
+          "Failed": 0,
+          "Rate": 1565.690917634859,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 46977,
+              "Failed": 0,
+              "RatePerSecond": 1565.690917634859,
+              "P50Milliseconds": 28.5219,
+              "P95Milliseconds": 44.93273999999999,
+              "P99Milliseconds": 52.620692,
+              "MaxMilliseconds": 664.384
+            },
+            {
+              "Operation": "Async",
+              "Completed": 5871,
+              "Failed": 0,
+              "RatePerSecond": 195.67386971143873,
+              "P50Milliseconds": 28.5371,
+              "P95Milliseconds": 44.441900000000004,
+              "P99Milliseconds": 51.12526000000003,
+              "MaxMilliseconds": 652.7993
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 11742,
+              "Failed": 0,
+              "RatePerSecond": 391.34773942287745,
+              "P50Milliseconds": 28.57685,
+              "P95Milliseconds": 45.25233999999997,
+              "P99Milliseconds": 53.43743600000006,
+              "MaxMilliseconds": 663.2748
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 5875,
+              "Failed": 0,
+              "RatePerSecond": 195.80718524181614,
+              "P50Milliseconds": 28.4386,
+              "P95Milliseconds": 44.60829000000001,
+              "P99Milliseconds": 51.377754,
+              "MaxMilliseconds": 659.0721
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 8807,
+              "Failed": 0,
+              "RatePerSecond": 293.5274690084553,
+              "P50Milliseconds": 28.464,
+              "P95Milliseconds": 44.494959999999985,
+              "P99Milliseconds": 51.183388000000065,
+              "MaxMilliseconds": 664.384
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 8807,
+              "Failed": 0,
+              "RatePerSecond": 293.5274690084553,
+              "P50Milliseconds": 28.6522,
+              "P95Milliseconds": 45.34144,
+              "P99Milliseconds": 53.15368800000014,
+              "MaxMilliseconds": 662.8449
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 5875,
+              "Failed": 0,
+              "RatePerSecond": 195.80718524181614,
+              "P50Milliseconds": 28.341,
+              "P95Milliseconds": 44.55469,
+              "P99Milliseconds": 51.30309000000003,
+              "MaxMilliseconds": 659.4906
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 5871,
+          "observed": 5871,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "7737f94e1096a2fc0fd7b95518d16ef204ca3fa57e1f4378c1e56f517c4aad46"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0333827,
+          "Completed": 196863,
+          "Failed": 0,
+          "Rate": 1640.0687506409831,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 196863,
+              "Failed": 0,
+              "RatePerSecond": 1640.0687506409831,
+              "P50Milliseconds": 27.9815,
+              "P95Milliseconds": 43.35618,
+              "P99Milliseconds": 50.59568000000001,
+              "MaxMilliseconds": 156.4131
+            },
+            {
+              "Operation": "Async",
+              "Completed": 24601,
+              "Failed": 0,
+              "RatePerSecond": 204.9513180969447,
+              "P50Milliseconds": 28.1656,
+              "P95Milliseconds": 43.4061,
+              "P99Milliseconds": 50.7553,
+              "MaxMilliseconds": 80.7384
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 49210,
+              "Failed": 0,
+              "RatePerSecond": 409.9692843197695,
+              "P50Milliseconds": 28.099800000000002,
+              "P95Milliseconds": 43.64755499999996,
+              "P99Milliseconds": 51.66055499999996,
+              "MaxMilliseconds": 156.4131
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 24610,
+              "Failed": 0,
+              "RatePerSecond": 205.02629723855978,
+              "P50Milliseconds": 27.903100000000002,
+              "P95Milliseconds": 42.95482499999999,
+              "P99Milliseconds": 50.567840999999994,
+              "MaxMilliseconds": 156.4023
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 36926,
+              "Failed": 0,
+              "RatePerSecond": 307.6310870309248,
+              "P50Milliseconds": 27.7214,
+              "P95Milliseconds": 43.091800000000006,
+              "P99Milliseconds": 50.269775,
+              "MaxMilliseconds": 156.4057
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 36913,
+              "Failed": 0,
+              "RatePerSecond": 307.5227838263697,
+              "P50Milliseconds": 28.1197,
+              "P95Milliseconds": 43.7687,
+              "P99Milliseconds": 50.864847999999995,
+              "MaxMilliseconds": 106.9529
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 24603,
+              "Failed": 0,
+              "RatePerSecond": 204.96798012841472,
+              "P50Milliseconds": 27.7371,
+              "P95Milliseconds": 42.90840999999999,
+              "P99Milliseconds": 49.948439999999984,
+              "MaxMilliseconds": 155.947
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 24601,
+          "observed": 24601,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "ba929f67847101b8d6b51e49889d29701e2f9174ab3d814c44a664f438dc94cd"
+      }
+    },
+    {
+      "block": "mixed-c48",
+      "attempt": 1,
+      "ordinal": 4,
+      "variant": "before",
+      "status": {
+        "passed": true,
+        "error": null,
+        "statuses": [
+          {
+            "suite": "warmup",
+            "exit_code": 0
+          },
+          {
+            "suite": "load",
+            "exit_code": 0
+          }
+        ],
+        "finished_utc": 1794700960.766308
+      },
+      "status_sha256": "9530c298709707ee2c479ebe216efafee53310d503f2aee75e5edbbd4c19832d",
+      "archive": {
+        "archive": "raw.tar.gz",
+        "sha256": "7f49270e616ad391d9f86cf891bf0344fc9bef3462742365b31f977576910883",
+        "vm_original": "${VM_EVIDENCE}/podman/slimfaas-pr506-net11-pbench-03-i2-mixed-c48-attempt-1-4-before",
+        "large_members_retained_in_archive": [
+          "workload/state/",
+          "workload/latency-samples.csv.gz"
+        ]
+      },
+      "warmup": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 30,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-warmup",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 30.014949,
+          "Completed": 59256,
+          "Failed": 0,
+          "Rate": 1974.2162480435998,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 59256,
+              "Failed": 0,
+              "RatePerSecond": 1974.2162480435998,
+              "P50Milliseconds": 22.72135,
+              "P95Milliseconds": 35.890525,
+              "P99Milliseconds": 41.87733499999999,
+              "MaxMilliseconds": 138.4175
+            },
+            {
+              "Operation": "Async",
+              "Completed": 7403,
+              "Failed": 0,
+              "RatePerSecond": 246.64376407902608,
+              "P50Milliseconds": 22.7311,
+              "P95Milliseconds": 35.61474,
+              "P99Milliseconds": 41.162853999999996,
+              "MaxMilliseconds": 117.7948
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 14808,
+              "Failed": 0,
+              "RatePerSecond": 493.3541616212641,
+              "P50Milliseconds": 22.8542,
+              "P95Milliseconds": 36.019439999999996,
+              "P99Milliseconds": 42.379853000000026,
+              "MaxMilliseconds": 138.4175
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 7408,
+              "Failed": 0,
+              "RatePerSecond": 246.81034773705593,
+              "P50Milliseconds": 22.59015,
+              "P95Milliseconds": 35.41997,
+              "P99Milliseconds": 41.653984000000015,
+              "MaxMilliseconds": 108.9459
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 11112,
+              "Failed": 0,
+              "RatePerSecond": 370.21552160558394,
+              "P50Milliseconds": 22.60065,
+              "P95Milliseconds": 35.932545,
+              "P99Milliseconds": 41.600742999999994,
+              "MaxMilliseconds": 121.3634
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 11116,
+              "Failed": 0,
+              "RatePerSecond": 370.3487885320078,
+              "P50Milliseconds": 22.9163,
+              "P95Milliseconds": 36.4413,
+              "P99Milliseconds": 43.14144000000001,
+              "MaxMilliseconds": 124.9882
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 7409,
+              "Failed": 0,
+              "RatePerSecond": 246.84366446866193,
+              "P50Milliseconds": 22.4341,
+              "P95Milliseconds": 35.31258,
+              "P99Milliseconds": 41.510044000000015,
+              "MaxMilliseconds": 108.7554
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 7403,
+          "observed": 7403,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "c6f04d4e50ae627837b2b09874720bfdb013017a388f4cc78bc79e4da6cc1c23"
+      },
+      "load": {
+        "report": {
+          "Scenario": "slimdata-mixed",
+          "DurationSeconds": 120,
+          "Concurrency": 48,
+          "PayloadBytes": 4096,
+          "KeysPerWorker": 16,
+          "KeyPrefix": "workload-load",
+          "TargetRequestsPerSecond": 0,
+          "TargetRequestsPerReplica": 0,
+          "ElapsedSeconds": 120.0147075,
+          "Completed": 235789,
+          "Failed": 0,
+          "Rate": 1964.667538768113,
+          "Operations": [
+            {
+              "Operation": "All",
+              "Completed": 235789,
+              "Failed": 0,
+              "RatePerSecond": 1964.667538768113,
+              "P50Milliseconds": 22.291,
+              "P95Milliseconds": 35.144359999999985,
+              "P99Milliseconds": 41.250524,
+              "MaxMilliseconds": 1855.6613
+            },
+            {
+              "Operation": "Async",
+              "Completed": 29472,
+              "Failed": 0,
+              "RatePerSecond": 245.5699023388446,
+              "P50Milliseconds": 22.3735,
+              "P95Milliseconds": 35.32176499999997,
+              "P99Milliseconds": 41.339408000000006,
+              "MaxMilliseconds": 1855.3949
+            },
+            {
+              "Operation": "SlimDataSet",
+              "Completed": 58946,
+              "Failed": 0,
+              "RatePerSecond": 491.15646930189786,
+              "P50Milliseconds": 22.30605,
+              "P95Milliseconds": 35.191925000000005,
+              "P99Milliseconds": 41.30117000000003,
+              "MaxMilliseconds": 1855.4961
+            },
+            {
+              "Operation": "SlimDataDelete",
+              "Completed": 29473,
+              "Failed": 0,
+              "RatePerSecond": 245.57823465094893,
+              "P50Milliseconds": 22.2775,
+              "P95Milliseconds": 35.1225,
+              "P99Milliseconds": 41.192227999999965,
+              "MaxMilliseconds": 1855.6613
+            },
+            {
+              "Operation": "SlimDataIncrement",
+              "Completed": 44213,
+              "Failed": 0,
+              "RatePerSecond": 368.3965150687886,
+              "P50Milliseconds": 22.2128,
+              "P95Milliseconds": 35.015240000000006,
+              "P99Milliseconds": 41.041455999999975,
+              "MaxMilliseconds": 1855.3618
+            },
+            {
+              "Operation": "SlimDataHashSet",
+              "Completed": 44212,
+              "Failed": 0,
+              "RatePerSecond": 368.3881827566842,
+              "P50Milliseconds": 22.3614,
+              "P95Milliseconds": 35.25123,
+              "P99Milliseconds": 41.339842,
+              "MaxMilliseconds": 1855.3666
+            },
+            {
+              "Operation": "SlimDataHashDelete",
+              "Completed": 29473,
+              "Failed": 0,
+              "RatePerSecond": 245.57823465094893,
+              "P50Milliseconds": 22.189,
+              "P95Milliseconds": 34.9067,
+              "P99Milliseconds": 41.17958399999999,
+              "MaxMilliseconds": 1855.1788
+            }
+          ]
+        },
+        "validationFailures": 0,
+        "receipts": {
+          "accepted": 29472,
+          "observed": 29472,
+          "missing": [],
+          "duplicates": {},
+          "payload_sha256": "0908236519fe5409741ff9aa7194b620d90a70ee0a4eeb638f590969f974e1a6",
+          "passed": true
+        },
+        "receipts_sha256": "f2bfd91687a48d52e4e749e2dc789c5eca5033e1bfd1042026006cb827a77929"
+      }
+    }
+  ],
+  "note": "Mixed C48 fails throughput and p99 against both references. Set C48 remains inconclusive after the allowed full repeat; Set C12 and mixed C12 pass. All 20 warmups/loads pass workload checks, all-node validation and independent receipt reconciliation. Set scenarios have no async receipts (accepted=0), rather than an async integrity claim. Every original sample, log and state file remains in the verified archives and VM originals. No threshold or deadline changed. Overall platform verdict remains inconclusive because HTTP references and Set C48 do not establish acceptance."
+}
