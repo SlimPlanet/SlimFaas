@@ -5,6 +5,11 @@ retains five passing source-f13 fault/refusal controls and a failed source511
 performance reference, together with deterministic root-formatter regressions.
 Earlier observations below remain attached to their tested sources.
 
+The [corrected-source application report](persisted-copy-validation-189.md)
+records five passing Kubernetes fault/refusal controls and all four passing
+same-guarantee diagnostic comparisons. It also preserves a subsequent WAL replay
+fixture failure separately; final timed matrices and long endurance remain open.
+
 This follow-up preserves the [completed 1ecba4d1 validation](../2026-11-13/README.md)
 and its failed or inconclusive performance verdicts. The bounded diagnostics below
 are separate from the formal HTTP/MemoryLab matrices. They do not establish LTS

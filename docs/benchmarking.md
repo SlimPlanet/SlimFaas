@@ -45,6 +45,10 @@ and component tests require their own application validation. The subsequent
 retains an HTTP 500 in the first source511 reference. An incomplete or unhealthy
 reference cannot establish non-regression; its original state and per-ID
 accounting remain preserved while the reproduced serializer defect is corrected.
+The [corrected-source follow-up](reliability/2026-11-15/persisted-copy-validation-189.md)
+passes all four enclosing-reference comparisons for the bounded two-copy
+200 × 1 MiB/C16 case. This diagnostic result does not replace the full timed
+HTTP/MemoryLab matrices or earlier policy-cost failures.
 
 ## Run the benchmark
 
