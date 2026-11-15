@@ -94,7 +94,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     {
         // Déjà présent localement
         if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
-            return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+            return new FilePullResult(await _repo.OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false));
 
         // Itérer sur tous les nœuds (remotes) pour trouver celui qui a le fichier
         var candidates = _bus.Members.AsValueEnumerable().Where(static m => m.IsRemote).ToList();
@@ -183,7 +183,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
                 // Re-check après lock
                 if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
-                    return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+                    return new FilePullResult(await _repo.OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false));
 
                 // Téléchargement range -> SaveAsync (streaming)
                 try
@@ -209,7 +209,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                         ct: ct).ConfigureAwait(false);
 
                     // OK
-                    return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+                    return new FilePullResult(await _repo.OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {

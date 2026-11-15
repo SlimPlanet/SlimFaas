@@ -14,6 +14,7 @@ public sealed class DiskFileRepository : IFileRepository
     private readonly string _root;
     private readonly ILogger<DiskFileRepository> _logger;
     private readonly IFileCacheControl _cacheControl;
+    private readonly KeyedAsyncLock _mutations = new(long.MaxValue);
 
     public DiskFileRepository(
         string pathDirectory,
@@ -70,7 +71,10 @@ public sealed class DiskFileRepository : IFileRepository
         FilePutResult? expected,
         CancellationToken ct)
     {
+        await using var mutation = await _mutations.AcquireAsync(id, ct).ConfigureAwait(false);
         var (filePath, metaPath) = GetPaths(id);
+        if (!overwrite && (File.Exists(filePath) || File.Exists(metaPath)))
+            throw new IOException($"File already exists: {id}");
         var tmp = filePath + ".tmp." + Guid.NewGuid().ToString("N");
 
         try
@@ -111,10 +115,46 @@ public sealed class DiskFileRepository : IFileRepository
             }
 
             ct.ThrowIfCancellationRequested();
-            MoveIntoPlace(tmp, filePath, overwrite);
-
             var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks, tags);
+            // Keep the previous revision while the caller's Raft metadata can
+            // still name it. The current metadata file remains a local hint.
+            FileMetadata? previous = await TryGetMetadataAsync(id, ct).ConfigureAwait(false);
+            bool versioned = File.Exists(VersionMetadataPath(id, shaHex)) ||
+                             previous is not null && !string.Equals(previous.Sha256Hex, shaHex, StringComparison.OrdinalIgnoreCase);
+            if (!versioned)
+            {
+                // Fresh immutable IDs and same-hash repairs keep the historical
+                // two-file layout. They do not need extra revision metadata or links.
+                MoveIntoPlace(tmp, filePath, overwrite);
+                await WriteMetadataAsync(metaPath, meta, _logger, ct).ConfigureAwait(false);
+                return new FilePutResult(shaHex, contentType, total);
+            }
+            Directory.CreateDirectory(Path.Combine(_root, ".versions"));
+            if (previous is not null && IsHash(previous.Sha256Hex))
+            {
+                await WriteMetadataAsync(VersionMetadataPath(id, previous.Sha256Hex), previous, _logger, ct).ConfigureAwait(false);
+                string previousBody = VersionBodyPath(id, previous.Sha256Hex);
+                if (File.Exists(filePath) && !File.Exists(previousBody))
+                    MoveIntoPlace(filePath, previousBody, overwrite: false);
+            }
+
+            // Metadata may briefly describe an unavailable pending body; no
+            // reader considers it available until the corresponding bytes exist.
+            await WriteMetadataAsync(VersionMetadataPath(id, shaHex), meta, _logger, ct).ConfigureAwait(false);
+            MoveIntoPlace(tmp, VersionBodyPath(id, shaHex), overwrite: true);
             await WriteMetadataAsync(metaPath, meta, _logger, ct).ConfigureAwait(false);
+            // Keep the historical current-body path readable by older releases
+            // without storing a second copy of the body on the same volume.
+            string alias = filePath + ".tmp." + Guid.NewGuid().ToString("N");
+            try
+            {
+                FileVersionLink.Create(VersionBodyPath(id, shaHex), alias);
+                MoveIntoPlace(alias, filePath, overwrite: true);
+            }
+            finally
+            {
+                TryDelete(alias);
+            }
 
             return new FilePutResult(shaHex, contentType, total);
         }
@@ -127,7 +167,12 @@ public sealed class DiskFileRepository : IFileRepository
 
     public async IAsyncEnumerable<FileMetadataEntry> EnumerateAllMetadataAsync([EnumeratorCancellation] CancellationToken ct)
     {
-        foreach (var metaPath in Directory.EnumerateFiles(_root, "*" + MetaExt, SearchOption.TopDirectoryOnly))
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        IEnumerable<string> paths = Directory.EnumerateFiles(_root, "*" + MetaExt, SearchOption.TopDirectoryOnly);
+        string versions = Path.Combine(_root, ".versions");
+        if (Directory.Exists(versions))
+            paths = paths.Concat(Directory.EnumerateFiles(versions, "*" + MetaExt, SearchOption.TopDirectoryOnly));
+        foreach (var metaPath in paths)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -136,6 +181,9 @@ public sealed class DiskFileRepository : IFileRepository
                 continue;
 
             var safe = file[..^MetaExt.Length];
+            int versionSeparator = safe.IndexOf('.', StringComparison.Ordinal);
+            if (versionSeparator >= 0)
+                safe = safe[..versionSeparator];
             string id;
             try { id = Base64UrlCodec.Decode(safe); }
             catch (Exception ex)
@@ -156,19 +204,20 @@ public sealed class DiskFileRepository : IFileRepository
             }
 
             if (meta is null) continue;
-            yield return new FileMetadataEntry(id, meta);
+            if (seen.Add(id + ":" + meta.Sha256Hex.ToLowerInvariant()))
+                yield return new FileMetadataEntry(id, meta);
         }
     }
 
     public async Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct)
     {
-        var meta = await TryGetMetadataAsync(id, ct).ConfigureAwait(false);
+        var meta = await TryGetVersionMetadataAsync(id, sha256Hex, ct).ConfigureAwait(false);
         if (meta is null || !meta.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase))
             return false;
 
         try
         {
-            await using Stream body = await OpenReadAsync(id, ct).ConfigureAwait(false);
+            await using Stream body = await OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false);
             if (body.Length != meta.Length)
                 return false;
             byte[] actualHash = await SHA256.HashDataAsync(body, ct).ConfigureAwait(false);
@@ -190,18 +239,61 @@ public sealed class DiskFileRepository : IFileRepository
         if (!File.Exists(metaPath))
             return null;
 
-        return await ReadMetadataAsync(metaPath, ct).ConfigureAwait(false);
+        try { return await ReadMetadataAsync(metaPath, ct).ConfigureAwait(false); }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
     }
 
-    public Task<Stream> OpenReadAsync(string id, CancellationToken ct)
+    public async Task<FileMetadata?> TryGetVersionMetadataAsync(string id, string sha256Hex, CancellationToken ct)
     {
-        var (filePath, _) = GetPaths(id);
+        if (!IsHash(sha256Hex))
+            return null;
+        string path = VersionMetadataPath(id, sha256Hex);
+        FileMetadata? metadata;
+        try
+        {
+            metadata = File.Exists(path)
+                ? await ReadMetadataAsync(path, ct).ConfigureAwait(false)
+                : await TryGetMetadataAsync(id, ct).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
+        return metadata is not null && string.Equals(metadata.Sha256Hex, sha256Hex, StringComparison.OrdinalIgnoreCase)
+            ? metadata : null;
+    }
+
+    public async Task<Stream> OpenReadAsync(string id, CancellationToken ct)
+    {
+        FileMetadata? metadata = await TryGetMetadataAsync(id, ct).ConfigureAwait(false);
+        if (metadata is null)
+            return OpenBody(GetPaths(id).FilePath);
+        return await OpenReadVersionAsync(id, metadata.Sha256Hex, ct).ConfigureAwait(false);
+    }
+
+    public async Task<Stream> OpenReadVersionAsync(string id, string sha256Hex, CancellationToken ct)
+    {
+        FileMetadata? metadata = await TryGetVersionMetadataAsync(id, sha256Hex, ct).ConfigureAwait(false);
+        if (metadata is null)
+            throw new FileNotFoundException("The requested file revision is unavailable.");
+        string path = VersionBodyPath(id, sha256Hex);
+        if (File.Exists(path))
+            return OpenBody(path);
+        if (File.Exists(VersionMetadataPath(id, sha256Hex)))
+            throw new FileNotFoundException("The requested file revision body is unavailable.");
+        // Read old layouts without changing their bytes. A concurrent migration
+        // can rename the legacy body between lookup and open; retry its version.
+        try { return OpenBody(GetPaths(id).FilePath); }
+        catch (FileNotFoundException) { return OpenBody(path); }
+    }
+
+    private FileCacheDroppingReadStream OpenBody(string filePath)
+    {
 #pragma warning disable CA2000 // ownership is transferred to the returned FileCacheDroppingReadStream
         var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, ReadSharing,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
 #pragma warning restore CA2000
 
-        return Task.FromResult<Stream>(new FileCacheDroppingReadStream(fs, _cacheControl));
+        return new FileCacheDroppingReadStream(fs, _cacheControl);
     }
 
     private (string FilePath, string MetaPath) GetPaths(string id)
@@ -212,9 +304,49 @@ public sealed class DiskFileRepository : IFileRepository
         return (file, meta);
     }
 
-    public Task DeleteAsync(string id, CancellationToken ct)
+    private string VersionBodyPath(string id, string sha256Hex) =>
+        Path.Combine(_root, Base64UrlCodec.Encode(id) + "." + sha256Hex.ToLowerInvariant() + ".bin");
+
+    private string VersionMetadataPath(string id, string sha256Hex)
+    {
+        string directory = Path.Combine(_root, ".versions");
+        return Path.Combine(directory, Base64UrlCodec.Encode(id) + "." + sha256Hex.ToLowerInvariant() + MetaExt);
+    }
+
+    private static bool IsHash(string? hash)
+    {
+        if (hash is null || hash.Length != 64)
+            return false;
+        foreach (char value in hash)
+            if (!char.IsAsciiHexDigit(value))
+                return false;
+        return true;
+    }
+
+    public async Task DeleteVersionAsync(string id, string sha256Hex, CancellationToken ct)
+    {
+        if (!IsHash(sha256Hex))
+            return;
+        await using var mutation = await _mutations.AcquireAsync(id, ct).ConfigureAwait(false);
+        FileMetadata? current = await TryGetMetadataAsync(id, ct).ConfigureAwait(false);
+        string body = VersionBodyPath(id, sha256Hex);
+        string metadata = VersionMetadataPath(id, sha256Hex);
+        if (File.Exists(body))
+            File.Delete(body);
+        if (File.Exists(metadata))
+            File.Delete(metadata);
+        if (current is not null && current.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase))
+        {
+            var (filePath, metaPath) = GetPaths(id);
+            File.Delete(filePath);
+            File.Delete(metaPath);
+        }
+    }
+
+    public async Task DeleteAsync(string id, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        await using var mutation = await _mutations.AcquireAsync(id, ct).ConfigureAwait(false);
 
         var (filePath, metaPath) = GetPaths(id);
 
@@ -224,7 +356,13 @@ public sealed class DiskFileRepository : IFileRepository
         if (File.Exists(metaPath))
             File.Delete(metaPath);
 
-        return Task.CompletedTask;
+        string prefix = Base64UrlCodec.Encode(id) + ".";
+        foreach (string path in Directory.EnumerateFiles(_root, prefix + "*.bin"))
+            File.Delete(path);
+        string versions = Path.Combine(_root, ".versions");
+        if (Directory.Exists(versions))
+            foreach (string path in Directory.EnumerateFiles(versions, prefix + "*" + MetaExt))
+                File.Delete(path);
     }
 
     private static void MoveIntoPlace(string tmp, string dst, bool overwrite)
@@ -314,8 +452,12 @@ public sealed class DiskFileRepository : IFileRepository
             var cutoff = DateTime.UtcNow - OrphanTmpThreshold;
             var deleted = 0;
 
-        // Matches both generated patterns: "*.bin.tmp.*" and "*.meta.mp.tmp.*"
-            foreach (var tmp in Directory.EnumerateFiles(_root, "*.tmp.*", SearchOption.TopDirectoryOnly))
+            // Include pending revision metadata without descending into unrelated paths.
+            IEnumerable<string> temporaryFiles = Directory.EnumerateFiles(_root, "*.tmp.*", SearchOption.TopDirectoryOnly);
+            string versions = Path.Combine(_root, ".versions");
+            if (Directory.Exists(versions))
+                temporaryFiles = temporaryFiles.Concat(Directory.EnumerateFiles(versions, "*.tmp.*", SearchOption.TopDirectoryOnly));
+            foreach (var tmp in temporaryFiles)
             {
                 ct.ThrowIfCancellationRequested();
 

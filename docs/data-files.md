@@ -72,6 +72,21 @@ replacing or deleting a previously valid local version. This uses the upload's
 existing streaming hash calculation. It does not add a remote durable-copy
 acknowledgement to the upload contract.
 
+When an existing ID changes checksum, the repository retains body revisions by
+SHA-256. Peer HEAD/Range requests and queued reads select the requested checksum,
+so publishing a replacement locally does not remove bytes still named by Raft
+metadata. Fresh IDs and same-checksum repairs retain the existing two-file
+layout. The historical current-body path remains readable; revision links on
+the same volume share bytes and count as one replica.
+
+Cleanup checks the durable checksum, queue and DLQ references before retiring a
+revision. An earlier local upload expiry cannot override a still-live Raft
+reference. A released revision is deleted separately from a newer revision;
+unreferenced, unexpired bodies retain the existing three-observation grace.
+This grace does not provide durable admission protection or confirm remote
+copies. Those guarantees remain under investigation in the
+[reliability follow-up](reliability/2026-11-15/README.md).
+
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/data/files?id={id?}&ttl={ms?}` | Store a binary artifact (request body = raw bytes) |

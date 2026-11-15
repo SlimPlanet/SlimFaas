@@ -32,12 +32,18 @@ public interface IFileRepository
     Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct);
 
     Task<FileMetadata?> TryGetMetadataAsync(string id, CancellationToken ct);
+
+    Task<FileMetadata?> TryGetVersionMetadataAsync(string id, string sha256Hex, CancellationToken ct);
     
     IAsyncEnumerable<FileMetadataEntry> EnumerateAllMetadataAsync(CancellationToken ct);
     
     Task DeleteAsync(string id, CancellationToken ct);
 
+    Task DeleteVersionAsync(string id, string sha256Hex, CancellationToken ct);
+
     Task<Stream> OpenReadAsync(string id, CancellationToken ct);
+
+    Task<Stream> OpenReadVersionAsync(string id, string sha256Hex, CancellationToken ct);
 
     /// <summary>
     /// Deletes orphan .tmp files (interrupted uploads) that have not been modified for more than 10 minutes.

@@ -242,7 +242,7 @@ public sealed class ClusterFileSyncTests
         repo.Setup(r => r.ExistsAsync("id1", "sha", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(new byte[] { 1, 2, 3 }));
 
         var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object, httpFactory);
@@ -319,7 +319,7 @@ public sealed class ClusterFileSyncTests
                 return new FilePutResult(sh, expected.ContentType, savedBytes.Length);
             });
 
-        repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(savedBytes, writable: false));
 
         var tags = new Dictionary<string, string>

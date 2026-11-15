@@ -24,7 +24,7 @@ public sealed class DiskFileRepositoryCacheTests : IDisposable
         using var content = new MemoryStream([1, 2, 3]);
         FilePutResult stored = await repository.SaveAsync(
             "damaged-body", content, "application/octet-stream", false, null, CancellationToken.None);
-        string bodyPath = Assert.Single(Directory.GetFiles(_directory, "*.bin"));
+        string bodyPath = Path.Combine(_directory, Base64UrlCodec.Encode("damaged-body") + ".bin");
         await using (var body = new FileStream(bodyPath, FileMode.Open, FileAccess.Write, FileShare.Read))
         {
             if (truncate)
@@ -45,7 +45,7 @@ public sealed class DiskFileRepositoryCacheTests : IDisposable
         var put = await sut.SaveAsync("id", content, "application/octet-stream", true, null, CancellationToken.None);
         // ReplaceFile opens the replacement with write access. A concurrent
         // reader must share that access until the replacement call closes it.
-        await using var replacementBody = new FileStream(Assert.Single(Directory.GetFiles(_directory, "*.bin")),
+        await using var replacementBody = new FileStream(Path.Combine(_directory, Base64UrlCodec.Encode("id") + ".bin"),
             FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
         await using var replacementMetadata = new FileStream(Assert.Single(Directory.GetFiles(_directory, "*.meta.mp")),
             FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
