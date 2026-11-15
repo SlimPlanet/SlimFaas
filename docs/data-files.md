@@ -431,6 +431,14 @@ existing message bus and Range transfer to obtain such a receipt from a known
 peer; announcement confirmations do not satisfy it. It rejects mismatched
 identity/checksum/length and a shared declared storage identity.
 
+SlimFaas anchors this identity at `SlimData:Directory`, outside the per-pod
+Raft log directory. Two node subdirectories under the same declared root share
+one identity and cannot count as separate storage copies. Standalone SlimData
+falls back to its log root when no directory is declared. Older per-node marker
+files remain untouched during this correction; they are no longer the authority
+when an enclosing volume root is declared. Independent backing storage still
+requires deployment verification.
+
 ### Durable acceptance policy under validation
 
 `SlimData__Files__RequiredDurableCopies` selects the acceptance path:

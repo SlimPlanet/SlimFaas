@@ -564,6 +564,7 @@ serviceCollectionSlimFaas.AddSingleton<ISendClient>(sp => new SendClient(
 
 if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 {
+    builder.Configuration[$"{SlimDataOptions.SectionName}:Directory"] = slimDataDirectory;
     builder.Configuration[SlimPersistentState.LogLocation] = podDataDirectoryPersistantStorage;
 	builder.Configuration[SlimPersistentState.UsePersistentConfigurationStorage] = usePersistentConfigurationStorage.ToString();
 } else {

@@ -5,11 +5,41 @@ using DotNext.IO.Log;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SlimData.Options;
+using SlimData.ClusterFiles;
 
 namespace SlimData.Tests;
 
 public sealed class StartupConfigurationTests
 {
+    [Fact]
+    public async Task Different_node_log_directories_on_one_declared_volume_share_its_storage_identity()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            var identities = new List<string>();
+            foreach (string node in new[] { "node-a", "node-b" })
+            {
+                IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [SlimPersistentState.LogLocation] = Path.Combine(root, node),
+                    ["SlimData:Directory"] = root
+                }).Build();
+                var services = new ServiceCollection(); services.AddSingleton(configuration).AddLogging();
+                new Startup(configuration).ConfigureServices(services);
+                await using ServiceProvider provider = services.BuildServiceProvider();
+                identities.Add(Assert.IsAssignableFrom<IDurableFileRepository>(provider.GetRequiredService<IFileRepository>()).StorageIdentity);
+            }
+            Assert.Equal(identities[0], identities[1]);
+            Assert.True(File.Exists(Path.Combine(root, ".slimfaas-files-storage-identity")));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task All_raft_consumers_share_the_durable_wal_after_snapshot_restoration()
     {

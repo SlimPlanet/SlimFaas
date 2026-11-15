@@ -131,6 +131,8 @@ public class Startup(IConfiguration configuration)
                 UseProxy = false
             });
         var path = configuration[SlimPersistentState.LogLocation];
+        var declaredStorageRoot = configuration["SlimData:Directory"];
+        if (string.IsNullOrWhiteSpace(declaredStorageRoot)) declaredStorageRoot = path;
         var stateRoot = string.IsNullOrWhiteSpace(path)
             ? Path.Combine(Path.GetTempPath(), "SlimData", Guid.NewGuid().ToString("N"))
             : path;
@@ -189,7 +191,7 @@ public class Startup(IConfiguration configuration)
                sp.GetRequiredService<ILogger<DiskFileRepository>>(),
                sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DropPageCache,
                sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DurableWrites,
-               storageRoot: path));
+               storageRoot: declaredStorageRoot));
            services.AddSingleton<ClusterFileAnnounceQueue>();
            services.AddHostedService<ClusterFileAnnounceWorker>();
 

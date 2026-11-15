@@ -114,3 +114,25 @@ or chunk timeouts. The complete body still passes SaveVerified before publicatio
 The original four response-disposal/deadline controls remain green. Process
 restart still starts an unfinished file again from zero; partial bytes are not
 a separately durable resumable artifact.
+
+## Declared-volume root integration correction
+
+The `70201a73` registration passes the per-node Raft log location as the storage
+identity root. A new integration regression configures one `SlimData:Directory`
+with two different node log subdirectories: it incorrectly observes two UUIDs.
+The correction takes the enclosing declared directory, preserving the standalone
+log-root fallback, and keeps the resolved SlimFaas directory in its startup
+configuration. Different node subdirectories on that declared root now share
+one UUID. Historical node-scoped marker files are retained. This rejects a
+shared declared root; physical backing independence remains a deployment
+precondition. The full corrected suite passes 2,389 tests with no failures/skips.
+
+The first Kubernetes volume fixture had also looked for the marker at that
+enclosing level. Its pre-fault assertion aborted after one confirmed `202`;
+no volume loss was injected. A complete, quiescent 36-file original snapshot
+was copied and every original/backup hash verified before recovery. The original
+volumes then delivered that operation once after restart, with no missing body
+or duplicate. Two unsuccessful recovery-script attempts, the failed fixture
+and its corrected recovery remain retained. These are distinct from a successful
+permanent-volume-loss campaign. See
+[the scoped integration and recovery evidence](declared-storage-root-evidence.json).
