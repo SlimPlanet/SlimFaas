@@ -976,8 +976,16 @@ class Campaign:
         rows = read_receipts(self.receipts)
         completed = [row for row in rows if row["event"] == "completed"]
         executions = {}
+        successes = {}
         for row in completed:
             executions[row["id"]] = executions.get(row["id"], 0) + 1
+            if 200 <= row["status"] < 300:
+                target = (row["id"], row.get("function"))
+                successes[target] = successes.get(target, 0) + 1
+        successful_targets = [{"id": identifier, "function": function, "successful_deliveries": count,
+                               "acceptance": "confirmed" if identifier in self.accepted else
+                                   "unknown" if identifier in self.unknown else "unattributed"}
+                              for (identifier, function), count in successes.items()]
         jobs = {identifier: sum(row["event"] == "job" and set(record["job_args"]).issubset(row["args"])
                                 for row in rows)
                 for identifier, record in self.accepted.items() if record["kind"] == "job"}
@@ -989,6 +997,11 @@ class Campaign:
         report = {"accepted": len(self.accepted), "unknown": unknowns,
                   "completed_deliveries": len(completed), "distinct_delivered_ids": len(executions),
                   "repeated_deliveries": {key: count for key, count in executions.items() if count > 1},
+                  "successful_delivery_attempts": sum(successes.values()),
+                  "failed_delivery_attempts": len(completed) - sum(successes.values()),
+                  "successful_id_functions": successful_targets,
+                  "repeated_successful_id_functions": [row for row in successful_targets if row["successful_deliveries"] > 1],
+                  "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
                   "job_executions": jobs,
                   "repeated_job_executions": {key: count for key, count in jobs.items() if count > 1}}
         (self.output / "accounting.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

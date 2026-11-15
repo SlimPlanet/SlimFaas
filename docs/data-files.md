@@ -439,6 +439,18 @@ files remain untouched during this correction; they are no longer the authority
 when an enclosing volume root is declared. Independent backing storage still
 requires deployment verification.
 
+Peer lookup tries the remaining members when a remote `HEAD` fails. Each probe
+has a five-second deadline so an unreachable or silent first peer cannot keep
+hiding a surviving copy. Caller cancellation still stops the search immediately;
+Range transfer checks and the enclosing operation deadline continue to apply.
+
+Native `slimfaas local up` places its nodes under one declared data root. This
+shared-root deployment cannot satisfy policy `2`: a second node in that root
+does not provide a distinct-volume receipt, so the upload returns `503` rather
+than acknowledging the stronger contract. Use policy `0` or `1` for this local
+layout. Validate policy `2` with separate declared persistent volumes; separate
+marker UUIDs alone do not establish independent physical backing storage.
+
 ### Durable acceptance policy under validation
 
 `SlimData__Files__RequiredDurableCopies` selects the acceptance path:

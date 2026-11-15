@@ -25,6 +25,46 @@ FIXTURE = load("chaos_function", ROOT / "tests/SlimFaas.Tests/Local/chaos_functi
 
 
 class CampaignSafetyTests(unittest.TestCase):
+    def test_receipt_accounting_separates_failed_retries_from_successful_repetitions(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.accepted = {"retry": {"kind": "async"}}
+            rows = [{"event": "completed", "id": "retry", "function": "worker", "status": status}
+                    for status in [500, 500, 200]]
+            with patch.object(HARNESS, "read_receipts", return_value=rows):
+                report = campaign.audit()
+            self.assertEqual(3, report["completed_deliveries"])
+            self.assertEqual(2, report["failed_delivery_attempts"])
+            self.assertEqual(1, report["successful_delivery_attempts"])
+            self.assertEqual([], report["repeated_successful_id_functions"])
+
+    def test_receipt_accounting_keeps_fanout_destinations_distinct(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.accepted = {"publication": {"kind": "fanout"}}
+            rows = [{"event": "completed", "id": "publication", "function": function, "status": 200}
+                    for function in ["subscriber-a", "subscriber-b"]]
+            with patch.object(HARNESS, "read_receipts", return_value=rows):
+                report = campaign.audit()
+            self.assertEqual(2, report["successful_delivery_attempts"])
+            self.assertEqual(2, len(report["successful_id_functions"]))
+            self.assertEqual([], report["repeated_successful_id_functions"])
+
+    def test_receipt_accounting_retains_successful_repetitions_and_unknown_outcomes(self):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.accepted = {"confirmed": {"kind": "async"}}
+            campaign.unknown = {"unknown": {"kind": "async"}}
+            rows = [{"event": "completed", "id": identifier, "function": "worker", "status": 200}
+                    for identifier in ["confirmed", "confirmed", "unknown", "unattributed"]]
+            with patch.object(HARNESS, "read_receipts", return_value=rows):
+                report = campaign.audit()
+            self.assertEqual([{"id": "confirmed", "function": "worker", "successful_deliveries": 2,
+                               "acceptance": "confirmed"}], report["repeated_successful_id_functions"])
+            self.assertEqual({"confirmed": "confirmed", "unknown": "unknown", "unattributed": "unattributed"},
+                             {row["id"]: row["acceptance"] for row in report["successful_id_functions"]})
+            self.assertEqual([{"id": "unknown", "kind": "async", "outcome": "executed"}], report["unknown"])
+
     def test_failed_resume_stops_continuous_traffic_before_propagating_identity_error(self):
         with tempfile.TemporaryDirectory() as output:
             campaign = self.campaign(output)

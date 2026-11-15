@@ -223,7 +223,12 @@ other campaigns alongside a performance comparison.
 - `receipts/`: function checksums, attempt/element IDs and completed job arguments.
 - `*.prom`, supervisor/node logs: raw diagnostics, commit/apply indices and
   snapshot/compaction evidence. Applying a skipped/corrupt command fails the run.
-- `accounting.json`: repeated deliveries and final observations for unknown writes.
+- `accounting.json`: all completed attempts, successful ID/function deliveries
+  and final observations for unknown writes. Legacy `repeated_deliveries` also
+  counts failed retries and different fanout subscribers. Use
+  `repeated_successful_id_functions` to inspect successful repetitions to the
+  same function; a null function means the journal lacks target metadata.
+  An unknown acceptance remains unknown even when its delivery is observed.
 - `report.json`: passed phases, actual absence/election/recovery times and failures.
 
 An unresolved unknown operation is not counted as confirmed loss or as proven

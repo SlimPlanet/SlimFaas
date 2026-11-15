@@ -28,6 +28,14 @@ with full UI builds, analyzers and audits active. These component results do
 not certify the new acceptance contract: dedicated permanent-volume-loss faults,
 final-source native/container validation and comparative cost remain pending.
 
+The subsequent declared-root correction and first-peer HEAD fallback pass
+2,395 .NET tests. Source49 Native local-persistence controls and two targeted
+async logical-volume-loss controls complete, while a public Files catch-up
+control fails because an unavailable first peer hides the surviving copy.
+Its original state and the failing-before regression remain retained; application
+replay of the correction and durability-cost comparisons are still required.
+See the [follow-up evidence](reliability/2026-11-15/README.md#application-controls-and-first-peer-repair-failure).
+
 The frozen `1ecba4d1` .NET 11 matrices are now complete. The integrated report
 retains **INCONCLUSIVE** HTTP comparisons in all three environments because
 mandatory references are incomplete. Native mixed C48 fails RSS; Podman mixed

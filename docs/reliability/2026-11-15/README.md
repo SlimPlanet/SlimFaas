@@ -520,3 +520,66 @@ and the original accepted-operation recovery checks remain open. The next phase
 must exercise dedicated process/volume faults and measure the selected configuration
 before recommending it for Kubernetes. This is not an exactly-once execution or
 LTS certification claim.
+
+## Application controls and first-peer repair failure
+
+Source `49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa` publishes all three macOS
+ARM64 Native AOT executables and the Linux musl ARM64 managed/trimmed image.
+The Native two-copy quick control stops at Files `503`: native Local nodes
+declare one shared storage root, so they cannot supply distinct-volume receipts.
+This is a rejected configuration, not a successful two-volume durability test.
+The separate local-persistence control completes API, six-size Content-Length and
+chunked payloads, Files through 16 MiB, retries/DLQ, real jobs, Streams and full
+original-state restart: **205 confirmed operations, ten unknown outcomes and no
+confirmed missing operations**. Its 49 completed handler attempts comprise 44
+successes and five deliberate retry failures. Eight publications reach two
+different subscribers. No successful ID/function pair repeats. Original raw
+accounting retains all attempts and is not rewritten.
+
+The dedicated Kubernetes controls each submit **one** 1 MiB request; inherited
+common load arguments do not turn them into a 200-message C16 measurement.
+They pause the third runtime before upload, confirm the remaining two copies,
+kill the ingress after acceptance and move all its data-volume contents outside
+active mounts without restoring them. The paused runtime is killed to discard
+old in-memory announcements before returning. Internal local-only HEAD and body
+hash checks distinguish background catch-up from a GET-triggered pull.
+
+| Request and ingress | Acceptance | Returned-node repair | Fresh-volume ingress repair | Result |
+| --- | --- | --- | --- | --- |
+| Async, follower | 202 | 3.063 s after readiness | 3.862 s after readiness | PASS, one delivery, full 180 s observation |
+| Async, leader | 202 | 2.862 s after readiness | 4.067 s after readiness | PASS, one delivery, full 180 s observation |
+| Files, follower | 200 | Absent after 180 s | Not reached | FAIL, peer-search starvation |
+
+The async controls have no unknown outcomes, confirmed missing/corrupt bodies or
+extra deliveries. Healthy-majority readiness takes 1.818/2.023 s. Complete
+current/previous logs cover five process instances per control, with zero managed
+OOM occurrences. Two/twelve error-level no-leader occurrences remain recorded
+during injected restart/recovery; none occurs after fresh-ingress repair. These
+are fault-control results, not clean healthy-load log verdicts. All workers share
+one VM filesystem, limiting the result to logical PV-content loss.
+
+The Files failure preserves a valid body on the surviving active volume and the
+quarantined original body, both matching the acknowledged SHA-256 and length.
+It does not demonstrate permanent loss. Its logs show repeated connection refusal
+from the first peer. An exception during that peer's HEAD escaped the member loop,
+preventing a request to the healthy holder. Five new tests fail before correction;
+the caller-cancellation control already passes. The correction continues after
+probe transport failures and bounds a silent HEAD at five seconds, preserving
+caller cancellation and the enclosing transfer deadline. **106 targeted tests
+and 2,395 full .NET tests pass, with zero failures/skips**; 28 campaign tests and
+41 platform tests pass. Analyzers, audits and full UI builds remain active.
+Three failing-before reporting tests also separate retries and fanout destinations
+from successful repeated ID/function deliveries, while keeping legacy fields.
+
+See [application provenance and observations](file-admission-application-evidence-01.json),
+the [closed raw index](file-admission-application-index-01.json.gz) and its
+[hashes](file-admission-application-index-summary-01.json), plus
+[peer-fallback regression evidence](file-peer-fallback-evidence.json) and its
+[raw index](file-peer-fallback-index.json.gz).
+The [frozen Kubernetes reproducer](file-admission-fault-reproducer-49.tar.gz)
+contains the actual source49 profile; follow the [reproduction instructions](file-admission-fault-reproducer.md).
+New-source AOT/image publication, replay of the failed Files fault, remaining
+volume cases, durability-cost brackets and final long campaigns remain pending.
+The original Windows Sonar job also retains a WebSocket peer-connect failure;
+its targeted retry is separate from local passing tests. No performance or LTS
+acceptance follows from these controls.

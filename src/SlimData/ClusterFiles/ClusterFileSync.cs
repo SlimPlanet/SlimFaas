@@ -165,6 +165,7 @@ public sealed class ClusterFileSync : IDurableClusterFileSync, IAsyncDisposable
 
     private const int RangeChunkSizeBytes = 10 * 1024 * 1024;       // 10 MiB
     private static readonly TimeSpan PerChunkTimeout = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan HeadProbeTimeout = TimeSpan.FromSeconds(5);
 
     public async Task<FilePullResult> PullFileIfMissingAsync(string id, string sha256Hex, string? preferredNode, CancellationToken ct)
     {
@@ -205,7 +206,23 @@ public sealed class ClusterFileSync : IDurableClusterFileSync, IAsyncDisposable
 #pragma warning disable CA2000 // using declaration; the analyzer does not see through SendWithRedirectAsync
                 using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
 #pragma warning restore CA2000
-                headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
+                // An unavailable first member must not hide a surviving copy.
+                // Bound the probe independently of the existing whole-transfer
+                // deadline so a silent listener also permits peer fallback.
+                using (var probe = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                {
+                    probe.CancelAfter(HeadProbeTimeout);
+                    try
+                    {
+                        headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, probe.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                    catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
+                    {
+                        _logger.LogFileHeadProbeFailed(ex, SafeNode(member), id);
+                        continue;
+                    }
+                }
                 _logger.LogGET2(fileUri, headResp.StatusCode);
                 if (headResp.StatusCode == HttpStatusCode.NotFound)
                 {
