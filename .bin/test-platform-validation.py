@@ -3,12 +3,15 @@
 
 import hashlib
 import calendar
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import io
 import json
 import os
 from pathlib import Path
+import socket
+from socketserver import BaseRequestHandler
 import subprocess
 import sys
 import tempfile
@@ -41,6 +44,53 @@ KUBERNETES_CAMPAIGN = load("kubernetes_campaign", ROOT / ".bin/run-kubernetes-ca
 
 class PlatformTests(unittest.TestCase):
     LOG_WINDOW_START = calendar.timegm((2026, 11, 15, 12, 0, 0))
+
+    def test_receipt_fixture_accepts_a_64_connection_burst_before_handlers_start(self):
+        class EmptyHandler(BaseRequestHandler):
+            def handle(self):
+                pass
+
+        server = FIXTURE.create_server(("127.0.0.1", 0), EmptyHandler)
+        entered = threading.Event()
+        release = threading.Event()
+        get_request = server.get_request
+
+        def gated_accept():
+            entered.set()
+            if not release.wait(10):
+                raise TimeoutError("The test did not release its accept barrier")
+            return get_request()
+
+        server.get_request = gated_accept
+        serving = threading.Thread(target=server.serve_forever, daemon=True)
+        serving.start()
+        connected = []
+        failures = []
+
+        def connect(_):
+            try:
+                return socket.create_connection(server.server_address, timeout=1), None
+            except OSError as error:
+                return None, repr(error)
+
+        try:
+            connected.append(socket.create_connection(server.server_address, timeout=1))
+            self.assertTrue(entered.wait(5))
+            with ThreadPoolExecutor(max_workers=63) as pool:
+                for connection, error in pool.map(connect, range(63)):
+                    if connection is not None:
+                        connected.append(connection)
+                    else:
+                        failures.append(error)
+            self.assertEqual([], failures)
+            self.assertEqual(64, len(connected))
+        finally:
+            release.set()
+            for connection in connected:
+                connection.close()
+            server.shutdown()
+            serving.join(timeout=5)
+            server.server_close()
 
     def test_runtime_log_audit_rejects_internal_errors_even_with_no_managed_oom(self):
         for message in ("fail: SlimData failed", "crit: host stopped", "Unhandled exception. failure"):

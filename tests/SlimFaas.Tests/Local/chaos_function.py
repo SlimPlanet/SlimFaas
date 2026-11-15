@@ -130,6 +130,15 @@ def handler(journal, repair):
     return Handler
 
 
+class ReceiptHttpServer(ThreadingHTTPServer):
+    # Leave room for the campaign's 64 delivery slots and readiness probes.
+    request_queue_size = 128
+
+
+def create_server(address, request_handler):
+    return ReceiptHttpServer(address, request_handler)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--journal-directory", type=Path, required=True)
@@ -155,7 +164,7 @@ def main():
         journal.append({"event": "job", "args": options.args})
         return
     repair = options.repair or options.journal_directory / "repair"
-    server = ThreadingHTTPServer((options.host, int(os.environ["PORT"])), handler(journal, repair))
+    server = create_server((options.host, int(os.environ["PORT"])), handler(journal, repair))
     server.serve_forever()
 
 
