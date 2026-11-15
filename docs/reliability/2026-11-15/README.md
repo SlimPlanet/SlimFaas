@@ -5,6 +5,16 @@ and its failed or inconclusive performance verdicts. The bounded diagnostics bel
 are separate from the formal HTTP/MemoryLab matrices. They do not establish LTS
 certification or close the unverified guarantees in issue #505.
 
+The subsequent [source511 persisted-copy validation](persisted-copy-validation-511.md)
+records four passing logical-volume-loss controls, refusal/cleanup without a
+remote copy and verified replay of the original Files failure from copied state.
+Its complete repeated durability-cost screen remains inconclusive, with two-copy
+budget failures retained. Final-source performance and long endurance stay open.
+
+A separate [pooled verification investigation](pooled-file-verification.md)
+reduces measured hash-read allocations and passes 2,406 full .NET tests. Its
+application comparisons and fault replays remain distinct from source511 results.
+
 ## Reproduced failures
 
 Each diagnostic sends 200 messages of 1,048,576 bytes at concurrency 16 to real

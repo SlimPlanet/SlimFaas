@@ -32,6 +32,16 @@ The underlying command envelope remains unchanged, but atomic admission adds
 Upgrade every member of a candidate cluster together. The dedicated live
 admission-fault matrix and final-source performance verdict remain pending.
 
+The [source511 application report](reliability/2026-11-15/persisted-copy-validation-511.md)
+records passing targeted volume faults and refusal/cleanup without a remote copy.
+Its bounded cost screen uses **0–1–2–2–1–0** with both surrounding references,
+then one complete repeat after contradictory checks. It remains inconclusive;
+the two-copy budget failures are retained. CPU to first confirmed drain and CPU
+through the full idle/cleanup observation are separate scopes. A short batch
+does not replace timed HTTP/MemoryLab comparisons. Subsequent
+[pooled verification microprobes](reliability/2026-11-15/pooled-file-verification.md)
+and component tests require their own application validation.
+
 ## Run the benchmark
 
 The quick profile is intended for a smoke test and takes a few minutes:

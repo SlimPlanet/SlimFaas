@@ -66,6 +66,11 @@ SHA-256 with the metadata. A truncated or modified local body is treated as
 unavailable so the existing peer-pull path can attempt repair. Verification is
 streamed with bounded memory; it adds a local read and hash calculation.
 
+Verification reads reuse a 128 KiB scratch buffer, clearing it before return to
+the pool. Full-body SHA-256 and length checks still precede persistence receipts
+and availability decisions. This read buffer is independent of the WAL geometry
+and the async body offload threshold.
+
 Peer downloads verify the expected length and SHA-256 while the body is still
 temporary. A truncated transfer or checksum mismatch is discarded without
 replacing or deleting a previously valid local version. This uses the upload's

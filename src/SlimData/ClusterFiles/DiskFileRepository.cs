@@ -94,7 +94,7 @@ public sealed class DiskFileRepository : IDurableFileRepository
             {
                 if (body.Length != length)
                     throw new IOException("The requested file revision length is invalid.");
-                byte[] actual = await SHA256.HashDataAsync(body, ct).ConfigureAwait(false);
+                byte[] actual = await FileContentHash.ComputeSha256Async(body, ct).ConfigureAwait(false);
                 if (!Convert.ToHexString(actual).Equals(sha256Hex, StringComparison.OrdinalIgnoreCase))
                     throw new IOException("The requested file revision checksum is invalid.");
                 ct.ThrowIfCancellationRequested();
@@ -308,7 +308,7 @@ public sealed class DiskFileRepository : IDurableFileRepository
             await using Stream body = await OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false);
             if (body.Length != meta.Length)
                 return false;
-            byte[] actualHash = await SHA256.HashDataAsync(body, ct).ConfigureAwait(false);
+            byte[] actualHash = await FileContentHash.ComputeSha256Async(body, ct).ConfigureAwait(false);
             return Convert.ToHexString(actualHash).Equals(sha256Hex, StringComparison.OrdinalIgnoreCase);
         }
         catch (FileNotFoundException)
