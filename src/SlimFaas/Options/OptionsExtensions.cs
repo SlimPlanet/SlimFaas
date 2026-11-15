@@ -14,6 +14,9 @@ public static class OptionsExtensions
     {
         services.AddOptions<SlimFaasOptions>()
             .BindConfiguration(SlimFaasOptions.SectionName)
+            .Validate(options => options.AsyncBodyOffloadThresholdBytes > 0 &&
+                                 options.AsyncBodyOffloadThresholdBytes < Array.MaxLength,
+                "SlimFaas:AsyncBodyOffloadThresholdBytes must fit the bounded request-body probe.")
             .Validate(ValidateStatusStreamOptions,
                 "SlimFaas:StatusStream values are invalid.")
             .Validate(ValidateMetricsScrapingOptions,

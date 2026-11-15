@@ -55,6 +55,28 @@ deferred callbacks, and [DLQ capture and replay](async-functions.md#dead-letter-
 
 ---
 
+### Async body storage threshold
+
+`SlimFaas:AsyncBodyOffloadThresholdBytes` controls when an async body is stored
+in [Files](data-files.md) rather than inside its queue entry. The default is
+1,048,576 bytes, with a strict comparison: exactly 1 MiB remains inline. The
+same boundary applies with `Content-Length` and chunked requests, including the
+root function route. The value must be positive and smaller than `Array.MaxLength`.
+
+For example, configure a 512 KiB threshold on each SlimFaas instance:
+
+```yaml
+env:
+  - name: SlimFaas__AsyncBodyOffloadThresholdBytes
+    value: "524288"
+```
+
+Lowering the threshold moves more bodies out of Raft payloads and adds Files
+storage/transfer work. It does not change retries, the WAL block size or the
+64 KiB queue-decoder optimization boundary. Existing queued entries keep their
+stored representation. No lower default has been selected by the current
+[benchmark investigation](reliability/2026-11-15/README.md).
+
 ## 3. Wake Function
 
 You can explicitly “wake up” a function without invoking a specific route:

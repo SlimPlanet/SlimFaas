@@ -96,6 +96,12 @@ public class SlimFaasOptions
     /// Enables the SlimFaas dashboard/network front features.
     /// </summary>
     public bool EnableFront { get; set; } = true;
+
+    /// <summary>
+    /// Async request bodies strictly larger than this limit use Files instead of inline queue bytes.
+    /// </summary>
+    public long AsyncBodyOffloadThresholdBytes { get; set; } = 1024L * 1024L;
+
     public DeadLetterQueueOptions DeadLetterQueue { get; set; } = new();
     public StreamsOptions Streams { get; set; } = new();
 

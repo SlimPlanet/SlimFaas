@@ -190,8 +190,21 @@ public class AsyncFunctionEndpointTests
     /// - les métadonnées sont persistées en base via db.SetAsync
     /// - la CustomRequest mise en queue contient un OffloadedFileId non nul et un Body null
     /// </summary>
-    [Fact]
-    public async Task WhenBodyExceedsOneMegabyte_ShouldOffloadPayloadToClusterAndEnqueueFileId()
+    public static IEnumerable<object[]> OffloadBoundaryCases()
+    {
+        foreach (int threshold in new[] { 128 * 1024, 256 * 1024, 512 * 1024, 1024 * 1024 })
+        foreach (int delta in new[] { -1, 0, 1 })
+        foreach (bool unknownLength in new[] { false, true })
+        foreach (bool rootPath in new[] { false, true })
+            yield return new object[] { threshold, delta, unknownLength, rootPath };
+
+        yield return new object[] { 1024 * 1024, 1024 * 1024, true, false };
+    }
+
+    [Theory]
+    [MemberData(nameof(OffloadBoundaryCases))]
+    public async Task Async_body_offload_uses_the_configured_strict_boundary(
+        int threshold, int delta, bool unknownLength, bool rootPath)
     {
         // ---------- mocks pour la capture ----------
         Mock<IClusterFileSync> fileSyncMock = new(MockBehavior.Strict);
@@ -271,7 +284,7 @@ public class AsyncFunctionEndpointTests
             Pods: new List<PodInformation>()));
 
         // Body de plus de 1 Mo
-        byte[] largeBody = new byte[2 * 1024 * 1024]; // 2 Mo
+        byte[] largeBody = new byte[threshold + delta];
         new Random(42).NextBytes(largeBody);
 
         using IHost host = await new HostBuilder()
@@ -295,6 +308,7 @@ public class AsyncFunctionEndpointTests
                         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
                         {
                             Namespace = "default",
+                            AsyncBodyOffloadThresholdBytes = threshold,
                             BaseFunctionUrl = "http://{pod_ip}:{pod_port}"
                         }));
                         var namespaceProviderMock = new Mock<INamespaceProvider>();
@@ -315,17 +329,34 @@ public class AsyncFunctionEndpointTests
             .StartAsync();
 
         // Envoi d'un POST avec un body > 1 Mo
-        using var content = new UnknownLengthContent(largeBody);
+        using HttpContent content = unknownLength ? new UnknownLengthContent(largeBody) : new ByteArrayContent(largeBody);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-        Assert.Null(content.Headers.ContentLength);
+        if (unknownLength)
+            Assert.Null(content.Headers.ContentLength);
+        else
+            Assert.Equal(largeBody.Length, content.Headers.ContentLength);
         HttpResponseMessage response = await host.GetTestClient()
-            .PostAsync("http://localhost:5000/async-function/fibonacci/process", content);
+            .PostAsync(rootPath ? "http://localhost:5000/async-function/fibonacci" : "http://localhost:5000/async-function/fibonacci/process", content);
 
         // -------- Assertions --------
 
         // L'endpoint doit retourner 202 Accepted
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        Assert.Equal(new[] { "metadata", "enqueue" }, durableOrder);
+        bool expectedOffload = largeBody.Length > threshold;
+        Assert.Equal(expectedOffload ? new[] { "metadata", "enqueue" } : new[] { "enqueue" }, durableOrder);
+
+        Assert.NotNull(enqueuedPayload);
+        var enqueuedRequest = MemoryPackSerializer.Deserialize<CustomRequest>(enqueuedPayload!);
+        if (!expectedOffload)
+        {
+            Assert.Null(enqueuedRequest.OffloadedFileId);
+            Assert.Equal(largeBody, enqueuedRequest.Body);
+            Assert.Null(capturedFileId);
+            Assert.Null(capturedMetaKey);
+            fileSyncMock.VerifyNoOtherCalls();
+            dbMock.VerifyNoOtherCalls();
+            return;
+        }
 
         // BroadcastFilePutAsync doit avoir été appelé
         fileSyncMock.Verify(s => s.BroadcastFilePutAsync(
@@ -350,7 +381,6 @@ public class AsyncFunctionEndpointTests
 
         // La CustomRequest enqueued doit avoir un OffloadedFileId non nul et Body null
         Assert.NotNull(enqueuedPayload);
-        var enqueuedRequest = MemoryPackSerializer.Deserialize<CustomRequest>(enqueuedPayload!);
         Assert.NotNull(enqueuedRequest.OffloadedFileId);
         Assert.Equal(capturedFileId, enqueuedRequest.OffloadedFileId);
         Assert.Null(enqueuedRequest.Body);

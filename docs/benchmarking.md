@@ -451,9 +451,12 @@ without a network clock-synchronization error. The benchmark waits for every
 accepted message to be observed by the target and for queue metrics to remain at
 zero before starting another case.
 
-The 2 MiB case is intentionally above SlimFaas' 1 MiB async body-offload
-threshold. This makes the matrix cover both inline queue payloads and the
-cluster-file path.
+The 2 MiB case is intentionally above SlimFaas' default 1 MiB async body-offload
+threshold (strictly greater; exactly 1 MiB stays inline). This makes the matrix
+cover both inline queue payloads and the cluster-file path. Record
+`SlimFaas__AsyncBodyOffloadThresholdBytes` when overriding that default; vary it
+separately from the fresh WAL geometry and keep it identical across comparison
+brackets. See [async body configuration](functions.md#async-body-storage-threshold).
 
 The async profile also records throughput, missing and duplicate IDs, errors,
 expirations, Raft entries per accepted message, process CPU per message, and

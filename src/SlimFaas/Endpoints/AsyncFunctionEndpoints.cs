@@ -8,6 +8,7 @@ using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
+using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
 
@@ -20,7 +21,6 @@ public class AsyncFunction
 public static class AsyncFunctionEndpoints
 {
     private static readonly string[] s_allHttpMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
-    private const long AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L;
 
     public static void MapAsyncFunctionEndpoints(this IEndpointRouteBuilder app)
     {
@@ -46,8 +46,9 @@ public static class AsyncFunctionEndpoints
                 NetworkActivityTracker activityTracker,
                 IClusterFileSync fileSync,
                 IDatabaseService db,
-                IOptions<ClusterFileOptions> fileOptions) =>
-                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker, fileSync, db, fileOptions))
+                IOptions<ClusterFileOptions> fileOptions,
+                IOptions<SlimFaasOptions> options) =>
+                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker, fileSync, db, fileOptions, options))
             .WithName("HandleAsyncFunctionRoot")
             .Produces(202)
             .Produces(404)
@@ -76,7 +77,8 @@ public static class AsyncFunctionEndpoints
         [FromServices] NetworkActivityTracker activityTracker,
         [FromServices] IClusterFileSync fileSync,
         [FromServices] IDatabaseService db,
-        [FromServices] IOptions<ClusterFileOptions> fileOptions)
+        [FromServices] IOptions<ClusterFileOptions> fileOptions,
+        [FromServices] IOptions<SlimFaasOptions> options)
     {
         functionPath ??= "";
 
@@ -128,7 +130,7 @@ public static class AsyncFunctionEndpoints
             context.Request,
             functionName,
             functionPath ?? "",
-            bodyOffloadThresholdBytes: AsyncBodyOffloadThresholdBytes,
+            bodyOffloadThresholdBytes: options.Value.AsyncBodyOffloadThresholdBytes,
             queueElementId: queueElementId,
             fileSync: fileSync,
             db: db,
