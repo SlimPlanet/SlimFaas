@@ -2,6 +2,7 @@
 """Exercise receipt integrity, process fencing and configurable benchmark endpoints."""
 
 import hashlib
+import calendar
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import io
@@ -39,6 +40,153 @@ KUBERNETES_CAMPAIGN = load("kubernetes_campaign", ROOT / ".bin/run-kubernetes-ca
 
 
 class PlatformTests(unittest.TestCase):
+    LOG_WINDOW_START = calendar.timegm((2026, 11, 15, 12, 0, 0))
+
+    def test_runtime_log_audit_rejects_internal_errors_even_with_no_managed_oom(self):
+        for message in ("fail: SlimData failed", "crit: host stopped", "Unhandled exception. failure"):
+            with self.subTest(message=message), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                self._write_runtime_log_audit_fixture(output, message)
+                result = KUBERNETES_CAMPAIGN.audit_runtime_logs(output, self.LOG_WINDOW_START, self.LOG_WINDOW_START + 60)
+                self.assertFalse(result["passed"])
+                self.assertTrue(result["runtime_log_coverage_complete"])
+                self.assertEqual(0, sum(row["managed_oom_log_occurrences"] for row in result["instances"]))
+
+    def test_runtime_log_audit_keeps_bootstrap_errors_separate_and_rejects_missing_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self._write_runtime_log_audit_fixture(output, "healthy")
+            result = KUBERNETES_CAMPAIGN.audit_runtime_logs(output, self.LOG_WINDOW_START, self.LOG_WINDOW_START + 60)
+            self.assertTrue(result["passed"])
+            manifest = json.loads((output / "pod-log-coverage.json").read_text())
+            manifest["missing_instances"] = [manifest["instances"][0] | {"restart_indices": [0]}]
+            (output / "pod-log-coverage.json").write_text(json.dumps(manifest))
+            result = KUBERNETES_CAMPAIGN.audit_runtime_logs(output, self.LOG_WINDOW_START, self.LOG_WINDOW_START + 60)
+            self.assertFalse(result["passed"])
+            self.assertFalse(result["runtime_log_coverage_complete"])
+
+    @staticmethod
+    def _write_runtime_log_audit_fixture(output, message):
+        rows = []
+        instances = []
+        for index in range(3):
+            path = output / f"node-{index}.log"
+            content = ("2026-11-15T11:59:59Z fail: bootstrap has no leader\n"
+                       f"2026-11-15T12:00:01Z {message}\n").encode()
+            path.write_bytes(content)
+            instance = {"pod_uid": f"node-{index}", "container": "runtime", "latest_restart_index": 0}
+            instances.append(instance)
+            rows.append(instance | {"restart_index": 0, "exit_code": 0, "previous": False,
+                "captured_utc": 1, "path": path.name, "sha256": hashlib.sha256(content).hexdigest()})
+        (output / "pod-log-coverage.json").write_text(json.dumps({
+            "logs": rows, "instances": instances, "missing_instances": []}))
+
+    def test_kubernetes_log_snapshots_keep_replaced_pod_uids_separate(self):
+        pod = {"metadata": {"name": "slimfaas-0", "uid": "first-uid"},
+               "spec": {"containers": [{"name": "runtime"}]},
+               "status": {"containerStatuses": [{"name": "runtime", "restartCount": 0}]}}
+
+        def command(_arguments, **kwargs):
+            kwargs["stdout"].write(pod["metadata"]["uid"] + "\n")
+            return SimpleNamespace(returncode=0)
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command):
+            output = Path(directory)
+            KUBERNETES_CAMPAIGN.collect_pod_logs(["kubectl"], "campaign", [pod], output)
+            pod["metadata"]["uid"] = "second-uid"
+            manifest = KUBERNETES_CAMPAIGN.collect_pod_logs(["kubectl"], "campaign", [pod], output)
+            self.assertEqual(2, len(manifest["logs"]))
+            for row in manifest["logs"]:
+                self.assertEqual(row["pod_uid"] + "\n", (output / row["path"]).read_text())
+            self.assertFalse(manifest["complete"])
+            self.assertTrue(manifest["missing_instances"][0]["pod_no_longer_observed"])
+
+    def test_kubernetes_log_poll_retains_each_previous_restart_and_replaces_partial_snapshots(self):
+        pod = {"metadata": {"name": "slimfaas-0", "uid": "stable-uid"},
+               "spec": {"containers": [{"name": "runtime"}]},
+               "status": {"containerStatuses": [{"name": "runtime", "restartCount": 0}]}}
+
+        def command(arguments, **kwargs):
+            kwargs["stdout"].write("finished previous instance\n" if "--previous" in arguments else "partial current snapshot\n")
+            return SimpleNamespace(returncode=0)
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command):
+            output = Path(directory)
+            KUBERNETES_CAMPAIGN.collect_pod_logs(["kubectl"], "campaign", [pod], output)
+            pod["status"]["containerStatuses"][0]["restartCount"] = 1
+            KUBERNETES_CAMPAIGN.collect_pod_logs(["kubectl"], "campaign", [pod], output, previous_only=True)
+            pod["status"]["containerStatuses"][0]["restartCount"] = 2
+            manifest = KUBERNETES_CAMPAIGN.collect_pod_logs(["kubectl"], "campaign", [pod], output)
+            self.assertTrue(manifest["complete"])
+            previous = [row for row in manifest["logs"] if row["previous"]]
+            self.assertEqual({0, 1}, {row["restart_index"] for row in previous})
+            self.assertTrue(all("finished previous" in (output / row["path"]).read_text() for row in previous))
+
+    def test_kubernetes_collect_retains_previous_container_logs_with_restart_identity(self):
+        namespace = "slimfaas-pr506-log-regression"
+        pod = {"metadata": {"name": "slimfaas-0", "uid": "original-uid"},
+               "spec": {"containers": [{"name": "runtime"}]},
+               "status": {"containerStatuses": [{"name": "runtime", "restartCount": 1}]}}
+        commands = []
+
+        def command(arguments, **kwargs):
+            if "logs" in arguments:
+                commands.append(arguments)
+                kwargs["stdout"].write("previous OutOfMemoryException\n" if "--previous" in arguments
+                                       else "current healthy process\n")
+                return SimpleNamespace(returncode=0)
+            resource = arguments[arguments.index("get") + 1]
+            result = ({"metadata": {"labels": {"slimfaas-campaign": namespace}}}
+                      if resource == "namespace" else {"items": [pod] if resource == "pods" else []})
+            return SimpleNamespace(stdout=json.dumps(result), returncode=0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            arguments = ["campaign", "collect", "--kubeconfig", "isolated-config",
+                         "--namespace", namespace, "--output", str(output)]
+            with patch.object(sys, "argv", arguments), \
+                    patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command):
+                self.assertEqual(0, KUBERNETES_CAMPAIGN.main())
+            self.assertTrue(any("OutOfMemoryException" in path.read_text() for path in output.rglob("*.log")))
+            self.assertTrue(any("--previous" in value for value in commands))
+            self.assertTrue(all("--timestamps" in value for value in commands))
+            manifest = json.loads((output / "pod-log-coverage.json").read_text())
+            self.assertTrue(manifest["complete"])
+            self.assertEqual({0, 1}, {row["restart_index"] for row in manifest["logs"]})
+            self.assertTrue(all(row["pod_uid"] == "original-uid" for row in manifest["logs"]))
+
+    def test_kubernetes_collect_reports_unavailable_previous_logs_as_incomplete_evidence(self):
+        namespace = "slimfaas-pr506-log-regression"
+        pod = {"metadata": {"name": "slimfaas-0", "uid": "original-uid"},
+               "spec": {"containers": [{"name": "runtime"}]},
+               "status": {"containerStatuses": [{"name": "runtime", "restartCount": 2}]}}
+
+        def command(arguments, **kwargs):
+            if "logs" in arguments:
+                previous = "--previous" in arguments
+                kwargs["stdout"].write("previous logs unavailable\n" if previous else "current healthy process\n")
+                return SimpleNamespace(returncode=1 if previous else 0)
+            resource = arguments[arguments.index("get") + 1]
+            result = ({"metadata": {"labels": {"slimfaas-campaign": namespace}}}
+                      if resource == "namespace" else {"items": [pod] if resource == "pods" else []})
+            return SimpleNamespace(stdout=json.dumps(result), returncode=0)
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            arguments = ["campaign", "collect", "--kubeconfig", "isolated-config",
+                         "--namespace", namespace, "--output", str(output)]
+            with patch.object(sys, "argv", arguments), \
+                    patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=command):
+                self.assertEqual(0, KUBERNETES_CAMPAIGN.main())
+            manifest = json.loads((output / "pod-log-coverage.json").read_text())
+            self.assertFalse(manifest["complete"])
+            self.assertEqual([0, 1], manifest["missing_instances"][0]["restart_indices"])
+            failed = [row for row in manifest["logs"] if row["exit_code"] != 0]
+            self.assertEqual(1, len(failed))
+            self.assertIn("unavailable", (output / failed[0]["path"]).read_text())
+
     def test_kubernetes_launch_with_a_maximum_length_namespace_keeps_all_labels_valid(self):
         prefix = "slimfaas-pr506-"
         namespace = prefix + "m" * (63 - len(prefix))

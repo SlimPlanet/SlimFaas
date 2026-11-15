@@ -196,6 +196,16 @@ from starting. This collection deadline is separate from the unchanged
 The reliability workflow also runs for changes to the platform/Kubernetes
 harnesses and SDK probes, including pull requests without runtime changes.
 
+`collect` requests timestamped current container logs and the previous instance
+when a restart is reported. Originals under `controller/pod-logs/` retain pod UID,
+container identity and restart index; the historical flat filenames remain
+convenience copies. `pod-log-coverage.json` records retrieval outcomes, hashes and
+missing generations. A missing prior log cannot establish absence of managed
+OOM, even when the current process appears healthy. Long-running controllers
+can call the same collector with `previous_only=True` after observed restarts
+to retain older generations before Kubernetes discards them. Log collection
+failure is recorded so campaign shutdown can still finish and preserve state.
+
 HTTP and MemoryLab fixtures omit the fault-agent sidecar's `containerPort`
 declaration for both revisions; its control socket still listens normally.
 The historical runtime also bound declared sidecar ports, which conflicts with

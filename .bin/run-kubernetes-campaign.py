@@ -2,9 +2,12 @@
 """Deploy, observe and retain an isolated kind campaign using its explicit kubeconfig."""
 
 import argparse
+from datetime import datetime
+import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -273,6 +276,122 @@ def wait_for_campaign_quiescence(kubectl, namespace, output, timeout=180):
         time.sleep(1)
 
 
+def collect_pod_logs(prefix, namespace, pods, output, previous_only=False):
+    """Retain log generations separately; unavailable history remains explicit."""
+    output.mkdir(parents=True, exist_ok=True)
+    manifest_path = output / "pod-log-coverage.json"
+    manifest = (json.loads(manifest_path.read_text()) if manifest_path.exists()
+                else {"namespace": namespace, "logs": [], "instances": []})
+    if manifest["namespace"] != namespace:
+        raise RuntimeError("Log evidence belongs to another campaign namespace")
+    instances = {(row["pod_uid"], row["container"]): row for row in manifest["instances"]}
+    for pod in pods:
+        name = pod["metadata"]["name"]
+        uid = pod["metadata"]["uid"]
+        statuses = {item["name"]: item for item in pod.get("status", {}).get("containerStatuses", [])}
+        for container in pod["spec"]["containers"]:
+            container_name = container["name"]
+            if not all(re.fullmatch(r"[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?", value)
+                       for value in (name, uid, container_name)):
+                raise RuntimeError("Invalid Kubernetes log identity")
+            status = statuses.get(container_name, {})
+            restart = status.get("restartCount", 0)
+            instances[(uid, container_name)] = {"pod": name, "pod_uid": uid,
+                "container": container_name, "latest_restart_index": restart}
+            generations = ([(restart, False)] if not previous_only else [])
+            if restart:
+                generations.append((restart - 1, True))
+            for index, previous in generations:
+                if previous and any(row["pod_uid"] == uid and row["container"] == container_name
+                        and row["restart_index"] == index and row["previous"] and row["exit_code"] == 0
+                        for row in manifest["logs"]):
+                    continue
+                directory = output / "pod-logs" / uid / container_name
+                directory.mkdir(parents=True, exist_ok=True)
+                path = directory / f"{index}-{'previous' if previous else 'current'}-{time.time_ns()}.log"
+                command = prefix + ["logs", name, "-c", container_name, "-n", namespace, "--timestamps"]
+                if previous:
+                    command.append("--previous")
+                with path.open("w") as stream:
+                    try:
+                        result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT,
+                                                check=False, timeout=30)
+                        code = result.returncode
+                    except subprocess.TimeoutExpired:
+                        stream.write("\nLog collection exceeded its 30-second deadline.\n")
+                        code = 124
+                row = {"pod": name, "pod_uid": uid, "container": container_name,
+                       "restart_index": index, "previous": previous, "exit_code": code,
+                       "container_id": (status.get("lastState", {}).get("terminated", {}).get("containerID")
+                                        if previous else status.get("containerID")),
+                       "captured_utc": time.time(), "path": str(path.relative_to(output)),
+                       "bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                manifest["logs"].append(row)
+                if not previous:
+                    # Keep the existing diagnostic filename as a convenience copy.
+                    # The UID/restart-specific original above is never overwritten.
+                    shutil.copyfile(path, output / f"{name}-{container_name}.log")
+    manifest["instances"] = list(instances.values())
+    missing = []
+    current_identities = {(pod["metadata"]["uid"], container["name"])
+                          for pod in pods for container in pod["spec"]["containers"]}
+    for instance in manifest["instances"]:
+        observed = {row["restart_index"] for row in manifest["logs"]
+                    if row["pod_uid"] == instance["pod_uid"] and row["container"] == instance["container"]
+                    and row["exit_code"] == 0 and
+                    (row["previous"] or row["restart_index"] == instance["latest_restart_index"])}
+        absent = sorted(set(range(instance["latest_restart_index"] + 1)) - observed)
+        retired = (instance["pod_uid"], instance["container"]) not in current_identities
+        if absent or retired:
+            missing.append(instance | {"restart_indices": absent,
+                "pod_no_longer_observed": retired})
+    manifest.update(missing_instances=missing, complete=not missing, updated_utc=time.time())
+    temporary = manifest_path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(manifest, indent=2) + "\n")
+    temporary.replace(manifest_path)
+    return manifest
+
+
+def audit_runtime_logs(output, started_utc, finished_utc):
+    """Audit retained runtime instances, including errors during healthy traffic."""
+    manifest = json.loads((output / "pod-log-coverage.json").read_text())
+    instances = [row for row in manifest["instances"] if row["container"] == "runtime"]
+    missing = [row for row in manifest["missing_instances"] if row["container"] == "runtime"]
+    canonical = {}
+    for row in manifest["logs"]:
+        if row["container"] != "runtime" or row["exit_code"] != 0:
+            continue
+        key = row["pod_uid"], row["restart_index"]
+        rank = row["previous"], row["captured_utc"]
+        if key not in canonical or rank > (canonical[key]["previous"], canonical[key]["captured_utc"]):
+            canonical[key] = row
+    observations = []
+    for row in canonical.values():
+        content = (output / row["path"]).read_bytes()
+        text = content.decode(errors="replace")
+        errors = []
+        for line in text.splitlines():
+            timestamp, separator, message = line.partition(" ")
+            if not separator:
+                continue
+            try:
+                when = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                continue
+            if started_utc <= when <= finished_utc and message.lstrip().startswith(
+                    ("fail:", "crit:", "Unhandled exception", "Fatal error")):
+                errors.append(line)
+        observations.append(row | {"hash_matches_capture": hashlib.sha256(content).hexdigest() == row["sha256"],
+            "managed_oom_log_occurrences": text.count("OutOfMemoryException"),
+            "runtime_errors_during_workload": errors})
+    complete = len(instances) == 3 and not missing and all(row["hash_matches_capture"] for row in observations)
+    return {"passed": complete and bool(observations) and not any(
+                row["managed_oom_log_occurrences"] or row["runtime_errors_during_workload"] for row in observations),
+            "runtime_log_coverage_complete": complete, "missing_instances": missing,
+            "workload_window_utc": [started_utc, finished_utc], "instances": observations,
+            "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("action", choices=("launch", "wait", "collect", "stop"))
@@ -338,12 +457,7 @@ def main():
         data = kubectl("get", kind, "-n", options.namespace, "-o", "json", capture_output=True).stdout
         (options.output / f"kubernetes-{kind}.json").write_text(data)
     pods = json.loads((options.output / "kubernetes-pods.json").read_text())["items"]
-    for pod in pods:
-        for container in pod["spec"]["containers"]:
-            path = options.output / f"{pod['metadata']['name']}-{container['name']}.log"
-            with path.open("w") as output:
-                subprocess.run(prefix + ["logs", pod["metadata"]["name"], "-c", container["name"], "-n", options.namespace],
-                               stdout=output, stderr=subprocess.STDOUT, check=False)
+    collect_pod_logs(prefix, options.namespace, pods, options.output)
     return 0
 
 
