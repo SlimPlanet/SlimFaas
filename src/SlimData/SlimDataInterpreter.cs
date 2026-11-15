@@ -908,6 +908,18 @@ public static class SlimDataInterpreter
 
         switch (operation.Kind)
         {
+            case SlimDataBatchOperationKind.FileAdmission:
+                var admissionResult = FileAdmissionStore.Apply(
+                    MemoryPackPayload.Deserialize<FileAdmissionMutation>(operation.Value)!, state, operation.NowTicks);
+                result.KeyValueResult = new KeyValueCommandResult
+                {
+                    Status = admissionResult.Applied ? KeyValueCommandStatus.Applied : KeyValueCommandStatus.NotCommitted,
+                    Value = MemoryPackSerializer.Serialize(admissionResult),
+                    ErrorMessage = admissionResult.Error
+                };
+                result.Applied = admissionResult.Applied;
+                result.ErrorMessage = admissionResult.Error;
+                break;
             case SlimDataBatchOperationKind.WebSocketDirectory:
                 result.WebSocketDirectoryResult = WebSocketDirectoryStore.Apply(
                     MemoryPackPayload.Deserialize<WebSocketDirectoryMutation>(operation.Value)!, state);

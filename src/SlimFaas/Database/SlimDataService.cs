@@ -337,6 +337,17 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _ = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
     }
 
+    public async Task<FileAdmissionResult> ExecuteFileAdmissionAsync(FileAdmissionMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.FileAdmission, FileAdmissionStore.IndexKey);
+        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.KeyValueResult?.Value is { } value
+            ? MemoryPackSerializer.Deserialize<FileAdmissionResult>(value)
+                ?? throw new DataException("Missing file admission result.")
+            : throw new DataException("Missing file admission result.");
+    }
+
     public async Task<WebSocketDirectoryResult> ExecuteWebSocketDirectoryAsync(WebSocketDirectoryMutation mutation)
     {
         var operation = NewOperation(SlimDataBatchOperationKind.WebSocketDirectory, WebSocketDirectoryStore.Key);

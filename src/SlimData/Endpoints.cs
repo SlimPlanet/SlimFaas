@@ -849,6 +849,7 @@ public static class Endpoints
         CancellationToken cancellationToken)
     {
         SlimDataCommandBatchValidator.ValidateEnvelope(envelope);
+        StampFileAdmissionTimes(envelope, DateTime.UtcNow.Ticks);
         var context = new SlimDataCommandBatchContext();
         var command = new ExecuteBatchCommand
         {
@@ -863,6 +864,14 @@ public static class Endpoints
 
         await SafeReplicateAsync(cluster, logEntry, cancellationToken).ConfigureAwait(false);
         return context.Responses;
+    }
+
+    internal static void StampFileAdmissionTimes(SlimDataRaftBatchEnvelope envelope, long nowTicks)
+    {
+        foreach (var request in envelope.Requests)
+        foreach (var operation in request.Operations)
+            if (operation.Kind == SlimDataBatchOperationKind.FileAdmission)
+                operation.NowTicks = nowTicks;
     }
 
 }

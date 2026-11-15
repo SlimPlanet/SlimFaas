@@ -434,3 +434,37 @@ has been corrected.
 
 Formal non-regression, original-state recovery for bounded missing receipts,
 renewed endurances and final-source performance comparisons remain open.
+
+## Persistence and atomic-admission components
+
+Commit `f36f7c5a` adds optional local file/directory persistence barriers and an
+explicit persisted-copy RPC. Its complete .NET suite passes 2,269 tests with
+zero failures or skips. Real macOS tests exercise directory synchronization;
+transfer tests reject incomplete/corrupt bodies and mismatched ID, checksum,
+length, node and declared volume receipts. Announcement ACKs remain distinct
+from persisted-copy receipts. `DurableWrites` stays disabled by default.
+
+The next component adds a pending admission pin and a single Raft mutation that
+publishes metadata, a queue element or public alias, and its active reference
+together. The 23 new tests cover shared/missing/wrong copy proofs, idempotent
+commit, conflicting tokens/packets, pending expiry, late commands after retirement
+and clock rollback, alias replacement/TTL, queue collision and DLQ/replay lineage.
+The complete .NET suite passes 2,292 tests with zero failures or skips, including
+full UI builds, analyzers and audits. No dependencies or lockfiles changed.
+The documentation build checks 23 pages, 1,679 links/assets and 403 search entries.
+
+This additive operation advertises **SLDC/6**. Upgrade all Raft nodes together;
+mixed SLDC/5 and SLDC/6 clusters are deliberately incompatible. Existing command
+envelopes and historical snapshots/producer receipts retain their formats.
+
+These components are not yet connected to HTTP acceptance or the durable-reference
+repair worker. They do not establish the requested two-copy `202`/Files `200`
+guarantee or its performance cost. Independent backing volumes remain a deployment
+requirement: distinct persisted root markers alone do not establish physical
+independence, and kind workers share the host VM. Native/container publication,
+the dedicated acceptance-fault matrix and final-source comparisons remain open.
+
+The [component evidence](file-admission-components.json),
+[closed raw index](file-admission-tests-index.json.gz) and
+[index hashes](file-admission-tests-index-summary.json) preserve exact tested
+sources, full-suite results, compiler failures and successful checks.

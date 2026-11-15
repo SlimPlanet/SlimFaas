@@ -16,15 +16,28 @@ owners after a same-name recreation. Prefix matching is not used for routing.
 [Durable Streams](streams.md) persist definitions, subscriptions, message bodies,
 attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
 path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the
-same shared state. SLDC/5 fences the additive WebSocket directory batch contract; stored
+same shared state. SLDC/6 adds atomic file-admission commands to the WebSocket directory contract; stored
 producer receipts from earlier formats remain readable. SlimData payloads use
 generated MemoryPack readers and writers directly, without changing the wire
 format. Readers rent their own temporary state and avoid a partially published
 root formatter during concurrent startup/WAL replay. Unexpected runtime decoding
 or validation exceptions propagate; only known structural/serialization errors
 are classified as incompatible batch payloads. API payloads use
-source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/4 and SLDC/5
+source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/5 and SLDC/6
 clusters are deliberately not ready.
+
+The file-admission state machine stores a pending pin before file publication.
+A successful commit publishes its physical-file descriptor and queue element, or
+public alias, with the active reference in one state snapshot. It checks the
+configured number of persisted-copy proofs and rejects shared node or declared
+volume identities. Retiring an admission checks current queue, DLQ/replay and
+public-alias ownership again inside Raft. An expired admission cannot be revived
+by a delayed commit. A persisted, nondecreasing leader clock also rejects its
+original delayed begin after the retired record has been collected.
+Physical IDs must be unique for each admission; public names are replaceable
+aliases. The state machine cannot independently attest storage hardware or copy
+persistence: proofs must come from the verified file-copy path. This internal
+primitive is not yet wired to HTTP acceptance; see [Files](data-files.md).
 
 WebSocket registrations use a Raft-backed connection directory with node leases
 and incarnation fencing. Configuration reservations are cluster-wide; only

@@ -17,7 +17,8 @@ public enum SlimDataBatchOperationKind : byte
     ListCallback = 7,
     DeadLetter = 8,
     Stream = 9,
-    WebSocketDirectory = 10
+    WebSocketDirectory = 10,
+    FileAdmission = 11
 }
 
 [MemoryPackable]
@@ -137,11 +138,20 @@ internal static class SlimDataCommandBatchValidator
         ValidateIdentifier(operation.Key, nameof(operation.Key));
         if (operation.Key.StartsWith(ProducerSessionKeyPrefix, StringComparison.Ordinal))
             throw new InvalidDataException("The key uses a reserved SlimData prefix.");
+        if (operation.Kind != SlimDataBatchOperationKind.FileAdmission && FileAdmissionStore.IsReservedKey(operation.Key))
+            throw new InvalidDataException("The key belongs to the file admission state machine.");
         if (operation.Value is { Length: > SlimDataCommandCodec.MaxValueBytes })
             throw new InvalidDataException("Operation value exceeds the SlimData value limit.");
 
         switch (operation.Kind)
         {
+            case SlimDataBatchOperationKind.FileAdmission:
+                var admission = MemoryPackPayload.Deserialize<FileAdmissionMutation>(operation.Value)
+                    ?? throw new InvalidDataException("Missing file admission mutation.");
+                FileAdmissionStore.Validate(admission);
+                if (operation.Key != FileAdmissionStore.IndexKey || operation.NowTicks <= 0 || operation.NowTicks > DateTime.MaxValue.Ticks)
+                    throw new InvalidDataException("Invalid file admission operation key or timestamp.");
+                break;
             case SlimDataBatchOperationKind.KeyValue:
                 if (!Enum.IsDefined(operation.KeyValueOperation))
                     throw new InvalidDataException("Unsupported key/value operation.");

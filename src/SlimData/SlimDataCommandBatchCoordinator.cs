@@ -188,7 +188,9 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
         envelope.Requests.Any(static request => request.Operations.Any(static operation =>
             operation.Kind is SlimDataBatchOperationKind.ListLeftPush or
                 SlimDataBatchOperationKind.ListRightPop or
-                SlimDataBatchOperationKind.ListCallback));
+                SlimDataBatchOperationKind.ListCallback ||
+            (operation.Kind == SlimDataBatchOperationKind.FileAdmission &&
+             MemoryPackPayload.Deserialize<FileAdmissionMutation>(operation.Value)?.Action == FileAdmissionAction.CommitQueue)));
 
     private void RemoveFromQueueStatistics(List<PendingRequest> batch, int payloadBytes)
     {
