@@ -315,6 +315,7 @@ public static class FunctionEndpointsHelpers
         // ILogger<T> is a singleton cached by the DI container, unlike
         // ILoggerFactory.CreateLogger(string) which takes a lock on every call.
         var logger = context.RequestServices.GetRequiredService<ILogger<FunctionEndpointsHelpersLog>>();
+        context.Items.Remove(FileAdmissionService.ContextKey);
         var customHeaders = new List<CustomHeader>(contextRequest.Headers.Count);
         foreach (var header in contextRequest.Headers.AsValueEnumerable())
             customHeaders.Add(new CustomHeader(header.Key, header.Value.ToArray()));
@@ -382,7 +383,19 @@ public static class FunctionEndpointsHelpers
                 { "FunctionName", functionName }
             };
 
-            var put = await fileSync!.BroadcastFilePutAsync(
+            PreparedFileAdmission? admission = null;
+            FilePutResult put;
+            var admissionService = context.RequestServices.GetService<IFileAdmissionService>();
+            if (admissionService?.Enabled == true)
+            {
+                admission = await admissionService.PrepareAsync(offloadedFileId, offloadContent!, contentType,
+                    offloadedFileId, contentLength, tags, ct).ConfigureAwait(false);
+                context.Items[FileAdmissionService.ContextKey] = admission;
+                put = new(admission.Metadata.Sha256Hex, admission.Metadata.ContentType, admission.Metadata.Length);
+            }
+            else
+            {
+                put = await fileSync!.BroadcastFilePutAsync(
                 id: offloadedFileId,
                 content: offloadContent!,
                 contentType: contentType,
@@ -391,8 +404,9 @@ public static class FunctionEndpointsHelpers
                 ttl: null,
                 ct: ct,
                 tags);
+            }
 
-            var meta = new DataSetMetadata(
+            var meta = admission?.Metadata ?? new DataSetMetadata(
                 Sha256Hex: put.Sha256Hex,
                 Length: put.Length,
                 ContentType: put.ContentType,
@@ -404,7 +418,8 @@ public static class FunctionEndpointsHelpers
                 logger.LogOffloadingRequestMetadataMetaKeyTags(metaKey, string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
             }
             var metaBytes = MemoryPackSerializer.Serialize(meta);
-            await db!.SetQueueMetadataAsync(metaKey, metaBytes);
+            if (admission is null)
+                await db!.SetQueueMetadataAsync(metaKey, metaBytes);
         }
         else if (requestBodyBytes is null)
         {

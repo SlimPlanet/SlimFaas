@@ -302,6 +302,8 @@ serviceCollectionSlimFaas.AddSingleton<IScalerProvider>(sp =>
 serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
+serviceCollectionSlimFaas.AddSingleton<IFileAdmissionService, FileAdmissionService>();
+serviceCollectionSlimFaas.AddHostedService<FileAdmissionReconciler>();
 serviceCollectionSlimFaas.AddSingleton<DeadLetterService>();
 serviceCollectionSlimFaas.AddSingleton<IStreamService, StreamService>();
 serviceCollectionSlimFaas.AddSingleton(sp => serviceProviderStarter.GetRequiredService<StreamDemandStore>());

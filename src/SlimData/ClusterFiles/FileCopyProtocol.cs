@@ -6,9 +6,10 @@ using DotNext.Net.Cluster.Messaging;
 
 namespace SlimData.ClusterFiles;
 
-public sealed record FileCopyRequest(string Id, string Sha256Hex, long Length, string SourceStorageIdentity);
+public sealed record FileCopyRequest(string Id, string Sha256Hex, long Length, string SourceStorageIdentity,
+    string? AdmissionToken = null, long? AdmissionDeadlineUtcTicks = null);
 public sealed record FileCopyReceipt(string Id, string Sha256Hex, long Length, string NodeIdentity,
-    string StorageIdentity, bool Persisted, string? Error = null);
+    string StorageIdentity, bool Persisted, string? Error = null, string? AdmissionToken = null);
 
 [JsonSerializable(typeof(FileCopyRequest))]
 [JsonSerializable(typeof(FileCopyReceipt))]
@@ -16,8 +17,8 @@ internal partial class FileCopyJsonContext : JsonSerializerContext;
 
 internal static class FileCopyProtocol
 {
-    internal const string RequestName = "slimfaas.file.persist.v1";
-    internal const string ReceiptName = "slimfaas.file.persisted.v1";
+    internal const string RequestName = "slimfaas.file.persist.v2";
+    internal const string ReceiptName = "slimfaas.file.persisted.v2";
     private const long MaximumMessageBytes = 4096;
 
     internal static TextMessage Request(FileCopyRequest request) =>
@@ -39,6 +40,10 @@ internal static class FileCopyProtocol
         foreach (char value in request.Sha256Hex)
             if (!char.IsAsciiHexDigit(value))
                 throw new InvalidDataException("Invalid file copy checksum.");
+        if ((request.AdmissionToken is null) != (request.AdmissionDeadlineUtcTicks is null) ||
+            (request.AdmissionToken is not null && (!Guid.TryParseExact(request.AdmissionToken, "N", out _) ||
+             request.AdmissionDeadlineUtcTicks <= 0 || request.AdmissionDeadlineUtcTicks > DateTime.MaxValue.Ticks)))
+            throw new InvalidDataException("Invalid file copy admission marker.");
         return request;
     }
 
@@ -50,8 +55,9 @@ internal static class FileCopyProtocol
             ?? throw new InvalidDataException("Missing file copy receipt.");
     }
 
-    internal static bool Matches(FilePersistenceReceipt local, string expectedNode, FileCopyReceipt remote) =>
+    internal static bool Matches(FilePersistenceReceipt local, string expectedNode, FileCopyReceipt remote, string? admissionToken = null) =>
         remote.Persisted && remote.Error is null && remote.Id == local.Id &&
+        remote.AdmissionToken == admissionToken &&
         string.Equals(remote.Sha256Hex, local.Sha256Hex, StringComparison.OrdinalIgnoreCase) &&
         remote.Length == local.Length && remote.NodeIdentity == expectedNode &&
         Guid.TryParseExact(remote.StorageIdentity, "N", out Guid volume) && volume != Guid.Empty &&

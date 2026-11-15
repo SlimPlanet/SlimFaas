@@ -21,6 +21,13 @@ subsequent macOS/Podman/Kubernetes work and the ordered integration of PR #504
 and PR #514. Its .NET 11 campaigns and preserved .NET 10 observations have
 separate source provenance and verdicts.
 
+The [15 November investigation](reliability/2026-11-15/README.md) adds opt-in
+local/remote persisted-copy admission, atomic metadata/queue publication and
+bounded reference reconciliation. The combined runtime passes 2,388 .NET tests
+with full UI builds, analyzers and audits active. These component results do
+not certify the new acceptance contract: dedicated permanent-volume-loss faults,
+final-source native/container validation and comparative cost remain pending.
+
 The frozen `1ecba4d1` .NET 11 matrices are now complete. The integrated report
 retains **INCONCLUSIVE** HTTP comparisons in all three environments because
 mandatory references are incomplete. Native mixed C48 fails RSS; Podman mixed

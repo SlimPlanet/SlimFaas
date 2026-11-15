@@ -37,7 +37,9 @@ original delayed begin after the retired record has been collected.
 Physical IDs must be unique for each admission; public names are replaceable
 aliases. The state machine cannot independently attest storage hardware or copy
 persistence: proofs must come from the verified file-copy path. This internal
-primitive is not yet wired to HTTP acceptance; see [Files](data-files.md).
+path is used by the opt-in durable HTTP acceptance policy. Background repair
+walks active admissions and legacy references without retaining queue bodies or
+old state snapshots across transfers; see [Files](data-files.md).
 
 WebSocket registrations use a Raft-backed connection directory with node leases
 and incarnation fencing. Configuration reservations are cluster-wide; only

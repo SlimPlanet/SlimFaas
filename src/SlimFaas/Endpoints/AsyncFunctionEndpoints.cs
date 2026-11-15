@@ -147,13 +147,28 @@ public static class AsyncFunctionEndpoints
         string id;
         try
         {
-            id = await slimFaasQueue.EnqueueAsync(
+            if (context.Items.TryGetValue(FileAdmissionService.ContextKey, out var prepared) && prepared is PreparedFileAdmission admission)
+            {
+                if (admission.FileId != customRequest.OffloadedFileId)
+                    throw new SlimDataUnavailableException("The prepared file does not match the queued request.");
+                await context.RequestServices.GetRequiredService<IFileAdmissionService>().CommitQueueAsync(
+                    admission, functionName, queueElementId, bin,
+                    new RetryInformation(defaultAsync.TimeoutRetries, defaultAsync.HttpTimeout, defaultAsync.HttpStatusRetries),
+                    context.RequestAborted).ConfigureAwait(false);
+                id = queueElementId;
+            }
+            else
+            {
+                if (customRequest.OffloadedFileId is not null && fileOptions.Value.RequiredDurableCopies > 0)
+                    throw new SlimDataUnavailableException("Durable file admission was not prepared.");
+                id = await slimFaasQueue.EnqueueAsync(
                 functionName,
                 bin,
                 new RetryInformation(
                     defaultAsync.TimeoutRetries,
                     defaultAsync.HttpTimeout,
                     defaultAsync.HttpStatusRetries), queueElementId);
+            }
         }
         catch
         {

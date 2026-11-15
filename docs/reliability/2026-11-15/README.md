@@ -468,3 +468,55 @@ The [component evidence](file-admission-components.json),
 [closed raw index](file-admission-tests-index.json.gz) and
 [index hashes](file-admission-tests-index-summary.json) preserve exact tested
 sources, full-suite results, compiler failures and successful checks.
+
+## Opt-in acceptance and reference reconciliation
+
+The runtime follow-up connects the components through
+`SlimData__Files__RequiredDurableCopies`: default `0` retains historical
+acceptance, `1` confirms local persistence, and `2` requires local persistence
+and a distinct confirmed persisted remote copy before atomic publication.
+The async packet retains its seven-field MemoryPack format. Durable public
+uploads keep public names as aliases to fresh immutable physical IDs; GET and
+listing retain those public names. Copy failure prevents publication and
+returns `503`; capacity still returns `429`. Durable upload TTLs must be positive
+when supplied. Copies and membership are checked before publication; an
+uncertain HTTP outcome is still distinct from confirmed acceptance.
+
+A periodic worker reads current Raft references, including historical file
+metadata, and repairs missing or invalid bytes without depending on historical
+announcements or blocking general readiness. It limits selected IDs, bytes and
+concurrent transfers, retains no historical payload snapshot across awaits, and
+revisits failures. Existing announcement copies also receive a persistence
+barrier. Managed retirement is authoritative and preserves pending, retry,
+callback and DLQ/replay owners. Late copies remain eligible for cleanup after
+their original admission expires; physical IDs are never reused by the HTTP path.
+
+A further actual two-repository/RPC regression reproduces a positive copy
+receipt after the copied admission marker was dropped. The corrected **v2**
+copy protocol binds the token and original deadline, rejects missing/mismatched
+markers and echoes the token in the receipt. A v1 notification or persisted-copy
+reply cannot satisfy the v2 request. The failing control and positive/negative
+transfer cases remain in the evidence index.
+
+The final combined suite passes **2,388 .NET tests, zero failures and skips**,
+with full UI builds, analyzers and audits active. This includes both strict
+offload boundaries for Content-Length/chunked requests, root/path endpoints,
+copy-confirmation gating, membership loss before publication, historical aliases,
+reference repair without announcements, interrupted repair, bounded progress,
+DLQ ownership and guarded cleanup. Three failed Range controls become green
+with bounded offset continuation; original deadline/disposal controls stay green.
+The documentation build checks 23 pages, 1,683 links/assets and 405 search entries.
+Dependencies and lockfiles are unchanged. See the
+[exact tested source and results](file-admission-runtime-evidence.json),
+[closed raw index](file-admission-runtime-tests-index.json.gz) and
+[index hashes](file-admission-runtime-tests-index-summary.json).
+
+This remains an opt-in implementation under validation. No current-source native
+publication, permanent ingress-plus-volume-loss test, final endurance, or
+comparative two-copy cost is claimed by these unit/component results. Kind
+workers still share their host VM; distinct declared volume markers do not prove
+independent backing hardware. Existing performance failures, incomplete references
+and the original accepted-operation recovery checks remain open. The next phase
+must exercise dedicated process/volume faults and measure the selected configuration
+before recommending it for Kubernetes. This is not an exactly-once execution or
+LTS certification claim.

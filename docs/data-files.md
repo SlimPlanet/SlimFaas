@@ -69,8 +69,9 @@ streamed with bounded memory; it adds a local read and hash calculation.
 Peer downloads verify the expected length and SHA-256 while the body is still
 temporary. A truncated transfer or checksum mismatch is discarded without
 replacing or deleting a previously valid local version. This uses the upload's
-existing streaming hash calculation. It does not add a remote durable-copy
-acknowledgement to the upload contract.
+existing streaming hash calculation. The default acceptance policy does not
+require a remote durable-copy acknowledgement; the opt-in policy is described
+below.
 
 When an existing ID changes checksum, the repository retains body revisions by
 SHA-256. Peer HEAD/Range requests and queued reads select the requested checksum,
@@ -392,7 +393,12 @@ The defaults can be overridden with `SlimData__Files__...` environment variables
       "MaxPendingTransfers": 128,
       "QueueWaitTimeoutSeconds": 30,
       "DropPageCache": true,
-      "DurableWrites": false
+      "DurableWrites": false,
+      "RequiredDurableCopies": 0,
+      "AdmissionTimeoutSeconds": 120,
+      "ReconcileIntervalSeconds": 5,
+      "ReconcileBatchSize": 16,
+      "ReconcileMaxBytes": 33554432
     }
   }
 }
@@ -425,10 +431,67 @@ existing message bus and Range transfer to obtain such a receipt from a known
 peer; announcement confirmations do not satisfy it. It rejects mismatched
 identity/checksum/length and a shared declared storage identity.
 
-These are primitives for the acceptance guarantee under development. The normal
-upload and async endpoints do not yet invoke the remote confirmation primitive.
-Distinct root markers identify declared storage domains; independent backing
-volumes remain a deployment requirement and are not proven by the markers.
+### Durable acceptance policy under validation
+
+`SlimData__Files__RequiredDurableCopies` selects the acceptance path:
+
+- `0` (default): historical local-save and announcement acceptance.
+- `1`: an explicit local persistence receipt, followed by atomic reference
+  publication. This is also the local-only cost comparison variant.
+- `2`: local persistence and a verified persisted-copy receipt from a distinct
+  known node and declared volume, followed by atomic reference publication.
+
+Policies `1` and `2` require Linux or macOS. They explicitly persist the selected
+file version even when the independent `DurableWrites` setting is false.
+An admission pin is committed before saving the body. Metadata and the async
+queue entry, or public file alias, are subsequently published in one Raft
+mutation before returning `202` or Files `200`. A missing, invalid or unavailable
+copy prevents publication and returns `503`; capacity failures retain `429`.
+An uncertain HTTP result may still correspond to a committed operation and must
+remain distinct from confirmed acceptance. Storage replication does not make
+function execution exactly once.
+
+With policy `2`, the intended failure model is a stable three-member cluster
+with independent persistent volumes that honor the flush barriers: losing any
+one node and its volume after acceptance should leave a persisted copy while
+the reference is needed. Distinct root markers identify declared storage domains;
+they cannot prove independent backing hardware. Membership is checked again
+before publication; a removed confirmed member causes rejection. Concurrent
+reconfiguration, arbitrary multiple volume failures and dishonest storage barriers
+are outside that single-failure model. The dedicated volume-loss fault matrix and
+final performance cost are still pending; see the
+[reliability investigation](reliability/2026-11-15/README.md).
+
+Durable public uploads use a fresh physical ID behind the requested public name.
+Replacing a name releases the previous alias without reusing its physical ID.
+`GET`, listing and response IDs retain the public name; historical metadata stays
+readable. `DELETE` removes that alias, and physical copies are retired later.
+When supplied, a durable upload TTL must be positive (`400` otherwise). Queue,
+retry, callback and DLQ/replay owners retain their bodies until the final owner
+is released. Pending admissions expire after `AdmissionTimeoutSeconds` (1–600).
+Late commands cannot revive an expired or retired admission.
+
+### Incremental repair and cleanup
+
+After a linearizable Raft read, a background worker checks active admissions and
+legacy file references against local bytes. Announcements accelerate transfer;
+lost notifications do not remove the periodic repair path. This work does not
+block general readiness or replace on-demand pulls.
+
+Each tick selects at most `ReconcileBatchSize` references using bounded temporary
+storage. One transfer runs at a time under the existing transfer limits, with
+`ReconcileMaxBytes` as the per-tick byte budget; one larger file can proceed to
+avoid starvation. The worker stops starting files after five seconds, and an
+individual repair uses `QueueWaitTimeoutSeconds` as its cancellation deadline.
+The next tick runs after `ReconcileIntervalSeconds`. Released managed copies
+require a Raft retirement decision before deletion. Expired aliases are deleted
+conditionally, so an old TTL observation cannot delete a replacement upload.
+
+Range reads retry I/O interruptions at the last successfully returned offset,
+at most twice per stream. Caller cancellation and chunk timeouts are not retried.
+Complete length/SHA-256 verification still precedes publication. A restarted
+process retries an unfinished file from the beginning; partial transfers are
+not durable resumable artifacts. Later reference scans revisit failed repairs.
 
 ### 404 Not Found on download
 - metadata expired or was deleted

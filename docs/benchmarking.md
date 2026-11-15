@@ -18,6 +18,20 @@ separate allocation regressions. Its corrections preserve wire formats, queue
 deadlines and WAL geometry defaults. These diagnostic passes do not replace the
 formal matrices; each runtime revision requires its own final validation.
 
+The opt-in Files acceptance policy uses `SlimData__Files__RequiredDurableCopies`:
+`0` retains historical acceptance, `1` confirms local persistence, and `2`
+requires a distinct confirmed persisted remote copy before atomic publication.
+Compare these policies at fixed WAL geometry and offload threshold before
+combining improvements. Record acceptance and first-delivery distributions,
+confirmed/unknown IDs, duplicate receipts, process CPU/allocations/GC/RSS,
+WAL/Files I/O and inter-node traffic with their exact sampling windows.
+Periodic reference repair and directory synchronization are part of the runtime
+cost; kernel I/O counters do not separately identify WAL and Files writes.
+The underlying command envelope remains unchanged, but atomic admission adds
+**SLDC/6**: use separate clusters for an SLDC/5 reference and SLDC/6 candidate.
+Upgrade every member of a candidate cluster together. The dedicated live
+admission-fault matrix and final-source performance verdict remain pending.
+
 ## Run the benchmark
 
 The quick profile is intended for a smoke test and takes a few minutes:

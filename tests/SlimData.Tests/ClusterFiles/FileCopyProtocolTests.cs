@@ -44,17 +44,24 @@ public sealed class FileCopyProtocolTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task A_known_peer_confirms_only_verified_persisted_bytes(bool corrupt)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, true)]
+    [InlineData(false, true, false)]
+    public async Task A_known_peer_confirms_only_verified_persisted_bytes(bool corrupt, bool protectedCopy, bool missingMarker)
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
             return;
         byte[] bytes = [1, 2, 3];
         var source = Repository("a");
         var target = Repository("b");
+        IDictionary<string, string>? tags = protectedCopy ? new Dictionary<string, string>
+        {
+            [FileAdmissionTags.Token] = Guid.NewGuid().ToString("N"),
+            [FileAdmissionTags.Deadline] = DateTime.UtcNow.AddMinutes(2).Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        } : null;
         using var body = new MemoryStream(bytes);
-        FilePutResult stored = await source.SaveAsync("file", body, "text/plain", false, null, CancellationToken.None);
+        FilePutResult stored = await source.SaveAsync("file", body, "text/plain", false, null, CancellationToken.None, tags);
         var aLocal = Member(5001, remote: false);
         var aAtB = Member(5001, remote: true);
         var bLocal = Member(5002, remote: false);
@@ -62,7 +69,7 @@ public sealed class FileCopyProtocolTests : IDisposable
         IInputChannel? channel = null;
         var busB = Bus([bLocal.Object, aAtB.Object]);
         busB.Setup(value => value.AddListener(It.IsAny<IInputChannel>())).Callback<IInputChannel>(value => channel = value);
-        using var client = new HttpClient(new SourceHandler(bytes, corrupt));
+        using var client = new HttpClient(new SourceHandler(bytes, corrupt, missingMarker ? null : tags));
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(value => value.CreateClient("ClusterFilesTransfer")).Returns(client);
         await using var receiver = new ClusterFileSync(busB.Object, target, new ClusterFileAnnounceQueue(),
@@ -79,10 +86,10 @@ public sealed class FileCopyProtocolTests : IDisposable
         await using var sender = new ClusterFileSync(busA.Object, source, new ClusterFileAnnounceQueue(),
             NullLogger<ClusterFileSync>.Instance, Mock.Of<IHttpClientFactory>());
 
-        if (corrupt)
+        if (corrupt || missingMarker)
         {
             await Assert.ThrowsAsync<IOException>(() => sender.ConfirmRemoteCopyAsync("file", stored.Sha256Hex, stored.Length, CancellationToken.None));
-            Assert.False(await target.ExistsAsync("file", stored.Sha256Hex, CancellationToken.None));
+            Assert.Equal(!corrupt, await target.ExistsAsync("file", stored.Sha256Hex, CancellationToken.None));
             return;
         }
         FileCopyReceipt receipt = await sender.ConfirmRemoteCopyAsync("file", stored.Sha256Hex, stored.Length, CancellationToken.None);
@@ -179,7 +186,7 @@ public sealed class FileCopyProtocolTests : IDisposable
         return bus;
     }
 
-    private sealed class SourceHandler(byte[] bytes, bool corrupt = false) : HttpMessageHandler
+    private sealed class SourceHandler(byte[] bytes, bool corrupt = false, IDictionary<string, string>? tags = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -190,6 +197,8 @@ public sealed class FileCopyProtocolTests : IDisposable
             };
             response.Content.Headers.ContentLength = bytes.Length;
             response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+            if (tags is not null)
+                response.Headers.TryAddWithoutValidation(FileSyncProtocol.TagsHeaderName, FileSyncProtocol.BuildTagsHeaderValue(tags));
             if (request.Method == HttpMethod.Get)
                 response.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, bytes.Length - 1, bytes.Length);
             return Task.FromResult(response);

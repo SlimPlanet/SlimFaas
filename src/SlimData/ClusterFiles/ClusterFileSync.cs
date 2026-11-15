@@ -46,6 +46,16 @@ public sealed class ClusterFileSync : IDurableClusterFileSync, IAsyncDisposable
         if (_repo is not IDurableFileRepository durable)
             throw new NotSupportedException("The file repository cannot confirm persistence.");
         FilePersistenceReceipt local = await durable.PersistVersionAsync(id, sha256Hex, length, ct).ConfigureAwait(false);
+        FileMetadata? metadata = await _repo.TryGetVersionMetadataAsync(id, sha256Hex, ct).ConfigureAwait(false);
+        string? admissionToken = null;
+        long? admissionDeadline = null;
+        if (FileAdmissionTags.IsManaged(metadata?.Tags))
+        {
+            if (!FileAdmissionTags.TryRead(metadata!.Tags!, out string token, out long deadline))
+                throw new IOException("The local file admission marker is invalid.");
+            admissionToken = token;
+            admissionDeadline = deadline;
+        }
         foreach (ISubscriber member in _bus.Members)
         {
             if (!member.IsRemote)
@@ -54,11 +64,12 @@ public sealed class ClusterFileSync : IDurableClusterFileSync, IAsyncDisposable
             deadline.CancelAfter(TimeSpan.FromSeconds(5));
             try
             {
-                var request = FileCopyProtocol.Request(new FileCopyRequest(id, sha256Hex, length, local.StorageIdentity));
+                var request = FileCopyProtocol.Request(new FileCopyRequest(id, sha256Hex, length, local.StorageIdentity,
+                    admissionToken, admissionDeadline));
                 FileCopyReceipt receipt = await member.SendMessageAsync<FileCopyReceipt>(request,
                     static async (message, token) => await FileCopyProtocol.ReadReceiptAsync(message, token).ConfigureAwait(false),
                     deadline.Token).ConfigureAwait(false);
-                if (FileCopyProtocol.Matches(local, member.Id.ToString(), receipt) &&
+                if (FileCopyProtocol.Matches(local, member.Id.ToString(), receipt, admissionToken) &&
                     _bus.Members.AsValueEnumerable().Any(candidate => candidate.IsRemote && candidate.Id == member.Id))
                     return receipt;
                 _logger.LogRemoteFilePersistenceReceiptRejected(SafeNode(member), id);
@@ -86,8 +97,17 @@ public sealed class ClusterFileSync : IDurableClusterFileSync, IAsyncDisposable
             if (pulled.Stream is null)
                 return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode, durable.StorageIdentity, false, "File copy unavailable.");
             await pulled.Stream.DisposeAsync().ConfigureAwait(false);
+            if (request.AdmissionToken is not null)
+            {
+                var copiedMetadata = await _repo.TryGetVersionMetadataAsync(request.Id, request.Sha256Hex, ct).ConfigureAwait(false);
+                if (copiedMetadata?.Tags is null || !FileAdmissionTags.TryRead(copiedMetadata.Tags, out string token, out long deadline) ||
+                    token != request.AdmissionToken || deadline != request.AdmissionDeadlineUtcTicks)
+                    return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode,
+                        durable.StorageIdentity, false, "The copied admission marker is missing or mismatched.");
+            }
             FilePersistenceReceipt stored = await durable.PersistVersionAsync(request.Id, request.Sha256Hex, request.Length, ct).ConfigureAwait(false);
-            return new FileCopyReceipt(stored.Id, stored.Sha256Hex, stored.Length, localNode, stored.StorageIdentity, true);
+            return new FileCopyReceipt(stored.Id, stored.Sha256Hex, stored.Length, localNode, stored.StorageIdentity, true,
+                AdmissionToken: request.AdmissionToken);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex)
