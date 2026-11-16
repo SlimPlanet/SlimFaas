@@ -91,7 +91,10 @@ namespace SlimFaas
                 static _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
 
         private DeploymentInformation? GetDeployment() =>
-            _deploymentSnapshot ?? _replicasService.Deployments.FindFunction(_functionName);
+            // A request can retain configuration while Kubernetes replaces its
+            // pods. Resolve destinations from the latest published cache so a
+            // captured snapshot cannot retain a deleted pod or an empty pool.
+            _replicasService.Deployments.FindFunction(_deploymentSnapshot?.Deployment ?? _functionName);
 
         public IList<int>? GetPorts()
         {
