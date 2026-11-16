@@ -18,6 +18,10 @@ operations, 35,186 separate unknown outcomes and zero confirmed loss or receipt
 corruption. One extra successful delivery on an unknown outcome during an
 injected fault remains counted. Those recovery/integrity results do not replace
 the still-required formal performance comparisons or establish LTS acceptance.
+The [final-source managed microbenchmark ABBA](reliability/2026-11-16/micro-abba-189.md)
+retains 296 valid case executions, including routing/allocation gains and seven
+consistently slower cases above 110% of reference time. These descriptive
+microbenchmarks remain separate from application non-regression acceptance.
 
 The [15 November follow-up](reliability/2026-11-15/README.md) retains bounded
 Kubernetes reproductions, managed-OOM audits, failed healthy-delivery controls and

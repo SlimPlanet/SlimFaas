@@ -14,8 +14,11 @@ General validation also retains a
 the corrected fixture passes 2,425 full-solution tests and both membership cases
 under coverage. Product source189 and all deadlines stay unchanged. The managed
 micro driver then passes build/catalog validation after preserving an initial
-`NETSDK1151` publication-configuration failure. Formal timed comparisons follow
-serially; their numerical verdicts remain open.
+`NETSDK1151` publication-configuration failure. The
+[four managed microbenchmark runs](micro-abba-189.md) now complete with 296 valid
+case executions, preserving gains and seven consistently slower cases above
+110% of reference time. Formal HTTP/MemoryLab comparisons continue serially;
+their numerical verdicts remain open.
 
 | Environment / compilation | Closed roles | Confirmed | Unknown | Extra successful fault-time deliveries |
 |---|---:|---:|---:|---:|
