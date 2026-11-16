@@ -60,7 +60,7 @@
 
   <!-- Swagger / OpenAPI -->
   <ItemGroup>
-    <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.3.1" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="11.0.1" />
   </ItemGroup>
 
   <!-- Serialization -->
