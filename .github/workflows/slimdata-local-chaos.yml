@@ -9,6 +9,7 @@ on:
       - 'tests/SlimFaas.Tests/Local/**'
       - 'tests/SlimFaas.Tests/Benchmark/**'
       - 'benchmarks/SlimFaas.Benchmarks/**'
+      - 'benchmarks/Common/**'
       - 'benchmarks/platform/**'
       - 'benchmarks/slimfaas.local.benchmark.yaml'
       - '.bin/*chaos*'
@@ -16,6 +17,7 @@ on:
       - '.bin/test-local-benchmark-host.py'
       - '.bin/*platform*.py'
       - '.bin/*kubernetes*.py'
+      - '.bin/run-journaled-load.py'
       - '.bin/slimdata_*.py'
       - '.bin/test-dotnet-sdk*.py'
       - '.bin/test-raft-socket-memory.py'
@@ -70,6 +72,8 @@ jobs:
         run: dotnet build tools/SlimFaas.MemoryLab -c Release
       - name: Verify platform receipts, process fencing and endpoint configuration
         run: python .bin/test-platform-validation.py
+      - name: Verify Kubernetes routing replacement resources
+        run: python .bin/test-kubernetes-routing.py
       - name: Build runtime
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
       - name: Publish the unified managed benchmark driver

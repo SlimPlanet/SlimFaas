@@ -42,3 +42,15 @@ TRX outputs, so subsequent validation must use generated unique filenames.
 [Reproducible driver commands](../../benchmarking.md#run-the-benchmark).
 The prior incomplete references, duplicate controls and healthy-traffic internal
 errors remain open; this refactor does not establish non-regression or LTS status.
+
+
+The two C# application drivers now compile the same percentile calculation and
+opt-in request journal from `benchmarks/Common`. MemoryLab sync and async
+operations share ID/hash/response validation without a second orchestration loop.
+A real TCP smoke independently reconciles 17 sync completions with 17 fsynced
+function receipts, correct 192 KiB hashes, observed HTTP/1.1 and the serving pod
+UID. The first smoke exposed duplicate forwarding of an existing ID header;
+the corrected handler preserves the caller's single value, covered by a
+regression. Original failed smoke output remains retained. This is a harness
+functional check, not a runtime performance or fault verdict.
+[Smoke command, output identity and hashes](request-journal-smoke.json).

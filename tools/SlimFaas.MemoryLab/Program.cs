@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Prometheus;
 using Prometheus.HttpClientMetrics;
+using SlimFaas.Benchmarking;
 
 if (args.Length == 0)
 {
@@ -246,7 +247,9 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
         UseProxy = false
     };
-    using var client = new HttpClient(handler, disposeHandler: false)
+    using var journal = RequestJournal.Open(arguments.GetOptional("journal-directory"));
+    using HttpMessageHandler transport = journal?.Wrap(handler) ?? handler;
+    using var client = new HttpClient(transport, disposeHandler: false)
     {
         Timeout = TimeSpan.FromSeconds(30)
     };
@@ -278,6 +281,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
             keyPrefix,
             keysPerWorker,
             requestScheduler,
+            journal,
             duration.Token))
         .ToArray();
 
@@ -341,6 +345,7 @@ static async Task RunWorkerAsync(
     string keyPrefix,
     int keysPerWorker,
     PacedRequestScheduler? requestScheduler,
+    RequestJournal? journal,
     CancellationToken cancellationToken)
 {
     long sequence = 0;
@@ -363,6 +368,7 @@ static async Task RunWorkerAsync(
         Uri baseUri = nodeUrls[node];
         var startedAt = Stopwatch.GetTimestamp();
         var timestamp = DateTimeOffset.UtcNow;
+        string requestId = $"{keyPrefix}-{operation.ToString().ToLowerInvariant()}-{worker}-{sequence}";
         try
         {
             await ExecuteOperationAsync(
@@ -380,7 +386,9 @@ static async Task RunWorkerAsync(
                 keysPerWorker,
                 scenario,
                 sequence,
+                requestId,
                 CancellationToken.None);
+            journal?.RecordOperation(requestId, "operation-completed");
             statistics.RecordCompleted(
                 new OperationSample(
                     timestamp,
@@ -394,6 +402,7 @@ static async Task RunWorkerAsync(
         }
         catch (Exception exception)
         {
+            journal?.RecordOperation(requestId, "operation-failed", exception.GetType().Name + ": " + exception.Message);
             statistics.RecordFailure(
                 new OperationSample(
                     timestamp,
@@ -426,28 +435,23 @@ static async Task ExecuteOperationAsync(
     int keysPerWorker,
     string scenario,
     long sequence,
+    string requestId,
     CancellationToken cancellationToken)
 {
     switch (operation)
     {
         case Operation.Sync:
-            await PostBytesAsync(
-                client,
-                new Uri(baseUri, $"/function/{Uri.EscapeDataString(function)}/echo"),
-                payload,
-                cancellationToken);
-            break;
-
         case Operation.Async:
         {
+            string route = operation == Operation.Async ? "async-function" : "function";
             using var request = new HttpRequestMessage(HttpMethod.Post,
-                new Uri(baseUri, $"/async-function/{Uri.EscapeDataString(function)}/echo"));
+                new Uri(baseUri, $"/{route}/{Uri.EscapeDataString(function)}/echo"));
             request.Content = new ByteArrayContent(payload);
-            request.Headers.Add("X-Chaos-Id", $"{keyPrefix}-async-{worker}-{sequence}");
+            request.Headers.Add("X-Chaos-Id", requestId);
             request.Headers.Add("X-Chaos-Sha256", expectedState.AsyncPayloadSha256);
             using HttpResponseMessage response = await client.SendAsync(request,
                 HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            if (response.StatusCode != HttpStatusCode.Accepted)
+            if (operation == Operation.Async && response.StatusCode != HttpStatusCode.Accepted)
                 throw new HttpRequestException($"Async enqueue returned HTTP {(int)response.StatusCode}; expected 202.");
             await EnsureSuccessAndDrainAsync(response, cancellationToken);
             break;
@@ -1421,6 +1425,7 @@ static void PrintUsage()
                [--target-rps-per-replica 0]
                [--key-prefix memory-lab] [--validate true]
                [--csv operations.csv] [--json operations.json]
+               [--journal-directory requests]
           report --csv <memory.csv>
           compare --root <runs-directory> --output <comparison.md> [--baseline before]
           select-partition --root <screening-runs> --output <selection.env>
@@ -1568,17 +1573,7 @@ sealed class LoadStatistics
     }
 
     private static double Percentile(double[] sorted, double percentile)
-    {
-        if (sorted.Length == 0)
-            return 0d;
-        var rank = percentile * (sorted.Length - 1);
-        var lower = (int)Math.Floor(rank);
-        var upper = (int)Math.Ceiling(rank);
-        if (lower == upper)
-            return sorted[lower];
-        var fraction = rank - lower;
-        return sorted[lower] + ((sorted[upper] - sorted[lower]) * fraction);
-    }
+        => SlimFaas.Benchmarking.BenchmarkStatistics.Percentile(sorted, percentile);
 
     private static string EscapeCsv(string? value)
     {

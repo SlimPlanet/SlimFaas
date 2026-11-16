@@ -191,17 +191,7 @@ internal sealed record QueueDepth(double? Ready, double? InFlight, double? Retry
 internal static class Statistics
 {
     public static double Percentile(double[] sorted, double percentile)
-    {
-        if (sorted.Length == 0)
-            return 0;
-        double rank = percentile * (sorted.Length - 1);
-        int lower = (int)Math.Floor(rank);
-        int upper = (int)Math.Ceiling(rank);
-        if (lower == upper)
-            return sorted[lower];
-        double fraction = rank - lower;
-        return sorted[lower] + ((sorted[upper] - sorted[lower]) * fraction);
-    }
+        => SlimFaas.Benchmarking.BenchmarkStatistics.Percentile(sorted, percentile);
 
     public static double Median(IEnumerable<double> values)
     {

@@ -103,6 +103,7 @@ internal static class BenchmarkCli
               [--function benchmark-latency] [--scale-function benchmark-scale]
               [--duration 10] [--warmup 2] [--repetitions 3]
               [--samples-format csv|csv.gz]
+              [--journal-directory requests]
               [--payload-bytes 64,4096,262144,2097152]
               [--concurrency 1,16] [--async-drain-timeout 180]
               [--scale-messages 200] [--scale-concurrency 32]

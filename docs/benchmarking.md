@@ -834,3 +834,57 @@ WALs, a missing WAL with retained state, missing control proof and lost bootstra
 control. Windows skips this Unix directory-fsync fixture. Record the entire
 rendered Kubernetes manifest, controller source and control proof with each
 fault campaign. Preserve original data before recovery or logical PV-content loss.
+
+
+## Request journals and orchestration ownership
+
+C# owns request generation, pacing and latency measurement. The unified driver
+and MemoryLab compile the same percentile interpolation from `benchmarks/Common`.
+Python controls process/pod faults and independently reconciles receipts. Shell
+scripts prepare environments and invoke these tools; they must not introduce
+another load generator or silently retry application requests.
+
+Use `--journal-directory <new-directory>` with `run` or MemoryLab `load` when
+individual outcomes matter. Each process creates a unique JSONL file containing
+its pod UID, writer ID, UTC and monotonic clock, caller ID, target URI, length and
+SHA-256 when available, response headers/status/version and transport exceptions.
+Intents are flushed before entering the HTTP transport. An exception after that
+point is recorded as unknown; it is not proof of rejection or non-execution.
+MemoryLab sync/async calls share the caller ID and SHA-256 with the independent
+function fixture, and record operation completion only after response validation
+and draining. Sync still sends one application-level request; no retry is added.
+
+JSONL lines are flushed to the OS, without a per-line disk fsync. They survive a
+process crash when the OS retains the file; they do not prove host power-loss
+durability. The independent Python function receipts retain their existing fsync.
+The HTTP pilot journal observes response headers, not successful full-body
+consumption. It does not observe transparent transport retries or redirects as
+separate wire exchanges. Reconcile those with server receipts and runtime logs.
+Journaling is opt-in and adds driver hashing/I/O cost; use the same setting and
+binary for both sides of a comparison. Original reports are never retrofilled.
+
+The Kubernetes pod-replacement adapter reuses the three-node campaign manifests
+and executes the C# generator as a Job. It keeps the deleted function process
+alive during preStop to distinguish stale connection reuse from pod selection.
+Function headless DNS excludes unready addresses; Raft's separate headless service
+retains its own membership policy. API observations include pod UIDs/IPs,
+termination/readiness, EndpointSlices and events. Runtime debug logs retain the
+actual sent URLs; receipt headers identify the function that served each request.
+
+```bash
+python3 .bin/run-kubernetes-routing.py \
+  --kubeconfig artifacts/pr506/kubernetes/kubeconfig \
+  --namespace slimfaas-pr506-routing-service-example \
+  --image localhost/slimfaas-pr506:function-pool-467-03 \
+  --controller-image localhost/slimfaas-pr506:routing-tools \
+  --source-commit 29daa097fd4562c39e4b362646c16ddd5f1cf7c0 \
+  --route service --concurrency 1 --before-seconds 60 --after-seconds 420 \
+  --output artifacts/pr506/routing/service-example
+```
+
+Build/import the selected images first. The adapter refuses namespace reuse and
+clusters outside the dedicated four-node `kind-slimfaas-pr506` environment. It
+retains volumes and evidence after stopping its owned workloads. Execution
+completion is not a convergence/non-regression verdict: reconcile receipts,
+unknowns, actual five-minute connection age and the separate 15-second routing
+budget before issuing one. Use `--dry-run` to inspect the resource manifest.

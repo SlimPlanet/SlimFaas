@@ -30,7 +30,9 @@ internal static class BenchmarkRunner
             PooledConnectionLifetime = TimeSpan.FromMinutes(2),
             UseProxy = false
         };
-        using var client = new HttpClient(handler)
+        using var journal = SlimFaas.Benchmarking.RequestJournal.Open(arguments.GetOptional("journal-directory"));
+        using HttpMessageHandler transport = journal?.Wrap(handler) ?? handler;
+        using var client = new HttpClient(transport, disposeHandler: false)
         {
             Timeout = TimeSpan.FromMinutes(5)
         };

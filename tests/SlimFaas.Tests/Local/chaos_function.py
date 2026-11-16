@@ -92,6 +92,8 @@ def handler(journal, repair):
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Chaos-Pod-Uid", os.environ.get("POD_UID", ""))
+            self.send_header("X-Chaos-Connection", f"{self.server.server_address}|{self.client_address}")
             self.end_headers()
             self.wfile.write(body)
 
@@ -110,7 +112,10 @@ def handler(journal, repair):
                        "expected_sha256": expected, "attempt": attempt,
                        "last_try": self.headers.get("Slimfaas-Last-Try", ""),
                        "element_id": self.headers.get("SlimFaas-Element-Id", ""),
-                       "path": self.path, "event": "started"}
+                       "path": self.path, "event": "started",
+                       "http_version": self.request_version,
+                       "connection": f"{self.server.server_address}|{self.client_address}",
+                       "pod_ip": os.environ.get("POD_IP")}
             journal.append(receipt)
             delay = float(query.get("delay", ["0"])[0])
             if delay:
