@@ -67,8 +67,12 @@ operations, 8,940 unknown outcomes and no confirmed loss, receipt corruption or
 successful repetitions. Its complete 396-file original tree is indexed after
 shutdown. The three closed kind roles total **45,946 confirmed operations and
 9,019 unknown outcomes**. General validation follows serially.
-Full runtime-log window classification and the final performance verdict remain
-open. No merge or LTS certification is
+The [timestamped Kubernetes log audit](kind-runtime-log-audit-189.md) finds no
+observed error headers outside recorded initialization/fault/recovery windows;
+complete retired/rotated history remains INCONCLUSIVE. Six retained request
+exceptions are interrupted Raft bodies during injected suspensions, with their
+stacks and timestamps preserved. The final performance verdict remains open.
+No merge or LTS certification is
 claimed. Earlier results remain attached to their actual source versions.
 
 ## Absence and recovery
