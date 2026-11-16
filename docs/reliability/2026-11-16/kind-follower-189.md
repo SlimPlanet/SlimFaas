@@ -69,9 +69,18 @@ It covers **9,562 original files**, including retained state, WALs, snapshots an
 journals, hashed after campaign writers stop. The [raw archive](kind-follower-189-raw.tar.gz)
 has SHA-256 `eb61c60c73d419536c31d74f8ff623e8226b0f5ae03ce712ddb329e514f3ab4a`:
 184 files containing the campaign reports, configuration, captured logs/metrics
-and three receipt journals. Every archive member is verified against the
+and two receipt journals plus the retained repair sentinel. Every archive member is verified against the
 original index after copying to the Mac. The original WAL/state remains in the
 VM; the archive does not duplicate that tree.
+
+The separate [runtime resource summary](kind-follower-runtime-resources-189.json)
+and [717 raw cgroup observations](kind-follower-runtime-resources-189.jsonl.gz)
+cover nine observed container lifetimes and six pod UIDs. The maximum observed
+kernel `memory.peak` is 691.36 MiB under a 1 GiB limit; observed per-lifetime
+`max`, `oom`, `oom_kill` and `sock_throttled` counters remain zero. These are
+cgroup measurements, including file/kernel memory, rather than process RSS.
+Short unobserved lifetimes and each counter's uncaptured final value remain
+outside this observation. Functions and Jobs have separate resource scopes.
 
 Runtime captures retain pod UID/generation identity; a supplementary observer
 also saves previous-container logs separately. Complete lifetime log coverage

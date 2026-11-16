@@ -1,4 +1,4 @@
-# Final-source long endurance: completed Native roles and kind follower
+# Final-source long endurance: completed Native roles and two kind roles
 
 The **macOS ARM64 Native AOT follower role passes the recovery and integrity
 harness** on source `189826231fe43fe3069e8a1f7724f83589432c6f`. All six absence
@@ -20,8 +20,13 @@ original data. The corrected [managed kind follower role](kind-follower-189.md)
 now also passes all six absences, successive crashes and the original-volume
 restart: **22,831 confirmed operations, 48 unknown outcomes**, zero confirmed
 missing operations, receipt corruption or successful repetitions. Its complete
-9,562-file original tree is indexed after shutdown. Dedicated-kind leader and
-quorum roles and general validation follow serially.
+9,562-file original tree is indexed after shutdown. The
+[managed kind leader role](kind-leader-189.md) also passes recovery/integrity:
+22,885 confirmed operations, 31 unknown outcomes and zero confirmed loss or
+receipt corruption. One additional successful delivery belongs to an unknown
+client outcome during an injected suspension and remains explicitly counted.
+The two closed kind roles total 45,716 confirmed operations and 79 unknown
+outcomes. The kind quorum role is running; general validation follows serially.
 Full runtime-log window classification and the final performance verdict remain
 open. No merge or LTS certification is
 claimed. Earlier results remain attached to their actual source versions.
