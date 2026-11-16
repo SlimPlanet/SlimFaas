@@ -92,10 +92,14 @@ Main, dashboard/documentation and reliability workflows pass on this source,
 as does FOSSA. The separate Sonar gate remains independently tracked; successful
 scanner/workflow execution is not gate acceptance.
 
-Fresh WAL geometry/replay and threshold checks follow. Formal three-environment
-HTTP/MemoryLab comparisons, final-source long endurance, remaining fault coverage
-and the older original-state-copy recoveries remain open. No merge or LTS
-certification is requested. See the [benchmark protocol](../../benchmarking.md).
+The [completed WAL/threshold/policy controls](wal-threshold-policy-controls-189.md)
+retain five passing geometry replays, the seven-extra-delivery strict 1 MiB
+threshold failure and the copying-policy cost failure after one complete repeat.
+Final-source long endurance started on 2026-11-16, followed serially by Kubernetes
+endurance and general validation. Formal three-environment HTTP/MemoryLab
+comparisons, final endurance reconciliation, remaining fault coverage and the
+older original-state-copy recoveries remain open. No merge or LTS certification
+is requested. See the [benchmark protocol](../../benchmarking.md).
 
 The first fresh 4 KiB WAL diagnostic completes its healthy 200-message window,
 then fails a separate replay fixture: generic `campaign.ready()` waits for the
