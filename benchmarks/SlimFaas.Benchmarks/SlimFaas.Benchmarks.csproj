@@ -4,6 +4,7 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net11.0</TargetFramework>
         <IsPackable>false</IsPackable>
+        <SonarQubeExclude>true</SonarQubeExclude>
         <!-- BenchmarkDotNet emits managed code; the measured runtime is built separately. -->
         <PublishAot>false</PublishAot>
         <PublishTrimmed>false</PublishTrimmed>

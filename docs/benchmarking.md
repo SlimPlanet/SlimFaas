@@ -93,6 +93,23 @@ mode. For a framework-dependent driver publication, use the same global
 `PublishAot=false`, `SelfContained=false` and `SkipClientAppBuild=true` properties.
 The platform tools image publishes a self-contained, untrimmed managed driver.
 
+### Analysis scope and ownership
+
+The C# drivers own workload generation, application timing, exports and comparison
+criteria. Python coordinates environments/faults and independently reconciles
+receipts; shell scripts provide launch/environment adapters. Shared paths should
+delegate to those owners instead of introducing a second load or statistics loop.
+
+Benchmark C# projects are excluded from Sonar with `SonarQubeExclude`, while
+[the targeted script inventory](../eng/sonar-benchmark-exclusions.txt) supplies
+`sonar.exclusions`. Runtime, SDK, release and production tools stay eligible for
+analysis. Benchmark builds/tests continue in CI. Coverage exclusions alone do
+not exclude static analysis. The completed-scan check waits for processing,
+checks submitted C# project classification, rejects indexed benchmark sources,
+and verifies production coverage import. PR APIs can omit unchanged files, so
+their absence is checked against submitted project metadata rather than treated
+as an analysis exclusion. See the [scope investigation](reliability/2026-11-16/sonar-analysis-boundary.md).
+
 The quick profile is intended for a smoke test and takes a few minutes:
 
 ```bash

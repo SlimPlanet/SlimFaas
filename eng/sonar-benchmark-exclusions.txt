@@ -1,0 +1,32 @@
+# Benchmark workloads, fixtures and their dedicated tests.
+benchmarks/**/*
+tests/SlimFaas.Tests/Benchmark/**/*
+tools/SlimFaas.MemoryLab/**/*
+
+# Measurement/orchestration adapters; runtime and release tools stay analyzed.
+.bin/*benchmark*.py
+.bin/*benchmark*.sh
+.bin/*chaos*.py
+.bin/*chaos*.sh
+.bin/*platform*.py
+.bin/*kubernetes*.py
+.bin/platform-entrypoint.sh
+.bin/slimdata_fault_agent.py
+.bin/slimdata_receipt_sink.py
+.bin/summarize-collection-probe.py
+.bin/trace-async-offload.py
+.bin/memory-lab.sh
+.bin/test-memory-lab-report.py
+.bin/test-slimdata-raft-recovery.py
+.bin/test-raft-recovery-harness.py
+.bin/test-raft-socket-memory.py
+.bin/test-dotnet-sdk-payloads.py
+
+# Source-pinned diagnostic programs; reports/evidence are not excluded wholesale.
+docs/reliability/**/*.py
+docs/reliability/**/*.sh
+docs/reliability/*/socket-memory-probe/**/*
+
+# The analysis-boundary verifier validates this inventory and the completed scan.
+.bin/check-sonar-benchmark-boundary.py
+.bin/test-sonar-benchmark-boundary.py

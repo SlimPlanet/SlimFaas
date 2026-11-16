@@ -99,21 +99,44 @@ jobs:
       - name: Test benchmark provenance and file validation
         run: python .bin/test-zlinq-benchmark.py
 
+      - name: Verify benchmark analysis exclusions preserve production sources
+        run: |
+          python .bin/test-sonar-benchmark-boundary.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .bin/check-sonar-benchmark-boundary.py --report artifacts/sonar-boundary/inventory.json
+
       - name: Build and analyze
-        # Dated benchmark orchestration is archived evidence, like benchmarks/;
-        # keep its static analysis, but measure coverage on product code.
+        # Benchmark tools remain built/tested; only their static analysis is excluded.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="status-stream-coverage.xml,python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          $benchmarkExclusions = python .bin/check-sonar-benchmark-boundary.py --print-patterns
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="$benchmarkExclusions" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet tool install --global dotnet-coverage
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
           $testExitCode = $LASTEXITCODE
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN" 2>&1 | Tee-Object -FilePath artifacts/sonar-boundary/scanner-end.log
+          $scanExitCode = $LASTEXITCODE
           if ($testExitCode -ne 0) { exit $testExitCode }
+          if ($scanExitCode -ne 0) { exit $scanExitCode }
+
+      - name: Verify completed scan scope and production coverage import
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: python .bin/check-sonar-benchmark-boundary.py --scan-directory .sonarqube/out --report artifacts/sonar-boundary/completed-scan.json
+
+      - name: Retain analysis boundary evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sonar-analysis-boundary
+          path: artifacts/sonar-boundary
+          retention-days: 14
 
   unit_tests:
     name: Unit Tests

@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net11.0</TargetFramework>
     <AssemblyName>SlimData.Tests</AssemblyName>
+    <SonarQubeExclude>true</SonarQubeExclude>
     <SlimDataProject Condition="'$(SlimDataProject)' == ''">../../../../src/SlimData/SlimData.csproj</SlimDataProject>
   </PropertyGroup>
   <ItemGroup>

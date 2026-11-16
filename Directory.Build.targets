@@ -35,4 +35,12 @@
     <EditorConfigFiles Include="$(MSBuildThisFileDirectory)eng\tests.globalconfig" Condition="'$(IsTestProject)' == 'true'" />
   </ItemGroup>
 
+  <!-- Sonar also infers test code from referenced mocking assemblies. The SDK's
+       test-project flag keeps production projects and their coverage classified
+       correctly even when a transitive dependency contains such an assembly. -->
+  <PropertyGroup Condition="'$(SonarQubeTestProject)' == ''">
+    <SonarQubeTestProject Condition="'$(IsTestProject)' == 'true'">true</SonarQubeTestProject>
+    <SonarQubeTestProject Condition="'$(IsTestProject)' != 'true'">false</SonarQubeTestProject>
+  </PropertyGroup>
+
 </Project>
