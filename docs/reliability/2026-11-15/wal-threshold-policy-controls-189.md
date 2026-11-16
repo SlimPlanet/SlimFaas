@@ -44,6 +44,40 @@ filesystem and do not certify independent-host hardware resilience. The earlier
 [failed gated-readiness fixture and verified-copy recovery](wal-gated-seed-recovery-evidence.json)
 remain independent, preserved observations.
 
+### Measured resource costs
+
+The [resource summary](wal-threshold-resource-summary-189.json) derives these
+observations from the archived reports. Each row is one sequential diagnostic;
+it does not establish a statistically reliable geometry ranking. CPU and
+allocation deltas span all three runtime processes, from before-send to the
+first observed confirmed drain. Functions/generator are excluded. RSS and WAL
+inventories are sampled aggregates; allocation/GC counters can lag their
+telemetry cadence. The separate full 180-second window includes idle/cleanup
+cost and is retained in the original reports.
+
+| WAL | Acceptance/s | Delivery/s | Acceptance p99 | CPU ms/message | RSS MiB | WAL files | WAL logical MiB |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 4 KiB | 141.83 | 75.21 | 201.35 ms | 58.48 | 553.56 | 546 | 2.10 |
+| 8 KiB | 143.41 | 76.29 | 210.19 ms | 61.71 | 571.13 | 303 | 2.25 |
+| 16 KiB | 60.03 | 44.27 | 828.69 ms | 68.71 | 539.24 | 171 | 2.39 |
+| 32 KiB | 63.05 | 46.29 | 766.80 ms | 72.48 | 564.01 | 92 | 2.27 |
+| 64 KiB | 122.19 | 69.78 | 186.71 ms | 53.09 | 533.15 | 54 | 2.11 |
+
+Increasing chunk size reduces the observed file count, but throughput and CPU
+do not improve monotonically. In particular, this 64 KiB observation accepts
+fewer messages per second than the 4/8 KiB observations. Counter allocation is
+1.70–2.35 MiB/message and Gen2 collections are 0.145–0.165/message across rows.
+Aggregate kernel writes are 616.58–631.54 MiB and runtime-pod transmitted traffic
+is 610.25–614.03 MiB through drain. The sampled Files footprint is approximately
+600.26 MiB in every row, consistent with three copies of the 200 MiB body set
+after background replication. That aggregate footprint alone is not a per-file
+durability proof; admission requires two confirmed copies.
+
+Kernel I/O includes Files, WAL, snapshots and other runtime activity; pod traffic
+includes probes/measurement and function traffic. These counters cannot isolate
+WAL flush counts, mapping faults or synchronization time. Fewer WAL files alone
+does not establish the cause of the latency differences or justify a new default.
+
 ## Offload threshold
 
 The sequential screen holds fresh WALs at 64 KiB and the copying policy at two,
@@ -64,6 +98,29 @@ The three passing offloaded cases do not establish a universally safe threshold:
 other sizes, chunked transfer and concurrency boundaries require separate checks.
 The default remains 1 MiB. Longer endurances take priority over the remaining
 boundary screen at the user's request.
+
+| Threshold | CPU ms/message | Allocated MiB/message | Gen2/message | RSS MiB | WAL logical MiB | Kernel writes MiB | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---|
+| 1 MiB | 89.80 | 31.80 | 0.405 | 2382.95 | 129.39 | 3236.96 | FAIL |
+| 512 KiB | 61.99 | 1.88 | 0.155 | 569.13 | 2.11 | 620.68 | PASS |
+| 256 KiB | 58.29 | 1.78 | 0.165 | 566.55 | 2.23 | 616.82 | PASS |
+| 128 KiB | 61.62 | 2.06 | 0.150 | 558.22 | 2.23 | 626.32 | PASS |
+
+The inline row records 18.19 acceptances/s and 13.42 first deliveries/s, with
+1.702 s acceptance p99 and 13.331 s delivery p99. It remains an unhealthy result,
+not an accepted performance baseline. Its sampled WAL contains 2,082 files and
+no Files bodies, versus 54–56 WAL files and approximately 600.26 MiB of replicated
+Files bodies for the offloaded rows. Runtime-pod transmitted traffic is
+747.59 MiB inline and 611.77–612.12 MiB offloaded. The resource scopes and
+counter/inventory limitations above apply to this table too.
+
+These observations locate substantial allocation, WAL and memory pressure in
+the inline path under this workload. They do not prove which mechanism causes
+the unplanned leader change, runtime error and seven extra deliveries. The three
+lower thresholds all exercise the same offloaded 1 MiB-body path; their numerical
+differences do not rank the thresholds for other body sizes. A 512 KiB offload
+profile is worth further controlled evaluation, while a production recommendation
+and default change remain unverified.
 
 ## Copying-policy cost
 
