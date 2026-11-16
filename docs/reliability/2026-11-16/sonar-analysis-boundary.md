@@ -21,7 +21,7 @@ classification from the SDK's `IsTestProject` flag. No production rule or findin
 is waived by this correction. See the
 [scanner's categorization contract](https://docs.sonarsource.com/sonarqube-server/10.8/analyzing-source-code/dotnet-environments/specify-test-project-analysis).
 
-Six boundary regressions cover broad exclusions reaching production/SDK code,
+Seven boundary regressions cover broad exclusions reaching production/SDK code,
 direct/nested diagnostic paths, preservation of release tools/evidence, missing
 production sources and incorrect project classification. An MSBuild property
 probe separately checks effective project classification and that compiler
@@ -53,3 +53,19 @@ unit-test job succeeds. The membership failure remains under investigation;
 recovery writes are not retried or their deadlines relaxed.
 [Failure identities and log hash](sonar-818-failures.json).
 Completed scan/scope/coverage verification remains required after the correction.
+
+The `d0cd0d2f` scan is successfully uploaded. Its submitted metadata identifies
+all five product/SDK projects as `Product`, and the unified benchmark as excluded.
+C# coverage import now reports **301 main files with coverage** (543 files total),
+and Python SDK coverage is imported for three files. The Windows job still fails:
+the busy WAL test with shared memory reaches its unchanged 20-second deadline.
+That independent concurrency failure remains open.
+
+A read of the processed PR file index also catches three benchmark tests still
+present as `UTS`: `sonar.exclusions` applies to main sources, so the same targeted
+inventory must also be passed as `sonar.test.exclusions`. The rest of the runtime
+and SDK tests remain analyzed. See the [scanner installation documentation](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/scanners/sonarscanner-for-dotnet/installing)
+for the two scope properties. The next CI scan must verify the corrected server
+index; the previous scan is not presented as a successful exclusion boundary.
+The boundary verifier now runs after an actual scanner submission even when the
+independent test step fails, while preserving that job's failure.
