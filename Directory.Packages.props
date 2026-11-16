@@ -84,7 +84,7 @@
 
   <!-- Samples -->
   <ItemGroup>
-    <PackageVersion Include="MailKit" Version="4.18.2" />
+    <PackageVersion Include="MailKit" Version="5.0.0" />
   </ItemGroup>
 
   <!-- Tooling -->
