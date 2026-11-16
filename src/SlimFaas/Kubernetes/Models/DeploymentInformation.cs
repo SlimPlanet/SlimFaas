@@ -84,6 +84,8 @@ public record PodInformation(
     string ResourceVersion = "",
     string? ServiceName = null)
 {
+    public string? Uid { get; init; }
+    public bool IsTerminating { get; init; }
     public IDictionary<string, string>? Annotations { get; init; }
     public string? RoutingKey { get; init; }
     public string? EndpointUrl { get; init; }

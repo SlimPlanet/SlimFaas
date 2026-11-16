@@ -120,6 +120,17 @@ public sealed class FakeKubernetesCluster
         }
     }
 
+    public void SetPodTerminating(string podName)
+    {
+        lock (_gate)
+        {
+            V1Pod pod = _pods.Single(p => p.Metadata.Name == podName);
+            pod.Metadata.DeletionTimestamp = DateTime.UtcNow;
+            pod.Metadata.ResourceVersion = NextResourceVersion();
+            Emit("pods", "MODIFIED", pod);
+        }
+    }
+
     public void AddJob(string jobName, string podIp)
     {
         lock (_gate)
@@ -234,6 +245,7 @@ public sealed class FakeKubernetesCluster
             Metadata = new V1ObjectMeta
             {
                 Name = podName,
+                Uid = Guid.NewGuid().ToString("D"),
                 ResourceVersion = "1"
             },
             Spec = new V1PodSpec

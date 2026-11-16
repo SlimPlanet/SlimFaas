@@ -516,13 +516,15 @@ public partial class KubernetesService
                 PodInformation podInformation = new(
                     podName,
                     started,
-                    started && containerReady && podReady,
+                    started && containerReady && podReady && metadata?.DeletionTimestamp is null,
                     podIp,
                     deploymentName,
                     ports,
                     resourceVersion,
                     serviceName)
                 {
+                    Uid = metadata?.Uid,
+                    IsTerminating = metadata?.DeletionTimestamp is not null,
                     Annotations = metadata?.Annotations,
                     StartFailureReason = startFailureReason,
                     StartFailureMessage = startFailureMessage,

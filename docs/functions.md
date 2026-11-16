@@ -185,6 +185,11 @@ This connection lifetime is independent of `HttpTimeout` and does not retry fail
 Pod selection uses the latest published destination cache, including when the
 request captured its function configuration earlier. Connection recycling and
 destination-cache updates address separate parts of routing.
+With direct pod routing, observing a Kubernetes deletion timestamp removes that
+pod from new ready-target selections even if its readiness conditions still say
+true during graceful termination. Already active requests retain their configured
+timeouts. If Kubernetes discovery is unavailable, SlimFaas retains its last known
+snapshot until synchronization succeeds again.
 
 `TimeoutRetries` defines the delays in seconds between attempts for asynchronous and publish calls. `HttpStatusRetries` lists the HTTP statuses that trigger those retries.
 
