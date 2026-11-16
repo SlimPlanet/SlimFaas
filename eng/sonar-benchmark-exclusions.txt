@@ -1,6 +1,10 @@
 # Benchmark workloads, fixtures and their dedicated tests.
+# Generated content copied by project references is never application source.
+**/bin/**/*
+**/obj/**/*
 benchmarks/**/*
 tests/SlimFaas.Tests/Benchmark/**/*
+tests/SlimFaas.Tests/Integration/KubernetesSyncBenchmarkShould.cs
 tools/SlimFaas.MemoryLab/**/*
 
 # Measurement/orchestration adapters; runtime and release tools stay analyzed.

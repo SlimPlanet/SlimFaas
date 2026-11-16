@@ -18,11 +18,20 @@ class AnalysisBoundaryTests(unittest.TestCase):
         exclusions = boundary.patterns()
         for path in ("benchmarks/SlimFaas.Benchmarks/Program.cs",
                      "benchmarks/SlimFaas.Benchmarks/Application/BenchmarkRunner.cs",
+                     "tests/SlimFaas.Tests/Integration/KubernetesSyncBenchmarkShould.cs",
                      "tools/SlimFaas.MemoryLab/Program.cs",
                      "docs/reliability/2026-11-16/analyze-micro-abba-189.py",
+                     "src/SlimFaas/bin/Debug/net11.0/ClientApp/tsconfig.json",
                      ".bin/run-local-disk-chaos.sh", ".bin/slimdata_fault_agent.py"):
             with self.subTest(path=path):
                 self.assertTrue(boundary.excluded(path, exclusions))
+
+    def test_typescript_discovery_uses_original_source_configs(self):
+        self.assertEqual(3, len(boundary.TSCONFIGS))
+        for path in boundary.TSCONFIGS:
+            self.assertFalse(boundary.excluded(path, boundary.patterns()))
+            self.assertTrue((boundary.ROOT / path).is_file())
+            self.assertTrue((boundary.ROOT / path).parent.joinpath("src").is_dir())
 
     def test_runtime_sdk_release_tools_and_evidence_remain_eligible(self):
         exclusions = boundary.patterns()

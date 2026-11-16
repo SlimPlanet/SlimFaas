@@ -16,6 +16,8 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "eng/sonar-benchmark-exclusions.txt"
+TSCONFIGS = ("src/SlimFaas/ClientApp/tsconfig.json", "src/SlimFaasMcp/ClientApp/tsconfig.json",
+             "src/SlimFaasSite/tsconfig.json")
 PROJECT = "SlimPlanet_SlimFaas"
 EXCLUDED_PROJECTS = (
     "benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj",
@@ -161,23 +163,35 @@ def verify_scan(scan_directory):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
-    parser.add_argument("--print-patterns", action="store_true")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--print-patterns", action="store_true")
+    output.add_argument("--print-tsconfigs", action="store_true")
     parser.add_argument("--scan-directory", type=Path)
+    parser.add_argument("--project-directory", type=Path)
     parser.add_argument("--report", type=Path)
     options = parser.parse_args()
     exclusions = patterns()
     if options.print_patterns:
         print(",".join(exclusions))
         return
+    if options.print_tsconfigs:
+        print(",".join(TSCONFIGS))
+        return
     files = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().strip("\0").split("\0")
     # Include the manifest's newly added verifier during an uncommitted local validation.
     files = sorted(set(files) | {str(Path(__file__).resolve().relative_to(ROOT))})
     report = {"inventory": inventory(files, exclusions), "excluded_projects": list(EXCLUDED_PROJECTS)}
+    for path in TSCONFIGS:
+        if not (ROOT / path).is_file() or not (ROOT / path).parent.joinpath("src").is_dir():
+            raise ValueError("TypeScript analysis config has no source tree: " + path)
+    report["typescript_configs"] = list(TSCONFIGS)
     for project in EXCLUDED_PROJECTS:
         if ET.parse(ROOT / project).getroot().findtext(".//SonarQubeExclude") != "true":
             raise ValueError("Missing explicit SonarQubeExclude: " + project)
     if options.scan_directory:
         report["scan"] = verify_scan(options.scan_directory)
+    if options.project_directory:
+        report["submitted_projects"] = check_projects(options.project_directory)
     report["passed"] = True
     if options.report:
         options.report.parent.mkdir(parents=True, exist_ok=True)

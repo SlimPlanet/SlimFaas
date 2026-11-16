@@ -114,15 +114,20 @@ jobs:
         run: |
           $benchmarkExclusions = python .bin/check-sonar-benchmark-boundary.py --print-patterns
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="$benchmarkExclusions" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          $typescriptConfigurations = python .bin/check-sonar-benchmark-boundary.py --print-tsconfigs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="$benchmarkExclusions" /d:sonar.typescript.tsconfigPaths="$typescriptConfigurations" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet tool install --global dotnet-coverage
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
           $testExitCode = $LASTEXITCODE
+          python .bin/check-sonar-benchmark-boundary.py --project-directory .sonarqube/out --report artifacts/sonar-boundary/submitted-projects.json
+          $metadataExitCode = $LASTEXITCODE
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN" 2>&1 | Tee-Object -FilePath artifacts/sonar-boundary/scanner-end.log
           $scanExitCode = $LASTEXITCODE
           if ($testExitCode -ne 0) { exit $testExitCode }
+          if ($metadataExitCode -ne 0) { exit $metadataExitCode }
           if ($scanExitCode -ne 0) { exit $scanExitCode }
 
       - name: Verify completed scan scope and production coverage import
