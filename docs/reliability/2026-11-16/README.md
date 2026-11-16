@@ -1,4 +1,4 @@
-# Final-source long endurance: closed Native roles
+# Final-source long endurance: completed Native roles
 
 The **macOS ARM64 Native AOT follower role passes the recovery and integrity
 harness** on source `189826231fe43fe3069e8a1f7724f83589432c6f`. All six absence
@@ -10,9 +10,14 @@ unknown outcomes remain separate.
 
 The [Native leader role](native-leader-189.md) also passes recovery/integrity,
 with 23,070 confirmed operations and 34 separately retained unknown outcomes.
-Two of six long roles are closed. Native quorum is running; the three
-dedicated-kind roles and general validation remain queued serially.
-Full runtime-log window classification, consolidated original-state indices and
+The [Native quorum role](native-quorum-189.md) also passes, with 146 confirmed
+operations and 26,107 separately retained unknown outcomes. All three Native
+roles are closed: **46,386 confirmed operations, 26,167 unknown outcomes**, zero
+confirmed missing operations, receipt corruption or successful repetitions.
+The first kind startup control fails before its long absences; its
+[budget correction](protocol-startup-budget.md) preserves that failure and the
+original data. Fresh dedicated-kind roles and general validation follow serially.
+Full runtime-log window classification, future kind original-state indices and
 the final performance verdict remain open. No merge or LTS certification is
 claimed. Earlier results remain attached to their actual source versions.
 
@@ -83,6 +88,12 @@ client journal. Its SHA-256 is
 `347a424b3e49cf1e4f93d7b55c78e3d3892551f66c02b11c506c09fadae61e1d`.
 Original state, WALs and snapshots remain on disk; full-tree hashing is deferred
 to the consolidated quiescent export. This archive does not contain the WAL tree.
+
+The later [consolidated original-state index](native-original-state-and-failed-kind-index-189.json.gz)
+now completes full-tree hashing after all Native writers stop. It covers 36,037
+Native original files and 76 files in the stopped failed kind-startup root,
+including state/WAL/snapshots. The earlier export's pending-hashing statement
+remains an accurate record of its own capture time.
 
 Build/reuse the recorded native publication with the
 [benchmark setup](../../benchmarking.md), then use a fresh output directory and

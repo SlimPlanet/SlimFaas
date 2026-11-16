@@ -290,6 +290,67 @@ class CampaignSafetyTests(unittest.TestCase):
         HARNESS.assert_minority_result((200, {}, b"", "id"), 10.001, 10)
         HARNESS.assert_minority_result((503, {}, b"", "id"), 9, 10)
 
+    def test_protocol_startup_budget_is_separate_from_recovery_and_ready_write_bounds(self):
+        self.exercise_protocol_startup_budget(300, 180, 300)
+
+    def test_protocol_startup_keeps_the_recovery_budget_when_not_configured(self):
+        self.exercise_protocol_startup_budget(None, 180, 180)
+
+    def exercise_protocol_startup_budget(self, startup, recovery, expected):
+        with tempfile.TemporaryDirectory() as output:
+            campaign = self.campaign(output)
+            campaign.options.protocol_startup_timeout = startup
+            campaign.options.recovery_timeout = recovery
+            clock = [0]
+            observed = []
+
+            def wait(description, _predicate, timeout):
+                observed.append(timeout)
+                if description == "owned leader process restarts":
+                    self.assertEqual(expected, timeout)
+                    clock[0] = 1
+                elif description == "restarted runtime opens its HTTP listener":
+                    self.assertEqual(expected, timeout)
+                    # A slow Kubernetes restart fits the historical startup
+                    # budget while exceeding the independent recovery bound.
+                    clock[0] = 201 if startup else 1
+                else:
+                    self.assertEqual(15, timeout)
+                    clock[0] += 1
+
+            with patch.object(campaign, "leader", return_value=0), \
+                    patch.object(campaign, "node_pid", side_effect=lambda node: 100 + node), \
+                    patch.object(campaign, "pause") as pause, \
+                    patch.object(campaign, "kill_node"), \
+                    patch.object(campaign, "require_mutation") as mutate, \
+                    patch.object(campaign, "ready"), patch.object(campaign, "verify"), \
+                    patch.object(HARNESS, "wait_until", side_effect=wait), \
+                    patch.object(HARNESS.time, "monotonic", side_effect=lambda: clock[0]):
+                campaign.protocol_timeout()
+            self.assertEqual([expected, expected, 15], observed)
+            self.assertEqual(15, mutate.call_args.kwargs["timeout"])
+            self.assertEqual(recovery, campaign.options.recovery_timeout)
+            self.assertEqual(201 if startup else 1,
+                             campaign.results[-1]["restart_to_listener_seconds"])
+            self.assertEqual(set(), campaign.suspended)
+            self.assertEqual([call(101, True), call(101, False)], pause.call_args_list)
+
+    def test_protocol_startup_budget_can_be_configured_without_changing_recovery(self):
+        options = HARNESS.parse_arguments([
+            "--output", "unused", "--runtime", str(Path(__file__)),
+            "--recovery-timeout", "300", "--protocol-startup-timeout", "300",
+            "--recovery-timeout", "180"])
+        self.assertEqual(300, options.protocol_startup_timeout)
+        self.assertEqual(180, options.recovery_timeout)
+
+    def test_protocol_startup_budget_rejects_non_positive_values(self):
+        for value in ["0", "-1", "inf", "nan"]:
+            with self.subTest(value=value), patch("sys.stderr", new=io.StringIO()), \
+                    self.assertRaises(SystemExit):
+                HARNESS.parse_arguments([
+                    "--output", "unused", "--runtime", str(Path(__file__)),
+                    "--protocol-startup-timeout", value])
+
     def campaign(self, output):
         options = HARNESS.parse_arguments(["--output", str(Path(output) / "run"),
                                            "--runtime", str(Path(__file__))])

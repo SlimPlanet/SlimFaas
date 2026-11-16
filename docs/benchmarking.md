@@ -322,6 +322,16 @@ deadline. The existing membership announcement can consume 200 seconds before
 the restarted listener opens when its first peer is silent. Retain that startup
 time in the report, even when the subsequent majority check succeeds.
 
+Keep these bounds separate in container endurance campaigns: pass
+`--protocol-startup-timeout 300 --recovery-timeout 180` through the Kubernetes
+launcher to the chaos driver. The startup option applies only to the process
+restart and HTTP-listener waits in `protocol-timeout`; its default remains the
+recovery timeout for compatibility with existing commands. The subsequent
+ready/write guard stays fixed at 15 seconds, and recovery/confirmed-drain waits
+remain at 180 seconds. The report records both the selected startup allowance
+and actual crash-to-listener time. A startup failure remains a retained failed
+observation and must not be counted as a completed long endurance.
+
 Benchmark targets accept `--host 0.0.0.0` for container access (default remains
 loopback). MemoryLab accepts `--node-urls http://node-0:5000,http://node-1:5000,http://node-2:5000`;
 the existing local ports remain the default. URLs must be HTTP(S) origins without

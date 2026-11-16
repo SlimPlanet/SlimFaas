@@ -14,6 +14,7 @@ import errno
 import hashlib
 import http.client
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -696,6 +697,7 @@ class Campaign:
 
     def protocol_timeout(self):
         self.phase = "protocol-probe-with-silent-follower"
+        startup_timeout = self.options.protocol_startup_timeout or self.options.recovery_timeout
         leader = self.leader()
         if leader is None:
             raise AssertionError("No leader before protocol-probe regression")
@@ -710,10 +712,10 @@ class Campaign:
             self.client.append({"event": "leader-crashed-with-silent-follower", "node": leader,
                                 "pid": previous, "follower": follower})
             wait_until("owned leader process restarts", lambda: self.node_pid(leader) != previous,
-                       self.options.recovery_timeout)
+                       startup_timeout)
             wait_until("restarted runtime opens its HTTP listener", lambda:
                 request(self.ports[leader], "/health", timeout=1)[0] == 200,
-                self.options.recovery_timeout)
+                startup_timeout)
             started = time.monotonic()
             wait_until("remaining majority becomes ready despite a silent protocol endpoint", lambda:
                 all(request(port, "/ready", timeout=1)[0] == 200
@@ -728,6 +730,8 @@ class Campaign:
             self.results.append({"phase": self.phase, "passed": True, "suspended_follower": follower,
                                  "restarted_leader": leader, "ready_and_write_seconds": time.monotonic() - started})
             self.results[-1]["restart_to_listener_seconds"] = started - crashed_at
+            self.results[-1]["protocol_startup_timeout_seconds"] = startup_timeout
+            self.results[-1]["ready_and_write_budget_seconds"] = 15
             print(json.dumps(self.results[-1]), flush=True)
         finally:
             self.pause(stopped, False)
@@ -1714,6 +1718,9 @@ def parse_arguments(argv=None):
     parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--request-timeout", type=float, default=15)
     parser.add_argument("--recovery-timeout", type=float, default=180)
+    parser.add_argument("--protocol-startup-timeout", type=float,
+                        help="Separate process/listener startup bound for the silent-follower protocol probe; "
+                             "defaults to recovery timeout, without changing its 15-second ready/write guard")
     parser.add_argument("--scenarios", default="payloads,api,files,wake,retries,chaos,restarts")
     parser.add_argument("--durations", type=lambda value: [float(x) for x in value.split(",")], default=[1, 5, 10])
     parser.add_argument("--roles", default="follower,leader,quorum")
@@ -1725,6 +1732,9 @@ def parse_arguments(argv=None):
         parser.error("--source-commit must be a full 40-character commit SHA")
     if options.concurrency < 1 or options.request_timeout <= 0 or options.recovery_timeout <= 0 or options.traffic_interval < .05:
         parser.error("concurrency/timeouts must be positive; traffic interval must be >= 0.05 seconds")
+    if options.protocol_startup_timeout is not None and (
+            not math.isfinite(options.protocol_startup_timeout) or options.protocol_startup_timeout <= 0):
+        parser.error("protocol startup timeout must be positive and finite")
     if not options.payload_sizes or any(size < 0 or size > 20 * 1024 * 1024 for size in options.payload_sizes):
         parser.error("fixture payload sizes must be between 0 and 20 MiB")
     if any(seconds <= 0 for seconds in options.durations):

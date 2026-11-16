@@ -1,0 +1,234 @@
+{
+  "created": 1794817907.092097,
+  "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "failed_original": {
+    "passed": false,
+    "error": "AssertionError('Timed out: restarted runtime opens its HTTP listener; last transport error: <urlopen error [Errno 111] Connection refused>')",
+    "results": [],
+    "accepted": 0,
+    "unknown": 0,
+    "missing": [],
+    "finished_utc": 1794816879.7518075
+  },
+  "correction": "Independent --protocol-startup-timeout300 restores pre-existing container startup allowance; recovery180 and ready/write15 unchanged. Default startup fallback remains recovery timeout. Runtime binary/image unchanged.",
+  "validation": {
+    "finished": 1794817553.473255,
+    "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+    "scope": "Harness-only protocol startup allowance; original Kube300 restored separately from recovery180 and ready/write15. Native runtime binary/image71 unchanged. Four added unit tests; two fail on old harness, all32local/41platform tests pass on correction.",
+    "results": [
+      {
+        "file": "red.log",
+        "sha256": "b73c2374189a74ff5b177415b1d5a0070e7f5418f441eee9f5845624a4606a2c",
+        "tail": "ness.py\", line 310, in wait\n    self.assertEqual(expected, timeout)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^\nAssertionError: 300 != 180\n\n----------------------------------------------------------------------\nRan 2 tests in 0.010s\n\nFAILED (failures=1, errors=1)\n"
+      },
+      {
+        "file": "green-all-harness.log",
+        "sha256": "7364418ac25a48e691b1d5ccb57889aa399f9bb6097cce495c98361f73923cd9",
+        "tail": "der\": 0, \"ready_and_write_seconds\": 1, \"restart_to_listener_seconds\": 1, \"protocol_startup_timeout_seconds\": 180, \"ready_and_write_budget_seconds\": 15}\n.........\n----------------------------------------------------------------------\nRan 32 tests in 0.859s\n\nOK\n"
+      },
+      {
+        "file": "green-platform.log",
+        "sha256": "05fe8db091dd17c1da43f93b5505a5ac8c1cd853ad562d6720cfba2751344853",
+        "tail": ".........................................\n----------------------------------------------------------------------\nRan 41 tests in 2.693s\n\nOK\n"
+      },
+      {
+        "file": "green-launcher-argument-order.log",
+        "sha256": "fb184ea57734512b1f088f9181209901b9cd46df3eb7eaa2500ea9e48dde20b5",
+        "tail": ".\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nOK\n"
+      }
+    ]
+  },
+  "original_shutdown_passed": true,
+  "archive": {
+    "path": "protocol-startup-budget-reproducer-112.tar.gz",
+    "bytes": 144311,
+    "sha256": "5439237654dde50b164394c024886b1eb29b3333380277c2750976e616ae17df"
+  },
+  "files": [
+    {
+      "path": "corrected/.bin/run-kubernetes-campaign.py",
+      "bytes": 31219,
+      "sha256": "dc2eb098b03fa4bbe58b916d1c1cda1816b070eeaef68c57336ac448d7dc8d4f"
+    },
+    {
+      "path": "corrected/.bin/slimdata_kubernetes_backend.py",
+      "bytes": 9377,
+      "sha256": "69351e8a016ac373431c0709699a984019a192f08b2677e984880d44836a7370"
+    },
+    {
+      "path": "corrected/.bin/test-local-chaos-harness.py",
+      "bytes": 26136,
+      "sha256": "603674ace86b60aaf30717705366ae85fca2a378557c46df5be28e2595de5ea3"
+    },
+    {
+      "path": "corrected/.bin/test-slimdata-local-chaos.py",
+      "bytes": 100981,
+      "sha256": "cc0b177eea9c74d27606ad637c76df6042a5646a81d7f1ef5b96d71bd3dd69b4"
+    },
+    {
+      "path": "corrected/tests/SlimFaas.Tests/Local/chaos_function.py",
+      "bytes": 7174,
+      "sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48"
+    },
+    {
+      "path": "original-controller/backend.json",
+      "bytes": 1573,
+      "sha256": "02114f8620808ab67de53550f0db54a23e3ec73c1eb060010091e5c506880c44"
+    },
+    {
+      "path": "original-controller/campaign-driver-xkkcc-driver.log",
+      "bytes": 2045,
+      "sha256": "005f26d0b51b9bc17c0988de4256329256236ac731d37306028306bc7b757d77"
+    },
+    {
+      "path": "original-controller/chaos-596d766b59-lnn2j-function.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/chaos-fanout-a-f7c9d647-lbxs4-function.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/chaos-fanout-b-67c66c8957-xntbh-function.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/kubernetes-deployments.json",
+      "bytes": 65850,
+      "sha256": "41642bd5c81cbaf6cd24c793b85a2af74e63c6ea160aac9ecb6eee708ae488a4"
+    },
+    {
+      "path": "original-controller/kubernetes-events.json",
+      "bytes": 136179,
+      "sha256": "f3ce09c742ca99970aec78ce67b0958d6e37bccbded9e549581f1ca4b58f74b5"
+    },
+    {
+      "path": "original-controller/kubernetes-jobs.json",
+      "bytes": 14736,
+      "sha256": "eaf4e8fecc9ba5e048660f058af5e452d4e38f48e01384980aa84365d17f27c3"
+    },
+    {
+      "path": "original-controller/kubernetes-pods.json",
+      "bytes": 90561,
+      "sha256": "c2ac69186ac3682be428cd7497a9a3da8171f44765026a64f25ba0aa772c8152"
+    },
+    {
+      "path": "original-controller/kubernetes-pvc.json",
+      "bytes": 6111,
+      "sha256": "ee9bb99c59d046a8bcd90e797fb07eb81cccdec6902581d7ee920d081fc01c89"
+    },
+    {
+      "path": "original-controller/kubernetes-statefulsets.json",
+      "bytes": 26839,
+      "sha256": "40a24fe4077590afda2abd97e8f30d998e5485d42a724c25373fd823fc84dd75"
+    },
+    {
+      "path": "original-controller/pod-log-coverage.json",
+      "bytes": 3899,
+      "sha256": "f0203cc6125e517d40365c6147f7708262dc4965e62a8463687018c01671d3e2"
+    },
+    {
+      "path": "original-controller/pod-logs/41e6d6c5-1787-4e9d-a104-3451a013483a/function/0-current-1794816895837335000.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/pod-logs/53d3d8c4-5640-4fff-9734-c100d02f6990/function/0-current-1794816895759199000.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/pod-logs/5766eb3e-58bc-48e0-b4b8-1043f326fa25/function/0-current-1794816895612232000.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/pod-logs/71dceb37-90ab-4422-a974-8c638d3ba988/function/0-current-1794816895683586000.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/pod-logs/976253d1-0402-43d5-a68c-81207cd206f8/driver/0-current-1794816895539302000.log",
+      "bytes": 2045,
+      "sha256": "005f26d0b51b9bc17c0988de4256329256236ac731d37306028306bc7b757d77"
+    },
+    {
+      "path": "original-controller/receipts-7974b7f868-bxz68-function.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "original-controller/resources.json",
+      "bytes": 200192,
+      "sha256": "649db9210370e70ba6ddcbc5865b4ffbee695ecba626a7a936362d7676bc2b9f"
+    },
+    {
+      "path": "original-controller/shutdown.json",
+      "bytes": 6904,
+      "sha256": "f4f144e0ec8eab172b43c44c977bb08e9b0d560ec576d30c979abf475b19913e"
+    },
+    {
+      "path": "reproducer/correction.patch",
+      "bytes": 9264,
+      "sha256": "df3e3d21d4ae0441c5dd4bb173b22919b4db09886c48277456279402f88c0f88"
+    },
+    {
+      "path": "reproducer/green-all-harness.log",
+      "bytes": 645,
+      "sha256": "7364418ac25a48e691b1d5ccb57889aa399f9bb6097cce495c98361f73923cd9"
+    },
+    {
+      "path": "reproducer/green-launcher-argument-order.log",
+      "bytes": 98,
+      "sha256": "fb184ea57734512b1f088f9181209901b9cd46df3eb7eaa2500ea9e48dde20b5"
+    },
+    {
+      "path": "reproducer/green-platform.log",
+      "bytes": 140,
+      "sha256": "05fe8db091dd17c1da43f93b5505a5ac8c1cd853ad562d6720cfba2751344853"
+    },
+    {
+      "path": "reproducer/original-report.json",
+      "bytes": 282,
+      "sha256": "ba80da577c3a842ec9a87b9d6d9020eda4000e3d2cd69fcffc45288bedef0150"
+    },
+    {
+      "path": "reproducer/red.log",
+      "bytes": 4916,
+      "sha256": "b73c2374189a74ff5b177415b1d5a0070e7f5418f441eee9f5845624a4606a2c"
+    },
+    {
+      "path": "reproducer/run-kubernetes-campaign.py",
+      "bytes": 31219,
+      "sha256": "dc2eb098b03fa4bbe58b916d1c1cda1816b070eeaef68c57336ac448d7dc8d4f"
+    },
+    {
+      "path": "reproducer/run-net11-189-105-container-validation.py",
+      "bytes": 3493,
+      "sha256": "08ca33c48a078fcd2d1c7aaf17ec73c4ebdc8e7055cb4e55a9fd8708a51e1e0a"
+    },
+    {
+      "path": "reproducer/scope.json",
+      "bytes": 591,
+      "sha256": "9b6a6d84f1d32003211a660dacf017359e2315a0d50c3be34e326d4aeea243ff"
+    },
+    {
+      "path": "reproducer/test-local-chaos-harness.py",
+      "bytes": 22758,
+      "sha256": "edfc5c9e127e7c55dbc66e281628a9b0b71098ef76ab9cada9ea8ed91096826a"
+    },
+    {
+      "path": "reproducer/test-slimdata-local-chaos.py",
+      "bytes": 100218,
+      "sha256": "ebc3c3b2090fed78ba60edaaee81cf42b19d47aa03419499edfe8ff161014eb4"
+    },
+    {
+      "path": "reproducer/validation.json",
+      "bytes": 1784,
+      "sha256": "894a6b474bee04a1bfdd794165b74be6b4396487e4ef92edaf86cc5ae8b795b2"
+    }
+  ]
+}
