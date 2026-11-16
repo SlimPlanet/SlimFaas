@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -43,7 +44,13 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
         var replicas = new Mock<IReplicasService>(MockBehavior.Strict);
         replicas.SetupGet(x => x.Deployments).Returns(() => new DeploymentsInformations([], topology, []));
         var elapsed = Stopwatch.StartNew();
+        var diagnostics = new ConcurrentQueue<string>();
         void Phase(string phase) => output.WriteLine($"{elapsed.Elapsed.TotalSeconds:F1}s: {phase}");
+        void DumpDiagnostics()
+        {
+            while (diagnostics.TryDequeue(out string? message))
+                output.WriteLine(message);
+        }
 
         try
         {
@@ -56,7 +63,14 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             }
 
             await AllMembersAsync(3);
-            await WriteAsync("before-replacement");
+            // Only the idempotent setup seed can be retried before any replacement.
+            // Writes during recovery and after election remain single-attempt.
+            await RaftMembershipBootstrap.SeedAsync(() => WriteAsync("before-replacement"),
+                () =>
+                {
+                    Phase("bootstrap seed leadership changed; reselect leader");
+                    DumpDiagnostics();
+                }, token);
             await VerifyAsync("before-replacement");
 
             IHost originalLeader = await LeaderAsync();
@@ -111,6 +125,11 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             await VerifyAsync("before-replacement", "during-replacement", "after-election");
             Phase("all members agree and retain committed values");
         }
+        catch
+        {
+            DumpDiagnostics();
+            throw;
+        }
         finally
         {
             await Task.WhenAll(Enumerable.Range(0, hosts.Length).Select(StopAsync));
@@ -134,7 +153,8 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             };
             IHost host = new HostBuilder()
                 .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(configuration))
-                .ConfigureLogging(builder => builder.ClearProviders())
+                .ConfigureLogging(builder => builder.ClearProviders().SetMinimumLevel(LogLevel.Warning)
+                    .AddProvider(new RaftMembershipDiagnostics(diagnostics, index)))
                 .ConfigureWebHost(builder => builder
                     .UseKestrel(options => options.Listen(IPAddress.Loopback, ports[index]))
                     .UseStartup<Startup>())
@@ -187,7 +207,7 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
                 {
                     // Catch-up can change the term under coverage. Membership addition is
                     // idempotent; reselect the leader within the fixture's existing deadline.
-                    // Application writes and the recovery assertions remain single-attempt.
+                    // Post-bootstrap application writes and recovery assertions remain single-attempt.
                     Phase("bootstrap leadership changed; reselect leader");
                 }
             }

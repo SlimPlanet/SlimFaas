@@ -1,0 +1,400 @@
+{
+  "created": 1794841749.72941,
+  "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "failed_source": "02bff5990d95e2b2e8963c797d1a902653b7b7d6",
+  "failed_ci_job": 133313689367,
+  "cause": "Initial idempotent setup write lost leadership after leader selection, before any replacement. The fixture treated bootstrap readiness as a guarantee that this direct replication would retain leadership.",
+  "correction": "Only the logical key/value setup seed retries NotLeaderException within the existing90s fixture deadline. Other failures and expired deadlines propagate. Post-bootstrap/recovery writes remain single-attempt. Per-node warnings/errors are emitted on setup retry or fixture failure; no node exceptions are silently hidden by disabled logging.",
+  "validation": {
+    "started": 1794840690.315802,
+    "phase": "closed",
+    "passed": true,
+    "commands": [
+      {
+        "label": "red",
+        "argv": [
+          "/Users/a115vc/.local/share/slimfaas-pr506/toolchains/dotnet-11.0.100/dotnet",
+          "test",
+          "tests/SlimFaas.Tests/SlimFaas.Tests.csproj",
+          "-p:SkipClientAppBuild=true",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~SlimFaas.Tests.Integration.RaftMembershipBootstrapTests",
+          "--logger",
+          "trx",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/reproductions/bootstrap-seed-leadership-net11-142/red"
+        ],
+        "exit_code": 1,
+        "log": "logs/net11-142-red.log",
+        "log_sha256": "a32058ca66b12d02d05ea95372b9d1f8efc9815029243bd9727aeb89375eea2a",
+        "finished": 1794840815.537916
+      },
+      {
+        "label": "green-full-solution",
+        "argv": [
+          "/Users/a115vc/.local/share/slimfaas-pr506/toolchains/dotnet-11.0.100/dotnet",
+          "test",
+          "-p:SkipClientAppBuild=true",
+          "-nr:false",
+          "--logger",
+          "trx",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/reproductions/bootstrap-seed-leadership-net11-142/green"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-142-green-full-solution.log",
+        "log_sha256": "7781c38af433f7018bb4492a765d32ec87b2a6795cab00f1a1fb14cf6623b7db",
+        "finished": 1794841110.306375
+      },
+      {
+        "label": "green-membership-coverage",
+        "argv": [
+          "/Users/a115vc/.local/share/slimfaas-pr506/toolchains/dotnet-11.0.100/dotnet",
+          "test",
+          "tests/SlimFaas.Tests/SlimFaas.Tests.csproj",
+          "--no-build",
+          "--no-restore",
+          "-p:SkipClientAppBuild=true",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~SlimFaas.Tests.Integration.RaftMembershipRecoveryTests",
+          "--collect",
+          "Code Coverage;Format=cobertura",
+          "--logger",
+          "trx",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/reproductions/bootstrap-seed-leadership-net11-142/green-coverage"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-142-green-membership-coverage.log",
+        "log_sha256": "4eafd260180d10efc641f3e6add4d8b25f07016dd4d3b38c7c9fcf5eaff3454f",
+        "finished": 1794841127.150368
+      }
+    ],
+    "scope": "Test fixture only: bounded retry for the idempotent bootstrap seed before replacement. Product source189, all timeout values and later recovery writes remain unchanged. Execute only after long endurances and original-state proof export have closed.",
+    "red_counters": [
+      {
+        "path": "red/_a115vcCX1PXQ575D_2026-11-16_15_53_35_net11.0.trx",
+        "sha256": "dee3a269c6e3675dcb963d3e60cdb8afc1b7bd4de0a4df46db8735cc94a376a0",
+        "total": 4,
+        "executed": 4,
+        "passed": 3,
+        "failed": 1,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      }
+    ],
+    "green_applied_sha256": "ec35c458f18eee0bb8964214d96b4d13ee01544d8033609ba79657779cb06425",
+    "green_counters": [
+      {
+        "path": "green/_a115vcCX1PXQ575D_2026-11-16_15_56_57_net11.0.trx",
+        "sha256": "5afbae89097fad7a2bf36fb6251f31a1c3e5b45895aa18f9f58fe5c3daab3792",
+        "total": 52,
+        "executed": 52,
+        "passed": 52,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      {
+        "path": "green/_a115vcCX1PXQ575D_2026-11-16_15_56_58_net11.0.trx",
+        "sha256": "396a60384fbe0a07ee5af62456fce0432b007813c1d0e8efd3e4a6abc5d1dfd1",
+        "total": 11,
+        "executed": 11,
+        "passed": 11,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      {
+        "path": "green/_a115vcCX1PXQ575D_2026-11-16_15_56_58_net11.0[1].trx",
+        "sha256": "ef55e2c92f83886569327897b60317a7355d27589f96dc18e91bc07907e42e15",
+        "total": 466,
+        "executed": 466,
+        "passed": 466,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      {
+        "path": "green/_a115vcCX1PXQ575D_2026-11-16_15_56_59_net11.0.trx",
+        "sha256": "46449c55da808ecaf86ac50b3e150492a3c67a91b1f027aff88043473e91643d",
+        "total": 109,
+        "executed": 109,
+        "passed": 109,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      },
+      {
+        "path": "green/_a115vcCX1PXQ575D_2026-11-16_15_57_02_net11.0.trx",
+        "sha256": "129ec0d25fdec788b1edfab12a73d8d778a2125d4e663421a3d48bab539bd218",
+        "total": 1787,
+        "executed": 1787,
+        "passed": 1787,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      }
+    ],
+    "coverage_counters": [
+      {
+        "path": "green-coverage/_a115vcCX1PXQ575D_2026-11-16_15_58_41_net11.0.trx",
+        "sha256": "c3276de3d8f2d81829804f4d559ac27e9d267e970604d4560b57b97918c3555f",
+        "total": 2,
+        "executed": 2,
+        "passed": 2,
+        "failed": 0,
+        "error": 0,
+        "timeout": 0,
+        "aborted": 0,
+        "inconclusive": 0,
+        "passedButRunAborted": 0,
+        "notRunnable": 0,
+        "notExecuted": 0,
+        "disconnected": 0,
+        "warning": 0,
+        "completed": 0,
+        "inProgress": 0,
+        "pending": 0
+      }
+    ],
+    "finished": 1794841127.160901,
+    "product_source_unchanged": true,
+    "red_to_green": {
+      "red": "1failed/3passed",
+      "green_full": "2425passed,0failed/skipped",
+      "instrumented_membership": "2passed,0failed/skipped"
+    },
+    "test_source_sha256": {
+      "tests/SlimFaas.Tests/Integration/RaftMembershipBootstrap.cs": "ec35c458f18eee0bb8964214d96b4d13ee01544d8033609ba79657779cb06425",
+      "tests/SlimFaas.Tests/Integration/RaftMembershipBootstrapTests.cs": "7a86deeca8044488c9471f62c17b59f6ac603ed746e735bc95c27e4f0be9e7fb",
+      "tests/SlimFaas.Tests/Integration/RaftMembershipRecoveryTests.cs": "ffc4a70f31b7442878eb1437b93c567b186b6818466b6204b8e6d9b67973169f",
+      "tests/SlimFaas.Tests/Integration/RaftMembershipDiagnostics.cs": "c9911abde2934396cb2061bb87886f99056c773d18f668649205449d76bfb97a"
+    }
+  },
+  "archive": {
+    "path": "bootstrap-seed-fixture-142-raw.tar.gz",
+    "bytes": 3444901,
+    "sha256": "f83f519ee507e29e6fda67e6144546ecb3bcce4028d88263b9a6a01eacc3f0da"
+  },
+  "files": [
+    {
+      "path": "reproduction/RaftMembershipBootstrap.green.cs",
+      "bytes": 869,
+      "sha256": "ec35c458f18eee0bb8964214d96b4d13ee01544d8033609ba79657779cb06425"
+    },
+    {
+      "path": "reproduction/RaftMembershipRecoveryTests.original-02bff599.cs",
+      "bytes": 12148,
+      "sha256": "b9ae54f7cdf0ed676933f4628ce56cd2cc379485f66bd73581ed4f9609e11a2d"
+    },
+    {
+      "path": "reproduction/green/_a115vcCX1PXQ575D_2026-11-16_15_56_57_net11.0.trx",
+      "bytes": 80552,
+      "sha256": "5afbae89097fad7a2bf36fb6251f31a1c3e5b45895aa18f9f58fe5c3daab3792"
+    },
+    {
+      "path": "reproduction/green/_a115vcCX1PXQ575D_2026-11-16_15_56_58_net11.0.trx",
+      "bytes": 16990,
+      "sha256": "396a60384fbe0a07ee5af62456fce0432b007813c1d0e8efd3e4a6abc5d1dfd1"
+    },
+    {
+      "path": "reproduction/green/_a115vcCX1PXQ575D_2026-11-16_15_56_58_net11.0[1].trx",
+      "bytes": 669684,
+      "sha256": "ef55e2c92f83886569327897b60317a7355d27589f96dc18e91bc07907e42e15"
+    },
+    {
+      "path": "reproduction/green/_a115vcCX1PXQ575D_2026-11-16_15_56_59_net11.0.trx",
+      "bytes": 154934,
+      "sha256": "46449c55da808ecaf86ac50b3e150492a3c67a91b1f027aff88043473e91643d"
+    },
+    {
+      "path": "reproduction/green/_a115vcCX1PXQ575D_2026-11-16_15_57_02_net11.0.trx",
+      "bytes": 2953001,
+      "sha256": "129ec0d25fdec788b1edfab12a73d8d778a2125d4e663421a3d48bab539bd218"
+    },
+    {
+      "path": "reproduction/green-coverage/_a115vcCX1PXQ575D_2026-11-16_15_58_41/In/a115vcCX1PXQ575D/a115vc@login.axa_a115vcCX1PXQ575D_2026-11-16.15_58_46.cobertura.xml",
+      "bytes": 34153111,
+      "sha256": "dea3a79a22469dd8cd0adea18f7d60f95d301a930a7613a8e2345089cf182d1a"
+    },
+    {
+      "path": "reproduction/green-coverage/_a115vcCX1PXQ575D_2026-11-16_15_58_41_net11.0.trx",
+      "bytes": 9139,
+      "sha256": "c3276de3d8f2d81829804f4d559ac27e9d267e970604d4560b57b97918c3555f"
+    },
+    {
+      "path": "reproduction/green-coverage/b73aa0ed-fd3f-489e-a72a-e60aff5f695d/a115vc@login.axa_a115vcCX1PXQ575D_2026-11-16.15_58_46.cobertura.xml",
+      "bytes": 34153111,
+      "sha256": "dea3a79a22469dd8cd0adea18f7d60f95d301a930a7613a8e2345089cf182d1a"
+    },
+    {
+      "path": "reproduction/preparation-before-analyzer-signature-order.json",
+      "bytes": 1180,
+      "sha256": "8319686ca1e91eb8ea87a8e06e49304d4c670e2a818dc885ca08def1daef85b2"
+    },
+    {
+      "path": "reproduction/preparation-before-diagnostics.json",
+      "bytes": 1539,
+      "sha256": "5e07913ac03f03057f56077c5fbcf7c23e1fa3aaa4d26d40ba67cb44798643c9"
+    },
+    {
+      "path": "reproduction/preparation-before-inner-cancellation-case.json",
+      "bytes": 1330,
+      "sha256": "300957eaf67137c131d87b3d9c0733d94b81058aaf1aaab680e7fa8d1dfa1d8b"
+    },
+    {
+      "path": "reproduction/preparation.json",
+      "bytes": 1903,
+      "sha256": "5c8a42ded9d10404a88c5451dc7fe8a7df2a735ebe0e23fd2ed19a57aa35b014"
+    },
+    {
+      "path": "reproduction/red/_a115vcCX1PXQ575D_2026-11-16_15_53_35_net11.0.trx",
+      "bytes": 9381,
+      "sha256": "dee3a269c6e3675dcb963d3e60cdb8afc1b7bd4de0a4df46db8735cc94a376a0"
+    },
+    {
+      "path": "reproduction/red-source/tests/SlimFaas.Tests/Integration/RaftMembershipBootstrap.cs",
+      "bytes": 392,
+      "sha256": "c20a6ac904e547a580ae21b28c358f9de41d79c558664f7c15c9cfca3a3d40bf"
+    },
+    {
+      "path": "reproduction/red-source/tests/SlimFaas.Tests/Integration/RaftMembershipBootstrapTests.cs",
+      "bytes": 2748,
+      "sha256": "7a86deeca8044488c9471f62c17b59f6ac603ed746e735bc95c27e4f0be9e7fb"
+    },
+    {
+      "path": "reproduction/red-source/tests/SlimFaas.Tests/Integration/RaftMembershipDiagnostics.cs",
+      "bytes": 1217,
+      "sha256": "c9911abde2934396cb2061bb87886f99056c773d18f668649205449d76bfb97a"
+    },
+    {
+      "path": "reproduction/red-source/tests/SlimFaas.Tests/Integration/RaftMembershipRecoveryTests.cs",
+      "bytes": 13005,
+      "sha256": "ffc4a70f31b7442878eb1437b93c567b186b6818466b6204b8e6d9b67973169f"
+    },
+    {
+      "path": "preflight/net11-142-bootstrap-validation.json",
+      "bytes": 7318,
+      "sha256": "2d32f33ecea89012b13fb33de331a2eef826833f45c4809dcbe9295e239b6651"
+    },
+    {
+      "path": "preflight/net11-142-deferred-test-handoff.json",
+      "bytes": 856,
+      "sha256": "007dc98204404bf8c97f21c2d61c118e639fe71dce2a9d4aab1736b1fae42ae2"
+    },
+    {
+      "path": "preflight/net11-140-queued-toolchain-preflight.json",
+      "bytes": 1201,
+      "sha256": "5e2e3d073a4a495c353cf3a13556ce7e58483cc430a784f4b21dc55e397e45c5"
+    },
+    {
+      "path": "ci/net11-02b-sonar-job-133313689367-raw.json",
+      "bytes": 344378,
+      "sha256": "49a99713df6dd764af99b51b513196fcfac14252f5847fa82897c04d3f5d338b"
+    },
+    {
+      "path": "ci/net11-02b-main-jobs.json",
+      "bytes": 74188,
+      "sha256": "db0771c6db9293981797824bbeaca8ec16c73d2537ef17c7cf871aedb7a13058"
+    },
+    {
+      "path": "logs/net11-142-red.log",
+      "bytes": 2479,
+      "sha256": "a32058ca66b12d02d05ea95372b9d1f8efc9815029243bd9727aeb89375eea2a"
+    },
+    {
+      "path": "logs/net11-142-green-full-solution.log",
+      "bytes": 5371,
+      "sha256": "7781c38af433f7018bb4492a765d32ec87b2a6795cab00f1a1fb14cf6623b7db"
+    },
+    {
+      "path": "logs/net11-142-green-membership-coverage.log",
+      "bytes": 764,
+      "sha256": "4eafd260180d10efc641f3e6add4d8b25f07016dd4d3b38c7c9fcf5eaff3454f"
+    },
+    {
+      "path": "green-source/tests/SlimFaas.Tests/Integration/RaftMembershipBootstrap.cs",
+      "bytes": 869,
+      "sha256": "ec35c458f18eee0bb8964214d96b4d13ee01544d8033609ba79657779cb06425"
+    },
+    {
+      "path": "green-source/tests/SlimFaas.Tests/Integration/RaftMembershipBootstrapTests.cs",
+      "bytes": 2748,
+      "sha256": "7a86deeca8044488c9471f62c17b59f6ac603ed746e735bc95c27e4f0be9e7fb"
+    },
+    {
+      "path": "green-source/tests/SlimFaas.Tests/Integration/RaftMembershipRecoveryTests.cs",
+      "bytes": 13005,
+      "sha256": "ffc4a70f31b7442878eb1437b93c567b186b6818466b6204b8e6d9b67973169f"
+    },
+    {
+      "path": "green-source/tests/SlimFaas.Tests/Integration/RaftMembershipDiagnostics.cs",
+      "bytes": 1217,
+      "sha256": "c9911abde2934396cb2061bb87886f99056c773d18f668649205449d76bfb97a"
+    }
+  ],
+  "scope": "Test-only correction. Product source, native publications, image71, dependencies, all existing deadlines, and completed long-endurance results are unchanged. Original failed CI log is retained; corrected Windows CI and formal performance acceptance remain separate requirements. No LTS claim."
+}

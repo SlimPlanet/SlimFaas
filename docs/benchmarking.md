@@ -12,6 +12,13 @@ and [file-index metadata](reliability/2026-11-13/performance-raw-file-index-meta
 identify the frozen sources, outputs and separate maintenance/isolation segments.
 The completed campaigns do not establish non-regression or LTS certification.
 
+The [16 November final-source endurances](reliability/2026-11-16/README.md)
+complete all six Native macOS/managed kind roles, with 92,332 confirmed
+operations, 35,186 separate unknown outcomes and zero confirmed loss or receipt
+corruption. One extra successful delivery on an unknown outcome during an
+injected fault remains counted. Those recovery/integrity results do not replace
+the still-required formal performance comparisons or establish LTS acceptance.
+
 The [15 November follow-up](reliability/2026-11-15/README.md) retains bounded
 Kubernetes reproductions, managed-OOM audits, failed healthy-delivery controls and
 separate allocation regressions. Its corrections preserve wire formats, queue
@@ -683,7 +690,7 @@ benchmark sources against each revision:
 
 ```bash
 dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks \
-  -p:SkipClientAppBuild=true -- --extended \
+  -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true -- --extended \
   --filter '*DataFeatureBenchmarks*' '*CollectionPipelineBenchmarks*' \
            '*RoutingQueryBenchmarks*' '*SlimDataQueueBenchmarks*' \
            '*QueueSelectionBenchmarks*' \
@@ -695,6 +702,31 @@ iteration time. Queue mutation benchmarks retain their explicit invocation count
 and fresh-state setup; their short iterations make mutation timings exploratory.
 These microbenchmarks run in-process under JIT; the full
 local campaign supplies the actual JIT/AOT comparison.
+
+Build this reflection-based BenchmarkDotNet driver in managed, framework-dependent
+mode for both revisions. Its referenced products normally publish AOT and can
+otherwise be inferred as self-contained; publishing the driver with inconsistent
+settings fails with `NETSDK1151` before measurement. Global command properties
+apply to those references as well. Compiler/analyzer/audit policies remain on,
+and referenced products retain their trim-compatibility checks during build.
+The separate production AOT publications keep their normal settings.
+
+For frozen drivers, build once, inspect the method catalog, and execute the DLL
+without rebuilding during the comparisons:
+
+```bash
+dotnet build benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj \
+  -c Release -p:PublishAot=false -p:SelfContained=false \
+  -p:SkipClientAppBuild=true -nr:false -o artifacts/micro-driver
+dotnet artifacts/micro-driver/SlimFaas.Benchmarks.dll --list flat
+dotnet artifacts/micro-driver/SlimFaas.Benchmarks.dll --filter '*'
+```
+
+Record the driver/configuration hashes and verify that both runtime configuration
+files use the same framework versions. The
+[retained build-mode control](reliability/2026-11-16/managed-micro-driver-144.json)
+preserves the failed publish and a corrected warning-free build, matching
+framework-dependent configurations and 33 discovered methods before timed runs.
 
 ## Interpret the result correctly
 

@@ -1,4 +1,38 @@
-# Final-source long endurance: completed Native roles and two kind roles
+# Final-source long endurance: all six roles completed
+
+All six final-source long roles pass the recovery/integrity harness and
+independent journal reconciliation: **92,332 confirmed operations, 35,186
+separately retained unknown outcomes, zero confirmed loss or receipt
+corruption**. One additional successful delivery belongs to an unknown client
+outcome during an injected kind leader suspension and remains explicitly
+counted. Every role completes 30/60/300/900/1800/3600-second absences, successive
+crashes and a complete original-volume restart. These results do not establish
+formal performance acceptance or LTS certification.
+
+General validation also retains a
+[Windows coverage bootstrap failure and its test-only RED/GREEN correction](bootstrap-seed-fixture.md):
+the corrected fixture passes 2,425 full-solution tests and both membership cases
+under coverage. Product source189 and all deadlines stay unchanged. The managed
+micro driver then passes build/catalog validation after preserving an initial
+`NETSDK1151` publication-configuration failure. Formal timed comparisons follow
+serially; their numerical verdicts remain open.
+
+| Environment / compilation | Closed roles | Confirmed | Unknown | Extra successful fault-time deliveries |
+|---|---:|---:|---:|---:|
+| macOS ARM64 Native AOT | 3 | 46,386 | 26,167 | 0 |
+| kind Linux ARM64 managed/trimmed | 3 | 45,946 | 9,019 | 1, on an unknown client outcome |
+
+Six additional deliberately truncated upload intents are separate negative
+controls, checked absent after write barriers. All **127,524 client intents**
+remain accounted for. Complete original-tree indices cover **55,524 files**
+across the six closed roles, including retained state/WAL/snapshots. The earlier
+failed kind startup control retains its own additional 76-file index. The three
+kind resource exports retain 2,124 runtime cgroup observations across 26
+observed container lifetimes and 18 pod UIDs; short unobserved lifetimes and
+uncaptured final counter values remain outside that observation.
+The [structured rollup](endurance-summary-189.json) independently reconstructs
+all six client journals and verifies disjoint confirmed/unknown sets and these
+totals against the published raw archives.
 
 The **macOS ARM64 Native AOT follower role passes the recovery and integrity
 harness** on source `189826231fe43fe3069e8a1f7724f83589432c6f`. All six absence
@@ -25,8 +59,11 @@ missing operations, receipt corruption or successful repetitions. Its complete
 22,885 confirmed operations, 31 unknown outcomes and zero confirmed loss or
 receipt corruption. One additional successful delivery belongs to an unknown
 client outcome during an injected suspension and remains explicitly counted.
-The two closed kind roles total 45,716 confirmed operations and 79 unknown
-outcomes. The kind quorum role is running; general validation follows serially.
+The [managed kind quorum role](kind-quorum-189.md) also passes with 230 confirmed
+operations, 8,940 unknown outcomes and no confirmed loss, receipt corruption or
+successful repetitions. Its complete 396-file original tree is indexed after
+shutdown. The three closed kind roles total **45,946 confirmed operations and
+9,019 unknown outcomes**. General validation follows serially.
 Full runtime-log window classification and the final performance verdict remain
 open. No merge or LTS certification is
 claimed. Earlier results remain attached to their actual source versions.
