@@ -101,6 +101,13 @@ comparisons, final endurance reconciliation, remaining fault coverage and the
 older original-state-copy recoveries remain open. No merge or LTS certification
 is requested. See the [benchmark protocol](../../benchmarking.md).
 
+The [first closed long role](../2026-11-16/README.md) now passes Native follower
+recovery/integrity: 23,170 confirmed operations, 26 separately retained unknowns,
+zero confirmed missing operations or successful repetitions. All six absence
+durations and the original-volume restart pass. The healthy-window classification
+of its timestamp-limited supervisor error logs remains inconclusive; the other
+long roles, formal comparisons and consolidated raw-state export remain open.
+
 The first fresh 4 KiB WAL diagnostic completes its healthy 200-message window,
 then fails a separate replay fixture: generic `campaign.ready()` waits for the
 function deliberately kept behind the delivery gate. Replay is unverified, and
