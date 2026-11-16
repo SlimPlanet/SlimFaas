@@ -321,3 +321,12 @@ metadata:
 ## 10. Asynchronous Function Execution: Control Callback Mode
 
 See [deferred completion callbacks](async-functions.md#deferred-completion-callbacks) for execution headers, timeout handling, and HTTP/WebSocket completion. A callback never sends a later response on the original caller connection.
+
+Function HTTP connections have a maximum pooled age of five minutes. Expiry
+retires a connection after its active request/response finishes; it does not add
+an invocation retry. SlimData batch, file-transfer and cached cluster-peer pools
+use two minutes. Request deadlines and TLS opt-in settings keep their existing
+behavior. A pool lifetime bounds connection reuse, while Kubernetes readiness
+and destination-cache updates determine which pod address is selected. See the
+[connection audit](reliability/2026-11-16/http-client-audit.md) for policies and
+validation limits.

@@ -3,12 +3,21 @@ namespace SlimFaas;
 internal static class InternalHttpClientHandler
 {
     public static SocketsHttpHandler CreateForFunctions(bool allowUnsecureSsl)
+        => Create(allowUnsecureSsl, TimeSpan.FromMinutes(5));
+
+    public static SocketsHttpHandler CreateForSlimData(bool allowUnsecureSsl)
+        => Create(allowUnsecureSsl, TimeSpan.FromMinutes(2));
+
+    public static SocketsHttpHandler CreateForClusterPeers(bool allowUnsecureSsl)
+        => Create(allowUnsecureSsl, TimeSpan.FromMinutes(2));
+
+    private static SocketsHttpHandler Create(bool allowUnsecureSsl, TimeSpan connectionLifetime)
     {
         var handler = new SocketsHttpHandler
         {
             AllowAutoRedirect = true,
             UseProxy = false,
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+            PooledConnectionLifetime = connectionLifetime
         };
 
         if (allowUnsecureSsl)
@@ -21,23 +30,4 @@ internal static class InternalHttpClientHandler
         return handler;
     }
 
-    public static HttpClientHandler Create(bool allowUnsecureSsl)
-    {
-        var handler = new HttpClientHandler
-        {
-            AllowAutoRedirect = true,
-            // SlimData and function pods are internal orchestrator endpoints. Consulting
-            // an OS/PAC proxy per request is incorrect and leaks CFNetwork callback
-            // resources on macOS.
-            UseProxy = false
-        };
-
-        if (allowUnsecureSsl)
-        {
-            handler.ServerCertificateCustomValidationCallback =
-                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        }
-
-        return handler;
-    }
 }

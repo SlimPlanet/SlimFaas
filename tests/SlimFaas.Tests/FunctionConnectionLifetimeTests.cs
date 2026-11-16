@@ -10,9 +10,11 @@ namespace SlimFaas.Tests;
 public sealed class FunctionConnectionLifetimeTests
 {
     [Theory(Timeout = 20_000)]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task An_established_connection_retires_only_after_its_active_response_finishes(bool recycle)
+    [InlineData("legacy")]
+    [InlineData("functions")]
+    [InlineData("batch")]
+    [InlineData("peers")]
+    public async Task An_established_connection_retires_only_after_its_active_response_finishes(string policy)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         CancellationToken token = deadline.Token;
@@ -37,17 +39,24 @@ public sealed class FunctionConnectionLifetimeTests
         {
             TimeSpan lifetime = TimeSpan.FromMilliseconds(100);
             HttpMessageHandler handler;
+            bool recycle = policy != "legacy";
             if (recycle)
             {
-                SocketsHttpHandler pooled = InternalHttpClientHandler.CreateForFunctions(allowUnsecureSsl: false);
-                Assert.Equal(TimeSpan.FromMinutes(5), pooled.PooledConnectionLifetime);
-                // Shorten only the test clock. Production keeps the PR467 five-minute policy.
+                SocketsHttpHandler pooled = policy switch
+                {
+                    "batch" => InternalHttpClientHandler.CreateForSlimData(allowUnsecureSsl: false),
+                    "peers" => InternalHttpClientHandler.CreateForClusterPeers(allowUnsecureSsl: false),
+                    _ => InternalHttpClientHandler.CreateForFunctions(allowUnsecureSsl: false)
+                };
+                Assert.Equal(TimeSpan.FromMinutes(policy == "functions" ? 5 : 2), pooled.PooledConnectionLifetime);
+                // Shorten only the test clock; production retains the two/five-minute policies.
                 pooled.PooledConnectionLifetime = lifetime;
                 handler = pooled;
             }
             else
             {
-                handler = InternalHttpClientHandler.Create(allowUnsecureSsl: false);
+                // Reproduce the handler used before PR467, with its unbounded connection age.
+                handler = new HttpClientHandler { UseProxy = false, AllowAutoRedirect = true };
             }
             using var client = new HttpClient(handler) { BaseAddress = new Uri(app.Urls.Single()) };
             string originalConnection;

@@ -4,6 +4,7 @@ using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using DotNext.IO.Log;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using SlimData.Options;
 using SlimData.ClusterFiles;
 
@@ -11,6 +12,29 @@ namespace SlimData.Tests;
 
 public sealed class StartupConfigurationTests
 {
+    [Fact]
+    public async Task File_transfers_recycle_connections_without_imposing_a_whole_stream_timeout()
+    {
+        IConfiguration configuration = new ConfigurationBuilder().Build();
+        var services = new ServiceCollection();
+        services.AddSingleton(configuration).AddLogging();
+        new Startup(configuration).ConfigureServices(services);
+        SocketsHttpHandler? handler = null;
+        services.Configure<HttpClientFactoryOptions>("ClusterFilesTransfer", options =>
+            options.HttpMessageHandlerBuilderActions.Add(builder =>
+                handler = Assert.IsType<SocketsHttpHandler>(builder.PrimaryHandler)));
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        using HttpClient client = provider.GetRequiredService<IHttpClientFactory>().CreateClient("ClusterFilesTransfer");
+
+        Assert.NotNull(handler);
+        Assert.Equal(TimeSpan.FromMinutes(2), handler.PooledConnectionLifetime);
+        Assert.Equal(Timeout.InfiniteTimeSpan, client.Timeout);
+        Assert.Equal(Timeout.InfiniteTimeSpan, handler.ConnectTimeout);
+        Assert.Equal(TimeSpan.FromMinutes(1), handler.PooledConnectionIdleTimeout);
+        Assert.False(handler.AllowAutoRedirect);
+        Assert.False(handler.UseProxy);
+    }
+
     [Fact]
     public async Task Different_node_log_directories_on_one_declared_volume_share_its_storage_identity()
     {

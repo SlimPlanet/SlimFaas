@@ -39,7 +39,7 @@ public sealed class ClusterWebSocketSendClient : IWebSocketSendClient, IDisposab
         // HTTP response-duration metrics wrap upgraded streams as read-only.
         // A WebSocket handshake needs an unwrapped duplex transport.
 #pragma warning disable CA2000 // _sync owns and disposes its handler.
-        var handler = InternalHttpClientHandler.Create(_options.AllowUnsecureSsl);
+        var handler = InternalHttpClientHandler.CreateForClusterPeers(_options.AllowUnsecureSsl);
 #pragma warning restore CA2000
         handler.AllowAutoRedirect = false;
         _sync = new HttpMessageInvoker(handler);

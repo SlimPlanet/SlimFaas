@@ -356,6 +356,8 @@ serviceCollectionSlimFaas.AddSingleton<ScalingLeaderClient>();
 serviceCollectionSlimFaas.AddSingleton<IScalingLeaderClient>(sp => sp.GetRequiredService<ScalingLeaderClient>());
 serviceCollectionSlimFaas.AddHttpClient(ScalingLeaderClient.HttpClientName)
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseProxy = false });
+serviceCollectionSlimFaas.AddHttpClient("ActivitySync")
+    .ConfigurePrimaryHttpMessageHandler(() => InternalHttpClientHandler.CreateForClusterPeers(allowUnsecureSsl: false));
 serviceCollectionSlimFaas.AddSingleton<IInstanceLogProvider>(sp =>
 {
     var orchestrator = sp.GetRequiredService<IKubernetesService>();
@@ -390,7 +392,7 @@ serviceCollectionSlimFaas.AddHttpClient(ClusterWebSocketSendClient.HttpClientNam
     .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() =>
     {
-        var handler = InternalHttpClientHandler.Create(slimFaasOptions.AllowUnsecureSsl);
+        var handler = InternalHttpClientHandler.CreateForClusterPeers(slimFaasOptions.AllowUnsecureSsl);
         handler.AllowAutoRedirect = false;
         return handler;
     });
@@ -533,14 +535,13 @@ serviceCollectionSlimFaas.AddHostedService<ScheduleJobBackupWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
 serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>
     {
         client.DefaultRequestVersion = HttpVersion.Version11;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
-        InternalHttpClientHandler.Create(allowUnsecureSSL));
+        InternalHttpClientHandler.CreateForSlimData(allowUnsecureSSL));
 // Export metrics from all HTTP clients registered in services
 builder.Services.UseHttpClientMetrics(BoundedHttpClientMetrics.Create());
 

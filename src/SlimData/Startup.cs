@@ -111,6 +111,7 @@ public class Startup(IConfiguration configuration)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
                 AllowAutoRedirect = false,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
                 UseProxy = false
             });
 

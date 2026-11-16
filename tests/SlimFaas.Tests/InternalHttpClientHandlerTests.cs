@@ -5,23 +5,24 @@ namespace SlimFaas.Tests;
 public sealed class InternalHttpClientHandlerTests
 {
     [Fact]
-    public void CreateAlwaysBypassesTheSystemProxy()
+    public void BatchConnectionsExpireAfterTwoMinutesAndBypassTheSystemProxy()
     {
-        using var handler = InternalHttpClientHandler.Create(allowUnsecureSsl: false);
+        using var handler = InternalHttpClientHandler.CreateForSlimData(allowUnsecureSsl: false);
 
+        Assert.Equal(TimeSpan.FromMinutes(2), handler.PooledConnectionLifetime);
         Assert.False(handler.UseProxy);
         Assert.True(handler.AllowAutoRedirect);
-        Assert.Null(handler.ServerCertificateCustomValidationCallback);
+        Assert.Null(handler.SslOptions.RemoteCertificateValidationCallback);
     }
 
     [Fact]
-    public void CreateCanAllowUnsecureCertificates()
+    public void BatchConnectionsPreserveTheOptInForUnsecureCertificates()
     {
-        using var handler = InternalHttpClientHandler.Create(allowUnsecureSsl: true);
+        using var handler = InternalHttpClientHandler.CreateForSlimData(allowUnsecureSsl: true);
 
-        Assert.Same(
-            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
-            handler.ServerCertificateCustomValidationCallback);
+        Assert.NotNull(handler.SslOptions.RemoteCertificateValidationCallback);
+        Assert.True(handler.SslOptions.RemoteCertificateValidationCallback(
+            new object(), null, null, SslPolicyErrors.RemoteCertificateChainErrors));
     }
 
     [Fact]
