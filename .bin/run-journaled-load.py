@@ -10,6 +10,20 @@ import threading
 from types import SimpleNamespace
 
 
+def drain_confirmed_async(workload, command, output, config, phase):
+    if Path(command[0]).name != "SlimFaas.MemoryLab":
+        return
+    document = output / "operations.json"
+    if not document.is_file():
+        return # A failed driver retains its nonzero exit code and raw request intents.
+    samples = json.loads(document.read_text()).get("samples", [])
+    if not any(row.get("operation") == "Async" and row.get("Success") for row in samples):
+        return
+    phase["value"] = "drain"
+    # Poll only independent receipts for already accepted IDs. Never resubmit.
+    workload.verify_receipts(document, Path(config["receipts_root"]), timeout=180, allow_duplicates=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--backend-config", type=Path, required=True)
@@ -28,10 +42,12 @@ def main():
     sample_options = SimpleNamespace(output=options.output)
     workload.snapshot(sample_options, nodes, config, "before")
     stop = threading.Event()
-    sampler = threading.Thread(target=workload.monitor, args=(sample_options, nodes, stop, {"value": "load"}))
+    phase = {"value": "load"}
+    sampler = threading.Thread(target=workload.monitor, args=(sample_options, nodes, stop, phase))
     sampler.start()
     try:
         result = subprocess.run(command, check=False)
+        drain_confirmed_async(workload, command, options.output, config, phase)
     finally:
         stop.set()
         sampler.join(10)

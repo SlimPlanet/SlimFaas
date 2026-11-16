@@ -41,6 +41,7 @@ KUBERNETES_DOTNET = load("kubernetes_dotnet", ROOT / ".bin/test-dotnet-sdk-kuber
 StorageTests = load("kubernetes_storage_tests", ROOT / ".bin/test-kubernetes-storage.py").StorageTests
 KUBERNETES_BACKEND = load("kubernetes_backend", ROOT / ".bin/slimdata_kubernetes_backend.py")
 KUBERNETES_CAMPAIGN = load("kubernetes_campaign", ROOT / ".bin/run-kubernetes-campaign.py")
+JOURNALED_LOAD = load("journaled_load", ROOT / ".bin/run-journaled-load.py")
 
 
 class PlatformTests(unittest.TestCase):
@@ -94,7 +95,9 @@ class PlatformTests(unittest.TestCase):
             server.server_close()
 
     def test_runtime_log_audit_rejects_internal_errors_even_with_no_managed_oom(self):
-        for message in ("fail: SlimData failed", "crit: host stopped", "Unhandled exception. failure"):
+        for message in ("fail: SlimData failed", "crit: host stopped", "Unhandled exception. failure",
+                        "2026-11-15T12:00:00.1234567+00:00fail: SlimData failed",
+                        "2026-11-15T12:00:00Z crit: host stopped"):
             with self.subTest(message=message), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory)
                 self._write_runtime_log_audit_fixture(output, message)
@@ -637,6 +640,67 @@ class PlatformTests(unittest.TestCase):
                 WORKLOAD.verify_receipts(output, root, timeout=1)
                 wait.assert_called_once()
             self.assertTrue(json.loads(output.with_suffix(".receipts.json").read_text())["passed"])
+
+    def test_failed_http_execution_is_not_reported_as_body_corruption_or_a_successful_duplicate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "operations.json"
+            output.write_text(json.dumps({"report": {"KeyPrefix": "load", "PayloadBytes": 4}, "samples": [
+                {"operation": "Async", "Success": True, "Worker": 1, "Sequence": 2}]}))
+            receipt = {"event": "completed", "id": "load-async-1-2", "bytes": 4,
+                "sha256": hashlib.sha256(b"abcd").hexdigest(), "status": 200}
+            (root / "receipts.jsonl").write_text(json.dumps(receipt | {"status": 500}) + "\n" + json.dumps(receipt) + "\n")
+            WORKLOAD.verify_receipts(output, root, timeout=0)
+            result = json.loads(output.with_suffix(".receipts.json").read_text())
+            self.assertTrue(result["passed"])
+            self.assertEqual({}, result["duplicates"])
+            self.assertEqual({"load-async-1-2": 1}, result["failed_http_attempts"])
+
+    def test_controlled_fault_duplicate_policy_keeps_counts_and_still_requires_delivery_and_hash(self):
+        for failure in (None, "missing", "checksum"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                output = root / "operations.json"
+                output.write_text(json.dumps({"report": {"KeyPrefix": "load", "PayloadBytes": 4}, "samples": [
+                    {"operation": "Async", "Success": True, "Worker": 1, "Sequence": 2}]}))
+                receipt = {"event": "completed", "id": "load-async-1-2", "bytes": 4,
+                    "sha256": hashlib.sha256(b"abcd").hexdigest(), "status": 200}
+                if failure == "checksum":
+                    receipt["sha256"] = "corrupt"
+                (root / "receipts.jsonl").write_text("" if failure == "missing" else (json.dumps(receipt) + "\n") * 2)
+                if failure:
+                    with self.assertRaises(AssertionError):
+                        WORKLOAD.verify_receipts(output, root, timeout=0, allow_duplicates=True)
+                else:
+                    WORKLOAD.verify_receipts(output, root, timeout=0, allow_duplicates=True)
+                    result = json.loads(output.with_suffix(".receipts.json").read_text())
+                    self.assertTrue(result["passed"])
+                    self.assertEqual({"load-async-1-2": 2}, result["duplicates"])
+
+    def test_journaled_async_completion_reuses_receipt_observation_with_the_180_second_budget(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "operations.json").write_text(json.dumps({"samples": [
+                {"operation": "Async", "Success": True}, {"operation": "Async", "Success": False}]}))
+            observer = SimpleNamespace(verify_receipts=Mock())
+            phase = {"value": "load"}
+            JOURNALED_LOAD.drain_confirmed_async(observer, ["/tools/memorylab/SlimFaas.MemoryLab", "load"], root,
+                {"receipts_root": str(root / "receipts")}, phase)
+            observer.verify_receipts.assert_called_once_with(root / "operations.json", root / "receipts",
+                timeout=180, allow_duplicates=True)
+            self.assertEqual("drain", phase["value"])
+
+    def test_journaled_sync_or_unconfirmed_async_outcomes_do_not_create_a_delivery_claim(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "operations.json").write_text(json.dumps({"samples": [
+                {"operation": "Sync", "Success": True}, {"operation": "Async", "Success": False}]}))
+            observer = SimpleNamespace(verify_receipts=Mock())
+            phase = {"value": "load"}
+            JOURNALED_LOAD.drain_confirmed_async(observer, ["/tools/memorylab/SlimFaas.MemoryLab", "load"], root,
+                {"receipts_root": str(root / "receipts")}, phase)
+            observer.verify_receipts.assert_not_called()
+            self.assertEqual("load", phase["value"])
 
     def test_same_pid_writers_never_share_a_receipt_file(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -67,7 +67,8 @@ class RoutingResourcesTests(unittest.TestCase):
         namespace = "slimfaas-pr506-routing-test"
         pods = [{"metadata": {"name": "slimfaas-" + str(index), "uid": str(index), "labels": {"app": "slimfaas"}},
                  "status": {"conditions": [{"type": "Ready", "status": "True"}]}} for index in range(3)]
-        pods.append({"metadata": {"name": "function-old", "uid": "old", "labels": {"app": "memory-function"}},
+        pods.append({"metadata": {"name": "function-old", "uid": "old", "labels": {"app": "memory-function", "slimfaas-campaign": namespace}},
+            "spec": {"containers": [{"name": "function", "image": "tools:shared", "command": ["python3", "/src/tests/SlimFaas.Tests/Local/chaos_function.py"]}]},
             "status": {"podIP": "10.244.1.5", "conditions": [{"type": "Ready", "status": "True"}]}})
 
         def command(args, **_kwargs):
@@ -78,6 +79,8 @@ class RoutingResourcesTests(unittest.TestCase):
                 return SimpleNamespace(stdout="", returncode=0)
             items = ([{"metadata": {"name": "slimfaas-pr506-" + str(i)}} for i in range(4)] if kind == "nodes"
                      else pods if kind == "pods" else [])
+            if kind == "pods" and "-l" in args:
+                items = [pods[-1]]
             return SimpleNamespace(stdout=json.dumps({"items": items}), returncode=0)
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -95,6 +98,26 @@ class RoutingResourcesTests(unittest.TestCase):
             report = json.loads((options.output / "execution.json").read_text())
             self.assertIn("capture failed", report["error"])
             self.assertTrue(report["cleanup_errors"])
+
+    def test_function_shutdown_refuses_an_unowned_or_different_process(self):
+        namespace = "slimfaas-pr506-routing-test"
+        pod = {"metadata": {"name": "function", "uid": "original", "labels": {
+            "slimfaas-campaign": "another-campaign", "app": "memory-function"}},
+            "spec": {"containers": [{"name": "function", "image": "tools:shared", "command": ["python3", "another.py"]}]}}
+        with patch.object(routing.subprocess, "run"):
+            calls = []
+
+            def kubectl(*args, **_kwargs):
+                calls.append(args)
+                return SimpleNamespace(stdout=json.dumps({"items": [pod]}))
+
+            with self.assertRaisesRegex(ValueError, "unowned"):
+                routing.terminate_owned_functions(kubectl, namespace, "tools:shared")
+            self.assertFalse(any("exec" in call for call in calls))
+            pod["metadata"]["labels"]["slimfaas-campaign"] = namespace
+            with self.assertRaisesRegex(ValueError, "different function"):
+                routing.terminate_owned_functions(kubectl, namespace, "tools:shared")
+            self.assertFalse(any("exec" in call for call in calls))
 
 
 if __name__ == "__main__":

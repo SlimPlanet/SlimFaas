@@ -18,6 +18,54 @@ campaign = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(campaign)
 
 
+def terminate_owned_functions(kubectl, namespace, image):
+    """End only the known Python fixture after measurement, without a 600s preStop wait."""
+    pods = json.loads(kubectl("get", "pods", "-n", namespace, "-l",
+        "slimfaas-campaign=" + namespace + ",app=memory-function", "-o", "json", capture_output=True).stdout)["items"]
+    observations = []
+    fixture = "/src/tests/SlimFaas.Tests/Local/chaos_function.py"
+    for pod in pods:
+        metadata = pod["metadata"]
+        if metadata.get("labels", {}).get("slimfaas-campaign") != namespace or metadata.get("labels", {}).get("app") != "memory-function":
+            raise ValueError("Refusing to signal an unowned function")
+        container = next(value for value in pod["spec"]["containers"] if value["name"] == "function")
+        if container["image"] != image or container.get("command") != ["python3", fixture]:
+            raise ValueError("Refusing to signal a different function executable/image")
+        name, uid = metadata["name"], metadata["uid"]
+        statuses = [value for value in pod.get("status", {}).get("containerStatuses", []) if value["name"] == "function"]
+        if statuses and "running" not in statuses[0].get("state", {}):
+            observations.append({"pod": name, "uid": uid, "status": "not-running"})
+            continue
+        # Python installs a SIGINT handler even as container PID1. Check the
+        # process's own downward-API UID and exact fixture before signaling it.
+        script = ("import os,pathlib,signal,sys; "
+            "assert os.environ.get('POD_UID') == sys.argv[1]; "
+            "assert sys.argv[2].encode() in pathlib.Path('/proc/1/cmdline').read_bytes().split(b'\\0'); "
+            "os.kill(1,signal.SIGINT)")
+        try:
+            kubectl("exec", name, "-n", namespace, "-c", "function", "--", "python3", "-c", script, uid, fixture,
+                capture_output=True)
+        except subprocess.CalledProcessError:
+            # The exec can die with its PID namespace after the verified signal.
+            # Treat it as stopped only after the API confirms absence/termination.
+            for attempt in range(10):
+                current = kubectl("get", "pod", name, "-n", namespace, "--ignore-not-found", "-o", "json", capture_output=True).stdout
+                if not current.strip():
+                    break
+                current = json.loads(current)
+                if current["metadata"]["uid"] != uid:
+                    raise RuntimeError("Function identity changed during shutdown") from None
+                state = current.get("status", {})
+                if state.get("phase") in ("Failed", "Succeeded") or any("terminated" in value.get("state", {})
+                        for value in state.get("containerStatuses", []) if value["name"] == "function"):
+                    break
+                if attempt == 9:
+                    raise
+                time.sleep(.2)
+        observations.append({"pod": name, "uid": uid, "signal": "SIGINT", "pid": 1, "status": "fixture-stop-requested"})
+    return observations
+
+
 def resources(options):
     base = SimpleNamespace(namespace=options.namespace, image=options.image,
         controller_image=options.controller_image, source_commit=options.source_commit,
@@ -151,7 +199,9 @@ def run(options):
         driver_created = True
         load_started = None
         replaced = False
-        deadline = time.monotonic() + options.before_seconds + options.after_seconds + 120
+        # Async/mixed keep the existing 180-second receipt drain after load.
+        completion_margin = 120 if options.scenario == "sync" else 300
+        deadline = time.monotonic() + options.before_seconds + options.after_seconds + completion_margin
         while True:
             observation = observe()
             job = get("job", "routing-driver", "-n", options.namespace)
@@ -183,6 +233,7 @@ def run(options):
         raise
     finally:
         timeline.close()
+        report["cleanup_started_utc"] = time.time()
         # Collection precedes shutdown; original volumes and receipt journals survive.
         # A broken collector must not prevent shutdown or hide the first error.
         actions = [("logs", collect_logs), ("events", lambda:
@@ -192,6 +243,8 @@ def run(options):
                 "--type=merge", "-p", json.dumps({"spec": {"suspend": True}}), capture_output=True)))
         actions += [("stop-owned-resources", lambda: kubectl("scale", "statefulset,deployments", "-n", options.namespace,
             "-l", "slimfaas-campaign=" + options.namespace, "--replicas=0", capture_output=True)),
+            ("stop-owned-function-processes", lambda: report.update(function_shutdown=terminate_owned_functions(
+                kubectl, options.namespace, options.controller_image))),
             ("finish-owned-function-termination", lambda: kubectl("delete", "pods", "-n", options.namespace,
                 "-l", "slimfaas-campaign=" + options.namespace + ",app=memory-function", "--grace-period=1",
                 "--wait=false", capture_output=True))]

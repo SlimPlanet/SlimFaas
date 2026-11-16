@@ -378,6 +378,9 @@ def audit_runtime_logs(output, started_utc, finished_utc):
                 when = datetime.fromisoformat(timestamp.replace("Z", "+00:00")).timestamp()
             except ValueError:
                 continue
+            # The console formatter can prepend its own ISO timestamp, with or
+            # without a separator, inside Kubernetes' timestamped log line.
+            message = re.sub(r"^\s*\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:\d{2})\s*", "", message)
             if started_utc <= when <= finished_utc and message.lstrip().startswith(
                     ("fail:", "crit:", "Unhandled exception", "Fatal error")):
                 errors.append(line)

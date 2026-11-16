@@ -137,7 +137,7 @@ def monitor(options, nodes, stop, phase):
             stop.wait(max(0, 1 - (time.monotonic() - started)))
 
 
-def verify_receipts(document_path, directory, timeout=60):
+def verify_receipts(document_path, directory, timeout=60, *, allow_duplicates=False):
     document = json.loads(document_path.read_text())
     report = document["report"]
     expected = {f"{report['KeyPrefix']}-async-{row['Worker']}-{row['Sequence']}" for row in document["samples"]
@@ -147,6 +147,7 @@ def verify_receipts(document_path, directory, timeout=60):
     deadline = time.monotonic() + timeout
     while True:
         observations = {}
+        failed_attempts = {}
         for path in directory.glob("*.jsonl"):
             for line in path.read_bytes().splitlines(keepends=True):
                 if not line.endswith(b"\n"):
@@ -154,8 +155,11 @@ def verify_receipts(document_path, directory, timeout=60):
                 row = json.loads(line)
                 if row.get("id") not in expected or row.get("event") != "completed":
                     continue
-                if row["bytes"] != len(body) or row["sha256"] != checksum or row["status"] >= 300:
+                if row["bytes"] != len(body) or row["sha256"] != checksum:
                     raise AssertionError(f"Async receipt corruption: {row}")
+                if not 200 <= row["status"] < 300:
+                    failed_attempts[row["id"]] = 1 + failed_attempts.get(row["id"], 0)
+                    continue
                 observations[row["id"]] = 1 + observations.get(row["id"], 0)
         if not expected - observations.keys() or time.monotonic() >= deadline:
             break
@@ -166,7 +170,10 @@ def verify_receipts(document_path, directory, timeout=60):
     missing = sorted(expected - observations.keys())
     duplicates = {key: count for key, count in observations.items() if count > 1}
     result = {"accepted": len(expected), "observed": len(observations), "missing": missing, "duplicates": duplicates,
-              "payload_sha256": checksum, "passed": not missing and not duplicates}
+              "failed_http_attempts": failed_attempts, "payload_sha256": checksum,
+              "passed": not missing and (allow_duplicates or not duplicates)}
+    if allow_duplicates:
+        result["duplicate_policy"] = "Count separately during controlled faults; compare attempts/executions before acceptance"
     document_path.with_suffix(".receipts.json").write_text(json.dumps(result, indent=2))
     if not result["passed"]:
         raise AssertionError(f"MemoryLab receipts failed: {len(missing)} missing, {len(duplicates)} duplicate IDs")

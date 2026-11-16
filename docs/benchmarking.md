@@ -888,3 +888,19 @@ retains volumes and evidence after stopping its owned workloads. Execution
 completion is not a convergence/non-regression verdict: reconcile receipts,
 unknowns, actual five-minute connection age and the separate 15-second routing
 budget before issuing one. Use `--dry-run` to inspect the resource manifest.
+
+
+During routing teardown, the adapter first scales its owned workloads to zero.
+It then ends only its Python function fixture, checking namespace/campaign labels,
+image, command, downward-API pod UID and the container PID1 command before SIGINT.
+This happens after measurement, keeping the long preStop from adding ten minutes
+to every case. Other processes are never signaled, and the retained-volume/log
+quiescence check still runs before export.
+
+For async or mixed routing, the C# generator stops admitting work before a separate
+**180-second** read-only receipt drain. The sampler marks that interval as `drain`.
+There is no resubmission. Failed HTTP execution receipts remain separate from body
+corruption and successful duplicates; a later 2xx execution can reconcile an
+accepted retry. Controlled-fault duplicate counts are retained rather than erased.
+Normal benchmark receipt checks still reject duplicates by default. The fault
+comparison must assess attempts and successful executions before issuing a verdict.
