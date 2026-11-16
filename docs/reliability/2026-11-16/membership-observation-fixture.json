@@ -1,0 +1,16 @@
+{
+  "failed": 2,
+  "passed": 3,
+  "source": "references/membership-observation-one-shot-red.cs",
+  "source_sha256": "7a993bc8c89b20905f84e6184fbff4b46b5a54f9fd4d25f3fb45fd9980587e12",
+  "log": "logs/membership-observation-red-01.log",
+  "log_sha256": "8154ef5df1e3caf093dfda120a747649a6386323e7a7eee9eebe11489f1365ea",
+  "scope": "Fixture-only extraction of original one-shot observations. Controlled leadership loss and delayed membership convergence fail; unrelated-failure/deadline guards pass. No runtime change or application-write retry.",
+  "green": {
+    "passed": 11,
+    "failed": 0,
+    "skipped": 0,
+    "log": "logs/membership-observation-green-01.log",
+    "log_sha256": "450e07994cbfa0cefab9ef58bb6aa6f086e3166f49f62c90c78feca056b8e111"
+  }
+}
