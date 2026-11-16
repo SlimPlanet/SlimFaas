@@ -99,6 +99,33 @@ sources and per-file indices for 21 original VM roots. Archive SHA-256:
 `ef9f98795c3bb755721dfd55bf87057897dd302f524dadf579f675e15cf641ee`.
 All original volumes, WALs, snapshots and journals remain retained.
 
+To reproduce a fresh diagnostic, use an isolated checkout with the dedicated
+kind cluster, explicit kubeconfig at `artifacts/pr506/kubernetes/kubeconfig`,
+verified image71 imported into all four kind nodes and the [recorded toolchain
+and setup](../../benchmarking.md). Extract the archive at the repository root
+and restore the [variant configuration](wal-threshold-policy-variants-189.json).
+Choose a new namespace on every execution; never reopen an existing diagnostic
+directory or reuse its volumes for a new measurement.
+
+```bash
+tar -xzf docs/reliability/2026-11-15/wal-threshold-policy-raw-189.tar.gz
+python3 - <<'PY'
+import json
+from pathlib import Path
+variants = json.loads(Path('docs/reliability/2026-11-15/wal-threshold-policy-variants-189.json').read_text())
+for profile, value in variants.items():
+    (Path('artifacts/pr506/profiles') / profile / 'variants.json').write_text(json.dumps(value))
+PY
+python3 artifacts/pr506/profiles/wal-replay-net11-88/run-one.py \
+  --namespace "slimfaas-pr506-wr88-repro-$(date +%s)" \
+  --chunk-size 4096 --variant after --offload-threshold 524288 \
+  --required-copies 2 --probes normal
+python3 artifacts/pr506/profiles/offload-screen-net11-82/run-one.py \
+  --namespace "slimfaas-pr506-os82-repro-$(date +%s)" \
+  --chunk-size 65536 --variant after --offload-threshold 1048576 \
+  --required-copies 2 --probes normal
+```
+
 On 2026-11-16 the final-source long macOS endurance started, with Kubernetes
 endurance and general validation queued serially afterward. This is a launch
 record, not a completed endurance verdict. Each environment runs follower,
