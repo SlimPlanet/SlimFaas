@@ -20,6 +20,15 @@ case executions, preserving gains and seven consistently slower cases above
 110% of reference time. Formal HTTP/MemoryLab comparisons continue serially;
 their numerical verdicts remain open.
 
+The [first final-source macOS HTTP observations](native-http-first-observations-189.md)
+retain an incomplete reference (845/848 deliveries at 180 s) and a complete
+candidate passage with 216 latency cases, six focused cases and scaling.
+Candidate client/delivery counters have zero failures/missing/duplicates, but a
+separate audit finds **34 workload-time runtime error headers** involving routing
+and Raft availability. Runtime health remains an open failure; performance
+acceptance remains inconclusive. A 3.496-second inactive-cache cleanup qualifies
+one candidate async observation. Subsequent ABBA passages and other blocks continue.
+
 | Environment / compilation | Closed roles | Confirmed | Unknown | Extra successful fault-time deliveries |
 |---|---:|---:|---:|---:|
 | macOS ARM64 Native AOT | 3 | 46,386 | 26,167 | 0 |
