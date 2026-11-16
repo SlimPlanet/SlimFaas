@@ -80,3 +80,14 @@ fixture. The earlier WAL deadline failure remains retained and is not explained
 by this subsequent pass. **The external Sonar quality gate still fails**; successful
 scope/coverage verification does not clear its findings.
 [Completed task, scope, coverage and artifact hashes](sonar-completed-scope-9d.json).
+
+
+At `1b5552b8`, the external check no longer lists coverage as a failed condition;
+security E and reliability C remain. One reported blocker is `json:S6418` on the
+numeric `authorized_at` DCO approval timestamp in the published provenance. This
+is an approval record, not a credential. Its keys now use precise approval terms;
+all values are preserved, with original Git blob and before/after hashes indexed
+in [the clarification record](dco-provenance-key-clarification.json). No evidence
+file is excluded and no security finding is suppressed. Conditional internal TLS
+opt-ins, HTTP defaults, cancellation observations and other reported findings
+remain subject to their own review; this metadata correction does not clear them.
