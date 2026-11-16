@@ -1,0 +1,73 @@
+{
+  "source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+  "passed_build_import_only": true,
+  "runtime_mode": "Linux musl ARM64 managed/trimmed; not Native AOT",
+  "images": [
+    {
+      "variant": "tools",
+      "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "image": "localhost/slimfaas-pr506:routing-tools-01",
+      "id": "2556c12a89e16e668038b3b201b90a6baff5028010d58c71eb9aef710f6b2c57",
+      "hashes": {
+        "/app/SlimFaas.dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127",
+        "/app/SlimData.dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "9de8e911b9aa5a2c00c797ea4552ab40188d4567c9683488eba6c58da31938a9",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "fc5e4e101d88f71728c0dee21019896ab06f025b1fc7ab1845c9cf7b77025d1a"
+      },
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive": "/var/home/core/slimfaas-pr506/images/routing-tools-01.tar.gz",
+      "archive_sha256": "baff7532b1c0e97a36a5fb6ff35769d6706384735a0bffcfb87d3e1b3d80051b"
+    },
+    {
+      "variant": "pool467",
+      "runtime_source": "29daa097fd4562c39e4b362646c16ddd5f1cf7c0",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "image": "localhost/slimfaas-pr506:routing-pool467-01",
+      "id": "efda16a6040de89640c0b7e925c9660723de173599eb6e4a01e1201a233675bd",
+      "hashes": {
+        "/app/SlimFaas.dll": "b08a6ef955c6c1a84597a43886f3878d09959d38886f7bfc85919f2e085a11cd",
+        "/app/SlimData.dll": "4caf27be82cf9b9f16af21453bddf065b51da08c56c6ffcbcf927d690b234032",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "9de8e911b9aa5a2c00c797ea4552ab40188d4567c9683488eba6c58da31938a9",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "fc5e4e101d88f71728c0dee21019896ab06f025b1fc7ab1845c9cf7b77025d1a"
+      },
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive": "/var/home/core/slimfaas-pr506/images/routing-pool467-01.tar.gz",
+      "archive_sha256": "c5f68c6a40c8b55c92998ff101b678e2e0751fb5558d1c7612eb86453e76cb4d"
+    },
+    {
+      "variant": "after",
+      "runtime_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "image": "localhost/slimfaas-pr506:routing-after-01",
+      "id": "82d386014267c373db6d1b530ea150d580e9cbd878dc129972a06b278ce927e6",
+      "hashes": {
+        "/app/SlimFaas.dll": "5e4d09e826ddac151a3750d6ad3fde3f461d3e8f92c21c1f087323b9a45f48e3",
+        "/app/SlimData.dll": "877e94f15dcc0b178c5d27d727d7e5589f617924f98e3983b3817d98ceb902a2",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "9de8e911b9aa5a2c00c797ea4552ab40188d4567c9683488eba6c58da31938a9",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "fc5e4e101d88f71728c0dee21019896ab06f025b1fc7ab1845c9cf7b77025d1a"
+      },
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive": "/var/home/core/slimfaas-pr506/images/routing-after-01.tar.gz",
+      "archive_sha256": "097edf65891bf769b3c3127f18eace3f47a1d8ee9b9c3c396c1fabcb29722118"
+    }
+  ],
+  "original_failed_attempt": "preflight/routing-images-01.json",
+  "recovery": "preflight/routing-images-02.json",
+  "scope": "Exact common tool hashes across old runtime189, isolatedPR46729, finalruntime1b. Connection/routing acceptance still pending actual measurements."
+}

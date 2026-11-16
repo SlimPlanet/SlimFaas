@@ -58,7 +58,8 @@ def resources(options):
         "--output", directory, "--"] + command
     items.append({"apiVersion": "batch/v1", "kind": "Job", "metadata": {
         "name": "routing-driver", "namespace": options.namespace, "labels": labels}, "spec": {
-        "backoffLimit": 0, "template": {"metadata": {"labels": labels}, "spec": {
+        "backoffLimit": 0, "activeDeadlineSeconds": options.before_seconds + options.after_seconds + 300,
+        "template": {"metadata": {"labels": labels}, "spec": {
             "restartPolicy": "Never", "nodeSelector": {"node-role.kubernetes.io/control-plane": ""},
             "tolerations": [{"key": "node-role.kubernetes.io/control-plane", "effect": "NoSchedule"}],
             "volumes": [{"name": "evidence", "hostPath": {"path": "/evidence", "type": "Directory"}},
@@ -126,6 +127,11 @@ def run(options):
         return not pod["metadata"].get("deletionTimestamp") and any(
             condition["type"] == "Ready" and condition["status"] == "True" for condition in pod.get("status", {}).get("conditions", []))
 
+    def collect_logs():
+        pods = get("pods", "-n", options.namespace)["items"]
+        return campaign.collect_pod_logs(prefix, options.namespace, pods, options.output)
+
+    driver_created = False
     try:
         deadline = time.monotonic() + 300
         while True:
@@ -138,10 +144,11 @@ def run(options):
             if time.monotonic() >= deadline:
                 raise TimeoutError("The routing fixture did not become ready within 300 seconds")
             time.sleep(1)
-        campaign.collect_logs(prefix, options.namespace, options.output)
+        collect_logs()
         job_file = options.output / "driver-job.json"
         job_file.write_text(json.dumps(next(item for item in items if item["kind"] == "Job")))
         kubectl("apply", "-f", str(job_file), capture_output=True)
+        driver_created = True
         load_started = None
         replaced = False
         deadline = time.monotonic() + options.before_seconds + options.after_seconds + 120
@@ -176,14 +183,28 @@ def run(options):
         raise
     finally:
         timeline.close()
-        (options.output / "execution.json").write_text(json.dumps(report, indent=2) + "\n")
         # Collection precedes shutdown; original volumes and receipt journals survive.
-        campaign.collect_logs(prefix, options.namespace, options.output)
-        (options.output / "events.json").write_text(json.dumps(get("events", "-n", options.namespace), indent=2) + "\n")
-        kubectl("scale", "statefulset,deployments", "-n", options.namespace, "-l", "slimfaas-campaign=" + options.namespace,
-            "--replicas=0", capture_output=True)
-        kubectl("delete", "pods", "-n", options.namespace, "-l", "slimfaas-campaign=" + options.namespace + ",app=memory-function",
-            "--grace-period=1", "--wait=false", capture_output=True)
+        # A broken collector must not prevent shutdown or hide the first error.
+        actions = [("logs", collect_logs), ("events", lambda:
+            (options.output / "events.json").write_text(json.dumps(get("events", "-n", options.namespace), indent=2) + "\n"))]
+        if driver_created and not report["complete"]:
+            actions.append(("suspend-incomplete-driver", lambda: kubectl("patch", "job", "routing-driver", "-n", options.namespace,
+                "--type=merge", "-p", json.dumps({"spec": {"suspend": True}}), capture_output=True)))
+        actions += [("stop-owned-resources", lambda: kubectl("scale", "statefulset,deployments", "-n", options.namespace,
+            "-l", "slimfaas-campaign=" + options.namespace, "--replicas=0", capture_output=True)),
+            ("finish-owned-function-termination", lambda: kubectl("delete", "pods", "-n", options.namespace,
+                "-l", "slimfaas-campaign=" + options.namespace + ",app=memory-function", "--grace-period=1",
+                "--wait=false", capture_output=True))]
+        cleanup_errors = []
+        for action, callback in actions:
+            try:
+                callback()
+            except Exception as error:
+                cleanup_errors.append({"action": action, "error": repr(error)})
+        report["cleanup_errors"] = cleanup_errors
+        (options.output / "execution.json").write_text(json.dumps(report, indent=2) + "\n")
+        if cleanup_errors and "error" not in report:
+            raise RuntimeError("Routing evidence collection or shutdown failed: " + repr(cleanup_errors))
 
 
 def main():

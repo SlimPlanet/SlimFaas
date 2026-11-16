@@ -54,3 +54,15 @@ the corrected handler preserves the caller's single value, covered by a
 regression. Original failed smoke output remains retained. This is a harness
 functional check, not a runtime performance or fault verdict.
 [Smoke command, output identity and hashes](request-journal-smoke.json).
+
+
+The first Kubernetes routing startup reaches three ready instances but exposes a
+collector API mismatch before the C# load Job is created. The failing adapter also
+skips shutdown when its final collection raises. Both failures are preserved;
+existing owned-campaign helpers retain the logs and stop the fixture. A regression
+injecting collector failure is red, then all six routing-adapter checks pass after
+using the actual collector contract and independently attempting every cleanup
+action. Incomplete owned Jobs are suspended, and Kubernetes supplies a bounded
+active deadline. No application retry or runtime code changes.
+[Adapter regression evidence](routing-adapter-cleanup-regression.json) ·
+[Built/imported image identities and common driver hashes](routing-images.json).

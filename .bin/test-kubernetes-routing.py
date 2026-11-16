@@ -2,9 +2,12 @@
 """Check that routing faults remain confined to owned Kubernetes test resources."""
 
 import importlib.util
+import json
 from pathlib import Path
+import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 
 spec = importlib.util.spec_from_file_location("routing", Path(__file__).with_name("run-kubernetes-routing.py"))
@@ -59,6 +62,39 @@ class RoutingResourcesTests(unittest.TestCase):
         self.assertEqual(["sh", "-c", "sleep 600"], pod["containers"][0]["lifecycle"]["preStop"]["exec"]["command"])
         self.assertNotIn("livenessProbe", pod["containers"][0])
         self.assertIn("readinessProbe", pod["containers"][0])
+
+    def test_a_failed_log_capture_still_stops_owned_resources_and_preserves_the_original_error(self):
+        namespace = "slimfaas-pr506-routing-test"
+        pods = [{"metadata": {"name": "slimfaas-" + str(index), "uid": str(index), "labels": {"app": "slimfaas"}},
+                 "status": {"conditions": [{"type": "Ready", "status": "True"}]}} for index in range(3)]
+        pods.append({"metadata": {"name": "function-old", "uid": "old", "labels": {"app": "memory-function"}},
+            "status": {"podIP": "10.244.1.5", "conditions": [{"type": "Ready", "status": "True"}]}})
+
+        def command(args, **_kwargs):
+            if "get" not in args:
+                return SimpleNamespace(stdout="", returncode=0)
+            kind = args[args.index("get") + 1]
+            if kind == "namespace":
+                return SimpleNamespace(stdout="", returncode=0)
+            items = ([{"metadata": {"name": "slimfaas-pr506-" + str(i)}} for i in range(4)] if kind == "nodes"
+                     else pods if kind == "pods" else [])
+            return SimpleNamespace(stdout=json.dumps({"items": items}), returncode=0)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            options = SimpleNamespace(namespace=namespace, image="runtime:source", controller_image="tools:shared",
+                source_commit="source", route="direct", retire_delay=600, before_seconds=60, after_seconds=420,
+                concurrency=1, payload_bytes=4096, rps=20, scenario="sync", output=Path(temporary) / "case",
+                kubeconfig=Path(temporary) / "dedicated-kubeconfig", dry_run=False)
+            with patch.object(routing.subprocess, "run", side_effect=command) as run, patch.object(
+                    routing.campaign, "collect_pod_logs", side_effect=RuntimeError("capture failed")):
+                with self.assertRaisesRegex(RuntimeError, "capture failed"):
+                    routing.run(options)
+            calls = [call.args[0] for call in run.call_args_list]
+            self.assertTrue(any("scale" in call and "--replicas=0" in call and namespace in call for call in calls))
+            self.assertTrue(any("delete" in call and namespace in call for call in calls))
+            report = json.loads((options.output / "execution.json").read_text())
+            self.assertIn("capture failed", report["error"])
+            self.assertTrue(report["cleanup_errors"])
 
 
 if __name__ == "__main__":
