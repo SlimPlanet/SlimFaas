@@ -434,7 +434,7 @@ def benchmark(args, variant, round_number):
         save(directory / "idle.json", resources())
         record_processes(directory, process, args.publish_root)
         if not args.skip_http:
-            run(["dotnet", REPO / "benchmarks/SlimFaasBenchmark/bin/Release/net11.0/SlimFaasBenchmark.dll",
+            run(["dotnet", REPO / "benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll",
              "run", "--profile", "async-queue", "--duration", args.duration, "--warmup", args.warmup,
              "--repetitions", "1", "--payload-bytes", args.payloads, "--concurrency", args.concurrency,
              "--async-drain-timeout", "300", "--scale-timeout", "180", "--output", directory],

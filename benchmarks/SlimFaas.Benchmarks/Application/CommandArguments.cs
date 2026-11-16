@@ -89,7 +89,8 @@ internal static class BenchmarkCli
 {
     public static void PrintUsage() => Console.WriteLine(
         """
-        SlimFaasBenchmark:
+        SlimFaas.Benchmarks:
+          micro [--extended] [BenchmarkDotNet options, for example --filter '*' or --list flat]
           target [--port 31080] [--host 127.0.0.1]
           compare --baseline <baseline-results.json> --candidate <candidate-results.json>
                   [--profile sync|async]

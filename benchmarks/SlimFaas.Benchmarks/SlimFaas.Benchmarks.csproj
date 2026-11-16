@@ -4,17 +4,30 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>net11.0</TargetFramework>
         <IsPackable>false</IsPackable>
+        <!-- BenchmarkDotNet emits managed code; the measured runtime is built separately. -->
+        <PublishAot>false</PublishAot>
+        <PublishTrimmed>false</PublishTrimmed>
+        <SelfContained>false</SelfContained>
         <!-- BenchmarkDotNet requires an optimized build. -->
         <Optimize>true</Optimize>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="BenchmarkDotNet" />
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <InternalsVisibleTo Include="SlimFaas.Tests" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />
-        <ProjectReference Include="..\..\src\SlimData\SlimData.csproj" />
+        <!-- These assemblies supply benchmarked APIs, not standalone executables.
+             The SDK removes SelfContained during reference framework discovery;
+             PublishSelfContained also controls its publish-time inference. -->
+        <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj">
+            <AdditionalProperties Condition="'$(_IsPublishing)' == 'true'">PublishAot=false;PublishSelfContained=$(SelfContained)</AdditionalProperties>
+        </ProjectReference>
+        <ProjectReference Include="..\..\src\SlimData\SlimData.csproj">
+            <AdditionalProperties Condition="'$(_IsPublishing)' == 'true'">PublishAot=false;PublishSelfContained=$(SelfContained)</AdditionalProperties>
+        </ProjectReference>
     </ItemGroup>
 
 </Project>

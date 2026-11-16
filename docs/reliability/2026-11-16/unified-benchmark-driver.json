@@ -1,0 +1,442 @@
+{
+  "captured_utc": 1794860270.4481542,
+  "previous_head": "00e8521c8bc155f0624880edff6e5b8390f3321a",
+  "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "driver_sha256": "42d76783cb47a8c4a9a2b37c881805b6242c13beb7388ed2be484cf13e30c803",
+  "discovered_methods": [
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.FilterPeerHeaders",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.JobCallerLookup",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.ProjectDetailedStatuses",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.ProjectRequestHeaders",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.ProjectVirtualDeployment",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.StageManagedQueue",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.FileTags",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.RetryQueue",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.RunningQueue",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.StreamCounters",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.StreamRunning",
+    "SlimFaas.Benchmarks.DeadLetterMetadataBenchmarks.PayloadOwnerReferences",
+    "SlimFaas.Benchmarks.DeadLetterMetadataBenchmarks.RetentionSweep",
+    "SlimFaas.Benchmarks.DeploymentsSnapshotBenchmarks.ReadDeployments",
+    "SlimFaas.Benchmarks.DeploymentsSnapshotBenchmarks.ReadJobs",
+    "SlimFaas.Benchmarks.DeploymentsSnapshotBenchmarks.SearchFunction",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.PortCheck_AllocationFree",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.PortCheck_WithArrays",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.ProxyAcquireReleaseSync",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.ResolveVisibility_PathRules",
+    "SlimFaas.Benchmarks.QueueCountBenchmarks.CountOnly",
+    "SlimFaas.Benchmarks.QueueCountBenchmarks.MaterializeThenCount",
+    "SlimFaas.Benchmarks.QueueSelectionBenchmarks.Running",
+    "SlimFaas.Benchmarks.RoutingQueryBenchmarks.FirstReadyPodPorts",
+    "SlimFaas.Benchmarks.RoutingQueryBenchmarks.SearchFunction",
+    "SlimFaas.Benchmarks.RoutingQueryBenchmarks.StatusReadyCount",
+    "SlimFaas.Benchmarks.SchedulingBenchmarks.RegisterAlreadyKnownQuery",
+    "SlimFaas.Benchmarks.SchedulingBenchmarks.ScheduleLastTicks",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListCallback",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListCallbackBatch",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListLeftPushBatch",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListRightPop",
+    "SlimFaas.Benchmarks.SlimDataStateBenchmarks.PayloadBytes"
+  ],
+  "full_dotnet_tests": {
+    "passed": 2433,
+    "failed": 0,
+    "skipped": 0
+  },
+  "targeted_benchmark_tests": 45,
+  "native_smoke": {
+    "latency_cases": 3,
+    "settings": {
+      "SlimFaasUrl": "http://127.0.0.1:31020",
+      "DirectUrl": "http://127.0.0.1:31080",
+      "NodeUrls": [
+        "http://127.0.0.1:31021",
+        "http://127.0.0.1:31022",
+        "http://127.0.0.1:31023"
+      ],
+      "Function": "benchmark-latency",
+      "ScaleFunction": "benchmark-scale",
+      "DurationSeconds": 1,
+      "WarmupSeconds": 0,
+      "Repetitions": 1,
+      "PayloadBytes": [
+        64
+      ],
+      "Concurrency": [
+        1
+      ],
+      "ScaleMessages": 200,
+      "ScaleConcurrency": 32,
+      "ScaleTargetReplicas": 4,
+      "Profile": "async-queue",
+      "AsyncPacedMessages": 100,
+      "AsyncPacedIntervalMilliseconds": 100,
+      "AsyncBurstMessages": 1000,
+      "AsyncBurstConcurrency": 64,
+      "SamplesFormat": "csv.gz"
+    },
+    "scaling": {
+      "Messages": 200,
+      "Concurrency": 32,
+      "TargetReplicas": 4,
+      "Accepted": 200,
+      "Failed": 0,
+      "FirstAcceptedMilliseconds": 14.025,
+      "AllAcceptedMilliseconds": 105.3312,
+      "RequestedOneMilliseconds": 1027.4877,
+      "ReadyOneMilliseconds": 3075.0085,
+      "RequestedTargetMilliseconds": 4098.0175,
+      "ReadyTargetMilliseconds": 6141.7575,
+      "QueueDrainedMilliseconds": 19957.0401,
+      "PeakReadyQueue": 200,
+      "TimedOut": false
+    },
+    "async_workloads": [
+      {
+        "LoadShape": "paced",
+        "PayloadBytes": 4096,
+        "Concurrency": 1,
+        "Repetition": 1,
+        "Requested": 100,
+        "Accepted": 100,
+        "Failed": 0,
+        "Missing": 0,
+        "Duplicates": 0,
+        "ElapsedSeconds": 10.5459775,
+        "RatePerSecond": 9.482288389103807,
+        "MeanMilliseconds": 5.597463000000002,
+        "P50Milliseconds": 5.1567,
+        "P95Milliseconds": 7.39863,
+        "P99Milliseconds": 10.845670000000048,
+        "Delivery": {
+          "RunId": "async-paced-1-d83ab1f1704a4e4fadfc8d06b8a948f4",
+          "Count": 100,
+          "ArrivalP50Milliseconds": 13.962499999999999,
+          "ArrivalP95Milliseconds": 16.346,
+          "ArrivalP99Milliseconds": 19.47397000000005,
+          "CompletionP50Milliseconds": 13.969,
+          "CompletionP95Milliseconds": 16.35195,
+          "CompletionP99Milliseconds": 19.47995000000005,
+          "UniqueCount": 100,
+          "DuplicateCount": 0,
+          "ArrivalMeanMilliseconds": 13.557710000000004,
+          "CompletionMeanMilliseconds": 13.566629999999993
+        },
+        "Resources": {
+          "CpuMillisecondsPerMessage": 26.27595,
+          "RaftEntriesPerMessage": 3.13,
+          "PeakWorkingSetBytes": 387825664,
+          "CpuSeconds": 2.6275950000000003,
+          "RaftEntries": 313,
+          "InitialSnapshot": {
+            "CpuSeconds": 4.100866,
+            "RaftEntries": 164,
+            "WorkingSetBytes": 364773376,
+            "Nodes": [
+              {
+                "Node": "http://127.0.0.1:31021/",
+                "CapturedAtUtc": "2026-11-16T19:58:41.369295+00:00",
+                "CpuSeconds": 1.199185,
+                "DiagnosticsCpuSeconds": 1.187487,
+                "RaftEntries": 164,
+                "WorkingSetBytes": 116310016
+              },
+              {
+                "Node": "http://127.0.0.1:31022/",
+                "CapturedAtUtc": "2026-11-16T19:58:41.369003+00:00",
+                "CpuSeconds": 2.10893,
+                "DiagnosticsCpuSeconds": 2.100312,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 132333568
+              },
+              {
+                "Node": "http://127.0.0.1:31023/",
+                "CapturedAtUtc": "2026-11-16T19:58:41.368909+00:00",
+                "CpuSeconds": 0.792751,
+                "DiagnosticsCpuSeconds": 0.784039,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 116129792
+              }
+            ]
+          },
+          "FinalProcessSnapshot": {
+            "CpuSeconds": 6.728461,
+            "RaftEntries": 449,
+            "WorkingSetBytes": 387825664,
+            "Nodes": [
+              {
+                "Node": "http://127.0.0.1:31021/",
+                "CapturedAtUtc": "2026-11-16T19:58:53.538124+00:00",
+                "CpuSeconds": 2.355701,
+                "DiagnosticsCpuSeconds": 2.190103,
+                "RaftEntries": 449,
+                "WorkingSetBytes": 115113984
+              },
+              {
+                "Node": "http://127.0.0.1:31022/",
+                "CapturedAtUtc": "2026-11-16T19:58:53.537826+00:00",
+                "CpuSeconds": 2.889777,
+                "DiagnosticsCpuSeconds": 2.772185,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 139427840
+              },
+              {
+                "Node": "http://127.0.0.1:31023/",
+                "CapturedAtUtc": "2026-11-16T19:58:53.537974+00:00",
+                "CpuSeconds": 1.482983,
+                "DiagnosticsCpuSeconds": 1.365203,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 133283840
+              }
+            ]
+          },
+          "FinalDiagnosticsSnapshot": {
+            "CpuSeconds": 7.064748,
+            "RaftEntries": 477,
+            "WorkingSetBytes": 388005888,
+            "Nodes": [
+              {
+                "Node": "http://127.0.0.1:31021/",
+                "CapturedAtUtc": "2026-11-16T19:58:56.319912+00:00",
+                "CpuSeconds": 2.488313,
+                "DiagnosticsCpuSeconds": 2.47773,
+                "RaftEntries": 477,
+                "WorkingSetBytes": 115130368
+              },
+              {
+                "Node": "http://127.0.0.1:31022/",
+                "CapturedAtUtc": "2026-11-16T19:58:56.319419+00:00",
+                "CpuSeconds": 2.994759,
+                "DiagnosticsCpuSeconds": 2.987686,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 139493376
+              },
+              {
+                "Node": "http://127.0.0.1:31023/",
+                "CapturedAtUtc": "2026-11-16T19:58:56.319729+00:00",
+                "CpuSeconds": 1.581676,
+                "DiagnosticsCpuSeconds": 1.575206,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 133382144
+              }
+            ]
+          }
+        }
+      },
+      {
+        "LoadShape": "burst",
+        "PayloadBytes": 4096,
+        "Concurrency": 64,
+        "Repetition": 1,
+        "Requested": 1000,
+        "Accepted": 1000,
+        "Failed": 0,
+        "Missing": 0,
+        "Duplicates": 0,
+        "ElapsedSeconds": 0.7663844,
+        "RatePerSecond": 1304.8282298021725,
+        "MeanMilliseconds": 47.65492930000001,
+        "P50Milliseconds": 41.0972,
+        "P95Milliseconds": 82.68617,
+        "P99Milliseconds": 88.274727,
+        "Delivery": {
+          "RunId": "async-burst-1-cd281ae08034427b9528a4988ac6c348",
+          "Count": 1000,
+          "ArrivalP50Milliseconds": 126.4175,
+          "ArrivalP95Milliseconds": 218.135,
+          "ArrivalP99Milliseconds": 228.31813000000002,
+          "CompletionP50Milliseconds": 126.4175,
+          "CompletionP95Milliseconds": 218.14079999999998,
+          "CompletionP99Milliseconds": 228.32121,
+          "UniqueCount": 1000,
+          "DuplicateCount": 0,
+          "ArrivalMeanMilliseconds": 131.28461899999996,
+          "CompletionMeanMilliseconds": 131.304341
+        },
+        "Resources": {
+          "CpuMillisecondsPerMessage": 1.514429999999999,
+          "RaftEntriesPerMessage": 0.043,
+          "PeakWorkingSetBytes": 435830784,
+          "CpuSeconds": 1.514429999999999,
+          "RaftEntries": 43,
+          "InitialSnapshot": {
+            "CpuSeconds": 7.637313000000001,
+            "RaftEntries": 480,
+            "WorkingSetBytes": 388071424,
+            "Nodes": [
+              {
+                "Node": "http://127.0.0.1:31021/",
+                "CapturedAtUtc": "2026-11-16T19:59:01.383181+00:00",
+                "CpuSeconds": 2.711945,
+                "DiagnosticsCpuSeconds": 2.697659,
+                "RaftEntries": 480,
+                "WorkingSetBytes": 115130368
+              },
+              {
+                "Node": "http://127.0.0.1:31022/",
+                "CapturedAtUtc": "2026-11-16T19:59:01.382994+00:00",
+                "CpuSeconds": 3.173153,
+                "DiagnosticsCpuSeconds": 3.164612,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 139509760
+              },
+              {
+                "Node": "http://127.0.0.1:31023/",
+                "CapturedAtUtc": "2026-11-16T19:59:01.382759+00:00",
+                "CpuSeconds": 1.752215,
+                "DiagnosticsCpuSeconds": 1.744155,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 133431296
+              }
+            ]
+          },
+          "FinalProcessSnapshot": {
+            "CpuSeconds": 9.151743,
+            "RaftEntries": 480,
+            "WorkingSetBytes": 435830784,
+            "Nodes": [
+              {
+                "Node": "http://127.0.0.1:31021/",
+                "CapturedAtUtc": "2026-11-16T19:59:03.515761+00:00",
+                "CpuSeconds": 3.433969,
+                "DiagnosticsCpuSeconds": 2.697659,
+                "RaftEntries": 480,
+                "WorkingSetBytes": 151945216
+              },
+              {
+                "Node": "http://127.0.0.1:31022/",
+                "CapturedAtUtc": "2026-11-16T19:59:03.515947+00:00",
+                "CpuSeconds": 3.574178,
+                "DiagnosticsCpuSeconds": 3.164612,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 145489920
+              },
+              {
+                "Node": "http://127.0.0.1:31023/",
+                "CapturedAtUtc": "2026-11-16T19:59:03.515933+00:00",
+                "CpuSeconds": 2.143596,
+                "DiagnosticsCpuSeconds": 1.744155,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 138395648
+              }
+            ]
+          },
+          "FinalDiagnosticsSnapshot": {
+            "CpuSeconds": 9.466612999999999,
+            "RaftEntries": 523,
+            "WorkingSetBytes": 435847168,
+            "Nodes": [
+              {
+                "Node": "http://127.0.0.1:31021/",
+                "CapturedAtUtc": "2026-11-16T19:59:06.296353+00:00",
+                "CpuSeconds": 3.556562,
+                "DiagnosticsCpuSeconds": 3.548221,
+                "RaftEntries": 523,
+                "WorkingSetBytes": 151961600
+              },
+              {
+                "Node": "http://127.0.0.1:31022/",
+                "CapturedAtUtc": "2026-11-16T19:59:06.296136+00:00",
+                "CpuSeconds": 3.670492,
+                "DiagnosticsCpuSeconds": 3.665095,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 145489920
+              },
+              {
+                "Node": "http://127.0.0.1:31023/",
+                "CapturedAtUtc": "2026-11-16T19:59:06.296596+00:00",
+                "CpuSeconds": 2.239559,
+                "DiagnosticsCpuSeconds": 2.233679,
+                "RaftEntries": 0,
+                "WorkingSetBytes": 138395648
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "raw_files": [
+    {
+      "path": "logs/unified-benchmark-publish-fdd-01.log",
+      "bytes": 1446,
+      "sha256": "17ce28646db3f72c27282cac7285ba3c418c50ce6480bfe6a3d7bc6565f329b4"
+    },
+    {
+      "path": "logs/unified-benchmark-publish-fdd-02.log",
+      "bytes": 754,
+      "sha256": "1cfcbb976d1ceca29927978d371c786cacbc3c87a9e56b617d6c5c504b086391"
+    },
+    {
+      "path": "logs/unified-benchmark-publish-fdd-03.log",
+      "bytes": 889,
+      "sha256": "89465f2b441f6f00bf684bf7e92ca339f9e6156249125216b23ce11ece074407"
+    },
+    {
+      "path": "logs/unified-benchmark-publish-fdd-04.log",
+      "bytes": 589,
+      "sha256": "94fa11213871d321bee6b468771d1188d162eecafb212a4643d9d19f75148d30"
+    },
+    {
+      "path": "logs/unified-benchmark-publish-selfcontained-01.log",
+      "bytes": 929,
+      "sha256": "c7c5a85fb457fb6a54af0c61caafb0b66b5957b2232fa9bfaeae53cce4bebf03"
+    },
+    {
+      "path": "logs/unified-benchmark-tests-01.log",
+      "bytes": 1698,
+      "sha256": "936ca8a7ea07237fa0af4def28a064db1b36e060b21b403db8064f84126cf151"
+    },
+    {
+      "path": "logs/unified-solution-tests-01.log",
+      "bytes": 5536,
+      "sha256": "b61b16e09424b29486816e24b681a81a0ff4220f27bb969ccebdf9b751e7b872"
+    },
+    {
+      "path": "logs/unified-fusion-platform-harness.log",
+      "bytes": 140,
+      "sha256": "0c6cbfb990f74a3322bc6a98002ab7803f8186a53d385f2ed2d4ea95b081a00a"
+    },
+    {
+      "path": "logs/unified-fusion-benchmark-harness.log",
+      "bytes": 118,
+      "sha256": "1d63d0224ad6ad3afd44e4588d2c1ccf1b71bc8e87f479d54fbabc06615152b8"
+    },
+    {
+      "path": "logs/unified-fusion-documentation.log",
+      "bytes": 19862,
+      "sha256": "bbff99c8fa6b52a4bf072881ac17db67c8f7b390e337a690e103fa6705a8e206"
+    },
+    {
+      "path": "validation/unified-driver-02/smoke.json",
+      "bytes": 8677,
+      "sha256": "d167885f4e86bb85efc1fbb5f92882ba2d5048fe77b36140636267083ece3cb5"
+    },
+    {
+      "path": "validation/unified-driver-native-run-01/parameters.json",
+      "bytes": 1636,
+      "sha256": "23af32289aaf5f724df3c42ffbdcd234a569e1868f750a243c116c6cfb2548ef"
+    },
+    {
+      "path": "validation/unified-driver-native-run-01/results.json",
+      "bytes": 20812,
+      "sha256": "29eb26fb9bf9ba34c719a1fe3b2ea3a442e69bace34572dd3cce30cc98454804"
+    },
+    {
+      "path": "validation/unified-driver-native-run-01/status.json",
+      "bytes": 151,
+      "sha256": "60881d16506cc0eecfc8ce705ceaf57c599aedecbb049583081c6e8779ba0910"
+    },
+    {
+      "path": "validation/unified-driver-native-run-01/workload.log",
+      "bytes": 750,
+      "sha256": "8b91e1ea0b0eda40f63369e1c4f9e0304c152f5df17b6b2451ef00468e20405e"
+    },
+    {
+      "path": "preflight/net11-183-fusion-boundary-handoff.json",
+      "bytes": 4927,
+      "sha256": "574f0d2270cc7a39bcae572b9740e0ef32251fe06ed8dd97f2c10148967b5f3e"
+    }
+  ],
+  "scope": "Fusion/managed publication/CLI/Native application execution smoke only; not a performance comparison or a zero-internal-error certification. Prior source189 HTTP reference failures and internal-error observations remain open. Linux image validation follows separately. Fixed TRX filename caused overwrites; the complete console log preserves every project result."
+}

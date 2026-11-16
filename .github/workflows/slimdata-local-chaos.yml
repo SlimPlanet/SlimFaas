@@ -7,6 +7,10 @@ on:
       - 'src/SlimFaas/**'
       - 'tests/SlimData.Tests/**'
       - 'tests/SlimFaas.Tests/Local/**'
+      - 'tests/SlimFaas.Tests/Benchmark/**'
+      - 'benchmarks/SlimFaas.Benchmarks/**'
+      - 'benchmarks/platform/**'
+      - 'benchmarks/slimfaas.local.benchmark.yaml'
       - '.bin/*chaos*'
       - '.bin/run-local-benchmark-host.py'
       - '.bin/test-local-benchmark-host.py'
@@ -68,6 +72,16 @@ jobs:
         run: python .bin/test-platform-validation.py
       - name: Build runtime
         run: dotnet build src/SlimFaas/SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
+      - name: Publish the unified managed benchmark driver
+        run: >-
+          dotnet publish benchmarks/SlimFaas.Benchmarks -c Release
+          -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true
+          -o artifacts/local-chaos/benchmark-driver
+      - name: Discover microbenchmarks and check published command dependencies
+        run: |
+          dotnet artifacts/local-chaos/benchmark-driver/SlimFaas.Benchmarks.dll help
+          dotnet artifacts/local-chaos/benchmark-driver/SlimFaas.Benchmarks.dll micro --list flat
+          dotnet artifacts/local-chaos/benchmark-driver/SlimFaas.Benchmarks.dll micro --extended --filter '*RoutingQuery*' --list flat
       - name: Reject accumulated kernel socket memory after cancelled Raft uploads
         if: runner.os == 'Linux'
         run: |

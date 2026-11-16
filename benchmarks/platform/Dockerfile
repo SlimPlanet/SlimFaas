@@ -3,8 +3,8 @@ ARG RUNTIME_IMAGE
 FROM mcr.microsoft.com/dotnet/sdk:11.0.100-alpine3.24 AS tools
 WORKDIR /source
 COPY . .
-RUN dotnet publish benchmarks/SlimFaasBenchmark -c Release -r linux-musl-arm64 \
-      --self-contained true -p:PublishAot=false -p:PublishTrimmed=false -o /tools/benchmark && \
+RUN dotnet publish benchmarks/SlimFaas.Benchmarks -c Release -r linux-musl-arm64 \
+      --self-contained true -p:PublishAot=false -p:PublishTrimmed=false -p:SkipClientAppBuild=true -o /tools/benchmark && \
     dotnet publish tools/SlimFaas.MemoryLab -c Release -r linux-musl-arm64 \
       --self-contained true -p:PublishAot=false -p:PublishTrimmed=false -o /tools/memorylab
 

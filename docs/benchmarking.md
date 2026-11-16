@@ -63,6 +63,36 @@ HTTP/MemoryLab matrices or earlier policy-cost failures.
 
 ## Run the benchmark
 
+One managed driver, `benchmarks/SlimFaas.Benchmarks`, provides all four commands:
+
+```bash
+dotnet build benchmarks/SlimFaas.Benchmarks -c Release \
+  -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true
+dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll micro --list flat
+dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll micro --extended --filter '*RoutingQuery*'
+dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll target --port 31080
+# With the runtime, target and scaling fixture already running:
+dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll run --profile async-queue
+dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll compare \
+  --criteria non-regression --baseline before/results.json --candidate after/results.json
+```
+
+`micro` retains BenchmarkDotNet filters, exporters and `--extended`. Existing
+option-only microbenchmark invocations remain accepted. Invoking without a command returns exit
+code 2; help returns 0; malformed commands return 1. `compare` retains exit codes
+0 (pass), 1 (failure) and 2 (inconclusive). The HTTP driver retains its exports,
+load profiles and deadlines. The scripts build this driver before measurement.
+Use the **same frozen driver and configuration** for both sides of each new
+application comparison. Record the driver hash separately from each runtime hash.
+Earlier source-pinned reports retain their original project names and binaries.
+
+The driver runs managed code even when its targets are Native AOT executables
+or containerized runtimes. Build and publish the measured products separately
+with their own settings; the managed driver does not change their compilation
+mode. For a framework-dependent driver publication, use the same global
+`PublishAot=false`, `SelfContained=false` and `SkipClientAppBuild=true` properties.
+The platform tools image publishes a self-contained, untrimmed managed driver.
+
 The quick profile is intended for a smoke test and takes a few minutes:
 
 ```bash
@@ -183,9 +213,9 @@ For example, save an environment configuration outside the source tree:
   "environment": "macos",
   "before": "/absolute/path/baseline/SlimFaas",
   "after": "/absolute/path/candidate/SlimFaas",
-  "benchmark": "/absolute/path/SlimFaasBenchmark.dll",
+  "benchmark": "/absolute/path/SlimFaas.Benchmarks.dll",
   "memorylab": "/absolute/path/SlimFaas.MemoryLab.dll",
-  "compare_command": ["dotnet", "/absolute/path/SlimFaasBenchmark.dll"]
+  "compare_command": ["dotnet", "/absolute/path/SlimFaas.Benchmarks.dll"]
 }
 ```
 
@@ -410,7 +440,7 @@ Run the standard profile before changing the runtime, then run the exact same
 matrix after the change. Compare the two structured reports with:
 
 ```bash
-dotnet run --project benchmarks/SlimFaasBenchmark -- compare \
+dotnet run --project benchmarks/SlimFaas.Benchmarks -- compare \
   --baseline artifacts/slimfaas-local-benchmark/baseline/results.json \
   --candidate artifacts/slimfaas-local-benchmark/candidate/results.json \
   --output artifacts/slimfaas-local-benchmark/comparison
@@ -424,7 +454,7 @@ BENCHMARK_PROFILE=async-queue \
 BENCHMARK_RUN_ROOT=artifacts/slimfaas-local-benchmark/async-candidate \
 .bin/slimfaas-local-benchmark.sh
 
-dotnet run --project benchmarks/SlimFaasBenchmark -- compare \
+dotnet run --project benchmarks/SlimFaas.Benchmarks -- compare \
   --profile async \
   --baseline artifacts/slimfaas-local-benchmark/async-baseline/results.json \
   --candidate artifacts/slimfaas-local-benchmark/async-candidate/results.json \
@@ -607,7 +637,8 @@ dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 \
 dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 \
   -p:SkipClientAppBuild=true -o /absolute/path/publish/baseline-aot
 
-dotnet build benchmarks/SlimFaasBenchmark -c Release
+dotnet build benchmarks/SlimFaas.Benchmarks -c Release \
+  -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true
 dotnet build tools/SlimFaas.MemoryLab -c Release
 
 python3 .bin/slimfaas-zlinq-benchmark.py \
@@ -694,7 +725,7 @@ benchmark sources against each revision:
 
 ```bash
 dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks \
-  -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true -- --extended \
+  -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true -- micro --extended \
   --filter '*DataFeatureBenchmarks*' '*CollectionPipelineBenchmarks*' \
            '*RoutingQueryBenchmarks*' '*SlimDataQueueBenchmarks*' \
            '*QueueSelectionBenchmarks*' \
@@ -722,8 +753,8 @@ without rebuilding during the comparisons:
 dotnet build benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj \
   -c Release -p:PublishAot=false -p:SelfContained=false \
   -p:SkipClientAppBuild=true -nr:false -o artifacts/micro-driver
-dotnet artifacts/micro-driver/SlimFaas.Benchmarks.dll --list flat
-dotnet artifacts/micro-driver/SlimFaas.Benchmarks.dll --filter '*'
+dotnet artifacts/micro-driver/SlimFaas.Benchmarks.dll micro --list flat
+dotnet artifacts/micro-driver/SlimFaas.Benchmarks.dll micro --filter '*'
 ```
 
 Record the driver/configuration hashes and verify that both runtime configuration

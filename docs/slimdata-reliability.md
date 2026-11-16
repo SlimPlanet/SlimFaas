@@ -263,7 +263,7 @@ gh workflow run slimdata-local-chaos.yml --ref YOUR_BRANCH \
 Run performance comparisons on a separate host or after local chaos work stops.
 
 Reuse [the existing benchmarks](benchmarking.md), including
-`.bin/slimfaas-local-benchmark.sh` and the `SlimFaasBenchmark compare` command.
+`.bin/slimfaas-local-benchmark.sh` and the `SlimFaas.Benchmarks compare` command.
 `BENCHMARK_RUNTIME` selects a preserved native executable or managed DLL when
 `BENCHMARK_SKIP_BUILD=true`; the same benchmark driver and manifest are used.
 The manifest records the runtime path and SHA-256. `BENCHMARK_SLIMFAAS_DLL`

@@ -142,14 +142,14 @@ def resources(options):
               "SlimFaas/NumberParallelRequest": "256", "SlimFaas/NumberParallelRequestPerPod": "256"}
     fixture = "/src/tests/SlimFaas.Tests/Local/chaos_function.py"
     if options.suite == "http":
-        result.append(deployment("benchmark-latency", ["/tools/benchmark/SlimFaasBenchmark"],
+        result.append(deployment("benchmark-latency", ["/tools/benchmark/SlimFaas.Benchmarks"],
                                  ["target", "--port", "5000", "--host", "0.0.0.0"], common))
         scale = {"ReplicaMax": 4, "ScrapeIntervalMilliseconds": 1000,
             "Triggers": [{"MetricType": "AverageValue", "MetricName": "benchmark_scale_pressure",
                           "Query": "max_over_time(slimfaas_benchmark_scale_pressure[30s])", "Threshold": 1}],
             "Behavior": {"ScaleUp": {"StabilizationWindowSeconds": 0, "Policies": []},
                          "ScaleDown": {"StabilizationWindowSeconds": 0, "Policies": []}}}
-        result.append(deployment("benchmark-scale", ["/tools/benchmark/SlimFaasBenchmark"],
+        result.append(deployment("benchmark-scale", ["/tools/benchmark/SlimFaas.Benchmarks"],
             ["target", "--port", "5000", "--host", "0.0.0.0"], common | {
                 "SlimFaas/ReplicasMin": "0", "SlimFaas/TimeoutSecondBeforeSetReplicasMin": "5",
                 "SlimFaas/NumberParallelRequest": "4", "SlimFaas/NumberParallelRequestPerPod": "1",
@@ -200,7 +200,7 @@ def resources(options):
         command += options.workload_args
     else:
         command = ["python3", "/src/.bin/run-platform-workload.py", "--suite", options.suite,
-            "--runtime", "/app/SlimFaas", "--benchmark", "/tools/benchmark/SlimFaasBenchmark",
+            "--runtime", "/app/SlimFaas", "--benchmark", "/tools/benchmark/SlimFaas.Benchmarks",
             "--memorylab", "/tools/memorylab/SlimFaas.MemoryLab", "--backend-config", "/config/backend.json",
             "--output", base + "/workload", "--variant", options.variant, "--ordinal", str(options.ordinal)] + options.workload_args
     driver = {"serviceAccountName": "slimfaas", "restartPolicy": "Never",

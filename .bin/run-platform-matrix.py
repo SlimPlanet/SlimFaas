@@ -188,7 +188,7 @@ def run_one(config, suite, scenario, concurrency, variant, ordinal, output):
                    "--cpus", "6", "--volume", vm_directory + ":/evidence:Z",
                    "--volume", vm_source + ":/src/.bin/run-platform-workload.py:ro,Z", "--entrypoint", "python3",
                    config[variant], "/src/.bin/run-platform-workload.py", "--runtime", "/app/SlimFaas",
-                   "--benchmark", "/tools/benchmark/SlimFaasBenchmark", "--memorylab", "/tools/memorylab/SlimFaas.MemoryLab",
+                   "--benchmark", "/tools/benchmark/SlimFaas.Benchmarks", "--memorylab", "/tools/memorylab/SlimFaas.MemoryLab",
                    "--output", "/evidence/workload"] + common
         code = invoke(command, log)
         raw = export_vm(relative, output)

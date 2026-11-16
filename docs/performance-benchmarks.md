@@ -19,8 +19,8 @@ validate the performance commits of the `claude/performance-improvements-9h83ah`
 - Running:
 
   ```bash
-  dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- --filter '*'
-  dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- --filter '*DeploymentsSnapshot*'
+  dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- micro --filter '*'
+  dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- micro --filter '*DeploymentsSnapshot*'
   ```
 
 ## Methodology
@@ -191,7 +191,7 @@ Use commit `430b49ab` for the baseline and this change for the candidate, with t
 same host and SDK. Do not benchmark concurrently with builds or other load.
 
 ```bash
-dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -p:SkipClientAppBuild=true -- --filter '*RoutingQuery*'
+dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -p:SkipClientAppBuild=true -- micro --filter '*RoutingQuery*'
 BENCHMARK_PROFILE=standard BENCHMARK_DURATION_SECONDS=10 BENCHMARK_WARMUP_SECONDS=3 \
   BENCHMARK_REPETITIONS=3 BENCHMARK_PAYLOAD_BYTES=64,4096 BENCHMARK_CONCURRENCY=1,16 \
   .bin/slimfaas-local-benchmark.sh
@@ -202,9 +202,9 @@ run the same driver (Ctrl+C stops the local cluster):
 
 ```powershell
 dotnet build src\SlimFaas\SlimFaas.csproj -c Release -p:SkipClientAppBuild=true
-dotnet build benchmarks\SlimFaasBenchmark\SlimFaasBenchmark.csproj -c Release
-dotnet src\SlimFaas\bin\Release\net10.0\SlimFaas.dll local up -f benchmarks\slimfaas.local.benchmark.yaml --clean
-dotnet benchmarks\SlimFaasBenchmark\bin\Release\net10.0\SlimFaasBenchmark.dll run --duration 10 --warmup 3 --repetitions 3 --payload-bytes 64,4096 --concurrency 1,16 --output artifacts\zlinq\manual
+dotnet build benchmarks\SlimFaas.Benchmarks\SlimFaas.Benchmarks.csproj -c Release -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true
+dotnet src\SlimFaas\bin\Release\net11.0\SlimFaas.dll local up -f benchmarks\slimfaas.local.benchmark.yaml --clean
+dotnet benchmarks\SlimFaas.Benchmarks\bin\Release\net11.0\SlimFaas.Benchmarks.dll run --duration 10 --warmup 3 --repetitions 3 --payload-bytes 64,4096 --concurrency 1,16 --output artifacts\zlinq\manual
 ```
 
 The driver's `results.json` includes per-case `Resources` for direct, sync and
@@ -371,7 +371,7 @@ Use the Windows local commands from the preceding section with the new baseline
 and candidate and distinct output directories. Run the collection/queue cases with:
 
 ```powershell
-dotnet run -c Release --project benchmarks\SlimFaas.Benchmarks -p:SkipClientAppBuild=true -- --filter '*CollectionPipelineBenchmarks*' '*SlimDataQueueBenchmarks.ListRightPop*'
+dotnet run -c Release --project benchmarks\SlimFaas.Benchmarks -p:SkipClientAppBuild=true -- micro --filter '*CollectionPipelineBenchmarks*' '*SlimDataQueueBenchmarks.ListRightPop*'
 ```
 
 Do not run builds or other benchmarks concurrently with timed measurements.
@@ -607,7 +607,7 @@ tiering on, the second benchmark of a run measured tier-0 code and the third tie
 Run with:
 
 ```bash
-DOTNET_TieredCompilation=0 dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- --filter '*SlimDataQueue*' --iterationCount 20 --warmupCount 5
+DOTNET_TieredCompilation=0 dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- micro --filter '*SlimDataQueue*' --iterationCount 20 --warmupCount 5
 ```
 
 **Design decision — the flat `ImmutableArray<QueueElement>` per key is kept.** A dequeue
