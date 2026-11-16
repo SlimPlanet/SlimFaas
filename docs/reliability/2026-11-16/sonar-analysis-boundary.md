@@ -69,3 +69,14 @@ for the two scope properties. The next CI scan must verify the corrected server
 index; the previous scan is not presented as a successful exclusion boundary.
 The boundary verifier now runs after an actual scanner submission even when the
 independent test step fails, while preserving that job's failure.
+
+
+The follow-up scan at `9d1a610d` completes with the boundary verifier passing
+against the actual processed analysis. No inventory-excluded benchmark/test/script
+file remains in the returned PR file index; submitted metadata retains all five
+product/SDK projects as analyzed production. C# coverage is imported for 301 main
+files. All 2,446 tests pass in that Windows coverage job, including the membership
+fixture. The earlier WAL deadline failure remains retained and is not explained
+by this subsequent pass. **The external Sonar quality gate still fails**; successful
+scope/coverage verification does not clear its findings.
+[Completed task, scope, coverage and artifact hashes](sonar-completed-scope-9d.json).
