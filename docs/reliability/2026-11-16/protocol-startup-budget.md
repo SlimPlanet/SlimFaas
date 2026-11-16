@@ -32,6 +32,14 @@ ready/write still 15 s. No actual sleep or external service is used by these tes
 The failed command and original results remain unchanged; corrected runs use
 fresh namespaces and independently attributed harness hashes.
 
+The [first corrected real control](protocol-startup-first-real-control-113.json)
+now passes with the same image: crash-to-listener is **202.094 s**, followed by
+majority-ready/write in **0.464 s**. Startup remains within the historical 300 s
+allowance and ready/write within 15 s; the 180 s recovery/drain bound remains
+explicit in the actual driver arguments. This validates the separate budgets,
+not a reduction of the underlying approximately 200 s startup limitation. The
+long role continues separately in the fresh namespace.
+
 The [evidence manifest](protocol-startup-budget-evidence-112.json) and
 [frozen reproducer](protocol-startup-budget-reproducer-112.tar.gz) retain 37
 files: old/current sources, failing/passing test output, patch, original failure
