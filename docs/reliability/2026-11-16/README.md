@@ -1,4 +1,4 @@
-# Final-source long endurance: first closed role
+# Final-source long endurance: closed Native roles
 
 The **macOS ARM64 Native AOT follower role passes the recovery and integrity
 harness** on source `189826231fe43fe3069e8a1f7724f83589432c6f`. All six absence
@@ -8,8 +8,10 @@ accepted operations, zero confirmed missing async/stream/job operations, zero
 receipt hash/length failures and zero successful repetitions**. Twenty-six
 unknown outcomes remain separate.
 
-This closes one of six long roles. Native leader is running; Native quorum,
-the three dedicated-kind roles and general validation remain queued serially.
+The [Native leader role](native-leader-189.md) also passes recovery/integrity,
+with 23,070 confirmed operations and 34 separately retained unknown outcomes.
+Two of six long roles are closed. Native quorum is running; the three
+dedicated-kind roles and general validation remain queued serially.
 Full runtime-log window classification, consolidated original-state indices and
 the final performance verdict remain open. No merge or LTS certification is
 claimed. Earlier results remain attached to their actual source versions.
