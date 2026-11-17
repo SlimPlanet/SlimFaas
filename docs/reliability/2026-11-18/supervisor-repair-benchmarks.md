@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 20:15 CET. Campaign state: **in progress**.
+Updated 2026-11-17 20:22 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -15,9 +15,18 @@ The WebSocket async runner checks refreshed queue totals on all nodes after rece
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
+| streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
+
+## Receiver reconciliation
+
+| Profile | Requests | Expected receipts | Completions | Missing | Duplicates | Corrupt |
+|---|---:|---:|---:|---:|---:|---:|
+| jobs-rerun | 800 | 800 | 800 | 0 | 0 | 0 |
+| streams-rerun | 1600 | 2400 | 2400 | 0 | 0 | 0 |
+| websocket-rerun | 9600 | 12800 | 12800 | 0 | 0 | 0 |
 
 ## Comparisons
 
@@ -31,6 +40,10 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 |---|---|---:|---:|---:|---:|---|---:|---:|---:|
 | jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 131.27 | accepted job/s | 13.03 | 4.96 | 348.52 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1246.31 | accepted job/s | 13.09 | 0.96 | 352.75 |
+| streams-rerun | streams/http/fanout-1 | 4096 | 1 | 2 | 134.28 | accepted message/s | 4.00 | 6.10 | 382.86 |
+| streams-rerun | streams/http/fanout-1 | 4096 | 16 | 2 | 796.35 | accepted message/s | 4.01 | 1.93 | 442.55 |
+| streams-rerun | streams/http/fanout-2 | 4096 | 1 | 2 | 98.96 | accepted message/s | 8.02 | 6.75 | 471.08 |
+| streams-rerun | streams/http/fanout-2 | 4096 | 16 | 2 | 1072.85 | accepted message/s | 8.02 | 1.88 | 478.30 |
 | websocket-rerun | ws-async/dotnet/fanout-1 | 4096 | 1 | 2 | 80.74 | accepted message/s | 38.57 | 9.00 | 400.81 |
 | websocket-rerun | ws-async/dotnet/fanout-1 | 4096 | 16 | 2 | 379.11 | accepted message/s | 41.03 | 2.32 | 429.84 |
 | websocket-rerun | ws-async/dotnet/fanout-1 | 262144 | 1 | 2 | 31.16 | accepted message/s | 20.21 | 53.94 | 643.31 |
@@ -62,3 +75,4 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 
 - **jobs-rerun**: OBSERVED.
 - **websocket-rerun**: OBSERVED.
+- **streams-rerun**: OBSERVED.
