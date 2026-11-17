@@ -41,7 +41,7 @@ internal sealed class RequestJournal : IDisposable
             id, exchange, stage, request?.Method.Method, request?.RequestUri?.ToString(),
             request?.Content?.Headers.ContentLength, sha256, (int?)response?.StatusCode,
             response?.Version.ToString(), Header(response, "X-Chaos-Pod-Uid"),
-            Header(response, "X-Chaos-Connection"), error);
+            Header(response, "X-Chaos-Connection"), Header(response, "SlimFaas-Element-Id"), error);
         lock (_gate)
             _writer.WriteLine(JsonSerializer.Serialize(entry, RequestJournalJsonContext.Default.RequestJournalEntry));
     }
@@ -107,7 +107,8 @@ internal sealed class RequestJournal : IDisposable
 internal sealed record RequestJournalEntry(int Schema, string Writer, int Pid, string? PodUid,
     DateTimeOffset Utc, long MonotonicTimestamp, long MonotonicFrequency,
     string Id, string? Exchange, string Stage, string? Method, string? Uri, long? BodyBytes,
-    string? Sha256, int? Status, string? HttpVersion, string? ServingPodUid, string? Connection, string? Error);
+    string? Sha256, int? Status, string? HttpVersion, string? ServingPodUid, string? Connection,
+    string? QueueElementId, string? Error);
 
 [JsonSerializable(typeof(RequestJournalEntry))]
 internal sealed partial class RequestJournalJsonContext : JsonSerializerContext;

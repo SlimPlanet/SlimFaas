@@ -9,7 +9,7 @@ using SlimData.Commands;
 
 namespace SlimData.Tests;
 
-public sealed class SlimPersistentStateTests
+public sealed partial class SlimPersistentStateTests
 {
     [Fact]
     public async Task ApplyAsync_ignores_configuration_entries()

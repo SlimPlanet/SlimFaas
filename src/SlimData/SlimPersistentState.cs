@@ -279,6 +279,17 @@ public sealed partial class SlimPersistentState : IStateMachine, ISupplier<SlimD
                 ex);
         }
 
+        if (_logger?.IsEnabled(LogLevel.Trace) == true && entry.Context is SlimDataCommandBatchContext batchContext)
+        {
+            // This local apply context ties producer operation IDs to the exact
+            // committed Raft entry. Followers/replay need their retained WAL;
+            // a missing diagnostic line is never evidence of non-application.
+            foreach (SlimDataCommandBatchResponse response in batchContext.Responses)
+            foreach (SlimDataBatchOperationResult operation in response.Results)
+                _logger.LogCommandBatchOperationApplied(entry.Index, entry.Term, response.ProducerId,
+                    response.Sequence, response.RequestId, operation.RequestId, operation.Kind, operation.Applied, response.Duplicate);
+        }
+
         if (entry.Context is ISlimDataApplyContext applyContext)
             applyContext.SetApplied();
 

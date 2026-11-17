@@ -8,6 +8,7 @@ using MemoryPack;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SlimData;
 using SlimFaas.Database;
@@ -359,17 +360,17 @@ public sealed partial class SlimDataRecoveryTests
         public SlimDataService Service { get; }
 
         public static async Task<Fixture> CreateAsync(HttpMessageHandler handler, TimeSpan? timeout = null,
-            SlimDataBatchMode mode = SlimDataBatchMode.Global)
+            SlimDataBatchMode mode = SlimDataBatchMode.Global, ILogger<SlimDataService>? logger = null)
         {
             var directory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             Directory.CreateDirectory(directory);
             var state = new SlimPersistentState(directory);
             await state.RestoreAsync(CancellationToken.None);
-            return new Fixture(handler, timeout, mode, directory, state);
+            return new Fixture(handler, timeout, mode, directory, state, logger);
         }
 
         private Fixture(HttpMessageHandler handler, TimeSpan? timeout, SlimDataBatchMode mode,
-            string directory, SlimPersistentState state)
+            string directory, SlimPersistentState state, ILogger<SlimDataService>? logger)
         {
             _directory = directory;
             _state = state;
@@ -390,7 +391,7 @@ public sealed partial class SlimDataRecoveryTests
             factory.Setup(f => f.CreateClient(SlimDataService.HttpClientName)).Returns(_client);
             Service = new SlimDataService(factory.Object, _services, Cluster.Object, compatibility.Object,
                 new SlimDataInfo(3262), Microsoft.Extensions.Options.Options.Create(new SlimDataOptions { BatchMode = mode }),
-                NullLogger<SlimDataService>.Instance);
+                logger ?? NullLogger<SlimDataService>.Instance);
         }
 
         public async ValueTask DisposeAsync()

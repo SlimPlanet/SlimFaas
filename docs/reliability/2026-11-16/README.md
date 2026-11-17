@@ -1,4 +1,21 @@
-# Final-source long endurance: all six roles completed
+# Reliability evidence by source
+
+The latest [async reservation reproduction and correction](async-reservation-coalescing.md)
+prevents a local owner from being overwritten by a newer queue reservation.
+Its full validation passes 2,477 .NET tests and the Python SDK/harness checks.
+It also adds opt-in admission/Raft/transport/ack traces for real per-ID diagnosis.
+Application replays and affected long endurance on this new source remain open;
+the historical healthy duplicates are not yet attributed to that scheduling race.
+
+The isolated [Service](kubernetes-service-pool-lifetime.md) and
+[headless DNS](kubernetes-headless-pool-lifetime.md) connection comparisons each
+reconcile 38,400 calls. They establish five-minute connection rotation with #467
+while keeping the original headless startup-audit failure and latency spread.
+They do not establish final-source non-regression. The
+[completed Sonar scan](sonar-analysis-boundary.md) verifies targeted benchmark
+exclusions while retaining runtime/SDK analysis; its separate quality gate fails.
+
+## Historical source189: all six long roles completed
 
 All six final-source long roles pass the recovery/integrity harness and
 independent journal reconciliation: **92,332 confirmed operations, 35,186

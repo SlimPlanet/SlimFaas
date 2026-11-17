@@ -47,8 +47,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
     // Client reused for every batch flush (up to one flush every ~3-5 ms in
     // low-latency mode) instead of a CreateClient/Dispose per flush. Same pattern
-    // as SendClient: the underlying handler is never rotated anymore, which is
-    // harmless here (pod IPs, leader failover through the per-request URI).
+    // as SendClient: its SocketsHttpHandler bounds pooled connection age while
+    // leader failover still selects the URI independently for each request.
     private HttpClient? _batchHttpClient;
 
     public const string HttpClientName = "SlimDataHttpClient";
@@ -339,6 +339,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task<FileAdmissionResult> ExecuteFileAdmissionAsync(FileAdmissionMutation mutation)
     {
         var operation = NewOperation(SlimDataBatchOperationKind.FileAdmission, FileAdmissionStore.IndexKey);
+        _logger.LogFileAdmissionQueueMap(operation.RequestId, mutation.ElementId, mutation.FileId, mutation.Action);
         operation.Value = MemoryPackExactSerializer.Serialize(mutation);
         var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
         return response.KeyValueResult?.Value is { } value
@@ -422,6 +423,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                if (_logger.IsEnabled(LogLevel.Trace))
+                    TraceQueueOperations(request, null, "send-attempt", attempt + 1);
                 var response = await SendCommandBatchAsync(payload, cancellationToken)
                     .ConfigureAwait(false);
                 if (response.SequenceGap)
@@ -449,6 +452,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                     }
                 }
 
+                if (_logger.IsEnabled(LogLevel.Trace))
+                    TraceQueueOperations(request, response, "response-validated", attempt + 1);
                 partition.LastSuccessfulSequence = sequence;
                 return response.Results;
             }
@@ -458,6 +463,42 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                 _logger.LogRetryingTheSameOrderedSlimDataBatch(ex, partition.ProducerId, sequence, attempt);
                 await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
             }
+        }
+    }
+
+    private void TraceQueueOperations(SlimDataCommandBatchRequest request,
+        SlimDataCommandBatchResponse? response, string stage, int attempt)
+    {
+        if (!_logger.IsEnabled(LogLevel.Trace))
+            return;
+        for (int index = 0; index < request.Operations.Length; index++)
+        {
+            SlimDataBatchOperation operation = request.Operations[index];
+            if (operation.Kind is not (SlimDataBatchOperationKind.ListLeftPush or
+                SlimDataBatchOperationKind.ListRightPop or SlimDataBatchOperationKind.ListCallback or
+                SlimDataBatchOperationKind.FileAdmission))
+                continue;
+            SlimDataBatchOperationResult? result = response?.Results[index];
+            if (operation.Kind == SlimDataBatchOperationKind.ListCallback)
+            {
+                foreach (QueueItemStatus item in operation.CallbackItems)
+                    TraceElement(item.Id, item.HttpCode);
+            }
+            else
+            {
+                TraceElement(operation.ElementId, null);
+            }
+            if (result?.QueueItems is { } reservations)
+            {
+                foreach (QueueData item in reservations)
+                    _logger.LogQueueReservationResult(operation.RequestId, item.Id, item.TryNumber, item.ReservedIp,
+                        item.LastRetryTimeTicks, item.HttpTimeoutTicks);
+            }
+
+            void TraceElement(string elementId, int? statusCode) =>
+                _logger.LogQueueOperationStage(stage, request.ProducerId, request.GenerationId, request.Sequence,
+                    request.RequestId, operation.RequestId, operation.Kind, operation.Key, elementId, statusCode,
+                    attempt, result?.Applied, response?.Duplicate);
         }
     }
 

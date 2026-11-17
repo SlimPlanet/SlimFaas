@@ -848,6 +848,8 @@ Use `--journal-directory <new-directory>` with `run` or MemoryLab `load` when
 individual outcomes matter. Each process creates a unique JSONL file containing
 its pod UID, writer ID, UTC and monotonic clock, caller ID, target URI, length and
 SHA-256 when available, response headers/status/version and transport exceptions.
+Async response headers also retain `QueueElementId`, linking the caller ID to
+the accepted queue element before execution and acknowledgment reconciliation.
 Intents are flushed before entering the HTTP transport. An exception after that
 point is recorded as unknown; it is not proof of rejection or non-execution.
 MemoryLab sync/async calls share the caller ID and SHA-256 with the independent
@@ -879,6 +881,22 @@ two failure modes distinct in the report. `--function-delay-seconds 0.5` optiona
 holds function requests in flight; combine it with C16 and a suitable target rate
 to exercise active connections rather than merely configuring 16 idle slots.
 The delay applies to POST workload calls, leaving readiness GETs unaffected.
+Use `--function-controller statefulset --replacement-mode exit` to exercise a
+StatefulSet function with a stable ordinal and a replaced UID/IP. The old process
+must exit before that controller can recreate its ordinal; the adapter rejects
+the long preStop mode for this case.
+
+For a separate forensic run, `--delivery-trace` enables Trace logging at admission,
+dequeue, HTTP transport entry/result, callback command and committed Raft apply
+boundaries. Join caller journals' `QueueElementId` to queue element IDs, worker
+generation/try number, producer generation/sequence, operation request ID and Raft
+index/term. A transport entry does not prove bytes reached the function. A network
+exception may become the existing synthetic HTTP 500; the transport trace keeps
+that outcome distinct from actual response headers. A confirmed callback command
+is distinct from proof that it matched a still-running attempt. Missing trace
+lines never prove non-application; preserve WAL/snapshots for replay, especially
+on followers and restarts that have no local apply context. Trace logging adds
+I/O cost: keep this diagnostic separate from ordinary performance acceptance.
 
 Routing cases also use the existing resource sampler to read the owned runtime's
 CPU ticks, RSS, open FDs and socket FDs every five seconds. Live TCP states are
@@ -926,3 +944,9 @@ The [isolated Service connection-lifetime ABBA report](reliability/2026-11-16/ku
 records 38,400 reconciled calls and the actual five-minute pool rotation. It
 distinguishes a still-alive terminating pod from a stopped destination, and
 keeps this diagnostic separate from capacity and final-source acceptance.
+
+The [headless DNS comparison](reliability/2026-11-16/kubernetes-headless-pool-lifetime.md)
+retains its original pre-traffic health failure and the measurements from all
+four runs. The [async ownership report](reliability/2026-11-16/async-reservation-coalescing.md)
+separates the deterministic worker regression from historical duplicate causes
+that still require real per-ID traces and affected application replays.

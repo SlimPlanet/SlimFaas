@@ -16,11 +16,12 @@ spec.loader.exec_module(routing)
 
 
 class RoutingResourcesTests(unittest.TestCase):
-    def build(self, route, replacement_mode="terminating", function_delay_seconds=0):
+    def build(self, route, replacement_mode="terminating", function_delay_seconds=0, function_controller="deployment", delivery_trace=False):
         return routing.resources(SimpleNamespace(namespace="slimfaas-pr506-routing-test", image="runtime:source",
             controller_image="tools:shared", source_commit="source", route=route, retire_delay=600,
             before_seconds=60, after_seconds=420, concurrency=16, payload_bytes=4096, rps=20, scenario="sync",
-            replacement_mode=replacement_mode, function_delay_seconds=function_delay_seconds))
+            replacement_mode=replacement_mode, function_delay_seconds=function_delay_seconds,
+            function_controller=function_controller, delivery_trace=delivery_trace))
 
     def test_headless_function_dns_omits_unready_and_terminating_addresses(self):
         items, config = self.build("headless")
@@ -96,6 +97,33 @@ class RoutingResourcesTests(unittest.TestCase):
         self.assertEqual("function-old", commands[0][1])
         self.assertIn("old", commands[0])
 
+    def test_stateful_function_reuses_its_ordinal_after_the_old_process_exits(self):
+        items, config = self.build("direct", replacement_mode="exit", function_controller="statefulset")
+        function = next(item for item in items if item["metadata"]["name"] == "memory-function" and item["kind"] == "StatefulSet")
+        self.assertEqual("memory-function", function["spec"]["serviceName"])
+        self.assertEqual(1, function["spec"]["replicas"])
+        self.assertEqual("true", function["spec"]["template"]["metadata"]["annotations"]["SlimFaas/Function"])
+        self.assertEqual("statefulset", config["function_controller"])
+        runtime = next(item for item in items if item["metadata"]["name"] == "slimfaas" and item["kind"] == "StatefulSet")
+        environment = runtime["spec"]["template"]["spec"]["containers"][0]["env"]
+        self.assertIn({"name": "SlimFaas__BaseFunctionUrl", "value": "http://{pod_ip}:{pod_port}"}, environment)
+
+    def test_stateful_function_rejects_a_terminating_process_that_blocks_ordinal_replacement(self):
+        with self.assertRaisesRegex(ValueError, "ordinal"):
+            self.build("direct", function_controller="statefulset")
+
+    def test_delivery_trace_is_explicit_and_keeps_the_canonical_load_command(self):
+        items, traced = self.build("direct", delivery_trace=True)
+        _, standard = self.build("direct")
+        runtime = next(item for item in items if item["metadata"]["name"] == "slimfaas" and item["kind"] == "StatefulSet")
+        environment = runtime["spec"]["template"]["spec"]["containers"][0]["env"]
+        self.assertIn({"name": "Logging__LogLevel__SlimFaas.SlimQueuesWorker", "value": "Trace"}, environment)
+        self.assertIn({"name": "Logging__LogLevel__SlimData.SlimPersistentState", "value": "Trace"}, environment)
+        self.assertEqual(len(environment), len({value["name"] for value in environment}))
+        self.assertTrue(traced["delivery_trace"])
+        self.assertFalse(standard["delivery_trace"])
+        self.assertEqual(standard["driver_command"], traced["driver_command"])
+
     def test_a_failed_log_capture_still_stops_owned_resources_and_preserves_the_original_error(self):
         namespace = "slimfaas-pr506-routing-test"
         pods = [{"metadata": {"name": "slimfaas-" + str(index), "uid": str(index), "labels": {"app": "slimfaas"}},
@@ -120,7 +148,7 @@ class RoutingResourcesTests(unittest.TestCase):
             options = SimpleNamespace(namespace=namespace, image="runtime:source", controller_image="tools:shared",
                 source_commit="source", route="direct", retire_delay=600, before_seconds=60, after_seconds=420,
                 concurrency=1, payload_bytes=4096, rps=20, scenario="sync", replacement_mode="terminating",
-                function_delay_seconds=0, output=Path(temporary) / "case",
+                function_delay_seconds=0, function_controller="deployment", delivery_trace=False, output=Path(temporary) / "case",
                 kubeconfig=Path(temporary) / "dedicated-kubeconfig", dry_run=False)
             with patch.object(routing.subprocess, "run", side_effect=command) as run, patch.object(
                     routing.campaign, "collect_pod_logs", side_effect=RuntimeError("capture failed")):

@@ -118,6 +118,8 @@ public static class AsyncFunctionEndpoints
             await deadLetters.ConfigureAsync(function);
 
         string queueElementId = Guid.NewGuid().ToString();
+        if (logger.IsEnabled(LogLevel.Trace))
+            logger.LogAsyncAdmissionStage("preparing", functionName, queueElementId, context.TraceIdentifier, null);
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
             context,
             jobService,
@@ -147,6 +149,8 @@ public static class AsyncFunctionEndpoints
         string id;
         try
         {
+            if (logger.IsEnabled(LogLevel.Trace))
+                logger.LogAsyncAdmissionStage("commit-request", functionName, queueElementId, context.TraceIdentifier, customRequest.OffloadedFileId);
             if (context.Items.TryGetValue(FileAdmissionService.ContextKey, out var prepared) && prepared is PreparedFileAdmission admission)
             {
                 if (admission.FileId != customRequest.OffloadedFileId)
@@ -172,6 +176,8 @@ public static class AsyncFunctionEndpoints
         }
         catch
         {
+            if (logger.IsEnabled(LogLevel.Trace))
+                logger.LogAsyncAdmissionStage("commit-outcome-unknown", functionName, queueElementId, context.TraceIdentifier, customRequest.OffloadedFileId);
             activityTracker.Record(
                 NetworkActivityTracker.EventTypes.RequestEnd,
                 activityCaller.Actor,
@@ -180,6 +186,9 @@ public static class AsyncFunctionEndpoints
                 correlationId: requestInId);
             throw;
         }
+
+        if (logger.IsEnabled(LogLevel.Trace))
+            logger.LogAsyncAdmissionStage("commit-confirmed", functionName, id, context.TraceIdentifier, customRequest.OffloadedFileId);
 
         activityTracker.Record(
             NetworkActivityTracker.EventTypes.Enqueue,

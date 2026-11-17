@@ -337,3 +337,13 @@ StatefulSet pod replacement or a single NotReady/terminating pod in a ready pool
 must not retain the previous destination list. During Kubernetes API outages the
 last successful snapshot remains available; successful LIST/watch recovery
 reconciles it with current pods. Connection expiry does not replace this refresh.
+
+The async worker also retains local ownership when a later dequeue returns a
+newer reservation for an ID whose HTTP exchange is still in flight. It waits for
+that exchange rather than starting a parallel delivery. A terminal response
+completes the ID once; a nonterminal response can use the already-reserved retry
+without consuming it through an older failure callback. That retry waits for a
+ready function and keeps its original deadline. Expired reservations remain
+subject to the existing retry/DLQ policy, and a follower does not start them.
+This does not provide exactly-once execution after an unknown network outcome or
+leader failure. Sync invocation remains one application-level send.

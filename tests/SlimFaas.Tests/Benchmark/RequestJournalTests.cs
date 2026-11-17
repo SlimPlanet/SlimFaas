@@ -45,6 +45,7 @@ public sealed class RequestJournalTests
                     Assert.True(responses.Add(id));
                     Assert.Equal("pod-uid", value.GetProperty("ServingPodUid").GetString());
                     Assert.Equal("2.0", value.GetProperty("HttpVersion").GetString());
+                    Assert.Equal("queue-element-id", value.GetProperty("QueueElementId").GetString());
                 }
             }
             Assert.True(intents.SetEquals(responses));
@@ -129,6 +130,7 @@ public sealed class RequestJournalTests
                 return Task.FromException<HttpResponseMessage>(new HttpRequestException("Response may have been lost"));
             var response = new HttpResponseMessage(HttpStatusCode.OK) { Version = HttpVersion.Version20 };
             response.Headers.Add("X-Chaos-Pod-Uid", "pod-uid");
+            response.Headers.Add("SlimFaas-Element-Id", "queue-element-id");
             return Task.FromResult(response);
         }
     }

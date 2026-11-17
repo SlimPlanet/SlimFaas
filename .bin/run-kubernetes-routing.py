@@ -81,6 +81,12 @@ def resources(options):
     container["lifecycle"] = {"preStop": {"exec": {"command": ["sh", "-c", f"sleep {options.retire_delay}"]}}}
     container["env"].append({"name": "POD_IP", "valueFrom": {"fieldRef": {"fieldPath": "status.podIP"}}})
     container["env"].append({"name": "CHAOS_DELAY_SECONDS", "value": str(options.function_delay_seconds)})
+    if options.function_controller == "statefulset":
+        if options.replacement_mode != "exit":
+            raise ValueError("StatefulSet replacement requires the old process to exit before its ordinal can restart")
+        function["kind"] = "StatefulSet"
+        function["spec"]["serviceName"] = "memory-function"
+        function["spec"].pop("strategy", None)
     if options.replacement_mode == "exit":
         container.pop("lifecycle")
         pod["terminationGracePeriodSeconds"] = 5
@@ -92,13 +98,23 @@ def resources(options):
         # DNS test must instead exercise the normal ready EndpointSlice policy.
         service["spec"]["clusterIP"] = "None"
         service["spec"]["publishNotReadyAddresses"] = False
-    runtime = next(item for item in items if item["kind"] == "StatefulSet")
+    runtime = next(item for item in items if item["kind"] == "StatefulSet" and item["metadata"]["name"] == "slimfaas")
     environment = runtime["spec"]["template"]["spec"]["containers"][0]["env"]
     target = "http://{pod_ip}:{pod_port}" if options.route == "direct" else "http://{function_name}.{namespace}.svc:5000"
     environment += [{"name": "SlimFaas__BaseFunctionUrl", "value": target},
         {"name": "Logging__LogLevel__SlimFaas.SendClient", "value": "Debug"},
         {"name": "Logging__Console__FormatterOptions__TimestampFormat", "value": "O"},
         {"name": "Logging__Console__FormatterOptions__UseUtcTimestamp", "value": "true"}]
+    if options.delivery_trace:
+        for category in (
+            "SlimFaas.Endpoints.AsyncFunction", "SlimFaas.SlimQueuesWorker", "SlimFaas.SendClient",
+            "SlimFaas.Database.SlimDataService", "SlimData.SlimPersistentState"):
+            name = "Logging__LogLevel__" + category
+            existing = next((value for value in environment if value["name"] == name), None)
+            if existing is not None:
+                existing["value"] = "Trace"
+            else:
+                environment.append({"name": name, "value": "Trace"})
     directory = "/evidence/runs/" + options.namespace + "/routing"
     labels = {"slimfaas-campaign": options.namespace, "app": "routing-driver"}
     command = ["/tools/memorylab/SlimFaas.MemoryLab", "load", "--scenario", options.scenario,
@@ -133,7 +149,8 @@ def resources(options):
     config |= {"route": options.route, "function_url_template": target,
         "routing_directory": directory, "driver_command": command, "retire_delay": options.retire_delay,
         "function_delay_seconds": options.function_delay_seconds, "replacement_mode": options.replacement_mode,
-        "process_socket_statistics": True}
+        "process_socket_statistics": True, "function_controller": options.function_controller,
+        "delivery_trace": options.delivery_trace}
     backend = next(item for item in items if item["kind"] == "ConfigMap" and item["metadata"]["name"] == "campaign")
     backend["data"]["backend.json"] = json.dumps(config)
     return items, config
@@ -294,6 +311,8 @@ def main():
     parser.add_argument("--after-seconds", type=int, default=420)
     parser.add_argument("--retire-delay", type=int, default=600)
     parser.add_argument("--replacement-mode", choices=("terminating", "exit"), default="terminating")
+    parser.add_argument("--function-controller", choices=("deployment", "statefulset"), default="deployment")
+    parser.add_argument("--delivery-trace", action="store_true")
     parser.add_argument("--function-delay-seconds", type=float, default=0)
     parser.add_argument("--dry-run", action="store_true")
     run(parser.parse_args())

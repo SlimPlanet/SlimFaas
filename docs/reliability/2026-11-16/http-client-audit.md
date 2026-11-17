@@ -7,6 +7,14 @@ bounded in their `SocketsHttpHandler` itself. The function pool retains PR #467'
 five-minute lifetime. Batch, Files and cached cluster-peer pools use two minutes.
 No application retry, request deadline or HTTP version policy changes here.
 
+The function factory prefers HTTP/2 by default, but `SendClient` supplies explicit
+`HttpRequestMessage` instances with their existing HTTP/1.1 version/policy. The
+client defaults do not override these explicit messages; see
+[Microsoft's API contract](https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpclient.defaultrequestversion?view=net-11.0).
+This explains the actual HTTP/1.1 function receipts in the Kubernetes comparison.
+Those observations do not validate HTTP/2 negotiation or multiplexing. Keep the
+message policy unchanged while isolating connection lifetime and routing fixes.
+
 | Client / owner | Destinations | Connection lifetime / idle / connect | Exchange policy |
 | --- | --- | --- | --- |
 | Functions / singleton `SendClient` | Selected pod IP, or configured DNS/base URL | 5 min / default 1 min / default infinite | Existing `HttpClient` 100 s default and configured request cancellation; redirects and opt-in internal TLS retained |
