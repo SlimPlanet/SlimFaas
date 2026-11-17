@@ -17,6 +17,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 
@@ -35,6 +36,7 @@ WORKLOAD = load("platform_workload", ROOT / ".bin/run-platform-workload.py")
 FIXTURE = load("platform_fixture", ROOT / "tests/SlimFaas.Tests/Local/chaos_function.py")
 AGENT = load("platform_agent", ROOT / ".bin/slimdata_fault_agent.py")
 SINK = load("platform_sink", ROOT / ".bin/slimdata_receipt_sink.py")
+TUNING = load("platform_tuning", ROOT / ".bin/prepare-platform-tuning.py")
 MATRIX = load("platform_matrix", ROOT / ".bin/run-platform-matrix.py")
 DOTNET_PROBE = load("dotnet_probe", ROOT / ".bin/test-dotnet-sdk-payloads.py")
 KUBERNETES_DOTNET = load("kubernetes_dotnet", ROOT / ".bin/test-dotnet-sdk-kubernetes.py")
@@ -610,9 +612,44 @@ class PlatformTests(unittest.TestCase):
             (paths[1] / "status.json").write_text('{"passed":false}')
             self.assertEqual("FAIL", MATRIX.compare_memory(*paths)["verdict"])
             (paths[0] / "status.json").write_text('{"passed":false}')
-            self.assertEqual("INCONCLUSIVE", MATRIX.compare_memory(*paths)["verdict"])
+            self.assertEqual("FAIL", MATRIX.compare_memory(*paths)["verdict"])
             (paths[0] / "status.json").unlink()
-            self.assertEqual("INCONCLUSIVE", MATRIX.compare_memory(*paths)["verdict"])
+            self.assertEqual("FAIL", MATRIX.compare_memory(*paths)["verdict"])
+
+    def test_resume_rejects_changed_configuration_without_overwriting_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = {"environment": "podman", "before": "image@sha256:" + "a" * 64, "after": "image@sha256:" + "b" * 64}
+            MATRIX.freeze_configuration(root, config, ["data"], False)
+            frozen = (root / "campaign-identity.json").read_bytes()
+            MATRIX.freeze_configuration(root, config, ["data"], True)
+            with self.assertRaisesRegex(ValueError, "Resume refused"):
+                MATRIX.freeze_configuration(root, config | {"after": "image@sha256:" + "c" * 64}, ["data"], True)
+            with self.assertRaisesRegex(ValueError, "Resume refused"):
+                MATRIX.freeze_configuration(root, config, ["features"], True)
+            self.assertEqual(frozen, (root / "campaign-identity.json").read_bytes())
+
+    def test_known_failure_survives_missing_evidence_and_a_later_passing_attempt(self):
+        self.assertEqual("FAIL", MATRIX.combine_verdicts([{"verdict": "INCONCLUSIVE"}, {"verdict": "FAIL"}]))
+        self.assertEqual("FAIL", MATRIX.combine_verdicts([{"verdict": "FAIL"}, {"verdict": "PASS"}]))
+        self.assertEqual("OBSERVED", MATRIX.combine_verdicts([{"verdict": "OBSERVED"}, {"verdict": "PASS"}]))
+
+    def test_tuning_changes_one_factor_and_never_rewrites_existing_wal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generated = TUNING.prepare({"environment": "macos", "before": "reference", "after": "old-candidate"}, root / "profiles")
+            self.assertEqual(9, len(generated))
+            for item in generated:
+                config = json.loads((root / "profiles" / item["config"]).read_text())
+                self.assertEqual(config["before"], config["after"])
+                changed = {key for key in config["before_settings"] if config["before_settings"][key] != config["after_settings"][key]}
+                self.assertLessEqual(changed, {item["factor"]})
+                self.assertIn("1048575,1048576,1048577", config["workload_args"][1])
+            WORKLOAD.prepare_fresh_wal(root / "state", 65536)
+            marker = root / "state/data/slimfaas-0/wal/slimdata-chunk-size"
+            with self.assertRaisesRegex(ValueError, "fresh volumes"):
+                WORKLOAD.prepare_fresh_wal(root / "state", 4096)
+            self.assertEqual("65536", marker.read_text())
 
     @staticmethod
     def write_memory_fixture(path, rss):
@@ -908,6 +945,73 @@ class PlatformTests(unittest.TestCase):
             self.assertNotEqual(0, result.returncode)
             self.assertIn("node", result.stderr.lower())
 
+    def test_isolated_data_workloads_verify_preseed_counters_and_file_corruption(self):
+        runtime = ROOT / "tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
+        if not runtime.exists():
+            self.skipTest("Build MemoryLab Release before running deterministic endpoint fixtures")
+        state = {}
+        control = {"corrupt": False}
+
+        class Target(BaseHTTPRequestHandler):
+            def reply(self, status, body=b""):
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_GET(self):
+                path = urlsplit(self.path).path
+                if path == "/metrics":
+                    self.reply(200, b"process_cpu_seconds_total 1\nprocess_working_set_bytes 1048576\nprocess_start_time_seconds 100\nslimdata_state_queue_items 0\n")
+                else:
+                    body = state.get(path)
+                    if body is not None and control["corrupt"] and path.startswith("/data/files/"):
+                        body = bytes([body[0] ^ 1]) + body[1:]
+                    self.reply(404 if body is None else 200, body or b"")
+
+            def do_POST(self):
+                uri = urlsplit(self.path)
+                body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+                if uri.path.endswith(("/incr", "/decr")):
+                    key, operation = uri.path.rsplit("/", 1)
+                    state[key] = str(int(state.get(key, b"0")) + (1 if operation == "incr" else -1)).encode()
+                    self.reply(200, state[key])
+                else:
+                    key = uri.path + "/" + parse_qs(uri.query)["id"][0] if uri.path in ("/data/files", "/data/hashsets") else uri.path
+                    state[key] = body
+                    self.reply(200)
+
+            def do_DELETE(self):
+                state.pop(urlsplit(self.path).path, None)
+                self.reply(204)
+
+            def log_message(self, *_args):
+                pass
+
+        with tempfile.TemporaryDirectory() as directory, ThreadingHTTPServer(("127.0.0.1", 0), Target) as server:
+            running = threading.Thread(target=server.serve_forever)
+            running.start()
+            try:
+                for scenario in WORKLOAD.DATA_SCENARIOS:
+                    with self.subTest(scenario=scenario):
+                        report = Path(directory) / (scenario + ".json")
+                        command = ["dotnet", str(runtime), "load", "--scenario", scenario,
+                            "--node-urls", f"http://127.0.0.1:{server.server_port}", "--duration", "1", "--concurrency", "1",
+                            "--max-operations", "2", "--keys-per-worker", "2", "--payload-bytes", "64", "--file-bytes", "64",
+                            "--key-prefix", scenario, "--validate", "true", "--json", str(report)]
+                        result = subprocess.run(command, capture_output=True, text=True, timeout=15)
+                        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                        self.assertEqual(2, json.loads(report.read_text())["report"]["Completed"])
+                control["corrupt"] = True
+                result = subprocess.run(["dotnet", str(runtime), "load", "--scenario", "files", "--node-urls",
+                    f"http://127.0.0.1:{server.server_port}", "--concurrency", "1", "--max-operations", "1",
+                    "--file-bytes", "64", "--json", str(Path(directory) / "corrupt.json")], capture_output=True, text=True, timeout=15)
+                self.assertNotEqual(0, result.returncode)
+                self.assertEqual(1, json.loads((Path(directory) / "corrupt.json").read_text())["report"]["Failed"])
+            finally:
+                server.shutdown()
+                running.join()
+
     def test_memorylab_custom_function_and_node_urls_preserve_async_integrity_headers(self):
         runtime = ROOT / "tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
         if not runtime.exists():
@@ -915,6 +1019,13 @@ class PlatformTests(unittest.TestCase):
         receipts = []
 
         class Target(BaseHTTPRequestHandler):
+            def do_GET(self):
+                body = b"process_cpu_seconds_total 1\nprocess_working_set_bytes 1048576\nprocess_start_time_seconds 100\n"
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
             def do_POST(self):
                 body = self.rfile.read(int(self.headers["Content-Length"]))
                 receipts.append((self.path, dict(self.headers), body))
@@ -932,7 +1043,7 @@ class PlatformTests(unittest.TestCase):
                 result = subprocess.run(["dotnet", str(runtime), "load", "--scenario", "async",
                     "--node-urls", f"http://127.0.0.1:{server.server_port}",
                     "--function", "custom function", "--duration", "1", "--concurrency", "1",
-                    "--payload-bytes", "64", "--target-rps", "5"],
+                    "--payload-bytes", "64", "--max-operations", "2"],
                     capture_output=True, text=True, timeout=15)
             finally:
                 server.shutdown()

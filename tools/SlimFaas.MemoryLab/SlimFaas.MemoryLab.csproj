@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\benchmarks\Common\ClusterResourceMonitor.cs" Link="Common\ClusterResourceMonitor.cs" />
     <Compile Include="..\..\benchmarks\Common\BenchmarkStatistics.cs" Link="Common\BenchmarkStatistics.cs" />
     <Compile Include="..\..\benchmarks\Common\RequestJournal.cs" Link="Common\RequestJournal.cs" />
     <PackageReference Include="prometheus-net" />

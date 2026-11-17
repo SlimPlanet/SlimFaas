@@ -379,6 +379,41 @@ public sealed class AsyncBenchmarkTests
         }
     }
 
+    [Fact]
+    public void One_missing_repetition_cannot_be_hidden_by_the_aggregate_median()
+    {
+        BenchmarkReport report = CompleteReport();
+        BenchmarkReport candidate = report with { LatencyRuns = report.LatencyRuns.Select(row =>
+            row.Mode == "async" && row.Repetition == 1 ? row with { AsyncResources = null } : row).ToArray() };
+        BenchmarkComparisonReport comparison = BenchmarkComparer.BuildComparison("before", "after", report, candidate, criteria: "non-regression");
+        Assert.NotNull(comparison.InconclusiveReason);
+        Assert.False(comparison.Passed);
+    }
+
+    [Fact]
+    public void Candidate_integrity_failure_is_retained_when_reference_metrics_are_incomplete()
+    {
+        BenchmarkReport report = CompleteReport();
+        BenchmarkReport candidate = report with { LatencyRuns = report.LatencyRuns.Select(row =>
+            row.Mode == "async" && row.Repetition == 1 ? row with { AsyncMissing = 1 } : row).ToArray() };
+        BenchmarkComparisonReport comparison = BenchmarkComparer.BuildComparison("before", "after",
+            report with { LatencyRuns = [] }, candidate, criteria: "non-regression");
+        Assert.NotNull(comparison.InconclusiveReason);
+        Assert.False(comparison.CandidateHasNoFailures);
+        Assert.False(comparison.Passed);
+    }
+
+    [Fact]
+    public void Per_repetition_failure_cannot_be_hidden_by_a_successful_aggregate()
+    {
+        BenchmarkReport baseline = CompleteReport();
+        BenchmarkReport candidate = baseline with { LatencyRuns = baseline.LatencyRuns.Select(row =>
+            row.Mode == "async" && row.Repetition == 1 ? row with { AsyncMissing = 1 } : row).ToArray() };
+        BenchmarkComparisonReport comparison = BenchmarkComparer.BuildComparison("before", "after", baseline, candidate, criteria: "non-regression");
+        Assert.False(comparison.Passed);
+        Assert.False(comparison.CandidateHasNoFailures);
+    }
+
     private static BenchmarkReport CompleteReport()
     {
         LatencyAggregateResult async = Row(150, 100, 200, 220, 300, 200, 400, 450, 100, 10, 2, 100);

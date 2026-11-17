@@ -1,4 +1,4 @@
-# Latency and Autoscaling Benchmark
+# Application, Resource and Autoscaling Benchmarks
 
 SlimFaas includes a reproducible native-local benchmark for the warm synchronous
 proxy path, asynchronous enqueue and delivery, and scale-to-zero followed by
@@ -14,7 +14,8 @@ not performance results. Use the following fields for the website results table:
 |---|---|---|---|---|
 | HTTP sync | Successful requests/s, excluding warmup | Aggregate runtime CPU ms/successful request | Sampled peak aggregate working set, MiB | `results.json`: `LatencyRuns[].RatePerSecond` and `.Resources` |
 | HTTP async, paced and burst | Accepted messages/s (HTTP 202), excluding delivery drain | Aggregate runtime CPU ms/accepted message, including delivery drain | Sampled peak aggregate working set, MiB, including drain | `LatencyRuns[].AsyncResources`; `AsyncWorkloads[].Resources` and `.RatePerSecond` |
-| MemoryLab Set/mixed | Successful operations/s; a mixed operation can be an async acceptance | Per-node process CPU counters at the before/load-end boundaries | Peak of the sum of all runtime nodes in each load sampling round | `operations.json` (`report.Rate`), `metrics-before-*.prom`, `metrics-load-end-*.prom`, `memory.csv` |
+| MemoryLab Set/Get, HashSet, counters, Files and mixed | Successful operations/s; Files also export logical payload MiB/s | Aggregate runtime CPU ms/successful operation during load | Peak of the sum of runtime nodes in each 500 ms round | `operations.json`: `report`, `resources`, `resourceWindow` |
+| Streams, Jobs, official .NET/Python WebSocket clients | Acceptance/request rate and independently observed delivery/completion rates | Runtime CPU during load and a separate drain resource window | Peak cluster working set in each window | `feature-results.json`: `Rows`, `Resources`, `DrainResources`, `Receipts`, `Samples` |
 | Microbenchmarks | BenchmarkDotNet operation timings | Elapsed operation time, not process CPU consumption | Managed allocated bytes/op, not process RAM | BenchmarkDotNet reports |
 
 The HTTP `summary.md` contains a combined throughput/CPU/RAM table with
@@ -36,7 +37,7 @@ dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dl
   --output artifacts/slimfaas-local-benchmark/overnight/publication-summary.md
 ```
 
-`report` only reads JSON and writes Markdown. It does not reconstruct missing
+`report --input` only reads JSON and writes Markdown. It does not reconstruct missing
 metrics or certify acceptance. It reports unavailable resource values when any
 repetition lacks them. The table uses mean per-repetition throughput and median
 per-repetition CPU/peak RAM; raw repetitions remain in `results.json`.
@@ -55,10 +56,138 @@ resource evidence inconclusive. The sampler reads the live
 gauge. Historical per-node-maximum verdicts must not be presented as cluster RAM
 acceptance; retain their originals and qualify any offline recalculation. Use
 the platform comparison for this cluster measure; MemoryLab's separate `report`
-command remains a per-node slope/cooldown diagnostic. CPU totals for MemoryLab
+command remains a per-node slope/cooldown diagnostic. Legacy CPU totals for MemoryLab
 can be calculated from the live `process_cpu_seconds_total` boundary deltas only
 when every node has both boundaries, unchanged `process_start_time_seconds` and
 nondecreasing counters. Missing evidence is unavailable, not zero CPU.
+
+## Complete feature campaign and offline export
+
+The default `.bin/run-platform-matrix.py` blocks now include `data` and
+`features`, in addition to the existing HTTP and MemoryLab set/mixed controls.
+The same frozen C# driver generates work in every ABBA role. Python controls
+platforms and receiver processes; it does not generate the timed feature load.
+Build the drivers and both reference/candidate products before measurements.
+Container images must contain the same updated benchmark tools, official SDKs
+and fixture sources; an old image with a new launcher is not a compatible driver.
+
+| Block | Cases | Integrity and timing |
+|---|---|---|
+| `http` | Direct/sync/async; steady, paced, burst; existing payload/concurrency matrix | IDs, delivery, duplicates, queue drain; acceptance and completion windows are separate |
+| `data` | `slimdata-set`, `get`, `set`, `delete`, `hashset`, `hashget`, `hashdelete`, `increment`, `decrement` | Isolated operations; reads/deletes preseed outside load; final values checked on every node. Set reads use the consistent API; hashset reads retain their documented visibility semantics |
+| `data` | `files-upload`, `files-download`, `files`, `files-unique` | Upload only, preseeded download only, cross-node upload/read cycle, bounded unique uploads. Changing overwrite contents, length and SHA-256 verification, all-node final validation |
+| `features` | Streams with one/two functions | 200 accepted messages, independent per-function receipts, missing/duplicate/corrupt checks and committed ACK/lag drain |
+| `features` | Jobs | 200 real jobs, independent started/completed receipts and `Succeeded` state on every node; request latency and submission-to-start samples |
+| `features` | .NET and Python WebSocket sync, async, events | Official SDK receivers; full response SHA-256, first-byte timing, callback receipts and two-function event fan-out |
+
+New cases use concurrency 1/4/16 and three repetitions by default. Files and
+WebSocket use the HTTP payload list. Isolated data cases have an unmeasured
+warmup. Reads are preseeded and verified before collection. Delete cases stop
+when each seeded key has been deleted once; unique file uploads are bounded to
+200 operations. Files report **logical payload MiB/s**, not the sum of upload and
+download network traffic. Runtime RSS excludes the generator's payload buffers.
+Mixed workload CPU/RAM describe the whole mix, never each constituent operation.
+Jobs keep a configured dispatch limit of 16 in this feature profile; request
+concurrency and job dispatch parallelism are different settings.
+
+Receiver receipt polling and queue/job state confirmation are included in the
+observed completion window, so completion rates are conservative and distinct
+from acceptance rates. `DrainSeconds` records the additional observation time.
+The Jobs profile launches real processes/pods; it measures their lifecycle,
+including startup. It does not claim isolated scheduler capacity. Keep cold
+start, timeout, cancellation, retries, reconnect and recovery tests in the
+existing reliability campaigns rather than mixing faults into healthy capacity.
+
+The shared `benchmarks/Common/ClusterResourceMonitor.cs` collector takes explicit
+initial/final samples and periodic 500 ms samples. Every node must have live CPU,
+RSS and an unchanged process start identity. Counter resets, missing nodes and
+invalid samples cannot become zero usage. Async Raft diagnostics additionally
+wait for a refresh on every node; the final refresh wait is outside the live CPU
+window. MemoryLab's older `memory.csv` remains available for historical adapters.
+
+Launch a prepared configuration manually when the machine is idle:
+
+```bash
+python3 .bin/run-platform-matrix.py \
+  --config artifacts/pr506/your-frozen-platform-config.json \
+  --output artifacts/pr506/your-new-feature-campaign
+
+# Resume completed phases with exactly the same sources, binaries and settings.
+python3 .bin/run-platform-matrix.py \
+  --config artifacts/pr506/your-frozen-platform-config.json \
+  --output artifacts/pr506/your-new-feature-campaign --resume
+```
+
+There is no overall campaign duration limit. The full feature matrix can take
+more than one night; use `--blocks data` or `--blocks features` for separate,
+fresh campaigns. Individual requests/drains remain bounded. Kubernetes phases
+have a configurable `phase_timeout_seconds` (default seven days). Disk guards
+stop new cases below 20 GiB free. Completed attempts and failures are retained.
+A partially executed phase without `execution.json` is deliberately not restarted
+in place: inspect and stop its owned processes, retain its directory, then use a
+fresh campaign. Never attach to an unverified saved PID or change a WAL marker.
+
+`campaign-identity.json` freezes configuration, selected blocks, launcher hashes
+and local executable/managed dependency hashes. Resume refuses changes or a
+legacy campaign without this identity. Immutable image digests are required for container
+configurations. Comparisons also verify matching driver assemblies and fixture
+hashes before accepting evidence. The same output directory cannot be used for a new candidate.
+A known candidate integrity failure remains **FAIL** even if its reference has
+missing measurements or a later repeat passes. Incomplete measurements remain
+**INCONCLUSIVE**. New feature performance is **OBSERVED**, not a non-regression
+PASS: retain the established HTTP/MemoryLab budgets and calibrate new budgets
+before asserting optimization gains.
+
+Generate publication artifacts without launching any workload:
+
+```bash
+dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll report \
+  --campaign artifacts/pr506/your-new-feature-campaign \
+  --output artifacts/pr506/your-new-feature-campaign/publication.md
+```
+
+This writes versioned `publication.json`, `publication.csv` and `publication.md`.
+It adapts HTTP, MemoryLab, feature and supported historical standalone reports;
+raw files are never rewritten. Every repetition keeps units, payload,
+concurrency, latency, CPU, peak RAM, integrity, window and raw source links.
+JSON summaries retain minimum/median/maximum per experiment, with unavailable
+values when any repetition lacks evidence. Source SHA-256 and nearby
+`parameters.json` preserve product/driver/environment attribution. Different
+experiments, SDKs, platforms and measurement windows are not pooled. Missing
+repetitions, unsupported legacy shapes and failed executions remain visible.
+Review these artifacts before explicitly adding measured rows to this page.
+
+## Offload, WAL and queue optimization candidates
+
+No performance default is changed by the tooling work. The current async body
+offload threshold remains **strictly greater than 1 MiB**. Existing WAL geometry
+remains immutable; new Windows WALs use 64 KiB, while unmarked Linux/macOS WALs
+use the system page size. A 512 KiB offload threshold and 64 KiB WAL are candidates
+to measure, not proven best defaults. Keep persisted-copy requirements unchanged.
+
+Prepare independent tuning configurations without running them:
+
+```bash
+python3 .bin/prepare-platform-tuning.py \
+  --config artifacts/pr506/your-frozen-platform-config.json \
+  --output artifacts/pr506/tuning-profiles
+```
+
+The generator creates nine configurations, including reference controls:
+WAL 4/8/16/32/64 KiB and thresholds 128/256/512 KiB/1 MiB. Every configuration
+uses the same product for A and B, changes only one setting, and includes payloads
+one byte below, exactly at, and one byte above each threshold. Fresh volumes are
+mandatory. Local/Podman preparation refuses existing WAL directories; Kubernetes
+initialization refuses incompatible or unmarked existing WALs. These settings
+are benchmark fixtures, not a new production migration mechanism.
+
+`QueuePipelineBenchmarks` prepares current ZLinq, .NET LINQ and direct-loop
+variants for running/retry selection, with empty/200/2000-element queues and
+semantic equivalence tests. Routing microbenchmarks remain the control. No
+benchmark was run while implementing these variants. Adopt a runtime variant
+only after repeated ABBA comparisons beat both enclosing references beyond
+observed variation and preserve throughput, latency, CPU, RAM and integrity
+budgets. Keep serialization, copy elimination and file I/O experiments separate.
 
 The [17 November PR #506 handoff](reliability/2026-11-17/pr506-handoff.md)
 records its merge assessment, CPU/RAM evidence, six then-running sourcef2
@@ -299,6 +428,8 @@ For example, save an environment configuration outside the source tree:
   "environment": "macos",
   "before": "/absolute/path/baseline/SlimFaas",
   "after": "/absolute/path/candidate/SlimFaas",
+  "before_commit": "<reference-source-SHA>",
+  "after_commit": "<candidate-source-SHA>",
   "benchmark": "/absolute/path/SlimFaas.Benchmarks.dll",
   "memorylab": "/absolute/path/SlimFaas.MemoryLab.dll",
   "compare_command": ["dotnet", "/absolute/path/SlimFaas.Benchmarks.dll"]
@@ -321,7 +452,7 @@ when reclaiming verified inactive build caches or images.
 The test-only `benchmarks/platform/Dockerfile` inherits the exact production
 runtime image and adds a common load driver, SDK fixtures and Linux fault tools.
 Build with `--build-arg RUNTIME_IMAGE=<source-built-runtime>`. Use `podman` in the
-matrix configuration, image names for `before`/`after`, and a unique `prefix`.
+matrix configuration, immutable image digests for `before`/`after`, and a unique `prefix`.
 State is stored on the VM's Linux filesystem, not a macOS bind mount. Podman
 measures a managed, trimmed ARM64 runtime with the current production Dockerfile;
 macOS Native AOT results are a separate comparison.

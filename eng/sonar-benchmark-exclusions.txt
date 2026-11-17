@@ -15,6 +15,7 @@ tools/SlimFaas.MemoryLab/**/*
 .bin/*platform*.py
 .bin/*kubernetes*.py
 .bin/platform-entrypoint.sh
+.bin/benchmark-sdk-target.py
 .bin/run-journaled-load.py
 .bin/slimdata_fault_agent.py
 .bin/slimdata_receipt_sink.py

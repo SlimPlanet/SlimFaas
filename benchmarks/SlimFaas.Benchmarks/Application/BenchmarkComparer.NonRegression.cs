@@ -12,7 +12,8 @@ internal static partial class BenchmarkComparer
         {
             return new BenchmarkComparisonReport(
                 DateTimeOffset.UtcNow, baselinePath, candidatePath, null, null, false, false,
-                false, candidate.Latency.All(row => row.Failed == 0 && row.AsyncMissing == 0 && row.AsyncDuplicates == 0) &&
+                false, candidate.LatencyRuns.All(row => row.Failed == 0 && row.AsyncMissing == 0 && row.AsyncDuplicates == 0) &&
+                       candidate.Latency.All(row => row.Failed == 0 && row.AsyncMissing == 0 && row.AsyncDuplicates == 0) &&
                        (candidate.AsyncWorkloads?.All(row => row.Failed == 0 && row.Missing == 0 && row.Duplicates == 0) ?? true) &&
                        candidate.Scaling.Failed == 0 && !candidate.Scaling.TimedOut,
                 false, incomplete, [], [],
@@ -55,7 +56,8 @@ internal static partial class BenchmarkComparer
             yield return $"{variant} has no complete measurement matrix.";
             yield break;
         }
-        if (variant == "Baseline" && (report.Latency.Any(row => row.Failed > 0 || row.AsyncMissing > 0 || row.AsyncDuplicates > 0) ||
+        if (variant == "Baseline" && (report.LatencyRuns.Any(row => row.Failed > 0 || row.AsyncMissing > 0 || row.AsyncDuplicates > 0) ||
+            report.Latency.Any(row => row.Failed > 0 || row.AsyncMissing > 0 || row.AsyncDuplicates > 0) ||
             report.AsyncWorkloads?.Any(row => row.Failed > 0 || row.Missing > 0 || row.Duplicates > 0) == true ||
             report.Scaling.Failed > 0 || report.Scaling.TimedOut))
             yield return "Baseline contains workload failures and cannot certify non-regression.";
@@ -77,6 +79,10 @@ internal static partial class BenchmarkComparer
                     continue;
                 }
                 if (mode == "async" && (rows[0].AsyncArrivalP99Milliseconds is null || rows[0].AsyncObserved is null ||
+                    runs.Any(run => run.Completed <= 0 || run.AsyncDelivery is null ||
+                        !PositiveFinite(run.AsyncResources?.CpuMillisecondsPerMessage) ||
+                        !PositiveFinite(run.AsyncResources?.RaftEntriesPerMessage) ||
+                        !PositiveFinite(run.AsyncResources?.PeakWorkingSetBytes)) ||
                     !PositiveFinite(rows[0].AsyncCpuMillisecondsPerMessage) ||
                     !PositiveFinite(rows[0].AsyncRaftEntriesPerMessage) ||
                     !PositiveFinite(rows[0].AsyncPeakWorkingSetBytes)))

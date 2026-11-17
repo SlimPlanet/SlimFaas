@@ -76,7 +76,7 @@ def resources(options):
 
     job_configuration = {"Configurations": {"chaos-job": {
         "Image": options.controller_image, "ImagesWhitelist": [], "Visibility": "Public",
-        "NumberParallelJob": 2, "BackoffLimit": 1, "TtlSecondsAfterFinished": 3600, "RestartPolicy": "Never",
+        "NumberParallelJob": 16 if options.suite == "features" else 2, "BackoffLimit": 0 if options.suite == "features" else 1, "TtlSecondsAfterFinished": 3600, "RestartPolicy": "Never",
         "Resources": {"Requests": {"cpu": "100m", "memory": "100Mi"},
                       "Limits": {"cpu": "1000m", "memory": "256Mi"}},
         "Environments": [{"Name": "SLIMFAAS_VALIDATION_JOB", "Value": "1"},
@@ -96,6 +96,9 @@ def resources(options):
         {"name": "SlimFaas__DeadLetterQueue__DefaultVisibility", "value": "Public"},
         {"name": "SlimFaas__Streams__EnableFront", "value": "true"},
         {"name": "SlimFaas__Streams__DefaultVisibility", "value": "Public"}]
+    threshold = getattr(options, "async_offload_threshold", None)
+    if threshold is not None:
+        environment.append({"name": "SlimFaas__AsyncBodyOffloadThresholdBytes", "value": str(threshold)})
     if options.suite != "http":
         environment += [{"name": "SlimData__SnapshotIntervalEntries", "value": "50"},
                         {"name": "SlimData__SnapshotIntervalBytes", "value": "8388608"}]
@@ -113,6 +116,16 @@ def resources(options):
     init = {"name": "initialize-owned-storage", "image": options.controller_image, "imagePullPolicy": "IfNotPresent",
         "command": ["sh", "-c"], "args": [f"mkdir -p /database/backup {receipts} && chmod 0777 /database /database/backup {receipts}"],
         "volumeMounts": [{"name": "state", "mountPath": "/database"}, {"name": "evidence", "mountPath": "/evidence"}]}
+    chunk = getattr(options, "wal_chunk_bytes", None)
+    if chunk is not None:
+        if chunk not in (4096, 8192, 16384, 32768, 65536):
+            raise ValueError("Unsupported benchmark WAL geometry")
+        # This namespace and retained hostPath are new. A restart must reuse the
+        # same marker; a different value or an unmarked existing WAL is rejected.
+        init["args"][0] += (f'; wal="/database/$HOSTNAME/wal"; '
+            f'if [ -e "$wal" ]; then test "$(cat "$wal/slimdata-chunk-size")" = "{chunk}" || exit 1; '
+            f'else mkdir -p "$wal" && printf "%s" "{chunk}" > "$wal/slimdata-chunk-size"; fi; '
+            'chown -R 1000:1000 "/database/$HOSTNAME"')
     agent = {"name": "fault-agent", "image": options.controller_image, "imagePullPolicy": "IfNotPresent",
         "securityContext": {"capabilities": {"add": ["SYS_PTRACE"]}},
         "command": ["python3", "/src/.bin/slimdata_fault_agent.py"],
@@ -159,7 +172,7 @@ def resources(options):
         direct = "http://benchmark-latency:5000"
     else:
         annotations = common | {"SlimFaas/NumberParallelRequest": "64", "SlimFaas/NumberParallelRequestPerPod": "64"}
-        names = ["memory-function"] if options.suite == "memory" else ["chaos", "chaos-wake", "chaos-fanout-a", "chaos-fanout-b"]
+        names = ["memory-function", "memory-function-2"] if options.suite == "features" else ["memory-function"] if options.suite in ("memory", "data") else ["chaos", "chaos-wake", "chaos-fanout-a", "chaos-fanout-b"]
         for name in names:
             specific = annotations.copy()
             if name == "chaos":
@@ -185,6 +198,7 @@ def resources(options):
     config = {"namespace": ns, "campaign_id": ns, "entry": "http://slimfaas-http:5000", "direct": direct,
         "runtime_image": options.image, "controller_image": options.controller_image,
         "source_commit": options.source_commit,
+        "runtime_settings": {"wal_chunk_bytes": chunk, "async_offload_threshold": threshold},
         "state_root": base + "/state", "receipts_root": receipts,
         "node_state_roots": [f"{base}/state/data/slimfaas-{index}/slimfaas-{index}" for index in range(3)],
         "nodes": [{kind: f"{scheme}://slimfaas-{index}.slimfaas:{port}" + ("/ws" if kind == "websocket" else "")
@@ -221,7 +235,7 @@ def resources(options):
         "template": {"metadata": {"labels": labels | {"app": "campaign-driver"}}, "spec": driver}}))
     sources = {name: (ROOT / ".bin" / name).read_text() for name in (
         "test-slimdata-local-chaos.py", "slimdata_kubernetes_backend.py", "slimdata_fault_agent.py",
-        "slimdata_receipt_sink.py", "run-platform-workload.py", "run-kubernetes-campaign.py")}
+        "slimdata_receipt_sink.py", "run-platform-workload.py", "run-kubernetes-campaign.py", "benchmark-sdk-target.py")}
     sources["chaos_function.py"] = (ROOT / "tests/SlimFaas.Tests/Local/chaos_function.py").read_text()
     result.append(resource("ConfigMap", "tools-source", data=sources, immutable=True))
     for item in result:
@@ -422,7 +436,9 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--image")
     parser.add_argument("--controller-image", default="localhost/slimfaas-pr506:candidate-tools")
-    parser.add_argument("--suite", choices=("http", "memory", "chaos"), default="chaos")
+    parser.add_argument("--wal-chunk-bytes", type=int, choices=(4096, 8192, 16384, 32768, 65536))
+    parser.add_argument("--async-offload-threshold", type=int, choices=(131072, 262144, 524288, 1048576))
+    parser.add_argument("--suite", choices=("http", "memory", "data", "features", "chaos"), default="chaos")
     parser.add_argument("--probes", choices=("normal", "endurance"), default="endurance")
     parser.add_argument("--scenarios", default="payloads,api,files,wake,retries,chaos,restarts")
     parser.add_argument("--roles", default="follower,leader,quorum")

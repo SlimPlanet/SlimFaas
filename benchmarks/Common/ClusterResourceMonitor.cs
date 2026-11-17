@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace SlimFaasBenchmark;
 
 internal sealed class ClusterResourceMonitor : IAsyncDisposable
@@ -8,25 +10,29 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
     private readonly CancellationTokenSource _cancellation = new();
     private readonly List<ClusterResourceSnapshot> _samples;
     private readonly Task _monitoring;
+    private readonly bool _diagnostics;
+    private readonly DateTimeOffset _startedAtUtc = DateTimeOffset.UtcNow;
     private Task<AsyncResourceUsage?>? _completion;
 
     private ClusterResourceMonitor(HttpClient client, IReadOnlyList<Uri> nodeUrls,
-        ClusterResourceSnapshot initial)
+        ClusterResourceSnapshot initial, bool diagnostics)
     {
         _client = client;
+        _diagnostics = diagnostics;
         _nodeUrls = nodeUrls;
         _samples = [initial];
         _monitoring = MonitorAsync();
     }
 
     internal static async Task<ClusterResourceMonitor> StartAsync(HttpClient client,
-        IReadOnlyList<Uri> nodeUrls)
+        IReadOnlyList<Uri> nodeUrls, bool diagnostics = true)
     {
         using var deadline = new CancellationTokenSource(RefreshTimeout);
-        ClusterResourceSnapshot previous = await ReadAsync(client, nodeUrls, deadline.Token).ConfigureAwait(false);
-        ClusterResourceSnapshot initial = await WaitForRefreshAsync(client, nodeUrls, previous, deadline.Token)
-            .ConfigureAwait(false);
-        return new ClusterResourceMonitor(client, nodeUrls, initial);
+        ClusterResourceSnapshot previous = await ReadAsync(client, nodeUrls, deadline.Token, diagnostics).ConfigureAwait(false);
+        ClusterResourceSnapshot initial = diagnostics
+            ? await WaitForRefreshAsync(client, nodeUrls, previous, deadline.Token).ConfigureAwait(false)
+            : previous;
+        return new ClusterResourceMonitor(client, nodeUrls, initial, diagnostics);
     }
 
     internal Task<AsyncResourceUsage?> CompleteAsync(long messages)
@@ -39,7 +45,7 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
             while (true)
             {
                 await Task.Delay(500, _cancellation.Token).ConfigureAwait(false);
-                ClusterResourceSnapshot current = await ReadAsync(_client, _nodeUrls, _cancellation.Token)
+                ClusterResourceSnapshot current = await ReadAsync(_client, _nodeUrls, _cancellation.Token, _diagnostics)
                     .ConfigureAwait(false);
                 ValidateContinuity(_samples[^1], current);
                 _samples.Add(current);
@@ -58,11 +64,13 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
         // CPU and RSS use live process collectors at the workload/drain boundary.
         // The five-second diagnostics gauges need a subsequent refresh on every
         // node before the final Raft count can be used, even for subsecond bursts.
-        ClusterResourceSnapshot finalProcess = await ReadAsync(_client, _nodeUrls, deadline.Token)
+        ClusterResourceSnapshot finalProcess = await ReadAsync(_client, _nodeUrls, deadline.Token, _diagnostics)
             .ConfigureAwait(false);
         ValidateContinuity(_samples[^1], finalProcess);
-        ClusterResourceSnapshot finalDiagnostics = await WaitForRefreshAsync(
-            _client, _nodeUrls, finalProcess, deadline.Token).ConfigureAwait(false);
+        DateTimeOffset endedAtUtc = DateTimeOffset.UtcNow;
+        ClusterResourceSnapshot finalDiagnostics = _diagnostics
+            ? await WaitForRefreshAsync(_client, _nodeUrls, finalProcess, deadline.Token).ConfigureAwait(false)
+            : finalProcess;
         ClusterResourceSnapshot initial = _samples[0];
         _samples.Add(finalProcess);
         if (messages <= 0)
@@ -73,13 +81,14 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
             throw new InvalidOperationException("Resource counters reset during the workload; the measurement is incomplete.");
         return new AsyncResourceUsage(
             cpuSeconds * 1000d / messages,
-            raftEntries / messages,
+            _diagnostics ? raftEntries / messages : null,
             _samples.Max(sample => sample.WorkingSetBytes),
             cpuSeconds,
-            raftEntries,
+            _diagnostics ? raftEntries : null,
             initial,
             finalProcess,
-            finalDiagnostics);
+            _diagnostics ? finalDiagnostics : null,
+            _startedAtUtc, endedAtUtc, _samples.ToArray());
     }
 
     private static async Task<ClusterResourceSnapshot> WaitForRefreshAsync(HttpClient client,
@@ -110,9 +119,9 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
     }
 
     private static async Task<ClusterResourceSnapshot> ReadAsync(HttpClient client,
-        IReadOnlyList<Uri> nodeUrls, CancellationToken token)
+        IReadOnlyList<Uri> nodeUrls, CancellationToken token, bool diagnostics = true)
     {
-        if (nodeUrls.Count == 0)
+        if (nodeUrls.Count == 0 || nodeUrls.Distinct().Count() != nodeUrls.Count)
             throw new InvalidOperationException("Resource collection requires at least one node.");
         ClusterNodeResourceSnapshot[] nodes = await Task.WhenAll(nodeUrls.Select(async node =>
         {
@@ -120,17 +129,29 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
             return new ClusterNodeResourceSnapshot(
                 node.AbsoluteUri,
                 DateTimeOffset.UtcNow,
-                BenchmarkRunner.ReadRequiredMetric(metrics, "process_cpu_seconds_total"),
-                BenchmarkRunner.ReadRequiredMetric(metrics, "slimdata_process_cpu_seconds_total"),
-                BenchmarkRunner.ReadRequiredMetric(metrics, "slimdata_command_batch_raft_total"),
-                BenchmarkRunner.ReadRequiredMetric(metrics, "process_working_set_bytes"),
-                BenchmarkRunner.ReadRequiredMetric(metrics, "process_start_time_seconds"));
+                ReadRequiredMetric(metrics, "process_cpu_seconds_total"),
+                diagnostics ? ReadRequiredMetric(metrics, "slimdata_process_cpu_seconds_total") : 0,
+                diagnostics ? ReadRequiredMetric(metrics, "slimdata_command_batch_raft_total") : 0,
+                ReadRequiredMetric(metrics, "process_working_set_bytes"),
+                ReadRequiredMetric(metrics, "process_start_time_seconds"));
         })).ConfigureAwait(false);
         if (nodes.Any(node => node.CpuSeconds < 0 || node.DiagnosticsCpuSeconds < 0 ||
                 node.RaftEntries < 0 || node.WorkingSetBytes <= 0))
             throw new InvalidOperationException("Required resource counters are negative or working set is empty.");
         return new ClusterResourceSnapshot(nodes.Sum(node => node.CpuSeconds),
             nodes.Sum(node => node.RaftEntries), nodes.Sum(node => node.WorkingSetBytes), nodes);
+    }
+
+    internal static double ReadRequiredMetric(string metrics, string name)
+    {
+        foreach (ReadOnlySpan<char> line in metrics.AsSpan().EnumerateLines())
+        {
+            if (line.StartsWith(name + " ", StringComparison.Ordinal) &&
+                double.TryParse(line[(name.Length + 1)..], NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out double value) && double.IsFinite(value))
+                return value;
+        }
+        throw new InvalidOperationException($"Required process metric '{name}' is missing or invalid.");
     }
 
     public async ValueTask DisposeAsync()
@@ -155,3 +176,17 @@ internal sealed record ClusterNodeResourceSnapshot(string Node, DateTimeOffset C
 
 internal sealed record ClusterResourceSnapshot(double CpuSeconds, double RaftEntries,
     double WorkingSetBytes, IReadOnlyList<ClusterNodeResourceSnapshot> Nodes);
+
+internal sealed record AsyncResourceUsage(
+    double? CpuMillisecondsPerMessage,
+    double? RaftEntriesPerMessage,
+    double? PeakWorkingSetBytes,
+    double? CpuSeconds,
+    double? RaftEntries,
+    ClusterResourceSnapshot? InitialSnapshot = null,
+    ClusterResourceSnapshot? FinalProcessSnapshot = null,
+    ClusterResourceSnapshot? FinalDiagnosticsSnapshot = null,
+    DateTimeOffset? StartedAtUtc = null,
+    DateTimeOffset? FinishedAtUtc = null,
+    IReadOnlyList<ClusterResourceSnapshot>? Samples = null);
+
