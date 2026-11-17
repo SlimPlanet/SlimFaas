@@ -238,7 +238,7 @@ def invoke_case(command, destination, statuses, warmup=None):
 
 
 def run_data_suite(options, nodes, statuses):
-    for scenario in DATA_SCENARIOS:
+    for scenario in (options.data_scenarios or DATA_SCENARIOS):
         sizes = options.payload_bytes.split(",") if scenario.startswith("files") else ["4096"]
         for size in sizes:
             for concurrency in options.concurrency.split(","):
@@ -250,6 +250,12 @@ def run_data_suite(options, nodes, statuses):
                         "--key-prefix", case.name + "-" + options.output.name, "--validate", "true", "--cleanup-owned-files", "true",
                         "--json", str(case / "operations.json"), "--csv", str(case / "operations.csv"),
                         "--phase-file", str(options.output / "phase")]
+                    if scenario.startswith("files") and options.file_work_budget_mib:
+                        keys = (options.file_work_budget_mib * 1024**2) // (int(size) * int(concurrency))
+                        if keys < 1:
+                            raise ValueError("The file work budget must fit one payload per worker")
+                        keys = min(keys, 16)
+                        command += ["--keys-per-worker", str(keys), "--max-operations", str(keys * int(concurrency))]
                     if options.data_journal:
                         command += ["--journal-directory", str(case / "requests")]
                     warmup = command.copy()
@@ -273,9 +279,14 @@ def run_feature_suite(options, nodes, config, receipts, statuses):
                         "--messages", "200", "--concurrency", concurrency, "--payload-bytes", size, "--event", f"benchmark-event-{language}",
                         "--repetition", str(repetition), "--drain-timeout", str(options.feature_drain_timeout), "--output", str(case)]
                     invoke_case(command, case, statuses)
-    cases("streams", ["memory-function"])
-    cases("streams", ["memory-function", "memory-function-2"])
-    cases("jobs", ["memory-function"])
+    scenarios = options.feature_scenarios or ("streams", "jobs", "ws")
+    if "streams" in scenarios:
+        cases("streams", ["memory-function"])
+        cases("streams", ["memory-function", "memory-function-2"])
+    if "jobs" in scenarios:
+        cases("jobs", ["memory-function"])
+    if "ws" not in scenarios:
+        return
     for language in ("dotnet", "python"):
         receivers = []
         logs = []
@@ -476,6 +487,10 @@ def parse_arguments():
     parser.add_argument("--async-offload-threshold", type=int, choices=(131072, 262144, 524288, 1048576))
     parser.add_argument("--data-journal", action=argparse.BooleanOptionalAction, default=True,
                         help="Record isolated data transport exchanges in addition to operation samples")
+    parser.add_argument("--data-scenarios", action="extend", nargs="+", choices=DATA_SCENARIOS)
+    parser.add_argument("--file-work-budget-mib", type=int, default=0,
+                        help="Bound each file case by logical payload bytes, in addition to the duration")
+    parser.add_argument("--feature-scenarios", action="extend", nargs="+", choices=("streams", "jobs", "ws"))
     parser.add_argument("--feature-drain-timeout", type=int, default=300)
     parser.add_argument("--http-journal", action=argparse.BooleanOptionalAction, default=True,
                         help="Record HTTP transport exchanges in addition to compressed latency samples")
@@ -489,6 +504,8 @@ def parse_arguments():
     parser.add_argument("--memory-duration", type=int, default=120)
     parser.add_argument("--memory-warmup", type=int, default=30)
     options = parser.parse_args()
+    if options.file_work_budget_mib < 0:
+        parser.error("--file-work-budget-mib must be nonnegative")
     for name in ("runtime", "benchmark", "memorylab", "output", "backend_config"):
         value = getattr(options, name)
         if value is not None:

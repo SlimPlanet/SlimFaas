@@ -131,7 +131,11 @@ For capacity measurements on a space-constrained host, set `workload_args` to
 include `--no-http-journal` or `--no-data-journal`. These options retain compressed
 HTTP latency samples or data operation samples, resource data and integrity
 checks. Use the detailed journals for transport reconciliation. Keep the same
-journal setting in each comparison role.
+journal setting in each comparison role. Use `--file-work-budget-mib` to cap
+the logical payload in each warmup and measured file case. Its value must fit
+one payload per worker. A capped test may complete before its duration limit.
+Use `--feature-scenarios jobs ws` or `--data-scenarios files files-download` to
+run selected cases in a fresh output directory.
 A partially executed phase without `execution.json` is deliberately not restarted
 in place: inspect and stop its owned processes, retain its directory, then use a
 fresh campaign. Never attach to an unverified saved PID or change a WAL marker.

@@ -83,7 +83,7 @@ internal static class FeatureRunner
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(nodes[index % nodes.Count], route));
-                request.Content = scenario == "jobs" ? JsonContent.Create(new { Args = new[] { id }, TtlSecondsAfterFinished = 3600 }) : new ByteArrayContent(payload);
+                request.Content = scenario == "jobs" ? CreateJobContent(id) : new ByteArrayContent(payload);
                 request.Headers.Add("X-Chaos-Id", id);
                 request.Headers.Add("X-Chaos-Sha256", checksum);
                 using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
@@ -165,6 +165,9 @@ internal static class FeatureRunner
         await File.WriteAllTextAsync(Path.Combine(output, "feature-results.json"), JsonSerializer.Serialize(result, JsonOptions));
         return failures == 0 ? 0 : 1;
     }
+
+    internal static JsonContent CreateJobContent(string id) => JsonContent.Create(
+        new { Args = new[] { id }, TtlSecondsAfterFinished = 3600 }, options: JsonSerializerOptions.Default);
 
     internal static FeatureReceipts ReadReceipts(string directory, IReadOnlyList<FeatureSample> samples, string scenario,
         IReadOnlyList<string> functions, int bytes, string checksum)
