@@ -1,10 +1,17 @@
 # Reliability evidence by source
 
-Source f2f80124 now has [three Native AOT publications, shared Linux images and
+The [17 November merge assessment and handoff](../2026-11-17/pr506-handoff.md)
+records current CI, resource limits, completed sourcef2 routing controls and the
+six affected long roles now running serially. All six are to finish under their
+existing controller; final reconciliation, log audits and formal performance
+acceptance remain open. The original disk hold has been cleared after verified
+cache/artifact reclamation restored the required reserve.
+
+Source f2f80124 has [three Native AOT publications, shared Linux images and
 completed CI/Sonar scope evidence](ownership-publications-f2.md). Windows and
-macOS each pass all 2,477 .NET tests. These new binaries still require application
-replays and affected long endurance; disk preflights currently prevent their
-next campaign from starting.
+macOS each pass all 2,477 .NET tests. The
+[log-history correction](runtime-log-history.md) preserves rotation evidence;
+current-source passes remain separate from source189 observations below.
 
 The latest [async reservation reproduction and correction](async-reservation-coalescing.md)
 prevents a local owner from being overwritten by a newer queue reservation.

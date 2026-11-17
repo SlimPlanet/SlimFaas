@@ -4,6 +4,13 @@ SlimFaas includes a reproducible native-local benchmark for the warm synchronous
 proxy path, asynchronous enqueue and delivery, and scale-to-zero followed by
 PromQL scale-out.
 
+The [17 November PR #506 handoff](reliability/2026-11-17/pr506-handoff.md)
+records the current merge assessment, CPU/RAM evidence, six running sourcef2
+long roles and the remaining scope for a follow-up validation PR. It also locates
+the reusable `$slimfaas-benchmarks` Codex skill installed on the campaign Mac.
+Always inspect live ownership/state before resuming; historical source results
+do not validate a later runtime revision.
+
 The [completed .NET 11 campaign report](reliability/2026-11-13/README.md)
 retains macOS Native AOT and Podman/Kubernetes managed ARM64 comparisons,
 failed guardrails, incomplete HTTP references and a Kubernetes duplicate-delivery
