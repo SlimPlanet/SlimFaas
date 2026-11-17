@@ -216,8 +216,10 @@ public static class QueueElementExtensions
     public static ImmutableArray<QueueElement> GetQueueWaitingForRetryElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
         if (elements.IsEmpty) return ImmutableArray<QueueElement>.Empty;
-        return ImmutableCollectionsMarshal.AsImmutableArray(
-            elements.AsValueEnumerable().Where(e => e.IsWaitingForRetry(nowTicks)).ToArray());
+        var selected = new List<QueueElement>();
+        foreach (QueueElement element in elements)
+            if (element.IsWaitingForRetry(nowTicks)) selected.Add(element);
+        return ImmutableCollectionsMarshal.AsImmutableArray(selected.ToArray());
     }
 
     public static ImmutableArray<QueueElement> GetQueueFinishedElement(this ImmutableArray<QueueElement> elements, long nowTicks)
