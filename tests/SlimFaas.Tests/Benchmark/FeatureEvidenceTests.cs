@@ -42,6 +42,15 @@ public sealed class FeatureEvidenceTests
     }
 
     [Fact]
+    public async Task Job_submissions_use_the_public_API_field_names()
+    {
+        using var content = FeatureRunner.CreateJobContent("receipt-id");
+        using var document = JsonDocument.Parse(await content.ReadAsStringAsync());
+        Assert.Equal("receipt-id", document.RootElement.GetProperty("Args")[0].GetString());
+        Assert.Equal(3600, document.RootElement.GetProperty("TtlSecondsAfterFinished").GetInt32());
+    }
+
+    [Fact]
     public void Receiver_reconciliation_detects_missing_fanout_duplicates_and_wrong_content()
     {
         string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
