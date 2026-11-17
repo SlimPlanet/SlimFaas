@@ -637,14 +637,17 @@ class PlatformTests(unittest.TestCase):
     def test_tuning_changes_one_factor_and_never_rewrites_existing_wal(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            generated = TUNING.prepare({"environment": "macos", "before": "reference", "after": "old-candidate"}, root / "profiles")
+            generated = TUNING.prepare({"environment": "macos", "before": "reference", "after": "old-candidate", "workload_args": ["--duration", "17"]}, root / "profiles")
             self.assertEqual(9, len(generated))
             for item in generated:
                 config = json.loads((root / "profiles" / item["config"]).read_text())
                 self.assertEqual(config["before"], config["after"])
                 changed = {key for key in config["before_settings"] if config["before_settings"][key] != config["after_settings"][key]}
                 self.assertLessEqual(changed, {item["factor"]})
-                self.assertIn("1048575,1048576,1048577", config["workload_args"][1])
+                payloads = config["workload_args"][config["workload_args"].index("--payload-bytes") + 1]
+                self.assertIn("1048575,1048576,1048577", payloads)
+                self.assertIn("4194304", payloads)
+                self.assertEqual("17", config["workload_args"][config["workload_args"].index("--duration") + 1])
             WORKLOAD.prepare_fresh_wal(root / "state", 65536)
             marker = root / "state/data/slimfaas-0/wal/slimdata-chunk-size"
             with self.assertRaisesRegex(ValueError, "fresh volumes"):

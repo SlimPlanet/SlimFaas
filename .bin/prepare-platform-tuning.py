@@ -8,7 +8,10 @@ from pathlib import Path
 
 def prepare(config, destination):
     destination.mkdir(parents=True, exist_ok=False)
-    boundary_sizes = sorted({threshold + offset for threshold in (131072, 262144, 524288, 1048576) for offset in (-1, 0, 1)})
+    workload_args = list(config.get("workload_args", []))
+    configured_sizes = workload_args[workload_args.index("--payload-bytes") + 1] if "--payload-bytes" in workload_args else "64,4096,65536,262144,1048576,2000000,2097152,4194304"
+    boundary_sizes = sorted({int(value) for value in configured_sizes.split(",")} |
+        {threshold + offset for threshold in (131072, 262144, 524288, 1048576) for offset in (-1, 0, 1)})
     outputs = []
     for factor, values, reference in (("wal-chunk-bytes", (4096, 8192, 16384, 32768, 65536), 4096),
                                        ("async-offload-threshold", (131072, 262144, 524288, 1048576), 1048576)):
@@ -21,7 +24,14 @@ def prepare(config, destination):
             baseline = {"wal-chunk-bytes": 4096, "async-offload-threshold": 1048576}
             candidate["before_settings"] = baseline
             candidate["after_settings"] = baseline | {factor: value}
-            candidate["workload_args"] = ["--payload-bytes", ",".join(map(str, boundary_sizes)), "--concurrency", "1,4,16"]
+            candidate["workload_args"] = workload_args.copy()
+            payloads = ",".join(map(str, boundary_sizes))
+            if "--payload-bytes" in candidate["workload_args"]:
+                candidate["workload_args"][candidate["workload_args"].index("--payload-bytes") + 1] = payloads
+            else:
+                candidate["workload_args"] += ["--payload-bytes", payloads]
+            if "--concurrency" not in candidate["workload_args"]:
+                candidate["workload_args"] += ["--concurrency", "1,4,16"]
             label = f"{factor}-{value}"
             if candidate.get("environment") != "macos":
                 candidate["prefix"] = "slimfaas-pr506-" + ("wal" if factor == "wal-chunk-bytes" else "offload") + str(value)
