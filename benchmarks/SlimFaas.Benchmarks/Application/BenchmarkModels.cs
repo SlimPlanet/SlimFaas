@@ -10,20 +10,11 @@ internal readonly record struct RequestSample(
     string? Error,
     string? RequestId = null);
 
-internal sealed record AsyncResourceUsage(
-    double? CpuMillisecondsPerMessage,
-    double? RaftEntriesPerMessage,
-    double? PeakWorkingSetBytes,
-    double? CpuSeconds,
-    double? RaftEntries,
-    ClusterResourceSnapshot? InitialSnapshot = null,
-    ClusterResourceSnapshot? FinalProcessSnapshot = null,
-    ClusterResourceSnapshot? FinalDiagnosticsSnapshot = null);
-
 internal sealed record ProcessResourceUsage(
     double CpuSeconds,
     double CpuMillisecondsPerRequest,
-    double PeakWorkingSetBytes);
+    double PeakWorkingSetBytes,
+    AsyncResourceUsage? Evidence = null);
 
 internal sealed record LatencyCaseData(
     LatencyRunResult Result,
@@ -48,7 +39,9 @@ internal sealed record LatencyRunResult(
     int AsyncDuplicates = 0,
     AsyncResourceUsage? AsyncResources = null,
     string LoadShape = "steady",
-    ProcessResourceUsage? Resources = null);
+    ProcessResourceUsage? Resources = null,
+    double? CompletionWindowSeconds = null,
+    double? DrainSeconds = null);
 
 internal sealed record LatencyAggregateResult(
     string Mode,
@@ -96,7 +89,10 @@ internal sealed record AsyncWorkloadResult(
     double P95Milliseconds,
     double P99Milliseconds,
     TargetObservationSummary Delivery,
-    AsyncResourceUsage? Resources);
+    AsyncResourceUsage? Resources,
+    double? CompletionWindowSeconds = null,
+    double? DrainSeconds = null,
+    AsyncResourceUsage? LoadResources = null);
 
 internal sealed record SyncOverheadResult(
     int PayloadBytes,

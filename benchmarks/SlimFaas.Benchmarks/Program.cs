@@ -18,6 +18,8 @@ public static class Program
             {
                 "micro" => MicroBenchmarkRunner.Run(args[1..]),
                 "target" => await BenchmarkTarget.RunAsync(CommandArguments.Parse(args[1..])),
+                "features" => await FeatureRunner.RunAsync(CommandArguments.Parse(args[1..])),
+                "sdk-target" => await BenchmarkSdkTarget.RunAsync(CommandArguments.Parse(args[1..])),
                 "run" => await BenchmarkRunner.RunAsync(CommandArguments.Parse(args[1..])),
                 "report" => await BenchmarkRunner.ReportAsync(CommandArguments.Parse(args[1..])),
                 "compare" => await BenchmarkComparer.RunAsync(CommandArguments.Parse(args[1..])),

@@ -96,28 +96,65 @@ def memory_measurement(directory):
     # Sum each sampling round first: neither the largest node nor the sum of
     # independent per-node maxima is the sampled peak cluster working set.
     peak_rss = max(sum(sample.values()) for sample in rounds.values())
+    resources = document.get("resources")
+    if document.get("schemaVersion", 1) >= 2:
+        if not resources or not resources.get("Samples") or not resources.get("InitialSnapshot") or not resources.get("FinalProcessSnapshot"):
+            raise ValueError("Missing shared collector boundary/sample evidence")
+        peak_rss = resources["PeakWorkingSetBytes"] / 1024**2
+        cpu = resources.get("CpuMillisecondsPerMessage")
+        if cpu is None or not math.isfinite(cpu) or cpu < 0:
+            raise ValueError("Invalid measured CPU evidence")
     result = {"rate": report["Rate"], "p99_ms": all_operations["P99Milliseconds"], "rss_mib": peak_rss}
     if not all(math.isfinite(value) and value > 0 for value in result.values()):
         raise ValueError("Missing or invalid measured resource/latency evidence")
+    if resources:
+        result["cpu_ms_per_operation"] = resources["CpuMillisecondsPerMessage"]
+        result["cpu_seconds"] = resources["CpuSeconds"]
     return result
 
 
 def compare_memory(baseline, candidate):
-    try:
-        left = memory_measurement(baseline)
-    except (OSError, ValueError, KeyError, StopIteration) as error:
-        return {"verdict": "INCONCLUSIVE", "reason": "Baseline: " + repr(error)}
-    try:
-        right = memory_measurement(candidate)
-    except WorkloadFailure as error:
-        return {"verdict": "FAIL", "reason": "Candidate: " + repr(error), "checks": {"integrity": False}}
-    except (OSError, ValueError, KeyError, StopIteration) as error:
-        return {"verdict": "INCONCLUSIVE", "reason": "Candidate: " + repr(error)}
-    ratios = {key: right[key] / left[key] for key in left}
+    # Inspect candidate integrity even when the reference lacks resource evidence.
+    right = left = None
+    errors = []
+    for label, directory in (("Candidate", candidate), ("Baseline", baseline)):
+        try:
+            measured = memory_measurement(directory)
+            if label == "Candidate":
+                right = measured
+            else:
+                left = measured
+        except WorkloadFailure as error:
+            if label == "Candidate":
+                return {"verdict": "FAIL", "reason": repr(error), "checks": {"integrity": False}}
+            errors.append(label + ": " + repr(error))
+        except (OSError, ValueError, KeyError, StopIteration) as error:
+            errors.append(label + ": " + repr(error))
+    if errors:
+        return {"verdict": "INCONCLUSIVE", "reason": "; ".join(errors)}
+    ratios = {key: right[key] / left[key] for key in ("rate", "p99_ms", "rss_mib")}
     checks = {"throughput": ratios["rate"] >= .90, "p99": ratios["p99_ms"] <= 1.20,
               "rss": ratios["rss_mib"] <= 1.15}
     return {"verdict": "PASS" if all(checks.values()) else "FAIL", "checks": checks,
             "baseline": left, "candidate": right, "ratios": ratios}
+
+
+def validate_frozen_drivers(baseline, candidate):
+    try:
+        left = json.loads((baseline / "parameters.json").read_text())
+        right = json.loads((candidate / "parameters.json").read_text())
+        keys = ("driver_sha256", "driver_files", "memorylab_sha256", "memorylab_files", "workload_sha256",
+                "local_harness_sha256", "sdk_fixture_sha256", "receipt_fixture_sha256")
+        for key in keys:
+            a, b = left.get(key), right.get(key)
+            if isinstance(a, dict) and isinstance(b, dict):
+                a = {Path(path).name: digest for path, digest in a.items()}
+                b = {Path(path).name: digest for path, digest in b.items()}
+            if a is None or b is None or a != b:
+                return "Missing or different frozen driver evidence: " + key
+    except (OSError, ValueError) as error:
+        return "Cannot verify frozen drivers: " + str(error)
+    return None
 
 
 def fingerprint(comparison):
@@ -177,6 +214,13 @@ def run_one(config, suite, scenario, concurrency, variant, ordinal, output):
     common = ["--suite", suite, "--variant", variant, "--ordinal", str(ordinal)]
     if suite == "memory":
         common += ["--scenario", scenario, "--memory-concurrency", str(concurrency)]
+    if config.get(variant + "_commit"):
+        common += ["--source-commit", config[variant + "_commit"]]
+    common += config.get("workload_args", [])
+    settings = config.get(variant + "_settings", {})
+    for key in ("async-offload-threshold", "wal-chunk-bytes"):
+        if key in settings:
+            common += ["--" + key, str(settings[key])]
     log = output / "launcher.log"
     if config["environment"] == "macos":
         command = [sys.executable, ROOT / ".bin/run-platform-workload.py", "--runtime", config[variant],
@@ -220,9 +264,13 @@ def run_one(config, suite, scenario, concurrency, variant, ordinal, output):
             "--suite", suite, "--probes", "normal", "--variant", variant, "--ordinal", str(ordinal)]
         if suite == "memory":
             command += ["--scenario", scenario, "--memory-concurrency", str(concurrency)]
+        command += config.get("workload_args", [])
+        for key in ("async-offload-threshold", "wal-chunk-bytes"):
+            if key in settings:
+                command += ["--" + key, str(settings[key])]
         code = invoke(command, log)
         if code == 0:
-            code = invoke(base + ["wait"] + arguments + ["--timeout", "7200"], log)
+            code = invoke(base + ["wait"] + arguments + ["--timeout", str(config.get("phase_timeout_seconds", 604800))], log)
         invoke(base + ["collect"] + arguments, log)
         invoke(base + ["stop"] + arguments, log, check=True)
         raw = export_vm("runs/" + name, output)
@@ -238,8 +286,63 @@ def compare_http(config, baseline, candidate, output):
     if not (output / "comparison.json").exists():
         return {"verdict": "INCONCLUSIVE", "reason": "Comparer failed or a required report is missing", "exit_code": code}
     result = json.loads((output / "comparison.json").read_text())
-    result["verdict"] = "INCONCLUSIVE" if result.get("InconclusiveReason") else "PASS" if result["Passed"] else "FAIL"
+    result["verdict"] = "FAIL" if not result.get("CandidateHasNoFailures", True) else "INCONCLUSIVE" if result.get("InconclusiveReason") else "PASS" if result["Passed"] else "FAIL"
     return result
+
+
+def compare_features(config, baseline, candidate, output):
+    output.mkdir(exist_ok=True)
+    observed = {}
+    for label, directory in (("candidate", candidate), ("baseline", baseline)):
+        command = config["compare_command"] + ["report", "--campaign", str(directory), "--output", str(output / (label + ".md"))]
+        code = invoke(command, output / (label + ".log"))
+        report = output / (label + ".json")
+        if code or not report.exists():
+            observed[label] = {"Verdict": "INCONCLUSIVE", "reason": "Offline feature report missing"}
+        else:
+            observed[label] = json.loads(report.read_text())
+    if observed["candidate"]["Verdict"] == "FAIL":
+        return {"verdict": "FAIL", "checks": {"integrity": False}, "reports": observed}
+    complete = all(report["Verdict"] == "OBSERVED" for report in observed.values())
+    return {"verdict": "OBSERVED" if complete else "INCONCLUSIVE", "checks": {"complete": complete},
+            "reason": "Descriptive feature measurements; no established performance budget yet", "reports": observed}
+
+
+def freeze_configuration(root, config, blocks, resume):
+    """Refuse mixed sources/settings before changing any existing campaign file."""
+    identity = {"schema_version": 1, "config": config, "blocks": blocks,
+                "controller_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "workload_sha256": hashlib.sha256((ROOT / ".bin/run-platform-workload.py").read_bytes()).hexdigest()}
+    if config["environment"] == "macos":
+        identity["binary_sha256"] = {}
+        for key in ("before", "after", "benchmark", "memorylab"):
+            path = Path(config[key])
+            with path.open("rb") as stream:
+                identity["binary_sha256"][key] = hashlib.file_digest(stream, "sha256").hexdigest()
+            for dependency in sorted(path.parent.glob("*.dll")):
+                with dependency.open("rb") as stream:
+                    identity["binary_sha256"][key + ":" + dependency.name] = hashlib.file_digest(stream, "sha256").hexdigest()
+    else:
+        for key in ("before", "after", "controller_image"):
+            if key == "controller_image" and config["environment"] != "kubernetes":
+                continue
+            if not re.fullmatch(r"(?:.+@)?sha256:[0-9a-f]{64}", config.get(key, "")):
+                raise ValueError("Frozen campaigns require an immutable image digest for " + key)
+    frozen = root / "campaign-identity.json"
+    if resume:
+        if not frozen.exists() or json.loads(frozen.read_text()) != identity:
+            raise ValueError("Resume refused: campaign sources, binaries, blocks or configuration differ (or identity is missing). Use a fresh output directory.")
+    else:
+        write(frozen, identity)
+        write(root / "config.json", config)
+
+
+def combine_verdicts(rows, conflict=False):
+    # Missing metrics never erase a known failure.
+    verdicts = [row["verdict"] for row in rows]
+    if "FAIL" in verdicts:
+        return "FAIL"
+    return "INCONCLUSIVE" if conflict or not verdicts or "INCONCLUSIVE" in verdicts else "OBSERVED" if "OBSERVED" in verdicts else "PASS"
 
 
 def main():
@@ -247,25 +350,25 @@ def main():
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--blocks", default="http,set-c12,set-c48,mixed-c12,mixed-c48")
+    parser.add_argument("--blocks", default="http,set-c12,set-c48,mixed-c12,mixed-c48,data,features")
     options = parser.parse_args()
     config = json.loads(options.config.read_text())
     if config["environment"] not in ("macos", "podman", "kubernetes"):
         parser.error("Unknown environment")
     blocks = options.blocks.split(",")
-    if set(blocks) - {"http", "set-c12", "set-c48", "mixed-c12", "mixed-c48"}:
+    if set(blocks) - {"http", "set-c12", "set-c48", "mixed-c12", "mixed-c48", "data", "features"}:
         parser.error("Unknown measurement block")
     if config["environment"] != "macos" and not re.fullmatch(r"slimfaas-pr506-[a-z0-9-]{1,20}", config["prefix"]):
         parser.error("Use a dedicated short slimfaas-pr506-* campaign prefix")
     root = options.output.resolve()
     root.mkdir(parents=True, exist_ok=options.resume)
-    write(root / "config.json", config)
+    freeze_configuration(root, config, blocks, options.resume)
     index = root / "matrix.json"
     results = json.loads(index.read_text()) if index.exists() else {"started": time.time(), "blocks": {}}
     for block in blocks:
         if block in results["blocks"]:
             continue
-        suite = "http" if block == "http" else "memory"
+        suite = block if block in ("http", "data", "features") else "memory"
         scenario = "slimdata-mixed" if block.startswith("mixed") else "slimdata-set"
         concurrency = int(block.split("-c")[-1]) if suite == "memory" else None
         attempts = []
@@ -284,21 +387,25 @@ def main():
             for baseline in (1, 4):
                 for candidate in (2, 3):
                     key = f"a{baseline}-b{candidate}"
-                    pairs[key] = compare_http(config, raw[baseline], raw[candidate], directory / key) if suite == "http" else compare_memory(raw[baseline], raw[candidate])
+                    pairs[key] = compare_http(config, raw[baseline], raw[candidate], directory / key) if suite == "http" else compare_features(config, raw[baseline], raw[candidate], directory / key) if suite in ("data", "features") else compare_memory(raw[baseline], raw[candidate])
+                    gap = validate_frozen_drivers(raw[baseline], raw[candidate])
+                    if gap:
+                        pairs[key]["provenance_gap"] = gap
+                        if pairs[key]["verdict"] != "FAIL":
+                            pairs[key]["verdict"] = "INCONCLUSIVE"
             conflict = contradictory(pairs)
             result = {"pairs": pairs, "contradictory_brackets": conflict,
-                      "verdict": "INCONCLUSIVE" if conflict or any(row["verdict"] == "INCONCLUSIVE" for row in pairs.values())
-                      else "PASS" if all(row["verdict"] == "PASS" for row in pairs.values()) else "FAIL"}
+                      "verdict": combine_verdicts(pairs.values(), conflict)}
             write(directory / "comparison.json", result)
             attempts.append(result)
             if not conflict:
                 break
-        results["blocks"][block] = {"attempts": attempts, "verdict": attempts[-1]["verdict"]}
+        results["blocks"][block] = {"attempts": attempts, "verdict": combine_verdicts(attempts)}
         write(index, results)
     results["finished"] = time.time()
-    results["verdict"] = "INCONCLUSIVE" if any(row["verdict"] == "INCONCLUSIVE" for row in results["blocks"].values()) else "PASS" if all(row["verdict"] == "PASS" for row in results["blocks"].values()) else "FAIL"
+    results["verdict"] = combine_verdicts(results["blocks"].values())
     write(index, results)
-    return 0 if results["verdict"] == "PASS" else 2 if results["verdict"] == "INCONCLUSIVE" else 1
+    return 0 if results["verdict"] in ("PASS", "OBSERVED") else 2 if results["verdict"] == "INCONCLUSIVE" else 1
 
 
 if __name__ == "__main__":

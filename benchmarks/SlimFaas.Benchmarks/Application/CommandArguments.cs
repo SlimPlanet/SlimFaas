@@ -90,9 +90,14 @@ internal static class BenchmarkCli
     public static void PrintUsage() => Console.WriteLine(
         """
         SlimFaas.Benchmarks:
+          features --scenario streams|jobs|ws-sync|ws-async|ws-events --receipts <directory>
+                   [--node-urls <urls>] [--functions <names>] [--messages 200]
+                   [--payload-bytes 4096] [--concurrency 1] [--output artifacts/features]
+          sdk-target --url <ws-url> --function <name> --receipts <directory>
           micro [--extended] [BenchmarkDotNet options, for example --filter '*' or --list flat]
           target [--port 31080] [--host 127.0.0.1]
           report --input <results.json> --output <summary.md> (offline; no workload)
+          report --campaign <directory> --output <summary.md> (offline JSON, CSV and Markdown)
           compare --baseline <baseline-results.json> --candidate <candidate-results.json>
                   [--profile sync|async]
                   [--criteria optimization|non-regression]

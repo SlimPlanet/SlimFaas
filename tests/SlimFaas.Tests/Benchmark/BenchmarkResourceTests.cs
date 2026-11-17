@@ -81,6 +81,60 @@ public sealed class BenchmarkResourceTests
         }
     }
 
+    [Fact]
+    public async Task Peak_is_a_simultaneous_cluster_sum_not_the_sum_of_independent_node_maxima()
+    {
+        using var handler = new OppositePeaksHandler();
+        using var client = new HttpClient(handler);
+        await using ClusterResourceMonitor monitor = await ClusterResourceMonitor.StartAsync(client,
+            [new Uri("http://first/"), new Uri("http://second/")], diagnostics: false);
+        handler.Final = true;
+        AsyncResourceUsage? evidence = await monitor.CompleteAsync(100);
+        Assert.NotNull(evidence);
+        Assert.Equal(5120, evidence.PeakWorkingSetBytes);
+        Assert.Equal(20, evidence.CpuMillisecondsPerMessage);
+        Assert.Equal(2, evidence.Samples!.Count);
+        Assert.NotNull(evidence.StartedAtUtc);
+        Assert.NotNull(evidence.FinishedAtUtc);
+        Assert.Null(evidence.RaftEntries);
+    }
+
+    [Fact]
+    public async Task Missing_queue_gauges_on_one_member_do_not_certify_an_empty_cluster()
+    {
+        using var handler = new QueueGaugesHandler();
+        using var client = new HttpClient(handler);
+        QueueDepth depth = await BenchmarkRunner.GetQueueDepthAsync(client,
+            [new Uri("http://present/"), new Uri("http://missing/")], "function", CancellationToken.None);
+        Assert.False(depth.HasValue);
+    }
+
+    private sealed class QueueGaugesHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            string metrics = request.RequestUri!.Host == "missing" ? "" : """
+                slimfaas_function_queue_ready_items{function="function"} 0
+                slimfaas_function_queue_in_flight_items{function="function"} 0
+                slimfaas_function_queue_retry_pending_items{function="function"} 0
+                """;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(metrics) });
+        }
+    }
+
+    private sealed class OppositePeaksHandler : HttpMessageHandler
+    {
+        internal bool Final { get; set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            int rss = (request.RequestUri!.Host == "first") != Final ? 4096 : 1024;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(FormattableString.Invariant($"process_cpu_seconds_total {(Final ? 2 : 1)}\nprocess_working_set_bytes {rss}\nprocess_start_time_seconds 100\n"))
+            });
+        }
+    }
+
     private sealed class ResourceHandler : HttpMessageHandler
     {
         private int _completed;

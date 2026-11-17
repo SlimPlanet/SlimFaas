@@ -14,6 +14,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="..\Common\ClusterResourceMonitor.cs" Link="Common\ClusterResourceMonitor.cs" />
         <Compile Include="..\Common\BenchmarkStatistics.cs" Link="Common\BenchmarkStatistics.cs" />
         <Compile Include="..\Common\RequestJournal.cs" Link="Common\RequestJournal.cs" />
         <PackageReference Include="BenchmarkDotNet" />
@@ -22,6 +23,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\..\client\dotnet\SlimFaasClient\src\SlimFaasClient\SlimFaasClient.csproj" />
         <!-- These assemblies supply benchmarked APIs, not standalone executables.
              The SDK removes SelfContained during reference framework discovery;
              PublishSelfContained also controls its publish-time inference. -->

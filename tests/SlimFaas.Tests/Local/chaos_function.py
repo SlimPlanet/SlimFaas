@@ -159,8 +159,8 @@ def main():
             raise ValueError("Job environment or arguments were not preserved")
         gate = os.environ.get("CHAOS_JOB_GATE") or next(
             (arg.removeprefix("gate=") for arg in options.args if arg.startswith("gate=")), None)
+        journal.append({"event": "job-started", "args": options.args})
         if gate:
-            journal.append({"event": "job-started", "args": options.args})
             deadline = time.monotonic() + 180
             while not Path(gate).exists():
                 if time.monotonic() >= deadline:

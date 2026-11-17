@@ -191,7 +191,7 @@ Check out:
     - [Streams](docs/streams.md) - Durable events, retained history, and independent HTTP/WebSocket function consumption.
     - [Jobs](docs/jobs.md) – Define, schedule, and run one-off jobs.
     - [OpenTelemetry](docs/opentelemetry.md) – Enable distributed tracing, metrics, and logs.
-    - [Benchmarks](docs/benchmarking.md) – Measure sync overhead, async delivery latency, and native-local scaling speed.
+    - [Benchmarks](docs/benchmarking.md) – Measure sync/async, data, Files, Streams, Jobs and WebSocket throughput, CPU/RAM, latency and native-local scaling; export campaign tables offline.
 - Data & Files
     - [Data Files](docs/data-files.md) – Ingest, store, and serve temporary binary artifacts.
     - [Data Sets](docs/data-sets.md) – Store replicated, Redis-like key-value payloads with optional TTL.

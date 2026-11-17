@@ -186,13 +186,13 @@ internal static partial class BenchmarkComparer
             Path.Combine(outputDirectory, "comparison.md"),
             BuildMarkdown(comparison));
 
-        Console.WriteLine(comparison.InconclusiveReason is not null
+        Console.WriteLine(comparison.InconclusiveReason is not null && comparison.CandidateHasNoFailures
             ? $"INCONCLUSIVE: {comparison.InconclusiveReason}"
             : comparison.Passed
                 ? $"PASS: the {criteria} comparison met every criterion."
                 : $"FAIL: one or more {criteria} criteria were not met.");
         Console.WriteLine($"Comparison artifacts: {outputDirectory}");
-        return comparison.InconclusiveReason is not null ? 2 : comparison.Passed ? 0 : 1;
+        return !comparison.CandidateHasNoFailures ? 1 : comparison.InconclusiveReason is not null ? 2 : comparison.Passed ? 0 : 1;
     }
 
     internal static BenchmarkComparisonReport BuildComparison(
@@ -421,10 +421,10 @@ internal static partial class BenchmarkComparer
             candidate.Scaling.TimedOut,
             candidate.Scaling.Failed == 0 && !candidate.Scaling.TimedOut ? "PASS" : "FAIL");
 
-        long candidateLatencyFailures = candidate.Latency.Sum(row => row.Failed);
-        int candidateMissing = candidate.Latency.Sum(row => row.AsyncMissing) +
+        long candidateLatencyFailures = Math.Max(candidate.Latency.Sum(row => row.Failed), candidate.LatencyRuns.Sum(row => row.Failed));
+        int candidateMissing = Math.Max(candidate.Latency.Sum(row => row.AsyncMissing), candidate.LatencyRuns.Sum(row => row.AsyncMissing)) +
                                (candidate.AsyncWorkloads?.Sum(row => row.Missing) ?? 0);
-        int candidateDuplicates = candidate.Latency.Sum(row => row.AsyncDuplicates) +
+        int candidateDuplicates = Math.Max(candidate.Latency.Sum(row => row.AsyncDuplicates), candidate.LatencyRuns.Sum(row => row.AsyncDuplicates)) +
                                   (candidate.AsyncWorkloads?.Sum(row => row.Duplicates) ?? 0);
         int candidateWorkloadFailures = candidate.AsyncWorkloads?.Sum(row => row.Failed) ?? 0;
         bool noFailures = candidateLatencyFailures == 0 &&
@@ -690,7 +690,7 @@ internal static partial class BenchmarkComparer
         var builder = new StringBuilder();
         builder.AppendLine(CultureInfo.InvariantCulture, $"# SlimFaas {report.Profile} {report.Criteria} comparison");
         builder.AppendLine();
-        string verdict = report.InconclusiveReason is not null ? "INCONCLUSIVE" : report.Passed ? "PASS" : "FAIL";
+        string verdict = !report.CandidateHasNoFailures ? "FAIL" : report.InconclusiveReason is not null ? "INCONCLUSIVE" : report.Passed ? "PASS" : "FAIL";
         builder.AppendLine(CultureInfo.InvariantCulture, $"Overall verdict: **{verdict}**.");
         builder.AppendLine();
         builder.AppendLine("## Acceptance criteria");
