@@ -127,6 +127,11 @@ more than one night; use `--blocks data` or `--blocks features` for separate,
 fresh campaigns. Individual requests/drains remain bounded. Kubernetes phases
 have a configurable `phase_timeout_seconds` (default seven days). Disk guards
 stop new cases below 20 GiB free. Completed attempts and failures are retained.
+For capacity measurements on a space-constrained host, set `workload_args` to
+include `--no-http-journal` or `--no-data-journal`. These options retain compressed
+HTTP latency samples or data operation samples, resource data and integrity
+checks. Use the detailed journals for transport reconciliation. Keep the same
+journal setting in each comparison role.
 A partially executed phase without `execution.json` is deliberately not restarted
 in place: inspect and stop its owned processes, retain its directory, then use a
 fresh campaign. Never attach to an unverified saved PID or change a WAL marker.
