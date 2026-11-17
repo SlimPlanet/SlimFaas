@@ -135,13 +135,17 @@ internal static class FeatureRunner
                 if (drained)
                 {
                     if (scenario == "ws-async")
-                        await BenchmarkRunner.WaitForQueueToDrainAsync(client, nodes, functions[0], TimeSpan.FromSeconds(60));
+                        await WaitForWebSocketQueueToDrainAsync(metricsClient, nodes, deadline.Token);
                     break;
                 }
                 await Task.Delay(100, deadline.Token);
             }
         }
-        catch (OperationCanceledException) when (deadline.IsCancellationRequested) { drainError = "Drain deadline exceeded"; }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+        {
+            drainError = "Drain deadline exceeded";
+            drained = false;
+        }
         catch (Exception error) when (error is HttpRequestException or JsonException or InvalidOperationException or KeyNotFoundException or TimeoutException)
         { drainError = error.Message; drained = false; }
         double completionSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
@@ -164,6 +168,29 @@ internal static class FeatureRunner
             Integrity = failures == 0 };
         await File.WriteAllTextAsync(Path.Combine(output, "feature-results.json"), JsonSerializer.Serialize(result, JsonOptions));
         return failures == 0 ? 0 : 1;
+    }
+
+    internal static async Task WaitForWebSocketQueueToDrainAsync(
+        HttpClient client, IReadOnlyList<Uri> nodes, CancellationToken token)
+    {
+        // Virtual functions have no per-function gauges. This feature workload
+        // owns the cluster, so an all-node zero also covers its virtual queues.
+        // Require a new diagnostics observation after receipt reconciliation.
+        (double Items, double Cpu)[] boundary = await ReadAsync();
+        while (true)
+        {
+            (double Items, double Cpu)[] observed = await ReadAsync();
+            if (observed.Zip(boundary).All(pair => pair.First.Items == 0 && pair.First.Cpu > pair.Second.Cpu))
+                return;
+            await Task.Delay(250, token);
+        }
+
+        Task<(double Items, double Cpu)[]> ReadAsync() => Task.WhenAll(nodes.Select(async node =>
+        {
+            string metrics = await client.GetStringAsync(new Uri(node, "metrics"), token);
+            return (ClusterResourceMonitor.ReadRequiredMetric(metrics, "slimdata_state_queue_items"),
+                ClusterResourceMonitor.ReadRequiredMetric(metrics, "slimdata_process_cpu_seconds_total"));
+        }));
     }
 
     internal static JsonContent CreateJobContent(string id) => JsonContent.Create(

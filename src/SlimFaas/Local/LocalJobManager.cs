@@ -155,40 +155,6 @@ public sealed class LocalJobManager : IAsyncDisposable
             if (runtime.Process is not null || runtime.Completed)
                 return;
 
-            runtime.Gateway ??= new LocalWorkloadGateway(
-                _loaded.Manifest.Cluster.EntrypointPort,
-                runtime.Command.JobFullName,
-                _token);
-            runtime.Gateway.Start();
-            int gatewayPort = runtime.Gateway.Port;
-
-            List<string> command = [.. runtime.Manifest.Command, .. runtime.Command.CreateJob.Args];
-            command = command
-                .Select(value => RewriteEntrypointUrls(
-                    value,
-                    _loaded.Manifest.Cluster.EntrypointPort,
-                    gatewayPort))
-                .ToList();
-            Dictionary<string, string> environment =
-                runtime.Manifest.Environment.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
-            foreach (EnvVarInput item in runtime.Command.CreateJob.Environments ?? [])
-            {
-                if (item.SecretRef is null && item.ConfigMapRef is null &&
-                    item.FieldRef is null && item.ResourceFieldRef is null)
-                {
-                    environment[item.Name] = item.Value;
-                }
-            }
-            foreach (string name in environment.Keys.ToArray())
-            {
-                environment[name] = RewriteEntrypointUrls(
-                    environment[name],
-                    _loaded.Manifest.Cluster.EntrypointPort,
-                    gatewayPort);
-            }
-            environment["SLIMFAAS_JOB_NAME"] = runtime.Command.Name;
-            environment["SLIMFAAS_JOB_RUN_NAME"] = runtime.Command.JobFullName;
-
             DateTimeOffset started = DateTimeOffset.UtcNow;
             Persist(runtime, runtime.ToState() with { Status = JobStatus.Running, StartTimestamp = started.UtcTicks });
             runtime.Status = JobStatus.Running;
@@ -196,6 +162,40 @@ public sealed class LocalJobManager : IAsyncDisposable
             runtime.StartedAt = started;
             try
             {
+                runtime.Gateway ??= new LocalWorkloadGateway(
+                    _loaded.Manifest.Cluster.EntrypointPort,
+                    runtime.Command.JobFullName,
+                    _token);
+                runtime.Gateway.Start();
+                int gatewayPort = runtime.Gateway.Port;
+
+                List<string> command = [.. runtime.Manifest.Command, .. (runtime.Command.CreateJob.Args ?? [])];
+                command = command
+                    .Select(value => RewriteEntrypointUrls(
+                        value ?? throw new ArgumentException("A job argument cannot be null."),
+                        _loaded.Manifest.Cluster.EntrypointPort,
+                        gatewayPort))
+                    .ToList();
+                Dictionary<string, string> environment =
+                    runtime.Manifest.Environment.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+                foreach (EnvVarInput item in runtime.Command.CreateJob.Environments ?? [])
+                {
+                    if (item.SecretRef is null && item.ConfigMapRef is null &&
+                        item.FieldRef is null && item.ResourceFieldRef is null)
+                    {
+                        environment[item.Name] = item.Value;
+                    }
+                }
+                foreach (string name in environment.Keys.ToArray())
+                {
+                    environment[name] = RewriteEntrypointUrls(
+                        environment[name],
+                        _loaded.Manifest.Cluster.EntrypointPort,
+                        gatewayPort);
+                }
+                environment["SLIMFAAS_JOB_NAME"] = runtime.Command.Name;
+                environment["SLIMFAAS_JOB_RUN_NAME"] = runtime.Command.JobFullName;
+
                 runtime.Process = ManagedLocalProcess.Start(
                     command,
                     Path.GetFullPath(runtime.Manifest.WorkingDirectory, _loaded.BaseDirectory),

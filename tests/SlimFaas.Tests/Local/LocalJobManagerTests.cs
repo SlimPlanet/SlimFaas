@@ -5,6 +5,38 @@ namespace SlimFaas.Tests.Local;
 
 public sealed class LocalJobManagerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task JobWithMissingArguments_RunsWithoutStoppingTheMonitor(bool restart)
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0, startManager: !restart);
+        ProcessCreateJobCommand command = fixture.Command("no-arguments");
+        await fixture.Manager.CreateAsync(command with { CreateJob = command.CreateJob with { Args = null! } },
+            CancellationToken.None);
+        if (restart)
+            await fixture.RestartAsync();
+
+        Assert.Equal(command.JobFullName, (await fixture.WaitForAsync(JobStatus.Succeeded)).Name);
+        Assert.False(fixture.Manager.Completion.IsCompleted);
+    }
+
+    [Fact]
+    public async Task IncorrectArgument_FailsOnlyThatJobAndTheNextJobStillRuns()
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0);
+        ProcessCreateJobCommand command = fixture.Command("invalid-argument");
+        await fixture.Manager.CreateAsync(command with { CreateJob = command.CreateJob with { Args = [null!] } },
+            CancellationToken.None);
+        await fixture.WaitForAsync(JobStatus.Failed);
+        await fixture.Manager.DeleteAsync(command.JobFullName, CancellationToken.None);
+
+        ProcessCreateJobCommand next = fixture.Command("subsequent-job");
+        await fixture.Manager.CreateAsync(next, CancellationToken.None);
+        Assert.Equal(next.JobFullName, (await fixture.WaitForAsync(JobStatus.Succeeded)).Name);
+        Assert.False(fixture.Manager.Completion.IsCompleted);
+    }
+
     [Fact]
     public async Task PendingPlan_IsDurableBeforeLaunchingAndResumesWithTheSameIdentity()
     {

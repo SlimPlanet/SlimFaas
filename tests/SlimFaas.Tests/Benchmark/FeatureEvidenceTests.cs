@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using SlimFaas.Benchmarks;
 using SlimFaas.Benchmarks.Support;
@@ -39,6 +40,39 @@ public sealed class FeatureEvidenceTests
         Assert.Equal(bytes.Length, length);
         Assert.Equal(bytes, destination.ToArray());
         Assert.Equal(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)), hash);
+    }
+
+    [Fact]
+    public async Task Virtual_queue_drain_requires_a_fresh_zero_on_every_node()
+    {
+        using var handler = new QueueDiagnosticsHandler();
+        using var client = new HttpClient(handler);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await FeatureRunner.WaitForWebSocketQueueToDrainAsync(client,
+            [new Uri("http://first/"), new Uri("http://second/")], deadline.Token);
+
+        Assert.Equal(4, handler.SecondNodeReads);
+    }
+
+    private sealed class QueueDiagnosticsHandler : HttpMessageHandler
+    {
+        private int _firstNodeReads;
+        public int SecondNodeReads { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            bool second = request.RequestUri!.Host == "second";
+            int sample = second ? ++SecondNodeReads : ++_firstNodeReads;
+            int cpu = second && sample == 2 ? 1 : sample;
+            int items = second && sample == 3 ? 1 : 0;
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(FormattableString.Invariant(
+                    $"slimdata_state_queue_items {items}\nslimdata_process_cpu_seconds_total {cpu}\n"))
+            };
+            return Task.FromResult(response);
+        }
     }
 
     [Fact]
