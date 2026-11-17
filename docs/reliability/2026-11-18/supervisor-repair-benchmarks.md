@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 20:11 CET. Campaign state: **native validation complete**.
+Updated 2026-11-17 20:12 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -14,6 +14,7 @@ The WebSocket async runner checks refreshed queue totals on all nodes after rece
 
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
+| jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
 
@@ -27,8 +28,11 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 
 | Profile | Scenario | Bytes | C | Runs | Median rate | Unit | Completed/s incl. drain | CPU ms/op | Peak MiB |
 |---|---|---:|---:|---:|---:|---|---:|---:|---:|
+| jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 131.27 | accepted job/s | 13.03 | 4.96 | 348.52 |
+| jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1246.31 | accepted job/s | 13.09 | 0.96 | 352.75 |
 
 Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local campaign directory. The final report includes completed comparisons and identifies profiles that did not finish.
 
 ## Run status
 
+- **jobs-rerun**: OBSERVED.
