@@ -249,12 +249,15 @@ def run_data_suite(options, nodes, statuses):
                         "--concurrency", concurrency, "--payload-bytes", size, "--file-bytes", size, "--repetition", str(repetition),
                         "--key-prefix", case.name + "-" + options.output.name, "--validate", "true", "--cleanup-owned-files", "true",
                         "--json", str(case / "operations.json"), "--csv", str(case / "operations.csv"),
-                        "--journal-directory", str(case / "requests"), "--phase-file", str(options.output / "phase")]
+                        "--phase-file", str(options.output / "phase")]
+                    if options.data_journal:
+                        command += ["--journal-directory", str(case / "requests")]
                     warmup = command.copy()
                     for option, value in (("--duration", str(options.memory_warmup)), ("--key-prefix", case.name + "-warmup"),
                         ("--json", str(case / "warmup/warmup.json")), ("--csv", str(case / "warmup/warmup.csv")),
                         ("--journal-directory", str(case / "warmup/requests"))):
-                        warmup[warmup.index(option) + 1] = value
+                        if option in warmup:
+                            warmup[warmup.index(option) + 1] = value
                     invoke_case(command, case, statuses, warmup=warmup if options.memory_warmup > 0 else None)
 
 
@@ -268,7 +271,7 @@ def run_feature_suite(options, nodes, config, receipts, statuses):
                     command = executable(options.benchmark) + ["features", "--scenario", scenario, "--label", f"{scenario}/{language}/fanout-{len(functions)}",
                         "--node-urls", ",".join(nodes), "--functions", ",".join(functions), "--receipts", str(receipts),
                         "--messages", "200", "--concurrency", concurrency, "--payload-bytes", size, "--event", f"benchmark-event-{language}",
-                        "--repetition", str(repetition), "--output", str(case)]
+                        "--repetition", str(repetition), "--drain-timeout", str(options.feature_drain_timeout), "--output", str(case)]
                     invoke_case(command, case, statuses)
     cases("streams", ["memory-function"])
     cases("streams", ["memory-function", "memory-function-2"])
@@ -400,7 +403,9 @@ def run(options):
                 "--payload-bytes", options.payload_bytes, "--concurrency", options.concurrency,
                 "--async-drain-timeout", "180", "--scale-messages", "200", "--scale-concurrency", "32",
                 "--scale-timeout", "120", "--output", str(options.output)]
-            command += ["--samples-format", "csv.gz", "--journal-directory", str(options.output / "requests")]
+            command += ["--samples-format", "csv.gz"]
+            if options.http_journal:
+                command += ["--journal-directory", str(options.output / "requests")]
             with (options.output / "workload.log").open("w") as output:
                 code = subprocess.call(command, cwd=ROOT, stdout=output, stderr=subprocess.STDOUT)
             statuses.append({"suite": "http", "exit_code": code})
@@ -469,6 +474,11 @@ def parse_arguments():
     parser.add_argument("--ordinal", type=int, default=1)
     parser.add_argument("--wal-chunk-bytes", type=int, choices=(4096, 8192, 16384, 32768, 65536))
     parser.add_argument("--async-offload-threshold", type=int, choices=(131072, 262144, 524288, 1048576))
+    parser.add_argument("--data-journal", action=argparse.BooleanOptionalAction, default=True,
+                        help="Record isolated data transport exchanges in addition to operation samples")
+    parser.add_argument("--feature-drain-timeout", type=int, default=300)
+    parser.add_argument("--http-journal", action=argparse.BooleanOptionalAction, default=True,
+                        help="Record HTTP transport exchanges in addition to compressed latency samples")
     parser.add_argument("--duration", type=int, default=10)
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--repetitions", type=int, default=3)
