@@ -135,6 +135,58 @@ class PlatformTests(unittest.TestCase):
         (output / "pod-log-coverage.json").write_text(json.dumps({
             "logs": rows, "instances": instances, "missing_instances": []}))
 
+    def test_runtime_log_rotation_cannot_be_complete_with_the_same_pod_and_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self._write_runtime_log_audit_fixture(output, "healthy")
+            path = output / "node-0-rotated.log"
+            content = b"2026-11-15T12:00:45Z healthy after rotation\n"
+            path.write_bytes(content)
+            manifest_path = output / "pod-log-coverage.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["logs"].append(manifest["logs"][0] | {
+                "captured_utc": 2, "path": path.name, "sha256": hashlib.sha256(content).hexdigest()})
+            manifest_path.write_text(json.dumps(manifest))
+            audit = KUBERNETES_CAMPAIGN.audit_runtime_logs(output, self.LOG_WINDOW_START, self.LOG_WINDOW_START + 60)
+            self.assertFalse(audit["passed"])
+            self.assertFalse(audit["runtime_log_coverage_complete"])
+
+    def test_growing_runtime_log_keeps_its_observed_prefix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self._write_runtime_log_audit_fixture(output, "healthy")
+            path = output / "node-0-later.log"
+            content = (output / "node-0.log").read_bytes() + b"2026-11-15T12:00:45Z still healthy\n"
+            path.write_bytes(content)
+            manifest_path = output / "pod-log-coverage.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["logs"].append(manifest["logs"][0] | {
+                "captured_utc": 2, "path": path.name, "sha256": hashlib.sha256(content).hexdigest()})
+            manifest_path.write_text(json.dumps(manifest))
+            audit = KUBERNETES_CAMPAIGN.audit_runtime_logs(output, self.LOG_WINDOW_START, self.LOG_WINDOW_START + 60)
+            self.assertTrue(audit["passed"])
+            self.assertTrue(audit["runtime_log_coverage_complete"])
+
+    def test_in_cluster_log_transport_preserves_bytes_and_restart_generations(self):
+        pod = {"metadata": {"name": "slimfaas-0", "uid": "first-uid"},
+               "spec": {"containers": [{"name": "runtime"}]},
+               "status": {"containerStatuses": [{"name": "runtime", "restartCount": 1}]}}
+        calls = []
+
+        def fetch(name, container, previous):
+            calls.append((name, container, previous))
+            return b"previous\xff\n" if previous else b"current\n"
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(KUBERNETES_CAMPAIGN.subprocess, "run", side_effect=AssertionError("No kubectl inside driver")):
+            output = Path(directory)
+            manifest = KUBERNETES_CAMPAIGN.collect_pod_logs([], "campaign", [pod], output, fetch_log=fetch)
+            self.assertTrue(manifest["complete"])
+            self.assertEqual([("slimfaas-0", "runtime", False), ("slimfaas-0", "runtime", True)], calls)
+            self.assertEqual({0, 1}, {row["restart_index"] for row in manifest["logs"]})
+            self.assertEqual([b"current\n", b"previous\xff\n"],
+                             [(output / row["path"]).read_bytes() for row in manifest["logs"]])
+
     def test_kubernetes_log_snapshots_keep_replaced_pod_uids_separate(self):
         pod = {"metadata": {"name": "slimfaas-0", "uid": "first-uid"},
                "spec": {"containers": [{"name": "runtime"}]},

@@ -221,7 +221,7 @@ def resources(options):
         "template": {"metadata": {"labels": labels | {"app": "campaign-driver"}}, "spec": driver}}))
     sources = {name: (ROOT / ".bin" / name).read_text() for name in (
         "test-slimdata-local-chaos.py", "slimdata_kubernetes_backend.py", "slimdata_fault_agent.py",
-        "slimdata_receipt_sink.py", "run-platform-workload.py")}
+        "slimdata_receipt_sink.py", "run-platform-workload.py", "run-kubernetes-campaign.py")}
     sources["chaos_function.py"] = (ROOT / "tests/SlimFaas.Tests/Local/chaos_function.py").read_text()
     result.append(resource("ConfigMap", "tools-source", data=sources, immutable=True))
     for item in result:
@@ -276,7 +276,7 @@ def wait_for_campaign_quiescence(kubectl, namespace, output, timeout=180):
         time.sleep(1)
 
 
-def collect_pod_logs(prefix, namespace, pods, output, previous_only=False):
+def collect_pod_logs(prefix, namespace, pods, output, previous_only=False, fetch_log=None):
     """Retain log generations separately; unavailable history remains explicit."""
     output.mkdir(parents=True, exist_ok=True)
     manifest_path = output / "pod-log-coverage.json"
@@ -312,14 +312,22 @@ def collect_pod_logs(prefix, namespace, pods, output, previous_only=False):
                 command = prefix + ["logs", name, "-c", container_name, "-n", namespace, "--timestamps"]
                 if previous:
                     command.append("--previous")
-                with path.open("w") as stream:
+                if fetch_log is not None:
                     try:
-                        result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT,
-                                                check=False, timeout=30)
-                        code = result.returncode
-                    except subprocess.TimeoutExpired:
-                        stream.write("\nLog collection exceeded its 30-second deadline.\n")
-                        code = 124
+                        path.write_bytes(fetch_log(name, container_name, previous))
+                        code = 0
+                    except OSError as error:
+                        path.write_text(repr(error) + "\n")
+                        code = 1
+                else:
+                    with path.open("w") as stream:
+                        try:
+                            result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT,
+                                                    check=False, timeout=30)
+                            code = result.returncode
+                        except subprocess.TimeoutExpired:
+                            stream.write("\nLog collection exceeded its 30-second deadline.\n")
+                            code = 124
                 row = {"pod": name, "pod_uid": uid, "container": container_name,
                        "restart_index": index, "previous": previous, "exit_code": code,
                        "container_id": (status.get("lastState", {}).get("terminated", {}).get("containerID")
@@ -366,8 +374,19 @@ def audit_runtime_logs(output, started_utc, finished_utc):
         if key not in canonical or rank > (canonical[key]["previous"], canonical[key]["captured_utc"]):
             canonical[key] = row
     observations = []
+    prefix_gaps = []
     for row in canonical.values():
         content = (output / row["path"]).read_bytes()
+        for earlier in manifest["logs"]:
+            if (earlier["container"] != "runtime" or earlier["exit_code"] != 0 or
+                    (earlier["pod_uid"], earlier["restart_index"]) != (row["pod_uid"], row["restart_index"]) or
+                    earlier["path"] == row["path"]):
+                continue
+            prefix = (output / earlier["path"]).read_bytes()
+            if hashlib.sha256(prefix).hexdigest() != earlier["sha256"] or not content.startswith(prefix):
+                prefix_gaps.append({"pod_uid": row["pod_uid"], "restart_index": row["restart_index"],
+                    "earlier_path": earlier["path"], "canonical_path": row["path"],
+                    "reason": "Known earlier output is absent or changed; rotation/truncation is not complete history"})
         text = content.decode(errors="replace")
         errors = []
         for line in text.splitlines():
@@ -387,10 +406,10 @@ def audit_runtime_logs(output, started_utc, finished_utc):
         observations.append(row | {"hash_matches_capture": hashlib.sha256(content).hexdigest() == row["sha256"],
             "managed_oom_log_occurrences": text.count("OutOfMemoryException"),
             "runtime_errors_during_workload": errors})
-    complete = len(instances) == 3 and not missing and all(row["hash_matches_capture"] for row in observations)
+    complete = len(instances) == 3 and not missing and not prefix_gaps and all(row["hash_matches_capture"] for row in observations)
     return {"passed": complete and bool(observations) and not any(
                 row["managed_oom_log_occurrences"] or row["runtime_errors_during_workload"] for row in observations),
-            "runtime_log_coverage_complete": complete, "missing_instances": missing,
+            "runtime_log_coverage_complete": complete, "missing_instances": missing, "observed_prefix_gaps": prefix_gaps,
             "workload_window_utc": [started_utc, finished_utc], "instances": observations,
             "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."}
 

@@ -4,6 +4,7 @@ The controller runs inside its dedicated namespace. Only resources bearing its
 campaign label are controlled; Kubernetes service-account credentials stay local.
 """
 
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,11 @@ import ssl
 import time
 from urllib.parse import quote
 from urllib.request import build_opener, HTTPSHandler, ProxyHandler, Request
+
+
+_spec = importlib.util.spec_from_file_location("kubernetes_log_collector", Path(__file__).with_name("run-kubernetes-campaign.py"))
+_collector = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_collector)
 
 
 def assert_no_runtime_ooms(pods, identifier):
@@ -148,26 +154,29 @@ def create_campaign(options, local):
             self.signal(handle, "pause" if paused else "resume")
 
         def kill_node(self, handle):
+            # Preserve the current generation before successive crashes can
+            # replace the single --previous generation available from kubelet.
+            self.capture_pod_logs("before-kill")
             self.signal(handle, "kill")
 
         def node_state_directory(self, node):
             return Path(config["node_state_roots"][node])
 
         def capture_pod_logs(self, name):
-            for pod in self.api("GET", self.resource("pods"))["items"]:
-                if pod["metadata"].get("labels", {}).get("slimfaas-campaign") != identifier:
-                    continue
-                self.owned(pod)
-                pod_name = pod["metadata"]["name"]
-                uid = pod["metadata"]["uid"]
-                for container in pod["spec"]["containers"]:
-                    container_name = container["name"]
-                    path = self.output / f"{name}-{pod_name}-{uid}-{container_name}.log"
-                    try:
-                        path.write_bytes(self.api("GET", self.resource(
-                            f"pods/{pod_name}/log?container={container_name}&timestamps=true"), raw=True))
-                    except OSError as error:
-                        path.with_suffix(".error.txt").write_text(repr(error))
+            pods = [self.owned(pod) for pod in self.api("GET", self.resource("pods"))["items"]
+                    if pod["metadata"].get("labels", {}).get("slimfaas-campaign") == identifier]
+
+            def fetch(pod_name, container_name, previous):
+                suffix = f"pods/{pod_name}/log?container={container_name}&timestamps=true"
+                if previous:
+                    suffix += "&previous=true"
+                return self.api("GET", self.resource(suffix), raw=True)
+
+            # Both host and in-cluster collection share immutable UID/restart
+            # snapshots and the same missing-history rules.
+            manifest = _collector.collect_pod_logs([], identifier, pods, self.output, fetch_log=fetch)
+            self.client.append({"event": "kubernetes-log-capture", "phase": name, "utc": time.time(),
+                                "instances": len(manifest["instances"]), "complete": manifest["complete"]})
 
         def capture(self, name):
             super().capture(name)

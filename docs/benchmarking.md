@@ -955,3 +955,30 @@ The [source f2f80124 publication ledger](reliability/2026-11-16/ownership-public
 identifies the new Native AOT executables and shared Linux drivers/images.
 Publication and CI success remain separate from application and endurance
 acceptance; follow its recorded preflights before using those images.
+
+Detailed Trace can rotate a Kubernetes log within one pod/container generation.
+A successful `kubectl logs` call and unchanged restart count therefore do not
+establish complete history. The collector now rejects a canonical snapshot that
+omits a previously captured prefix. It keeps that earlier snapshot and reports
+the gap; a passing receipt reconciliation does not remove it. The in-cluster
+chaos backend uses the same UID/restart collector as the host, captures current
+and previous generations, and saves output before successive intentional kills.
+
+For new dedicated kind clusters, merge this patch into the first control-plane
+node's configuration, retaining the existing evidence mounts and worker layout:
+
+```yaml
+kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    containerLogMaxSize: 128Mi
+```
+
+[kind applies the first node's KubeletConfiguration to all nodes](https://kind.sigs.k8s.io/docs/user/configuration/#kubeadm-config-patches).
+Verify the effective configuration before each comparison series and keep it
+identical for both variants. This run's four-node dedicated cluster was updated
+while campaigns were stopped, with original configurations retained and the
+effective limit verified through each node's `configz` endpoint. Larger retention
+does not prove absence of other gaps. The original source-f2 async routing case
+has complete receipts but incomplete detailed leader history; its per-ID trace
+verdict remains inconclusive and requires a fresh run.
