@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 20:31 CET. Campaign state: **in progress**.
+Updated 2026-11-17 21:11 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -15,6 +15,7 @@ The WebSocket async runner checks refreshed queue totals on all nodes after rece
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
 | data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
+| http-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
@@ -96,3 +97,4 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 - **websocket-rerun**: OBSERVED.
 - **streams-rerun**: OBSERVED.
 - **data-rerun**: OBSERVED.
+- **http-reference-comparison**: INCONCLUSIVE (30 GiB disk reserve).
