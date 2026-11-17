@@ -4,7 +4,6 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 
-using System.Globalization;
 namespace SlimFaas.Kubernetes;
 
 public partial class KubernetesService
@@ -124,13 +123,7 @@ public partial class KubernetesService
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
-                StringBuilder resourceVersionBuilder = new($"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}");
-                foreach (PodInformation pod in pods)
-                {
-                    resourceVersionBuilder.Append(CultureInfo.InvariantCulture, $"-{pod.ResourceVersion}");
-                }
-
-                var resourceVersion = resourceVersionBuilder.ToString();
+                string resourceVersion = FunctionResourceVersion(deploymentListItem.Metadata, endpointReady, pods);
                 if (previousDeployment != null && previousDeployment.ResourceVersion == resourceVersion)
                 {
                     deploymentInformationList.Add(previousDeployment);
@@ -177,6 +170,18 @@ public partial class KubernetesService
                 logger.LogErrorWhileAddingDeployment(e, deploymentListItem.Metadata.Name);
             }
         }
+    }
+
+    private static string FunctionResourceVersion(V1ObjectMeta controller, bool endpointReady, List<PodInformation> pods)
+    {
+        // Controller metadata and aggregate readiness can remain unchanged when
+        // a pod is replaced or one pod becomes unavailable in a still-ready pool.
+        // Resource versions identify revisions of an object, not its identity.
+        var version = new StringBuilder();
+        version.Append(controller.Uid).Append(':').Append(controller.ResourceVersion).Append(':').Append(endpointReady);
+        foreach (PodInformation pod in pods)
+            version.Append('|').Append(pod.Name).Append(':').Append(pod.Uid).Append(':').Append(pod.ResourceVersion);
+        return version.ToString();
     }
 
     private static IList<PathVisibility> GetPathsStartWithVisibility(
@@ -363,7 +368,7 @@ public partial class KubernetesService
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
-                string resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
+                string resourceVersion = FunctionResourceVersion(deploymentListItem.Metadata, endpointReady, pods);
                 if (previousDeployment != null && previousDeployment.ResourceVersion == resourceVersion)
                 {
                     deploymentInformationList.Add(previousDeployment);

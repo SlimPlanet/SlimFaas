@@ -330,3 +330,10 @@ behavior. A pool lifetime bounds connection reuse, while Kubernetes readiness
 and destination-cache updates determine which pod address is selected. See the
 [connection audit](reliability/2026-11-16/http-client-audit.md) for policies and
 validation limits.
+
+For Deployment and StatefulSet functions, cached destinations are invalidated by
+pod identity and resource-version changes as well as controller changes. A
+StatefulSet pod replacement or a single NotReady/terminating pod in a ready pool
+must not retain the previous destination list. During Kubernetes API outages the
+last successful snapshot remains available; successful LIST/watch recovery
+reconciles it with current pods. Connection expiry does not replace this refresh.
