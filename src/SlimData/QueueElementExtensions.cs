@@ -210,7 +210,7 @@ public static class QueueElementExtensions
     {
         if (elements.IsEmpty) return ImmutableArray<QueueElement>.Empty;
         return ImmutableCollectionsMarshal.AsImmutableArray(
-            elements.AsValueEnumerable().Where(e => e.IsRunning(nowTicks)).ToArray());
+            elements.Where(e => e.IsRunning(nowTicks)).ToArray());
     }
 
     public static ImmutableArray<QueueElement> GetQueueWaitingForRetryElement(this ImmutableArray<QueueElement> elements, long nowTicks)
