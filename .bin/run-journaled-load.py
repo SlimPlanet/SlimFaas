@@ -39,7 +39,8 @@ def main():
     config = json.loads(options.backend_config.read_text())
     nodes = [node["http"] for node in config["nodes"]]
     options.output.mkdir(parents=True, exist_ok=False)
-    sample_options = SimpleNamespace(output=options.output)
+    sample_options = SimpleNamespace(output=options.output,
+        node_controls=[node["control"] for node in config["nodes"]] if config.get("process_socket_statistics") else [])
     workload.snapshot(sample_options, nodes, config, "before")
     stop = threading.Event()
     phase = {"value": "load"}

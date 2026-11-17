@@ -18,7 +18,7 @@ campaign = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(campaign)
 
 
-def terminate_owned_functions(kubectl, namespace, image):
+def terminate_owned_functions(kubectl, namespace, image, only_uid=None):
     """End only the known Python fixture after measurement, without a 600s preStop wait."""
     pods = json.loads(kubectl("get", "pods", "-n", namespace, "-l",
         "slimfaas-campaign=" + namespace + ",app=memory-function", "-o", "json", capture_output=True).stdout)["items"]
@@ -32,6 +32,8 @@ def terminate_owned_functions(kubectl, namespace, image):
         if container["image"] != image or container.get("command") != ["python3", fixture]:
             raise ValueError("Refusing to signal a different function executable/image")
         name, uid = metadata["name"], metadata["uid"]
+        if only_uid is not None and uid != only_uid:
+            continue
         statuses = [value for value in pod.get("status", {}).get("containerStatuses", []) if value["name"] == "function"]
         if statuses and "running" not in statuses[0].get("state", {}):
             observations.append({"pod": name, "uid": uid, "status": "not-running"})
@@ -78,6 +80,10 @@ def resources(options):
     container = pod["containers"][0]
     container["lifecycle"] = {"preStop": {"exec": {"command": ["sh", "-c", f"sleep {options.retire_delay}"]}}}
     container["env"].append({"name": "POD_IP", "valueFrom": {"fieldRef": {"fieldPath": "status.podIP"}}})
+    container["env"].append({"name": "CHAOS_DELAY_SECONDS", "value": str(options.function_delay_seconds)})
+    if options.replacement_mode == "exit":
+        container.pop("lifecycle")
+        pod["terminationGracePeriodSeconds"] = 5
     function["spec"]["template"]["metadata"]["annotations"]["SlimFaas/Configuration"] = json.dumps({
         "DefaultSync": {"HttpTimeout": 15}})
     service = next(item for item in items if item["kind"] == "Service" and item["metadata"]["name"] == "memory-function")
@@ -124,8 +130,13 @@ def resources(options):
     for name in source["data"]:
         driver["volumeMounts"].append({"name": "tools-source", "mountPath": "/src/.bin/" + name,
             "subPath": name, "readOnly": True})
-    return items, config | {"route": options.route, "function_url_template": target,
-        "routing_directory": directory, "driver_command": command, "retire_delay": options.retire_delay}
+    config |= {"route": options.route, "function_url_template": target,
+        "routing_directory": directory, "driver_command": command, "retire_delay": options.retire_delay,
+        "function_delay_seconds": options.function_delay_seconds, "replacement_mode": options.replacement_mode,
+        "process_socket_statistics": True}
+    backend = next(item for item in items if item["kind"] == "ConfigMap" and item["metadata"]["name"] == "campaign")
+    backend["data"]["backend.json"] = json.dumps(config)
+    return items, config
 
 
 def run(options):
@@ -135,6 +146,8 @@ def run(options):
         raise ValueError("Require at least 10s before, 15s after, and retirement after the observation window")
     if options.concurrency < 1 or options.rps <= 0 or not 0 <= options.payload_bytes <= 1048576:
         raise ValueError("Invalid load parameters")
+    if not 0 <= options.function_delay_seconds <= 60:
+        raise ValueError("Function delay must be between zero and 60 seconds")
     options.output.mkdir(parents=True, exist_ok=False)
     items, config = resources(options)
     manifest = options.output / "resources.json"
@@ -216,6 +229,10 @@ def run(options):
                 report["deleted_pod"] = {"uid": old["metadata"]["uid"], "ip": old["status"].get("podIP"), "name": old["metadata"]["name"]}
                 report["deletion_requested_utc"] = time.time()
                 kubectl("delete", "pod", old["metadata"]["name"], "-n", options.namespace, "--wait=false", capture_output=True)
+                if options.replacement_mode == "exit":
+                    report["deleted_process_stop"] = terminate_owned_functions(
+                        kubectl, options.namespace, options.controller_image, only_uid=old["metadata"]["uid"])
+                    report["deleted_process_stop_utc"] = time.time()
                 replaced = True
             replacements = [pod for pod in observation["pods"] if pod["metadata"]["labels"].get("app") == "memory-function" and
                 pod["metadata"]["uid"] != old["metadata"]["uid"] and ready(pod)]
@@ -276,6 +293,8 @@ def main():
     parser.add_argument("--before-seconds", type=int, default=60)
     parser.add_argument("--after-seconds", type=int, default=420)
     parser.add_argument("--retire-delay", type=int, default=600)
+    parser.add_argument("--replacement-mode", choices=("terminating", "exit"), default="terminating")
+    parser.add_argument("--function-delay-seconds", type=float, default=0)
     parser.add_argument("--dry-run", action="store_true")
     run(parser.parse_args())
 

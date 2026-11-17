@@ -182,3 +182,12 @@ rule remain unchanged. The
 [closed WAL/threshold/policy diagnostics](../2026-11-15/wal-threshold-policy-controls-189.md)
 retain the unhealthy inline row and policy-cost failures; this first long role
 does not erase those observations or establish final non-regression acceptance.
+
+Subsequent routing work is tracked separately: the
+[isolated function-pool Service ABBA](kubernetes-service-pool-lifetime.md) records
+38,400 reconciled calls, and the
+[StatefulSet cache reproduction and recovery tests](destination-cache-recovery.md)
+record a corrected stale-destination cause. Neither result transfers the source
+`18982623` endurance verdict to the newer runtime or explains its historical
+duplicates. Headless DNS, actual process exit, final-source comparisons and
+affected recovery/endurance remain open.

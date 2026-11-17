@@ -117,7 +117,7 @@ def handler(journal, repair):
                        "connection": f"{self.server.server_address}|{self.client_address}",
                        "pod_ip": os.environ.get("POD_IP")}
             journal.append(receipt)
-            delay = float(query.get("delay", ["0"])[0])
+            delay = float(query.get("delay", [os.environ.get("CHAOS_DELAY_SECONDS", "0")])[0])
             if delay:
                 time.sleep(min(delay, 60))
             fail = query.get("fail", ["0"])[0]

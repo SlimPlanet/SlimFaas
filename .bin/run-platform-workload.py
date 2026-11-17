@@ -112,6 +112,7 @@ def ensure_ports_free(ports):
 def monitor(options, nodes, stop, phase):
     with gzip.open(options.output / "metrics.jsonl.gz", "wt") as output, (options.output / "memory.csv").open("w") as memory:
         memory.write("timestamp,node,pid,rss_kb,vsz_kb,phase\n")
+        next_process_sample = time.monotonic()
         while not stop.is_set():
             started = time.monotonic()
             utc = datetime.now(timezone.utc).isoformat()
@@ -119,6 +120,10 @@ def monitor(options, nodes, stop, phase):
             if (options.output / "phase").exists():
                 current_phase = (options.output / "phase").read_text().strip()
             samples = []
+            controls = getattr(options, "node_controls", [])
+            collect_process = bool(controls) and started >= next_process_sample
+            if collect_process:
+                next_process_sample = started + 5
             for index, node in enumerate(nodes):
                 try:
                     with HTTP.open(node + "/metrics", timeout=2) as response:
@@ -127,7 +132,14 @@ def monitor(options, nodes, stop, phase):
                     rss = values.get("slimdata_process_working_set_bytes")
                     if rss is not None:
                         memory.write(f"{utc},slimfaas-{index},0,{int(rss / 1024)},0,{current_phase}\n")
-                    samples.append({"node": index, "raw": raw})
+                    sample = {"node": index, "raw": raw}
+                    if collect_process:
+                        try:
+                            with HTTP.open(controls[index] + "/stats", timeout=2) as response:
+                                sample["process_statistics"] = json.load(response)
+                        except OSError as error:
+                            sample["process_statistics_error"] = str(error)
+                    samples.append(sample)
                 except OSError as error:
                     samples.append({"node": index, "error": str(error)})
             output.write(json.dumps({"utc": utc, "phase": current_phase, "nodes": samples,

@@ -871,6 +871,23 @@ retains its own membership policy. API observations include pod UIDs/IPs,
 termination/readiness, EndpointSlices and events. Runtime debug logs retain the
 actual sent URLs; receipt headers identify the function that served each request.
 
+The default `--replacement-mode terminating` retains those established connections
+until the observation window ends. Use `--replacement-mode exit` for a separate
+case where deletion also ends the old fixture process. Its identity is checked
+before SIGINT, and a replacement UID is never signaled by that action. Keep these
+two failure modes distinct in the report. `--function-delay-seconds 0.5` optionally
+holds function requests in flight; combine it with C16 and a suitable target rate
+to exercise active connections rather than merely configuring 16 idle slots.
+The delay applies to POST workload calls, leaving readiness GETs unaffected.
+
+Routing cases also use the existing resource sampler to read the owned runtime's
+CPU ticks, RSS, open FDs and socket FDs every five seconds. Live TCP states are
+matched to that process's socket inodes; TIME_WAIT and interface byte counters
+belong to the entire pod network namespace, including probes and diagnostics.
+Keep this scope and sampler overhead identical across comparisons. Each sample
+includes pod UID and process start identity; a recycled PID is rejected. Sampling
+never signals a process and does not rehash the executables on every poll.
+
 ```bash
 python3 .bin/run-kubernetes-routing.py \
   --kubeconfig artifacts/pr506/kubernetes/kubeconfig \
@@ -904,3 +921,8 @@ corruption and successful duplicates; a later 2xx execution can reconcile an
 accepted retry. Controlled-fault duplicate counts are retained rather than erased.
 Normal benchmark receipt checks still reject duplicates by default. The fault
 comparison must assess attempts and successful executions before issuing a verdict.
+
+The [isolated Service connection-lifetime ABBA report](reliability/2026-11-16/kubernetes-service-pool-lifetime.md)
+records 38,400 reconciled calls and the actual five-minute pool rotation. It
+distinguishes a still-alive terminating pod from a stopped destination, and
+keeps this diagnostic separate from capacity and final-source acceptance.

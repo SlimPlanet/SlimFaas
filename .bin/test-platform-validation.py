@@ -754,6 +754,52 @@ class PlatformTests(unittest.TestCase):
             kill.assert_not_called()
             self.assertEqual(409, request.reply.call_args.args[0])
 
+    def test_socket_statistics_separate_process_fds_from_pod_time_wait_and_reject_pid_reuse(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            process = root / "12"
+            (process / "fd").mkdir(parents=True)
+            (process / "net").mkdir()
+            fields = ["0"] * 50
+            fields[0], fields[11], fields[12], fields[19], fields[21] = "R", "21", "5", "300", "7"
+            (process / "stat").write_text("12 (runtime with spaces) " + " ".join(fields))
+            (process / "fd/1").write_text("socket:[4242]")
+            (process / "fd/2").write_text("socket:[4242]")
+            (process / "fd/3").write_text("/app/log")
+            (process / "net/tcp").write_text("header\n0: local remote 01 0:0 0:0 0 1000 0 4242\n"
+                "1: local remote 06 0:0 0:0 0 1000 0 0\n2: local remote 01 0:0 0:0 0 1000 0 9999\n")
+            (process / "net/tcp6").write_text("header\n")
+            (process / "net/dev").write_text("header\nheader\n eth0: 123 0 0 0 0 0 0 0 456 0 0 0 0 0 0 0\n")
+            identity = {"pid": 12, "started": "300", "pod_uid": "owned"}
+            # The Linux procfs fixture also runs on Windows without symlink
+            # privileges or os.sysconf, which is only used by the real Linux agent.
+            with patch.object(Path, "readlink", autospec=True, side_effect=lambda path: Path(path.read_text())), patch.object(
+                    AGENT.os, "sysconf", create=True, side_effect=lambda key: 100 if key == "SC_CLK_TCK" else 4096):
+                result = AGENT.read_runtime_statistics(identity, proc_root=root)
+            self.assertEqual(21, result["user_cpu_ticks"])
+            self.assertEqual(5, result["system_cpu_ticks"])
+            self.assertEqual(7 * 4096, result["rss_bytes"])
+            self.assertEqual(3, result["open_fds"])
+            self.assertEqual(2, result["socket_fds"])
+            self.assertEqual({"01": 1}, result["process_tcp_states_hex"])
+            self.assertEqual({"01": 2, "06": 1}, result["pod_network_namespace_tcp_states_hex"])
+            self.assertEqual({"eth0": {"rx_bytes": 123, "tx_bytes": 456}}, result["pod_network_namespace_interfaces"])
+            with self.assertRaisesRegex(RuntimeError, "process changed"):
+                AGENT.read_runtime_statistics(identity | {"started": "299"}, proc_root=root)
+
+    def test_read_only_socket_probe_does_not_rehash_executables_or_signal_processes(self):
+        request = object.__new__(AGENT.Handler)
+        request.path = "/stats"
+        request.reply = Mock()
+        identity = {"pid": 12, "started": "300", "pod_uid": "owned"}
+        with patch.object(AGENT, "runtime_identity", return_value=identity) as find, patch.object(
+                AGENT, "read_runtime_statistics", return_value={"open_fds": 12}) as read, patch.object(AGENT.os, "kill") as kill:
+            request.do_GET()
+        find.assert_called_once_with(include_binaries=False)
+        read.assert_called_once_with(identity)
+        kill.assert_not_called()
+        request.reply.assert_called_once_with(200, {"open_fds": 12})
+
     def test_memorylab_rejects_non_http_or_ambiguous_node_origins(self):
         runtime = ROOT / "tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
         if not runtime.exists():
