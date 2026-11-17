@@ -180,7 +180,9 @@ python3 .bin/prepare-platform-tuning.py \
 The generator creates nine configurations, including reference controls:
 WAL 4/8/16/32/64 KiB and thresholds 128/256/512 KiB/1 MiB. Every configuration
 uses the same product for A and B, changes only one setting, and includes payloads
-one byte below, exactly at, and one byte above each threshold. Fresh volumes are
+one byte below, exactly at, and one byte above each threshold, alongside the
+configured HTTP controls (including 2/4 MiB by default). Existing duration,
+warmup and concurrency arguments are retained. Fresh volumes are
 mandatory. Local/Podman preparation refuses existing WAL directories; Kubernetes
 initialization refuses incompatible or unmarked existing WALs. These settings
 are benchmark fixtures, not a new production migration mechanism.
