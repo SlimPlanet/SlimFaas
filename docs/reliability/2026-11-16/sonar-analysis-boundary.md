@@ -91,3 +91,13 @@ in [the clarification record](dco-provenance-key-clarification.json). No evidenc
 file is excluded and no security finding is suppressed. Conditional internal TLS
 opt-ins, HTTP defaults, cancellation observations and other reported findings
 remain subject to their own review; this metadata correction does not clear them.
+
+The `bbf19e8e` analysis is also processed successfully. Its boundary verifier
+passes against 356 returned PR files and the full submitted project metadata;
+the runtime/SDK projects retain their production classification and coverage.
+The Windows coverage job independently reports 2,450 passes and two failures in
+the new live-journal tests. Their readers used `FileShare.Read`, which excludes
+the already-open writer on Windows. The test readers now use `ReadWrite` sharing;
+the journal's exclusive write ownership is unchanged. The Mac suite passes after
+the correction; a new Windows CI result remains required.
+[Processed scope, failure and retained artifact hashes](sonar-completed-scope-bbf.json).

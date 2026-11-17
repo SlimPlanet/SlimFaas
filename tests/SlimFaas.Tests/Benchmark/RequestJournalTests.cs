@@ -27,7 +27,7 @@ public sealed class RequestJournalTests
                 response.EnsureSuccessStatusCode();
             }));
 
-            string[] lines = await File.ReadAllLinesAsync(journal.Path);
+            string[] lines = await ReadLiveJournalAsync(journal.Path);
             Assert.Equal(128, lines.Length);
             var intents = new HashSet<string>(StringComparer.Ordinal);
             var responses = new HashSet<string>(StringComparer.Ordinal);
@@ -68,7 +68,7 @@ public sealed class RequestJournalTests
             using HttpMessageHandler observed = journal.Wrap(transport);
             using var client = new HttpClient(observed, disposeHandler: false);
             await Assert.ThrowsAsync<HttpRequestException>(() => client.GetAsync("http://function/echo"));
-            string[] lines = await File.ReadAllLinesAsync(journal.Path);
+            string[] lines = await ReadLiveJournalAsync(journal.Path);
             Assert.Equal(1, transport.Calls);
             Assert.Equal(2, lines.Length);
             using JsonDocument first = JsonDocument.Parse(lines[0]);
@@ -89,7 +89,7 @@ public sealed class RequestJournalTests
         string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         try
         {
-            var journal = new RequestJournal(directory);
+            using var journal = new RequestJournal(directory);
             using var transport = new ObservedTransport();
             using HttpMessageHandler observed = journal.Wrap(transport);
             using var client = new HttpClient(observed, disposeHandler: false);
@@ -101,6 +101,18 @@ public sealed class RequestJournalTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static async Task<string[]> ReadLiveJournalAsync(string path)
+    {
+        // On Windows, the reader must share writes with the already-open journal.
+        // The writer still exclusively owns writes and flushes each complete line.
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        var lines = new List<string>();
+        while (await reader.ReadLineAsync() is { } line)
+            lines.Add(line);
+        return lines.ToArray();
     }
 
     private sealed class ObservedTransport : HttpMessageHandler
