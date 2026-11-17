@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 21:14 CET. Campaign state: **final**.
+Updated 2026-11-17 21:25 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -11,10 +11,12 @@ Preflight passed 2,504 .NET tests, 58 Python controller tests and 11 documentati
 The prior campaign and its unrepaired runtime results remain in the [initial campaign report](overnight-benchmarks.md).
 This rerun uses fresh state and the repaired supervisor. Omitted arguments run the manifest command without additions. A job whose preparation fails follows its retry policy while other jobs continue.
 The WebSocket async runner checks refreshed queue totals on all nodes after receipt reconciliation. File scenarios have an explicit byte budget within the 30 GiB disk reserve.
+The original HTTP reference stopped at the disk reserve while testing large bodies. The bounded HTTP rerun uses 5-second load windows, 1-second warmups, two repetitions, concurrency 1/16, and five payload sizes from 4 KiB through 4 MiB. It supplies a shorter ABBA comparison. Quiescent offload files are transparently compressed between roles, with their bytes and SHA-256 preserved.
 
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
 | data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
+| files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | files-retry | INCONCLUSIVE | 2 | 2 | 0 | 0 |
 | http-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
@@ -60,6 +62,12 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 | data-rerun | set | 4096 | 16 | 2 | 142.55 | operation/s | n/a | 2.93 | 496.91 |
 | data-rerun | slimdata-set | 4096 | 1 | 2 | 12.62 | operation/s | n/a | 14.60 | 366.89 |
 | data-rerun | slimdata-set | 4096 | 16 | 2 | 159.64 | operation/s | n/a | 1.92 | 433.44 |
+| files-bounded-files-upload | files-upload | 262144 | 1 | 2 | 105.33 | operation/s | n/a | 17.86 | 346.66 |
+| files-bounded-files-upload | files-upload | 262144 | 4 | 2 | 44.98 | operation/s | n/a | 17.54 | 373.45 |
+| files-bounded-files-upload | files-upload | 1048576 | 1 | 2 | 86.26 | operation/s | n/a | 31.84 | 380.88 |
+| files-bounded-files-upload | files-upload | 1048576 | 4 | 2 | 42.65 | operation/s | n/a | 29.18 | 386.11 |
+| files-bounded-files-upload | files-upload | 4194304 | 1 | 2 | 48.15 | operation/s | n/a | 78.90 | 389.14 |
+| files-bounded-files-upload | files-upload | 4194304 | 4 | 2 | 89.86 | operation/s | n/a | 69.43 | 389.66 |
 | files-retry | files-upload | 262144 | 1 | 2 | 106.45 | operation/s | n/a | 16.21 | 344.77 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 131.27 | accepted job/s | 13.03 | 4.96 | 348.52 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1246.31 | accepted job/s | 13.09 | 0.96 | 352.75 |
@@ -105,3 +113,4 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 - **memory-reference-comparison**: INCONCLUSIVE (30 GiB disk reserve).
 - **threshold-512kib**: deferred (30 GiB disk reserve).
 - **wal-64kib**: deferred (30 GiB disk reserve).
+- **files-bounded-files-upload**: OBSERVED.
