@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 21:26 CET. Campaign state: **in progress**.
+Updated 2026-11-17 21:28 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -16,6 +16,7 @@ The original HTTP reference stopped at the disk reserve while testing large bodi
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
 | data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
+| files-bounded-files | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | files-retry | INCONCLUSIVE | 2 | 2 | 0 | 0 |
@@ -63,6 +64,12 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 | data-rerun | set | 4096 | 16 | 2 | 142.55 | operation/s | n/a | 2.93 | 496.91 |
 | data-rerun | slimdata-set | 4096 | 1 | 2 | 12.62 | operation/s | n/a | 14.60 | 366.89 |
 | data-rerun | slimdata-set | 4096 | 16 | 2 | 159.64 | operation/s | n/a | 1.92 | 433.44 |
+| files-bounded-files | files | 262144 | 1 | 2 | 71.98 | operation/s | n/a | 23.28 | 333.55 |
+| files-bounded-files | files | 262144 | 4 | 2 | 48.94 | operation/s | n/a | 18.76 | 378.77 |
+| files-bounded-files | files | 1048576 | 1 | 2 | 41.97 | operation/s | n/a | 41.58 | 383.80 |
+| files-bounded-files | files | 1048576 | 4 | 2 | 68.29 | operation/s | n/a | 33.05 | 393.06 |
+| files-bounded-files | files | 4194304 | 1 | 2 | 20.48 | operation/s | n/a | 101.60 | 396.28 |
+| files-bounded-files | files | 4194304 | 4 | 2 | 56.53 | operation/s | n/a | 88.37 | 397.09 |
 | files-bounded-files-download | files-download | 262144 | 1 | 2 | 591.12 | operation/s | n/a | 2.13 | 333.72 |
 | files-bounded-files-download | files-download | 262144 | 4 | 2 | 1143.44 | operation/s | n/a | 2.30 | 359.08 |
 | files-bounded-files-download | files-download | 1048576 | 1 | 2 | 239.12 | operation/s | n/a | 5.61 | 364.03 |
@@ -122,3 +129,4 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 - **wal-64kib**: deferred (30 GiB disk reserve).
 - **files-bounded-files-upload**: OBSERVED.
 - **files-bounded-files-download**: OBSERVED.
+- **files-bounded-files**: OBSERVED.
