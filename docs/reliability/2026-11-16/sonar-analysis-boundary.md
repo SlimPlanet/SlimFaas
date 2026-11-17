@@ -1,5 +1,13 @@
 # Benchmark exclusions and production analysis
 
+The [source f2f80124 completed scan](sonar-completed-scope-f2.json) verifies this
+boundary again: task `AaHnYKpcRiBE5d6bjkVG` succeeds, all 2,477 Windows .NET tests
+pass, and the coverage importer reports 301 covered C# main files. The PR API
+returns 372 analyzed files; unchanged-file coverage and project submissions have
+separate scopes. The external gate still fails with Reliability C / Security D.
+The [publication report](ownership-publications-f2.md) preserves source-specific
+CI, executable/image identities and pending application validations.
+
 Benchmark code and its orchestration/chaos/analysis programs are deliberately
 excluded from static analysis. This differs from the previous coverage-only
 policy. The [versioned inventory](../../../eng/sonar-benchmark-exclusions.txt)

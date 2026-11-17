@@ -950,3 +950,8 @@ retains its original pre-traffic health failure and the measurements from all
 four runs. The [async ownership report](reliability/2026-11-16/async-reservation-coalescing.md)
 separates the deterministic worker regression from historical duplicate causes
 that still require real per-ID traces and affected application replays.
+
+The [source f2f80124 publication ledger](reliability/2026-11-16/ownership-publications-f2.md)
+identifies the new Native AOT executables and shared Linux drivers/images.
+Publication and CI success remain separate from application and endurance
+acceptance; follow its recorded preflights before using those images.

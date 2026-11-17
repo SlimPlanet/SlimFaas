@@ -1,5 +1,11 @@
 # Reliability evidence by source
 
+Source f2f80124 now has [three Native AOT publications, shared Linux images and
+completed CI/Sonar scope evidence](ownership-publications-f2.md). Windows and
+macOS each pass all 2,477 .NET tests. These new binaries still require application
+replays and affected long endurance; disk preflights currently prevent their
+next campaign from starting.
+
 The latest [async reservation reproduction and correction](async-reservation-coalescing.md)
 prevents a local owner from being overwritten by a newer queue reservation.
 Its full validation passes 2,477 .NET tests and the Python SDK/harness checks.
