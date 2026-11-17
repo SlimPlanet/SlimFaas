@@ -97,6 +97,10 @@ concurrency and job dispatch parallelism are different settings.
 Receiver receipt polling and queue/job state confirmation are included in the
 observed completion window, so completion rates are conservative and distinct
 from acceptance rates. `DrainSeconds` records the additional observation time.
+For WebSocket async workloads, successful receiver receipts and refreshed
+all-node queue totals verify drain on the isolated benchmark cluster. Virtual
+functions do not publish the per-function depth gauges used by the HTTP
+benchmark.
 The Jobs profile launches real processes/pods; it measures their lifecycle,
 including startup. It does not claim isolated scheduler capacity. Keep cold
 start, timeout, cancellation, retries, reconnect and recovery tests in the

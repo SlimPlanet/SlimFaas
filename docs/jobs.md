@@ -306,9 +306,11 @@ You can also define **cron schedules** for jobs under the `"Schedules"` key. Eac
 }
 ```
 | **Field**     | **Description**                                                                                                                                                                            |
+In native local mode, a job with no additional arguments runs the manifest command as configured. A job that cannot start follows its retry policy and leaves the supervisor available for other jobs.
+
 | -------------- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Schedule**   | A standard 5‑field cron expression (`m h dom mon dow`). See [Cron expression syntax](#cron-expression-syntax) and the [Kubernetes CronJob documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/). |
-| **Args**       | Arguments to pass to the job when it runs. Override default args defined in the job configuration.                                                                                         |
+| **Args**       | Additional arguments passed to the job. Omit this field or use an empty array to pass no additional arguments.                                                                                         |
 | **DependsOn**  | Optional list of dependencies that must be ready before the scheduled job runs. Override default dependencies defined in the job configuration.                                            |
 | **Resources**   | Optional overrides for resource requests/limits, merging with the job configuration defaults.                                                                                              |
 | **Environments** | Optional environment variables to inject into the job container, merging with the job configuration defaults.                                                                              |

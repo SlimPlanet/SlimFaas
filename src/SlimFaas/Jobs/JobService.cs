@@ -118,7 +118,7 @@ public class JobService(
         List<string>? dependsOn = createJob.DependsOn ?? conf.DependsOn;
 
         CreateJob newCreateJob = new(
-            createJob.Args,
+            createJob.Args ?? [],
             image,
             BackoffLimit: conf.BackoffLimit,
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
