@@ -305,6 +305,80 @@ public sealed class AsyncBenchmarkTests
         Assert.True(comparison.CandidateHasNoFailures);
     }
 
+    [Theory]
+    [InlineData("paced", "cpu")]
+    [InlineData("burst", "cpu")]
+    [InlineData("burst", "memory")]
+    [InlineData("burst", "raft")]
+    public void Non_regression_checks_focused_workload_resource_budgets(string shape, string resource)
+    {
+        BenchmarkReport baseline = CompleteReport();
+        BenchmarkReport candidate = baseline with
+        {
+            AsyncWorkloads = baseline.AsyncWorkloads!.Select(row => row.LoadShape != shape ? row : row with
+            {
+                Resources = resource switch
+                {
+                    "cpu" => row.Resources! with { CpuMillisecondsPerMessage = 13 },
+                    "memory" => row.Resources! with { PeakWorkingSetBytes = 120 },
+                    _ => row.Resources! with { RaftEntriesPerMessage = 5 }
+                }
+            }).ToArray()
+        };
+
+        BenchmarkComparisonReport comparison = BenchmarkComparer.BuildComparison(
+            "baseline", "candidate", baseline, candidate, criteria: "non-regression");
+
+        Assert.False(comparison.Passed);
+        Assert.Null(comparison.InconclusiveReason);
+        Assert.Contains(comparison.Failures, failure => failure.Contains(shape, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Offline_report_keeps_throughput_resource_units_and_incomplete_evidence(bool missingResource)
+    {
+        string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            BenchmarkReport report = CompleteReport();
+            report = report with
+            {
+                LatencyRuns = report.LatencyRuns.Select(row => row with
+                {
+                    RatePerSecond = 10 * row.Repetition,
+                    Failed = 2,
+                    AsyncMissing = 1,
+                    AsyncDuplicates = 1,
+                    AsyncResources = missingResource && row.Repetition == 1 ? null :
+                        row.AsyncResources! with { PeakWorkingSetBytes = 3 * 1024 * 1024 },
+                    Resources = new ProcessResourceUsage(1, 999, 9 * 1024 * 1024)
+                }).ToArray()
+            };
+            string input = Path.Combine(directory, "results.json");
+            string output = Path.Combine(directory, "report.md");
+            string json = JsonSerializer.Serialize(report);
+            await File.WriteAllTextAsync(input, json);
+
+            Assert.Equal(0, await SlimFaas.Benchmarks.Program.Main(["report", "--input", input, "--output", output]));
+            string markdown = await File.ReadAllTextAsync(output);
+            string asyncRow = Assert.Single(markdown.Split('\n'), line => line.StartsWith("| async |", StringComparison.Ordinal));
+            Assert.Contains("20.0 accepted msg/s", asyncRow);
+            Assert.Contains("| 6 | 3/3 |", asyncRow);
+            Assert.Contains(missingResource ? "unavailable | unavailable" : "10.000 ms | 3.000 MiB", asyncRow);
+            Assert.Contains("20.0 req/s", markdown);
+            Assert.Equal(json, await File.ReadAllTextAsync(input));
+            Assert.Equal(1, await SlimFaas.Benchmarks.Program.Main(["report", "--input", input, "--output", input]));
+            Assert.Equal(json, await File.ReadAllTextAsync(input));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static BenchmarkReport CompleteReport()
     {
         LatencyAggregateResult async = Row(150, 100, 200, 220, 300, 200, 400, 450, 100, 10, 2, 100);

@@ -24,6 +24,7 @@ public sealed class BenchmarkCliTests
     [InlineData("target")]
     [InlineData("run")]
     [InlineData("compare")]
+    [InlineData("report")]
     public async Task Invalid_arguments_return_failure_instead_of_escaping(string command)
     {
         Assert.Equal(1, await BenchmarkProgram.Main([command, "--invalid"]));

@@ -92,6 +92,7 @@ internal static class BenchmarkCli
         SlimFaas.Benchmarks:
           micro [--extended] [BenchmarkDotNet options, for example --filter '*' or --list flat]
           target [--port 31080] [--host 127.0.0.1]
+          report --input <results.json> --output <summary.md> (offline; no workload)
           compare --baseline <baseline-results.json> --candidate <candidate-results.json>
                   [--profile sync|async]
                   [--criteria optimization|non-regression]

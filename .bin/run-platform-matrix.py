@@ -77,9 +77,26 @@ def memory_measurement(directory):
     if not status["passed"] or not receipts["passed"] or report["Failed"] or document["validationFailures"]:
         raise WorkloadFailure("Workload or reconciliation failed")
     all_operations = next(row for row in report["Operations"] if row["Operation"] == "All")
+    parameters = json.loads((directory / "parameters.json").read_text())
+    backend = parameters["backend"]
+    node_count = 3 if backend == "Local" else len(backend["nodes"])
+    expected_nodes = {f"slimfaas-{index}" for index in range(node_count)}
+    rounds = {}
     with (directory / "memory.csv").open() as stream:
-        rss = [int(row["rss_kb"]) / 1024 for row in csv.DictReader(stream) if row["phase"] == "load"]
-    result = {"rate": report["Rate"], "p99_ms": all_operations["P99Milliseconds"], "rss_mib": max(rss)}
+        for row in csv.DictReader(stream):
+            if row["phase"] != "load":
+                continue
+            sample = rounds.setdefault(row["timestamp"], {})
+            rss = float(row["rss_kb"]) / 1024
+            if row["node"] in sample or not math.isfinite(rss) or rss <= 0:
+                raise ValueError("Duplicate node or invalid RSS in a load sample")
+            sample[row["node"]] = rss
+    if not rounds or not expected_nodes or any(set(sample) != expected_nodes for sample in rounds.values()):
+        raise ValueError("Missing all-node RSS evidence during load")
+    # Sum each sampling round first: neither the largest node nor the sum of
+    # independent per-node maxima is the sampled peak cluster working set.
+    peak_rss = max(sum(sample.values()) for sample in rounds.values())
+    result = {"rate": report["Rate"], "p99_ms": all_operations["P99Milliseconds"], "rss_mib": peak_rss}
     if not all(math.isfinite(value) and value > 0 for value in result.values()):
         raise ValueError("Missing or invalid measured resource/latency evidence")
     return result

@@ -4,8 +4,64 @@ SlimFaas includes a reproducible native-local benchmark for the warm synchronous
 proxy path, asynchronous enqueue and delivery, and scale-to-zero followed by
 PromQL scale-out.
 
+## CPU, RAM and throughput
+
+The application benchmarks already export these measurements. Unit tests check
+the collectors and report calculations with fixtures; their execution times are
+not performance results. Use the following fields for the website results table:
+
+| Workload | Throughput | CPU | RAM | Evidence |
+|---|---|---|---|---|
+| HTTP sync | Successful requests/s, excluding warmup | Aggregate runtime CPU ms/successful request | Sampled peak aggregate working set, MiB | `results.json`: `LatencyRuns[].RatePerSecond` and `.Resources` |
+| HTTP async, paced and burst | Accepted messages/s (HTTP 202), excluding delivery drain | Aggregate runtime CPU ms/accepted message, including delivery drain | Sampled peak aggregate working set, MiB, including drain | `LatencyRuns[].AsyncResources`; `AsyncWorkloads[].Resources` and `.RatePerSecond` |
+| MemoryLab Set/mixed | Successful operations/s; a mixed operation can be an async acceptance | Per-node process CPU counters at the before/load-end boundaries | Peak of the sum of all runtime nodes in each load sampling round | `operations.json` (`report.Rate`), `metrics-before-*.prom`, `metrics-load-end-*.prom`, `memory.csv` |
+| Microbenchmarks | BenchmarkDotNet operation timings | Elapsed operation time, not process CPU consumption | Managed allocated bytes/op, not process RAM | BenchmarkDotNet reports |
+
+The HTTP `summary.md` contains a combined throughput/CPU/RAM table with
+repetition counts, request failures, missing deliveries and duplicates. CPU is
+CPU time per accepted message or successful request, **not CPU utilization %**.
+RAM is measured in MiB (bytes / 1,048,576). The runtime totals exclude the load
+generator, function processes, local supervisor and container/VM overhead;
+background consensus and diagnostics work remain included. A 500 ms HTTP or
+approximately 1 s platform sampling interval can miss shorter RAM spikes.
+Acceptance throughput must not be relabelled as delivery throughput. Keep
+delivery counts, latencies and drain results beside it.
+
+To regenerate the HTTP table from retained results **without starting a runtime,
+target or benchmark**, use the already built driver:
+
+```bash
+dotnet benchmarks/SlimFaas.Benchmarks/bin/Release/net11.0/SlimFaas.Benchmarks.dll report \
+  --input artifacts/slimfaas-local-benchmark/overnight/results.json \
+  --output artifacts/slimfaas-local-benchmark/overnight/publication-summary.md
+```
+
+`report` only reads JSON and writes Markdown. It does not reconstruct missing
+metrics or certify acceptance. It reports unavailable resource values when any
+repetition lacks them. The table uses mean per-repetition throughput and median
+per-repetition CPU/peak RAM; raw repetitions remain in `results.json`.
+Before publishing measured rows here, attach the runtime and driver source/hash,
+OS/architecture, compilation mode, node count, payload, concurrency, durations,
+repetitions and links to the raw reports and both enclosing-reference verdicts.
+The JSON's framework/OS describe the driver host; obtain the measured product's
+compilation mode and source from its manifest. Keep macOS Native AOT and Linux
+managed/trimmed results separate. No final-source overnight results have been
+added by the 17 November reporting review.
+
+For MemoryLab platform comparisons, `rss_mib` now means **peak cluster sum**, not
+largest individual node. Missing, duplicate, invalid or failed node samples make
+resource evidence inconclusive. The sampler reads the live
+`process_working_set_bytes` collector instead of the five-second diagnostics
+gauge. Historical per-node-maximum verdicts must not be presented as cluster RAM
+acceptance; retain their originals and qualify any offline recalculation. Use
+the platform comparison for this cluster measure; MemoryLab's separate `report`
+command remains a per-node slope/cooldown diagnostic. CPU totals for MemoryLab
+can be calculated from the live `process_cpu_seconds_total` boundary deltas only
+when every node has both boundaries, unchanged `process_start_time_seconds` and
+nondecreasing counters. Missing evidence is unavailable, not zero CPU.
+
 The [17 November PR #506 handoff](reliability/2026-11-17/pr506-handoff.md)
-records the current merge assessment, CPU/RAM evidence, six running sourcef2
+records its merge assessment, CPU/RAM evidence, six then-running sourcef2
 long roles and the remaining scope for a follow-up validation PR. It also locates
 the reusable `$slimfaas-benchmarks` Codex skill installed on the campaign Mac.
 Always inspect live ownership/state before resuming; historical source results
@@ -70,7 +126,8 @@ HTTP/MemoryLab matrices or earlier policy-cost failures.
 
 ## Run the benchmark
 
-One managed driver, `benchmarks/SlimFaas.Benchmarks`, provides all four commands:
+One managed driver, `benchmarks/SlimFaas.Benchmarks`, provides `micro`, `target`,
+`run`, `compare` and the offline `report` command:
 
 ```bash
 dotnet build benchmarks/SlimFaas.Benchmarks -c Release \
@@ -204,6 +261,11 @@ extend the 180-second delivery deadline. Initial, final process and final
 diagnostics snapshots, including per-node timestamps and counters, are retained
 in `AsyncResources` / focused-workload `Resources` for audit. A missing counter,
 counter reset or refresh timeout cannot produce passing resource evidence.
+Process start time and CPU/diagnostics/Raft counters are checked per node at
+each sample and boundary: progress on another node cannot mask a reset. The
+focused paced/burst comparisons apply the same +20% CPU/message, +10% RAM and
+2x Raft/message limits to the median resources of each shape; their resource
+deltas are retained in `comparison.json` and `comparison.md`.
 
 Earlier subsecond bursts could finish between periodic samples and report zero
 CPU or Raft work. Keep those observations as **INCONCLUSIVE** and rerun both

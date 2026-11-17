@@ -16,6 +16,21 @@ internal static class BenchmarkRunner
         WriteIndented = true
     };
 
+    internal static async Task<int> ReportAsync(CommandArguments arguments)
+    {
+        string input = Path.GetFullPath(arguments.GetOptional("input") ??
+            throw new ArgumentException("--input is required."));
+        string output = Path.GetFullPath(arguments.GetOptional("output") ??
+            throw new ArgumentException("--output is required."));
+        if (string.Equals(input, output, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(Path.GetExtension(output), ".md", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("--output must be a Markdown (.md) file; preserve the original JSON evidence.");
+        BenchmarkReport report = await BenchmarkComparer.ReadReportAsync(input);
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+        await File.WriteAllTextAsync(output, BuildMarkdown(report));
+        return 0;
+    }
+
     public static async Task<int> RunAsync(CommandArguments arguments)
     {
         RunnerOptions options = RunnerOptions.Parse(arguments);
@@ -1126,6 +1141,15 @@ internal static class BenchmarkRunner
         }
     }
 
+    private static string FormatCompleteResource(IEnumerable<double?> values, double divisor, string unit)
+    {
+        double?[] samples = values.ToArray();
+        if (samples.Length == 0 || samples.Any(value => value is null || value <= 0 || !double.IsFinite(value.Value)))
+            return "unavailable";
+        double median = Statistics.Median(samples.Select(value => value!.Value));
+        return string.Create(CultureInfo.InvariantCulture, $"{median / divisor:F3} {unit}");
+    }
+
     private static string BuildMarkdown(BenchmarkReport report)
     {
         var builder = new StringBuilder();
@@ -1135,17 +1159,19 @@ internal static class BenchmarkRunner
         builder.AppendLine();
         builder.AppendLine("## Runtime process resources");
         builder.AppendLine();
-        builder.AppendLine("CPU and sampled peak working set are summed across all configured runtime nodes, excluding the local supervisor, target and load generator. Direct-route rows measure idle runtime activity, not target CPU. Sampling is every 500 ms; async measurements include queue drain. Values are medians across repetitions.");
+        builder.AppendLine("CPU and sampled peak working set are summed across all configured runtime nodes, excluding the local supervisor, target and load generator. Direct-route rows measure idle runtime activity, not target CPU. Sampling is every 500 ms; async CPU/RAM include queue drain. CPU/unit and RAM are medians across repetitions; throughput is the mean of per-repetition rates. Async throughput counts HTTP 202 accepts during load, not completed deliveries. Missing resource evidence in any repetition is unavailable. This descriptive table does not establish non-regression; retain source/build manifests and comparison verdicts with it.");
         builder.AppendLine();
-        builder.AppendLine("| mode | payload | concurrency | CPU/request | sampled peak working set |");
-        builder.AppendLine("|---|---:|---:|---:|---:|");
-        foreach (var group in report.LatencyRuns.Where(run => run.Resources is not null)
-                     .GroupBy(run => (run.Mode, run.PayloadBytes, run.Concurrency)))
+        builder.AppendLine("| mode | payload | concurrency | repetitions | throughput | CPU/unit | sampled peak RAM | failed | missing/duplicates |");
+        builder.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|");
+        foreach (var group in report.LatencyRuns.GroupBy(run => (run.Mode, run.PayloadBytes, run.Concurrency)))
         {
-            double cpu = Statistics.Median(group.Select(run => run.Resources!.CpuMillisecondsPerRequest));
-            double workingSet = Statistics.Median(group.Select(run => run.Resources!.PeakWorkingSetBytes));
+            bool async = group.Key.Mode == "async";
+            string cpu = FormatCompleteResource(group.Select(run => async
+                ? run.AsyncResources?.CpuMillisecondsPerMessage : run.Resources?.CpuMillisecondsPerRequest), 1, "ms");
+            string workingSet = FormatCompleteResource(group.Select(run => async
+                ? run.AsyncResources?.PeakWorkingSetBytes : run.Resources?.PeakWorkingSetBytes), 1024 * 1024, "MiB");
             builder.AppendLine(FormattableString.Invariant(
-                $"| {group.Key.Mode} | {FormatBytes(group.Key.PayloadBytes)} | {group.Key.Concurrency} | {cpu:F3} ms | {workingSet / (1024 * 1024):F1} MiB |"));
+                $"| {group.Key.Mode} | {FormatBytes(group.Key.PayloadBytes)} | {group.Key.Concurrency} | {group.Count()} | {group.Average(run => run.RatePerSecond):F1} {(async ? "accepted msg/s" : "req/s")} | {cpu} | {workingSet} | {group.Sum(run => run.Failed)} | {group.Sum(run => run.AsyncMissing)}/{group.Sum(run => run.AsyncDuplicates)} |"));
         }
         builder.AppendLine();
         builder.AppendLine("## Synchronous overhead");
@@ -1176,12 +1202,12 @@ internal static class BenchmarkRunner
             builder.AppendLine();
             builder.AppendLine("## Focused asynchronous workloads");
             builder.AppendLine();
-            builder.AppendLine("| shape | repetition | messages | concurrency | failed | missing | duplicates | rate | HTTP mean | HTTP p95 | arrival mean | arrival p95 | CPU/msg | Raft/msg |");
-            builder.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+            builder.AppendLine("| shape | repetition | messages | concurrency | failed | missing | duplicates | accepted msg/s | HTTP mean | HTTP p95 | arrival mean | arrival p95 | CPU/msg | sampled peak RAM | Raft/msg |");
+            builder.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
             foreach (AsyncWorkloadResult row in report.AsyncWorkloads)
             {
                 builder.AppendLine(FormattableString.Invariant(
-                    $"| {row.LoadShape} | {row.Repetition} | {row.Requested} | {row.Concurrency} | {row.Failed} | {row.Missing} | {row.Duplicates} | {row.RatePerSecond:F1}/s | {row.MeanMilliseconds:F3} ms | {row.P95Milliseconds:F3} ms | {row.Delivery.ArrivalMeanMilliseconds:F3} ms | {row.Delivery.ArrivalP95Milliseconds:F3} ms | {FormatNullable(row.Resources?.CpuMillisecondsPerMessage)} | {FormatRatio(row.Resources?.RaftEntriesPerMessage)} |"));
+                    $"| {row.LoadShape} | {row.Repetition} | {row.Requested} | {row.Concurrency} | {row.Failed} | {row.Missing} | {row.Duplicates} | {row.RatePerSecond:F1}/s | {row.MeanMilliseconds:F3} ms | {row.P95Milliseconds:F3} ms | {row.Delivery.ArrivalMeanMilliseconds:F3} ms | {row.Delivery.ArrivalP95Milliseconds:F3} ms | {FormatNullable(row.Resources?.CpuMillisecondsPerMessage)} | {FormatCompleteResource([row.Resources?.PeakWorkingSetBytes], 1024 * 1024, "MiB")} | {FormatRatio(row.Resources?.RaftEntriesPerMessage)} |"));
             }
         }
 

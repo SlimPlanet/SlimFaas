@@ -10,7 +10,7 @@ This document provides essential guidelines for AI agents (like GitHub Copilot) 
 
 - `src/`: the products only — `SlimFaas`, `SlimData`, `SlimFaasMcp`, `SlimFaasKafka`, plus the `SlimFaasPlanetSaver` npm package and the `SlimFaasSite` documentation site.
 - `samples/`: demo and non-regression workloads used by the docs, the Docker Compose tours, the local demos and the CI images — `Fibonacci`, `FibonacciBatch`, `FibonacciKafkaListener`, `FibonacciKafkaProducer`, `FibonacciReact`, `CalculatorApi`, `GmailMailerApi`, `ConsoleApp1`.
-- `benchmarks/`: `SlimFaas.Benchmarks` (the unified `micro`, `target`, `run` and `compare` driver used by `.bin/slimfaas-local-*.sh`, BenchmarkDotNet and the perf-regression tests).
+- `benchmarks/`: `SlimFaas.Benchmarks` (the unified `micro`, `target`, `run`, `compare` and offline `report` driver used by `.bin/slimfaas-local-*.sh`, BenchmarkDotNet and the perf-regression tests).
 - `tests/`, `tools/`, `client/`, `docs/`, `demo/`: test projects, developer tools, client SDKs, documentation and Compose demos.
 - Every .NET Docker image is built with the repository root as build context (`docker build -f <path>/Dockerfile .`), so `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig` and `eng/` apply inside the image build exactly as on a developer machine.
 

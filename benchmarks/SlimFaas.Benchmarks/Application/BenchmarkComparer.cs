@@ -83,7 +83,11 @@ internal sealed record AsyncWorkloadComparisonRow(
     int CandidateFailed,
     int CandidateMissing,
     int CandidateDuplicates,
-    string Verdict);
+    string Verdict,
+    double? CpuChangePercent = null,
+    double? MemoryChangePercent = null,
+    double? RaftEntryRatio = null,
+    bool ResourceGuardrailsPassed = true);
 
 internal sealed record AsyncAcceptanceCriteria(
     double? MedianHttpP95ReductionPercent,
@@ -388,7 +392,8 @@ internal static partial class BenchmarkComparer
                                 asyncLargeP50Reduction >= AsyncLargePayloadP50MinimumReductionPercent;
         bool resourcePassed = (!cpuChange.HasValue || cpuChange <= MaximumCpuRegressionPercent) &&
                               (!memoryChange.HasValue || memoryChange <= MaximumMemoryRegressionPercent) &&
-                              (!raftRatio.HasValue || raftRatio <= MaximumRaftEntryRatio);
+                              (!raftRatio.HasValue || raftRatio <= MaximumRaftEntryRatio) &&
+                              asyncWorkloads.All(row => row.ResourceGuardrailsPassed);
         bool asyncGuardrailsPassed = asyncRows.All(row => row.GuardrailsPassed);
         bool workloadGuardrailsPassed = asyncWorkloads.All(row => row.Verdict == "PASS");
         var asyncCriteria = new AsyncAcceptanceCriteria(
@@ -627,6 +632,18 @@ internal static partial class BenchmarkComparer
                 int missing = candidateRows.Sum(row => row.Missing);
                 int duplicates = candidateRows.Sum(row => row.Duplicates);
                 double rateChange = ChangePercent(baselineRate, candidateRate);
+                double? cpuChange = ResourceChangePercent(
+                    baselineRows.Select(row => row.Resources?.CpuMillisecondsPerMessage),
+                    candidateRows.Select(row => row.Resources?.CpuMillisecondsPerMessage));
+                double? memoryChange = ResourceChangePercent(
+                    baselineRows.Select(row => row.Resources?.PeakWorkingSetBytes),
+                    candidateRows.Select(row => row.Resources?.PeakWorkingSetBytes));
+                double? raftRatio = ResourceRatio(
+                    baselineRows.Select(row => row.Resources?.RaftEntriesPerMessage),
+                    candidateRows.Select(row => row.Resources?.RaftEntriesPerMessage));
+                bool resourcesPassed = (!cpuChange.HasValue || cpuChange <= MaximumCpuRegressionPercent) &&
+                                       (!memoryChange.HasValue || memoryChange <= MaximumMemoryRegressionPercent) &&
+                                       (!raftRatio.HasValue || raftRatio <= MaximumRaftEntryRatio);
                 bool guardrails = rateChange >= -MaximumGuardrailRegressionPercent &&
                                   ChangePercent(baselineHttpP95, candidateHttpP95) <=
                                   MaximumGuardrailRegressionPercent &&
@@ -646,7 +663,8 @@ internal static partial class BenchmarkComparer
                     failed,
                     missing,
                     duplicates,
-                    guardrails && failed == 0 && missing == 0 && duplicates == 0 ? "PASS" : "FAIL");
+                    guardrails && resourcesPassed && failed == 0 && missing == 0 && duplicates == 0 ? "PASS" : "FAIL",
+                    cpuChange, memoryChange, raftRatio, resourcesPassed);
             })
             .ToArray();
     }
@@ -747,12 +765,12 @@ internal static partial class BenchmarkComparer
             builder.AppendLine();
             builder.AppendLine("## Paced and burst workloads");
             builder.AppendLine();
-            builder.AppendLine("| shape | concurrency | rate before | rate after | HTTP p95 before | HTTP p95 after | arrival p95 before | arrival p95 after | lost/duplicates | verdict |");
-            builder.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|:---:|");
+            builder.AppendLine("| shape | concurrency | rate before | rate after | HTTP p95 before | HTTP p95 after | arrival p95 before | arrival p95 after | CPU change % | RAM change % | Raft ratio | lost/duplicates | verdict |");
+            builder.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|:---:|");
             foreach (AsyncWorkloadComparisonRow row in report.AsyncWorkloads)
             {
                 builder.AppendLine(FormattableString.Invariant(
-                    $"| {row.LoadShape} | {row.Concurrency} | {row.BaselineRatePerSecond:F1}/s | {row.CandidateRatePerSecond:F1}/s | {row.BaselineHttpP95Milliseconds:F3} ms | {row.CandidateHttpP95Milliseconds:F3} ms | {row.BaselineArrivalP95Milliseconds:F3} ms | {row.CandidateArrivalP95Milliseconds:F3} ms | {row.CandidateMissing}/{row.CandidateDuplicates} | {row.Verdict} |"));
+                    $"| {row.LoadShape} | {row.Concurrency} | {row.BaselineRatePerSecond:F1}/s | {row.CandidateRatePerSecond:F1}/s | {row.BaselineHttpP95Milliseconds:F3} ms | {row.CandidateHttpP95Milliseconds:F3} ms | {row.BaselineArrivalP95Milliseconds:F3} ms | {row.CandidateArrivalP95Milliseconds:F3} ms | {row.CpuChangePercent?.ToString("F1", CultureInfo.InvariantCulture) ?? "unavailable"} | {row.MemoryChangePercent?.ToString("F1", CultureInfo.InvariantCulture) ?? "unavailable"} | {row.RaftEntryRatio?.ToString("F2", CultureInfo.InvariantCulture) ?? "unavailable"} | {row.CandidateMissing}/{row.CandidateDuplicates} | {row.Verdict} |"));
             }
         }
 

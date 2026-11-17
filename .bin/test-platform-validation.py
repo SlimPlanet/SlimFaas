@@ -603,14 +603,9 @@ class PlatformTests(unittest.TestCase):
             root = Path(directory)
             paths = [root / name for name in ("baseline", "candidate")]
             for path in paths:
-                path.mkdir()
-                (path / "status.json").write_text('{"passed":true}')
-                (path / "operations.receipts.json").write_text('{"passed":true}')
-                (path / "operations.json").write_text(json.dumps({"validationFailures": 0, "report": {
-                    "Failed": 0, "Rate": 100, "Operations": [{"Operation": "All", "P99Milliseconds": 10}]}}))
-                (path / "memory.csv").write_text("phase,rss_kb\nload,102400\nvalidation,9999999\n")
+                self.write_memory_fixture(path, [102400] * 3)
             self.assertEqual("PASS", MATRIX.compare_memory(*paths)["verdict"])
-            (paths[1] / "memory.csv").write_text("phase,rss_kb\nload,120000\n")
+            self.write_memory_fixture(paths[1], [120000] * 3)
             self.assertEqual("FAIL", MATRIX.compare_memory(*paths)["verdict"])
             (paths[1] / "status.json").write_text('{"passed":false}')
             self.assertEqual("FAIL", MATRIX.compare_memory(*paths)["verdict"])
@@ -618,6 +613,58 @@ class PlatformTests(unittest.TestCase):
             self.assertEqual("INCONCLUSIVE", MATRIX.compare_memory(*paths)["verdict"])
             (paths[0] / "status.json").unlink()
             self.assertEqual("INCONCLUSIVE", MATRIX.compare_memory(*paths)["verdict"])
+
+    @staticmethod
+    def write_memory_fixture(path, rss):
+        path.mkdir(exist_ok=True)
+        (path / "parameters.json").write_text('{"backend":"Local"}')
+        (path / "status.json").write_text('{"passed":true}')
+        (path / "operations.receipts.json").write_text('{"passed":true}')
+        (path / "operations.json").write_text(json.dumps({"validationFailures": 0, "report": {
+            "Failed": 0, "Rate": 100, "Operations": [{"Operation": "All", "P99Milliseconds": 10}]}}))
+        (path / "memory.csv").write_text("timestamp,node,phase,rss_kb\n" +
+            "".join(f"2026-11-17T00:00:00Z,slimfaas-{node},load,{value}\n" for node, value in enumerate(rss)) +
+            "2026-11-17T00:00:01Z,slimfaas-0,validation,9999999\n")
+
+    def test_memory_guard_uses_cluster_peak_even_when_the_largest_node_shrinks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [Path(directory) / name for name in ("baseline", "candidate")]
+            self.write_memory_fixture(paths[0], [204800, 51200, 51200])
+            self.write_memory_fixture(paths[1], [122880] * 3)
+            comparison = MATRIX.compare_memory(*paths)
+            self.assertEqual("FAIL", comparison["verdict"])
+            self.assertEqual(300, comparison["baseline"]["rss_mib"])
+            self.assertEqual(360, comparison["candidate"]["rss_mib"])
+
+    def test_memory_guard_rejects_incomplete_or_invalid_cluster_samples(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [Path(directory) / name for name in ("baseline", "candidate")]
+            self.write_memory_fixture(paths[0], [102400] * 3)
+            for rss in ([102400, 102400], [102400, 102400, -1], [102400, 102400, "NaN"]):
+                with self.subTest(rss=rss):
+                    self.write_memory_fixture(paths[1], rss)
+                    self.assertEqual("INCONCLUSIVE", MATRIX.compare_memory(*paths)["verdict"])
+
+    def test_memory_peak_sums_each_sampling_round_before_taking_maximum(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            self.write_memory_fixture(path, [204800, 51200, 51200])
+            with (path / "memory.csv").open("a") as output:
+                for node, rss in enumerate([51200, 204800, 51200]):
+                    output.write(f"2026-11-17T00:00:02Z,slimfaas-{node},load,{rss}\n")
+            self.assertEqual(300, MATRIX.memory_measurement(path)["rss_mib"])
+
+    def test_resource_sampler_uses_live_rss_and_retains_failed_scrapes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            stop = Mock()
+            stop.is_set.side_effect = [False, True]
+            metrics = b"process_working_set_bytes 2097152\nslimdata_process_working_set_bytes 1048576\n"
+            with patch.object(WORKLOAD.HTTP, "open", side_effect=[io.BytesIO(metrics), OSError("unavailable")]):
+                WORKLOAD.monitor(SimpleNamespace(output=output), ["http://first", "http://second"], stop, {"value": "load"})
+            lines = (output / "memory.csv").read_text().splitlines()
+            self.assertEqual(3, len(lines))
+            self.assertEqual(["2048", ""], [line.split(",")[3] for line in lines[1:]])
 
     def test_bracket_conflicts_are_detected_per_guardrail_even_when_both_runs_fail(self):
         pairs = {f"a{a}-b{b}": {"verdict": "FAIL", "checks": {"p99": False, "rss": True}}

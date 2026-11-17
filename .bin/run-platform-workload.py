@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -129,9 +130,9 @@ def monitor(options, nodes, stop, phase):
                     with HTTP.open(node + "/metrics", timeout=2) as response:
                         raw = response.read().decode()
                     values = metric_values(raw)
-                    rss = values.get("slimdata_process_working_set_bytes")
-                    if rss is not None:
-                        memory.write(f"{utc},slimfaas-{index},0,{int(rss / 1024)},0,{current_phase}\n")
+                    rss = values.get("process_working_set_bytes")
+                    rss_kb = int(rss / 1024) if rss is not None and math.isfinite(rss) and rss > 0 else ""
+                    memory.write(f"{utc},slimfaas-{index},0,{rss_kb},0,{current_phase}\n")
                     sample = {"node": index, "raw": raw}
                     if collect_process:
                         try:
@@ -141,6 +142,9 @@ def monitor(options, nodes, stop, phase):
                             sample["process_statistics_error"] = str(error)
                     samples.append(sample)
                 except OSError as error:
+                    # Keep failed scrapes in the CSV, including an entirely
+                    # missing round, so the comparer cannot silently omit it.
+                    memory.write(f"{utc},slimfaas-{index},0,,0,{current_phase}\n")
                     samples.append({"node": index, "error": str(error)})
             output.write(json.dumps({"utc": utc, "phase": current_phase, "nodes": samples,
                                      "disk_free": shutil.disk_usage(options.output).free}) + "\n")

@@ -39,7 +39,10 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
             while (true)
             {
                 await Task.Delay(500, _cancellation.Token).ConfigureAwait(false);
-                _samples.Add(await ReadAsync(_client, _nodeUrls, _cancellation.Token).ConfigureAwait(false));
+                ClusterResourceSnapshot current = await ReadAsync(_client, _nodeUrls, _cancellation.Token)
+                    .ConfigureAwait(false);
+                ValidateContinuity(_samples[^1], current);
+                _samples.Add(current);
             }
         }
         catch (OperationCanceledException) when (_cancellation.IsCancellationRequested)
@@ -57,6 +60,7 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
         // node before the final Raft count can be used, even for subsecond bursts.
         ClusterResourceSnapshot finalProcess = await ReadAsync(_client, _nodeUrls, deadline.Token)
             .ConfigureAwait(false);
+        ValidateContinuity(_samples[^1], finalProcess);
         ClusterResourceSnapshot finalDiagnostics = await WaitForRefreshAsync(
             _client, _nodeUrls, finalProcess, deadline.Token).ConfigureAwait(false);
         ClusterResourceSnapshot initial = _samples[0];
@@ -81,14 +85,28 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
     private static async Task<ClusterResourceSnapshot> WaitForRefreshAsync(HttpClient client,
         IReadOnlyList<Uri> nodeUrls, ClusterResourceSnapshot previous, CancellationToken token)
     {
+        ClusterResourceSnapshot last = previous;
         while (true)
         {
             ClusterResourceSnapshot current = await ReadAsync(client, nodeUrls, token).ConfigureAwait(false);
+            ValidateContinuity(last, current);
             if (current.Nodes.Zip(previous.Nodes).All(pair =>
                     pair.First.DiagnosticsCpuSeconds > pair.Second.DiagnosticsCpuSeconds))
                 return current;
+            last = current;
             await Task.Delay(250, token).ConfigureAwait(false);
         }
+    }
+
+    private static void ValidateContinuity(ClusterResourceSnapshot previous, ClusterResourceSnapshot current)
+    {
+        if (current.Nodes.Count != previous.Nodes.Count || current.Nodes.Zip(previous.Nodes).Any(pair =>
+                pair.First.Node != pair.Second.Node ||
+                pair.First.ProcessStartTimeSeconds != pair.Second.ProcessStartTimeSeconds ||
+                pair.First.CpuSeconds < pair.Second.CpuSeconds ||
+                pair.First.DiagnosticsCpuSeconds < pair.Second.DiagnosticsCpuSeconds ||
+                pair.First.RaftEntries < pair.Second.RaftEntries))
+            throw new InvalidOperationException("A runtime node restarted or a resource counter reset; the measurement is incomplete.");
     }
 
     private static async Task<ClusterResourceSnapshot> ReadAsync(HttpClient client,
@@ -105,7 +123,8 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
                 BenchmarkRunner.ReadRequiredMetric(metrics, "process_cpu_seconds_total"),
                 BenchmarkRunner.ReadRequiredMetric(metrics, "slimdata_process_cpu_seconds_total"),
                 BenchmarkRunner.ReadRequiredMetric(metrics, "slimdata_command_batch_raft_total"),
-                BenchmarkRunner.ReadRequiredMetric(metrics, "process_working_set_bytes"));
+                BenchmarkRunner.ReadRequiredMetric(metrics, "process_working_set_bytes"),
+                BenchmarkRunner.ReadRequiredMetric(metrics, "process_start_time_seconds"));
         })).ConfigureAwait(false);
         if (nodes.Any(node => node.CpuSeconds < 0 || node.DiagnosticsCpuSeconds < 0 ||
                 node.RaftEntries < 0 || node.WorkingSetBytes <= 0))
@@ -131,7 +150,8 @@ internal sealed class ClusterResourceMonitor : IAsyncDisposable
 }
 
 internal sealed record ClusterNodeResourceSnapshot(string Node, DateTimeOffset CapturedAtUtc,
-    double CpuSeconds, double DiagnosticsCpuSeconds, double RaftEntries, double WorkingSetBytes);
+    double CpuSeconds, double DiagnosticsCpuSeconds, double RaftEntries, double WorkingSetBytes,
+    double? ProcessStartTimeSeconds = null);
 
 internal sealed record ClusterResourceSnapshot(double CpuSeconds, double RaftEntries,
     double WorkingSetBytes, IReadOnlyList<ClusterNodeResourceSnapshot> Nodes);

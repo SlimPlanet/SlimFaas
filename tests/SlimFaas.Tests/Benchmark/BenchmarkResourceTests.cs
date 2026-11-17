@@ -58,6 +58,29 @@ public sealed class BenchmarkResourceTests
             ClusterResourceMonitor.StartAsync(client, [new Uri("http://node/")]));
     }
 
+    [Theory]
+    [InlineData("cpu")]
+    [InlineData("raft")]
+    [InlineData("diagnostics")]
+    [InlineData("identity")]
+    public async Task One_node_reset_cannot_be_hidden_by_other_nodes_progress(string reset)
+    {
+        using var handler = new ResourceHandler { ResetCounter = reset };
+        using var client = new HttpClient(handler);
+        ClusterResourceMonitor monitoring = await ClusterResourceMonitor.StartAsync(client,
+            [new Uri("http://fast/"), new Uri("http://resetting/")]);
+        handler.CompleteBurst();
+        try
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => monitoring.CompleteAsync(1000));
+        }
+        finally
+        {
+            // Completion errors are retained by the monitor and replayed during disposal.
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await monitoring.DisposeAsync());
+        }
+    }
+
     private sealed class ResourceHandler : HttpMessageHandler
     {
         private int _completed;
@@ -68,6 +91,7 @@ public sealed class BenchmarkResourceTests
         internal bool HoldLaggingNode { get; init; }
         internal bool OmitLiveCpu { get; init; }
         internal double PostBurstProbeCpuSeconds { get; init; }
+        internal string? ResetCounter { get; init; }
         internal TaskCompletionSource LaggingRead { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -86,12 +110,23 @@ public sealed class BenchmarkResourceTests
                 LaggingRead.TrySetResult();
             double diagnosticsCpu = HoldLaggingNode && lagging && Volatile.Read(ref _released) == 0
                 ? 0 : sequence / 100d;
+            double raftEntries = 1000 + 100 * completed;
+            double processStart = 100;
+            if (ResetCounter is not null && completed != 0)
+            {
+                bool resetting = request.RequestUri.Host == "resetting";
+                liveCpu = resetting && ResetCounter == "cpu" ? 1 : 30;
+                raftEntries = resetting && ResetCounter == "raft" ? 1 : 3000;
+                diagnosticsCpu = resetting && ResetCounter == "diagnostics" ? 0 : diagnosticsCpu;
+                processStart = resetting && ResetCounter == "identity" ? 200 : processStart;
+            }
             string liveCpuName = OmitLiveCpu ? "unrelated_cpu" : "process_cpu_seconds_total";
             string metrics = string.Create(CultureInfo.InvariantCulture, $"""
                 {liveCpuName} {liveCpu}
+                process_start_time_seconds {processStart}
                 process_working_set_bytes {1024 + 1024 * completed}
                 slimdata_process_cpu_seconds_total {diagnosticsCpu}
-                slimdata_command_batch_raft_total {1000 + 100 * completed}
+                slimdata_command_batch_raft_total {raftEntries}
                 slimdata_process_working_set_bytes {1024 + 1024 * completed}
                 """);
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
