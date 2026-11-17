@@ -312,7 +312,12 @@ def freeze_configuration(root, config, blocks, resume):
     """Refuse mixed sources/settings before changing any existing campaign file."""
     identity = {"schema_version": 1, "config": config, "blocks": blocks,
                 "controller_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                "workload_sha256": hashlib.sha256((ROOT / ".bin/run-platform-workload.py").read_bytes()).hexdigest()}
+                "workload_sha256": hashlib.sha256((ROOT / ".bin/run-platform-workload.py").read_bytes()).hexdigest(),
+                "python": {"executable": sys.executable, "version": sys.version}}
+    fixtures = [ROOT / path for path in (".bin/benchmark-sdk-target.py", ".bin/test-slimdata-local-chaos.py",
+        ".bin/run-kubernetes-campaign.py", ".bin/platform-entrypoint.sh", "tests/SlimFaas.Tests/Local/chaos_function.py")]
+    fixtures += sorted((ROOT / "client/python/slimfaas-client/src").rglob("*.py"))
+    identity["fixtures_sha256"] = {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in fixtures}
     if config["environment"] == "macos":
         identity["binary_sha256"] = {}
         for key in ("before", "after", "benchmark", "memorylab"):

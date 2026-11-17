@@ -71,7 +71,7 @@ internal static class CampaignReport
                     }
                     else if (scenario is "mixed" or "async" or "slimdata-mixed") integrity = null;
                     rows.Add(new CampaignRow(relative, scenario, "operation/s", Text(source, "resourceWindow") ?? "unknown",
-                        (int?)Number(report, scenario.StartsWith("files", StringComparison.Ordinal) ? "FileBytes" : "PayloadBytes"), (int?)Number(report, "Concurrency"), (int)(Number(report, "Repetition") ?? 1),
+                        scenario is "increment" or "decrement" or "mixed" or "slimdata-mixed" ? null : (int?)Number(report, scenario.StartsWith("files", StringComparison.Ordinal) ? "FileBytes" : "PayloadBytes"), (int?)Number(report, "Concurrency"), (int)(Number(report, "Repetition") ?? 1),
                         Number(report, "Rate"), null, null, Number(latency, "P50Milliseconds"), Number(latency, "P95Milliseconds"), Number(latency, "P99Milliseconds"),
                         Number(resources, "CpuMillisecondsPerMessage"), MiB(resources), failures, integrity, scenario.StartsWith("files", StringComparison.Ordinal) ? Number(report, "Rate") * Number(report, "FileBytes") / 1048576d : null,
                         Verdict(failures, integrity, resources), Number(report, "ElapsedSeconds")));

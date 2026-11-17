@@ -210,7 +210,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
 {
     string scenario = arguments.Get("scenario", "mixed").ToLowerInvariant();
     if (scenario is not ("mixed" or "sync" or "async" or "set" or "files" or "slimdata-set" or "slimdata-mixed" or "get" or "delete" or "hashset" or "hashget" or "hashdelete" or "increment" or "decrement" or "files-upload" or "files-download" or "files-unique"))
-        throw new ArgumentException("Unknown scenario. See --help in docs/benchmarking.md for the supported feature matrix.");
+        throw new ArgumentException("Unknown scenario. See docs/benchmarking.md for the supported feature matrix.");
 
     int durationSeconds = arguments.GetInt("duration", 60, 1, 86_400);
     int concurrency = arguments.GetInt("concurrency", 12, 1, 1_024);
@@ -238,6 +238,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
     string? csvPath = arguments.GetOptional("csv");
     string? jsonPath = arguments.GetOptional("json");
     bool validate = arguments.GetBool("validate", defaultValue: false);
+    bool cleanupOwnedFiles = arguments.GetBool("cleanup-owned-files", defaultValue: false);
     string? phaseFile = arguments.GetOptional("phase-file");
 
     var payload = CreatePayload(payloadBytes);
@@ -276,6 +277,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
             byte[] content = route == "files" ? filePayload : payload;
             string path = route == "sets" ? $"data/sets/{id}" : $"data/{route}?id={id}";
             await PostBytesAsync(client, new Uri(nodeUrls[0], path), content, CancellationToken.None);
+            if (route == "files") expectedState.Files[id] = new ExpectedFile(content.Length, SHA256.HashData(content));
             if (route == "sets") expectedState.Sets[id] = true;
             if (route == "hashsets") expectedState.Hashsets[id] = true;
             foreach (Uri node in nodeUrls)
@@ -361,8 +363,25 @@ static async Task<int> RunLoadAsync(Arguments arguments)
             validationTimeout.Token);
     }
 
+    int cleanedFiles = 0;
+    // Release only this run's successfully verified files through the public API.
+    // Keep failed payloads and every WAL/journal for inspection. Cleanup is outside load.
+    if (cleanupOwnedFiles && validate && validationFailures == 0 && statistics.Failed == 0)
+        foreach (string id in expectedState.Files.Keys)
+        {
+            try
+            {
+                await DeleteAsync(client, new Uri(nodeUrls[0], $"data/files/{id}"), CancellationToken.None);
+                cleanedFiles++;
+            }
+            catch (HttpRequestException error)
+            {
+                validationFailures++;
+                await Console.Error.WriteLineAsync($"Owned file cleanup failed for {id}: {error.Message}");
+            }
+        }
     if (!string.IsNullOrWhiteSpace(jsonPath))
-        WriteJson(jsonPath, report, statistics.Samples, validationFailures, resources);
+        WriteJson(jsonPath, report, statistics.Samples, validationFailures, resources, cleanedFiles);
 
     return statistics.Failed == 0 && validationFailures == 0 ? 0 : 1;
 }
@@ -758,7 +777,8 @@ static void WriteJson(
     LoadReport report,
     IReadOnlyList<OperationSample> samples,
     int validationFailures,
-    AsyncResourceUsage? resources)
+    AsyncResourceUsage? resources,
+    int cleanedFiles)
 {
     EnsureParentDirectory(path);
     var document = new
@@ -767,6 +787,7 @@ static void WriteJson(
         report,
         resources,
         resourceWindow = "load",
+        cleanedFiles,
         validationFailures,
         samples = samples.Select(static sample => new
         {
@@ -1496,6 +1517,7 @@ static void PrintUsage()
           function [--port 5050] [--host 127.0.0.1]
           load [--scenario mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [--duration 60] [--phase-file PATH]
                [--concurrency 12] [--payload-bytes 4096] [--file-bytes 262144]
+               [--max-operations 200] [--repetition 1] [--cleanup-owned-files false]
                [--first-port 30021] [--nodes 3] [--node-urls http://node-0:5000,http://node-1:5000]
                [--keys-per-worker 16]
                [--function memory-function]

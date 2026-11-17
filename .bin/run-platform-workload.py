@@ -247,7 +247,7 @@ def run_data_suite(options, nodes, statuses):
                     command = executable(options.memorylab) + ["load", "--scenario", scenario,
                         "--node-urls", ",".join(nodes), "--duration", str(options.memory_duration),
                         "--concurrency", concurrency, "--payload-bytes", size, "--file-bytes", size, "--repetition", str(repetition),
-                        "--key-prefix", case.name + "-" + options.output.name, "--validate", "true",
+                        "--key-prefix", case.name + "-" + options.output.name, "--validate", "true", "--cleanup-owned-files", "true",
                         "--json", str(case / "operations.json"), "--csv", str(case / "operations.csv"),
                         "--journal-directory", str(case / "requests"), "--phase-file", str(options.output / "phase")]
                     warmup = command.copy()
@@ -292,7 +292,7 @@ def run_feature_suite(options, nodes, config, receipts, statuses):
                     raise RuntimeError("Official SDK receiver exited before registration")
                 for node in nodes:
                     with HTTP.open(node + "/status-functions", timeout=5) as response:
-                        found = {row["Name"] for row in json.load(response)}
+                        found = {row["Name"] for row in json.load(response) if row.get("NumberReady", 0) > 0}
                     if not set(names).issubset(found):
                         return False
                 return True
@@ -376,6 +376,12 @@ def run(options):
             for url in [entry + "/ready", direct + "/health"] + [node + "/ready" for node in nodes]:
                 with HTTP.open(url, timeout=2) as response:
                     if response.status != 200:
+                        return False
+            if options.suite == "features":
+                for node in nodes:
+                    with HTTP.open(node + "/status-functions", timeout=2) as response:
+                        ready_names = {row["Name"] for row in json.load(response) if row.get("NumberReady", 0) > 0}
+                    if not {"memory-function", "memory-function-2"}.issubset(ready_names):
                         return False
             return True
         LOCAL.wait_until("workload cluster and direct target ready", ready, 180)
