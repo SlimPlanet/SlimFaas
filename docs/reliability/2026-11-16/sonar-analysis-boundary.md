@@ -101,3 +101,12 @@ the already-open writer on Windows. The test readers now use `ReadWrite` sharing
 the journal's exclusive write ownership is unchanged. The Mac suite passes after
 the correction; a new Windows CI result remains required.
 [Processed scope, failure and retained artifact hashes](sonar-completed-scope-bbf.json).
+
+The subsequent `35853934` Windows coverage run passes **all 2,459 tests**, including
+the corrected live-journal readers. Its processed analysis verifies 360 returned
+PR files and the full production/SDK metadata, with coverage for 301 C# main
+files. The main, dashboard/documentation and reliability workflows pass, including
+native AOT publications/bundles and the persistent local restart smoke. License
+Compliance passes. The external quality gate still fails, with security D and
+reliability C; none of those production findings is waived or excluded.
+[Completed task, CI job identities and artifact/log hashes](sonar-completed-scope-358.json).
