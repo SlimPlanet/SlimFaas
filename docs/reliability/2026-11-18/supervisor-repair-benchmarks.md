@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 21:29 CET. Campaign state: **in progress**.
+Updated 2026-11-17 22:49 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -8,9 +8,11 @@ Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 refer
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
 Preflight passed 2,504 .NET tests, 58 Python controller tests and 11 documentation tests.
 
+The operator set the minimum free disk reserve to 20 GiB for subsequent blocks. The initial phases used the original 30 GiB cutoff. Historical run statuses retain the cutoff that applied at the time.
+
 The prior campaign and its unrepaired runtime results remain in the [initial campaign report](overnight-benchmarks.md).
 This rerun uses fresh state and the repaired supervisor. Omitted arguments run the manifest command without additions. A job whose preparation fails follows its retry policy while other jobs continue.
-The WebSocket async runner checks refreshed queue totals on all nodes after receipt reconciliation. File scenarios have an explicit byte budget within the 30 GiB disk reserve.
+The WebSocket async runner checks refreshed queue totals on all nodes after receipt reconciliation. File scenarios have an explicit byte budget.
 The original HTTP reference stopped at the disk reserve while testing large bodies. The bounded HTTP rerun uses 5-second load windows, 1-second warmups, two repetitions, concurrency 1/16, and five payload sizes from 4 KiB through 4 MiB. It supplies a shorter ABBA comparison. Quiescent offload files are transparently compressed between roles, with their bytes and SHA-256 preserved.
 
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
@@ -21,6 +23,7 @@ The original HTTP reference stopped at the disk reserve while testing large bodi
 | files-bounded-files-unique | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | files-retry | INCONCLUSIVE | 2 | 2 | 0 | 0 |
+| http-bounded-abba | FAIL | 448 | 448 | 0 | 0 |
 | http-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | memory-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
@@ -40,6 +43,48 @@ An observation means that the measured run supplied the expected integrity and r
 ## Comparisons
 
 ABBA results are pending.
+
+A and B refer to the first and second variants, respectively. For code comparisons, A is the reference and B is the candidate. For settings comparisons, A uses the current settings and B uses the measured change. Each table includes matched cases with evidence across all four roles of the attempt. The displayed throughput, p95 and CPU are medians across repetitions. RAM is the highest sampled cluster working set. The verdicts above use the comparison criteria for the corresponding profile.
+
+<details><summary>http-bounded-abba / http-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 4096 | 1 | accepted message/s | 102.92 → 97.18 | 83.88 → 76.00 | 11.77 → 12.68 | 7.66 → 10.29 | 397.17 → 411.09 |
+| async | 4096 | 16 | accepted message/s | 1107.69 → 1087.77 | 883.77 → 852.91 | 20.40 → 20.57 | 1.78 → 1.79 | 498.17 → 491.61 |
+| async | 262144 | 1 | accepted message/s | 38.86 → 37.23 | 29.86 → 29.22 | 39.80 → 41.87 | 50.62 → 51.02 | 687.84 → 630.67 |
+| async | 262144 | 16 | accepted message/s | 51.81 → 51.84 | 42.20 → 42.01 | 503.72 → 476.33 | 37.25 → 40.05 | 1655.31 → 1009.00 |
+| async | 1048576 | 1 | accepted message/s | 11.89 → 12.55 | 9.34 → 9.95 | 127.43 → 124.80 | 158.44 → 165.24 | 1563.48 → 927.17 |
+| async | 1048576 | 16 | accepted message/s | 13.04 → 13.96 | 10.86 → 11.25 | 1701.24 → 1593.42 | 131.48 → 130.90 | 3262.16 → 2029.48 |
+| async | 1048577 | 1 | accepted message/s | 40.99 → 44.96 | 35.73 → 35.88 | 28.78 → 26.43 | 45.45 → 46.16 | 3084.91 → 1896.52 |
+| async | 1048577 | 16 | accepted message/s | 256.55 → 279.69 | 219.13 → 225.17 | 76.79 → 78.18 | 18.10 → 19.81 | 2818.17 → 1205.67 |
+| async | 4194304 | 1 | accepted message/s | 36.23 → 35.58 | 30.85 → 28.37 | 31.34 → 31.28 | 91.51 → 98.46 | 2161.72 → 801.11 |
+| async | 4194304 | 16 | accepted message/s | 92.35 → 82.44 | 68.97 → 65.53 | 231.38 → 334.33 | 61.55 → 65.90 | 1905.91 → 652.75 |
+| async-burst | 4096 | 64 | accepted message/s | 2126.47 → 2104.64 | 861.32 → 537.36 | 46.90 → 49.29 | 1.33 → 1.48 | 1503.27 → 628.97 |
+| async-paced | 4096 | 1 | accepted message/s | 9.24 → 8.91 | 8.33 → 7.91 | 13.34 → 17.57 | 38.80 → 48.99 | 1488.00 → 603.66 |
+| direct | 4096 | 1 | request/s | 9729.34 → 9972.11 | n/a → n/a | 0.12 → 0.11 | 0.01 → 0.01 | 377.22 → 391.61 |
+| direct | 4096 | 16 | request/s | 23444.60 → 22865.84 | n/a → n/a | 0.74 → 0.75 | 0.00 → 0.00 | 482.38 → 491.52 |
+| direct | 262144 | 1 | request/s | 2784.36 → 2790.47 | n/a → n/a | 0.43 → 0.43 | 0.03 → 0.03 | 622.67 → 601.62 |
+| direct | 262144 | 16 | request/s | 5964.13 → 5976.21 | n/a → n/a | 2.83 → 2.84 | 0.01 → 0.01 | 1406.28 → 874.72 |
+| direct | 1048576 | 1 | request/s | 677.26 → 597.43 | n/a → n/a | 2.05 → 2.13 | 0.12 → 0.13 | 1655.31 → 916.30 |
+| direct | 1048576 | 16 | request/s | 1811.17 → 1836.27 | n/a → n/a | 9.39 → 9.34 | 0.05 → 0.05 | 2781.22 → 1799.19 |
+| direct | 1048577 | 1 | request/s | 627.28 → 582.87 | n/a → n/a | 2.09 → 2.09 | 0.12 → 0.13 | 3264.44 → 2031.27 |
+| direct | 1048577 | 16 | request/s | 1820.51 → 1872.48 | n/a → n/a | 9.33 → 9.23 | 0.05 → 0.05 | 2717.34 → 1384.72 |
+| direct | 4194304 | 1 | request/s | 240.17 → 227.37 | n/a → n/a | 6.66 → 7.05 | 0.36 → 0.37 | 2162.66 → 815.12 |
+| direct | 4194304 | 16 | request/s | 463.33 → 460.89 | n/a → n/a | 37.33 → 37.73 | 0.29 → 0.20 | 2039.30 → 686.59 |
+| sync | 4096 | 1 | request/s | 3015.76 → 3001.76 | n/a → n/a | 0.36 → 0.37 | 0.52 → 0.55 | 395.28 → 401.34 |
+| sync | 4096 | 16 | request/s | 7808.82 → 7754.39 | n/a → n/a | 2.36 → 2.39 | 0.47 → 0.47 | 500.05 → 505.91 |
+| sync | 262144 | 1 | request/s | 1170.83 → 1190.55 | n/a → n/a | 0.96 → 0.94 | 1.67 → 1.63 | 620.98 → 599.97 |
+| sync | 262144 | 16 | request/s | 1594.86 → 1602.27 | n/a → n/a | 10.51 → 10.48 | 1.89 → 1.89 | 1406.20 → 955.22 |
+| sync | 1048576 | 1 | request/s | 383.68 → 383.21 | n/a → n/a | 2.81 → 2.81 | 5.32 → 5.42 | 1655.81 → 949.64 |
+| sync | 1048576 | 16 | request/s | 447.95 → 447.98 | n/a → n/a | 37.06 → 37.17 | 6.74 → 6.84 | 2779.78 → 1859.94 |
+| sync | 1048577 | 1 | request/s | 381.42 → 381.24 | n/a → n/a | 2.82 → 2.83 | 5.33 → 5.37 | 3266.22 → 2032.05 |
+| sync | 1048577 | 16 | request/s | 448.65 → 448.20 | n/a → n/a | 37.25 → 36.82 | 6.63 → 6.73 | 2719.64 → 1384.92 |
+| sync | 4194304 | 1 | request/s | 104.34 → 104.94 | n/a → n/a | 10.35 → 10.27 | 19.60 → 19.64 | 2162.67 → 824.83 |
+| sync | 4194304 | 16 | request/s | 111.79 → 111.56 | n/a → n/a | 150.67 → 151.76 | 25.48 → 25.85 | 2046.56 → 686.67 |
+
+</details>
+
 
 ## Candidate observations
 
@@ -123,6 +168,10 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 
 Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local campaign directory. The final report includes completed comparisons and identifies profiles that did not finish.
 
+## Queue and routing microbenchmarks
+
+Status: **queued**.
+
 ## Run status
 
 - **jobs-rerun**: OBSERVED.
@@ -138,3 +187,4 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 - **files-bounded-files-download**: OBSERVED.
 - **files-bounded-files**: OBSERVED.
 - **files-bounded-files-unique**: OBSERVED.
+- **http-bounded-abba**: FAIL (30 GiB disk reserve).
