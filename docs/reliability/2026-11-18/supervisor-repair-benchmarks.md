@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 21:28 CET. Campaign state: **in progress**.
+Updated 2026-11-17 21:29 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -18,6 +18,7 @@ The original HTTP reference stopped at the disk reserve while testing large bodi
 | data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
 | files-bounded-files | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
+| files-bounded-files-unique | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | files-retry | INCONCLUSIVE | 2 | 2 | 0 | 0 |
 | http-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
@@ -76,6 +77,12 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 | files-bounded-files-download | files-download | 1048576 | 4 | 2 | 466.57 | operation/s | n/a | 5.98 | 361.30 |
 | files-bounded-files-download | files-download | 4194304 | 1 | 2 | 85.25 | operation/s | n/a | 17.08 | 364.75 |
 | files-bounded-files-download | files-download | 4194304 | 4 | 2 | 136.50 | operation/s | n/a | 18.24 | 366.81 |
+| files-bounded-files-unique | files-unique | 262144 | 1 | 2 | 140.44 | operation/s | n/a | 17.89 | 330.75 |
+| files-bounded-files-unique | files-unique | 262144 | 4 | 2 | 56.21 | operation/s | n/a | 16.56 | 373.42 |
+| files-bounded-files-unique | files-unique | 1048576 | 1 | 2 | 63.08 | operation/s | n/a | 34.29 | 380.16 |
+| files-bounded-files-unique | files-unique | 1048576 | 4 | 2 | 98.79 | operation/s | n/a | 25.87 | 389.77 |
+| files-bounded-files-unique | files-unique | 4194304 | 1 | 2 | 30.99 | operation/s | n/a | 89.03 | 393.36 |
+| files-bounded-files-unique | files-unique | 4194304 | 4 | 2 | 102.04 | operation/s | n/a | 59.39 | 390.06 |
 | files-bounded-files-upload | files-upload | 262144 | 1 | 2 | 105.33 | operation/s | n/a | 17.86 | 346.66 |
 | files-bounded-files-upload | files-upload | 262144 | 4 | 2 | 44.98 | operation/s | n/a | 17.54 | 373.45 |
 | files-bounded-files-upload | files-upload | 1048576 | 1 | 2 | 86.26 | operation/s | n/a | 31.84 | 380.88 |
@@ -130,3 +137,4 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 - **files-bounded-files-upload**: OBSERVED.
 - **files-bounded-files-download**: OBSERVED.
 - **files-bounded-files**: OBSERVED.
+- **files-bounded-files-unique**: OBSERVED.
