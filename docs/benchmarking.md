@@ -84,8 +84,12 @@ New cases use concurrency 1/4/16 and three repetitions by default. Files and
 WebSocket use the HTTP payload list. Isolated data cases have an unmeasured
 warmup. Reads are preseeded and verified before collection. Delete cases stop
 when each seeded key has been deleted once; unique file uploads are bounded to
-200 operations. Files report **logical payload MiB/s**, not the sum of upload and
-download network traffic. Runtime RSS excludes the generator's payload buffers.
+200 operations. After successful all-node validation, the `data` block deletes
+only its own file IDs through the public API, outside measurement. Failed data,
+WALs, journals and raw results remain available. Direct MemoryLab invocations
+retain files unless `--cleanup-owned-files true` is supplied. Files report **logical payload MiB/s**, not the sum of upload and
+download network traffic. Runtime RSS excludes the generator's payload buffers. In the direct HTTP control,
+runtime CPU/RAM represent idle cluster background work, not the target function.
 Mixed workload CPU/RAM describe the whole mix, never each constituent operation.
 Jobs keep a configured dispatch limit of 16 in this feature profile; request
 concurrency and job dispatch parallelism are different settings.
@@ -188,6 +192,9 @@ benchmark was run while implementing these variants. Adopt a runtime variant
 only after repeated ABBA comparisons beat both enclosing references beyond
 observed variation and preserve throughput, latency, CPU, RAM and integrity
 budgets. Keep serialization, copy elimination and file I/O experiments separate.
+
+The [implementation handoff](reliability/2026-11-17/benchmark-improvements-implementation.md)
+records the isolated candidate branches, validation and remaining manual runs.
 
 The [17 November PR #506 handoff](reliability/2026-11-17/pr506-handoff.md)
 records its merge assessment, CPU/RAM evidence, six then-running sourcef2

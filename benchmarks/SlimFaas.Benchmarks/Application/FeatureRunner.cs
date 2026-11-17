@@ -149,7 +149,7 @@ internal static class FeatureRunner
         long failures = samples.Count(sample => sample.Error is not null) + observed.Missing.Count + observed.Duplicates.Count + observed.Corrupt.Count + (drained ? 0 : 1);
         double[] latencies = successful.Select(sample => sample.Milliseconds).Order().ToArray();
         string unit = scenario == "jobs" ? "accepted job/s" : scenario == "ws-sync" ? "request/s" : "accepted message/s";
-        var row = new CampaignRow("feature-results.json", arguments.Get("label", scenario), unit, "load", bytes, concurrency, repetition,
+        var row = new CampaignRow("feature-results.json", arguments.Get("label", scenario), unit, "load", scenario == "jobs" ? null : bytes, concurrency, repetition,
             successful.Length / loadSeconds, observed.Delivered.Count / completionSeconds, observed.Completed.Count / completionSeconds,
             Statistics.Percentile(latencies, .50), Statistics.Percentile(latencies, .95), Statistics.Percentile(latencies, .99),
             resources?.CpuMillisecondsPerMessage, resources?.PeakWorkingSetBytes / 1048576d, failures, failures == 0,

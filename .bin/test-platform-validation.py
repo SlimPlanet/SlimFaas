@@ -998,10 +998,12 @@ class PlatformTests(unittest.TestCase):
                         command = ["dotnet", str(runtime), "load", "--scenario", scenario,
                             "--node-urls", f"http://127.0.0.1:{server.server_port}", "--duration", "1", "--concurrency", "1",
                             "--max-operations", "2", "--keys-per-worker", "2", "--payload-bytes", "64", "--file-bytes", "64",
-                            "--key-prefix", scenario, "--validate", "true", "--json", str(report)]
+                            "--key-prefix", scenario, "--validate", "true", "--cleanup-owned-files", "true", "--json", str(report)]
                         result = subprocess.run(command, capture_output=True, text=True, timeout=15)
                         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
                         self.assertEqual(2, json.loads(report.read_text())["report"]["Completed"])
+                        if scenario.startswith("files"):
+                            self.assertGreater(json.loads(report.read_text())["cleanedFiles"], 0)
                 control["corrupt"] = True
                 result = subprocess.run(["dotnet", str(runtime), "load", "--scenario", "files", "--node-urls",
                     f"http://127.0.0.1:{server.server_port}", "--concurrency", "1", "--max-operations", "1",
