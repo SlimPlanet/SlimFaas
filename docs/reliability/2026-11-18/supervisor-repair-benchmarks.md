@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-17 20:22 CET. Campaign state: **in progress**.
+Updated 2026-11-17 20:31 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -14,6 +14,7 @@ The WebSocket async runner checks refreshed queue totals on all nodes after rece
 
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
+| data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
@@ -38,6 +39,24 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 
 | Profile | Scenario | Bytes | C | Runs | Median rate | Unit | Completed/s incl. drain | CPU ms/op | Peak MiB |
 |---|---|---:|---:|---:|---:|---|---:|---:|---:|
+| data-rerun | decrement | n/a | 1 | 2 | 39.68 | operation/s | n/a | 8.38 | 501.91 |
+| data-rerun | decrement | n/a | 16 | 2 | 107.46 | operation/s | n/a | 2.33 | 507.81 |
+| data-rerun | delete | 4096 | 1 | 2 | 206.06 | operation/s | n/a | 4.31 | 501.28 |
+| data-rerun | delete | 4096 | 16 | 2 | 189.25 | operation/s | n/a | 1.71 | 508.41 |
+| data-rerun | get | 4096 | 1 | 2 | 4635.59 | operation/s | n/a | 0.56 | 510.38 |
+| data-rerun | get | 4096 | 16 | 2 | 19815.14 | operation/s | n/a | 0.33 | 498.42 |
+| data-rerun | hashdelete | 4096 | 1 | 2 | 213.35 | operation/s | n/a | 4.32 | 430.30 |
+| data-rerun | hashdelete | 4096 | 16 | 2 | 168.10 | operation/s | n/a | 1.74 | 492.73 |
+| data-rerun | hashget | 4096 | 1 | 2 | 4985.17 | operation/s | n/a | 0.54 | 619.56 |
+| data-rerun | hashget | 4096 | 16 | 2 | 19437.91 | operation/s | n/a | 0.32 | 462.00 |
+| data-rerun | hashset | 4096 | 1 | 2 | 40.05 | operation/s | n/a | 8.69 | 513.73 |
+| data-rerun | hashset | 4096 | 16 | 2 | 126.61 | operation/s | n/a | 2.68 | 589.31 |
+| data-rerun | increment | n/a | 1 | 2 | 37.61 | operation/s | n/a | 7.81 | 500.88 |
+| data-rerun | increment | n/a | 16 | 2 | 104.34 | operation/s | n/a | 2.38 | 501.67 |
+| data-rerun | set | 4096 | 1 | 2 | 23.61 | operation/s | n/a | 13.94 | 462.42 |
+| data-rerun | set | 4096 | 16 | 2 | 142.55 | operation/s | n/a | 2.93 | 496.91 |
+| data-rerun | slimdata-set | 4096 | 1 | 2 | 12.62 | operation/s | n/a | 14.60 | 366.89 |
+| data-rerun | slimdata-set | 4096 | 16 | 2 | 159.64 | operation/s | n/a | 1.92 | 433.44 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 131.27 | accepted job/s | 13.03 | 4.96 | 348.52 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1246.31 | accepted job/s | 13.09 | 0.96 | 352.75 |
 | streams-rerun | streams/http/fanout-1 | 4096 | 1 | 2 | 134.28 | accepted message/s | 4.00 | 6.10 | 382.86 |
@@ -76,3 +95,4 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 - **jobs-rerun**: OBSERVED.
 - **websocket-rerun**: OBSERVED.
 - **streams-rerun**: OBSERVED.
+- **data-rerun**: OBSERVED.
