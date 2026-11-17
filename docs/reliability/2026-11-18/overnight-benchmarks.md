@@ -1,6 +1,6 @@
 # Overnight macOS benchmark campaign
 
-Updated 2026-11-17 19:54 CET. Campaign state: **initial results and recovery**.
+Updated 2026-11-17 19:57 CET. Campaign state: **in progress**.
 
 Product candidate: `f2f80124af9b88d0ad4bbd94653372cf393ad1b5`. The historical .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. The driver runs on .NET 11.0.100.
@@ -13,6 +13,7 @@ Subsequent measurements use the corrected Jobs request, a 30 GiB reserve, and ex
 |---|---|---:|---:|---:|---:|
 | data-observations | INCONCLUSIVE | 50 | 50 | 0 | 0 |
 | feature-observations | INCONCLUSIVE | 8 | 8 | 0 | 0 |
+| jobs-retry | OBSERVED | 4 | 4 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
 
@@ -55,5 +56,13 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 | feature-observations | streams/http/fanout-1 | 4096 | 16 | 2 | 751.28 | accepted message/s | 2.10 | 433.19 |
 | feature-observations | streams/http/fanout-2 | 4096 | 1 | 2 | 87.41 | accepted message/s | 9.59 | 456.56 |
 | feature-observations | streams/http/fanout-2 | 4096 | 16 | 2 | 622.55 | accepted message/s | 1.98 | 471.06 |
+| jobs-retry | jobs/http/fanout-1 | n/a | 1 | 2 | 155.10 | accepted job/s | 4.93 | 339.41 |
+| jobs-retry | jobs/http/fanout-1 | n/a | 16 | 2 | 1437.43 | accepted job/s | 0.94 | 351.73 |
 
 Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local campaign directory. The final report includes completed comparisons and identifies profiles that did not finish.
+
+## Run status
+
+- **feature-observations**: INCONCLUSIVE.
+- **data-observations**: INCONCLUSIVE (disk).
+- **jobs-retry**: OBSERVED.
