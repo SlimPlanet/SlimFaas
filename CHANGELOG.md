@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.89.1
+
+- [6a3c38ac](https://github.com/SlimPlanet/SlimFaas/commit/6a3c38ac5e79c7c7bf41f9c23e5061521eca4336) - chore(deps): refresh packages, container images, and CI tools (#551) (release), 2026-11-18 by *Guillaume Chervet*
+
+
+## 0.89.0
+
+
+
 ## v0.89.0
 
 - [186a434a](https://github.com/SlimPlanet/SlimFaas/commit/186a434a7ea40c828db017a603dc4dd031a2d9d0) - feat(SlimFas): Make UI live traffic the dashboard home and inspect actors in context (#549) (release), 2026-11-18 by *Guillaume Chervet*
@@ -267,15 +276,6 @@
 
 
 ## 0.84.0
-
-
-
-## v0.84.0
-
-- [f61f8c65](https://github.com/SlimPlanet/SlimFaas/commit/f61f8c65f2486b592b685ea2c5e649c58038dc31) - feat: add external autoscaling sources with opt-in wake-up (#341) (release), 2026-09-10 by *Guillaume Chervet*
-
-
-## 0.83.0
 
 
 
