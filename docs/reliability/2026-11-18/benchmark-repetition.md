@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 03:59 CET. Campaign state: **in progress**.
+Updated 2026-11-18 04:01 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -15,6 +15,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
 | data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
+| files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
@@ -58,6 +59,12 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 | data-rerun | set | 4096 | 16 | 2 | 140.08 | operation/s | n/a | 3.43 | 496.80 |
 | data-rerun | slimdata-set | 4096 | 1 | 2 | 12.88 | operation/s | n/a | 16.69 | 358.52 |
 | data-rerun | slimdata-set | 4096 | 16 | 2 | 112.42 | operation/s | n/a | 2.92 | 447.27 |
+| files-bounded-files-download | files-download | 262144 | 1 | 2 | 534.73 | operation/s | n/a | 2.91 | 336.72 |
+| files-bounded-files-download | files-download | 262144 | 4 | 2 | 1132.54 | operation/s | n/a | 2.36 | 356.34 |
+| files-bounded-files-download | files-download | 1048576 | 1 | 2 | 267.66 | operation/s | n/a | 5.31 | 360.69 |
+| files-bounded-files-download | files-download | 1048576 | 4 | 2 | 350.01 | operation/s | n/a | 5.64 | 361.70 |
+| files-bounded-files-download | files-download | 4194304 | 1 | 2 | 75.68 | operation/s | n/a | 16.97 | 363.58 |
+| files-bounded-files-download | files-download | 4194304 | 4 | 2 | 140.52 | operation/s | n/a | 17.97 | 364.19 |
 | files-bounded-files-upload | files-upload | 262144 | 1 | 2 | 105.64 | operation/s | n/a | 16.03 | 345.84 |
 | files-bounded-files-upload | files-upload | 262144 | 4 | 2 | 39.95 | operation/s | n/a | 17.52 | 382.08 |
 | files-bounded-files-upload | files-upload | 1048576 | 1 | 2 | 89.70 | operation/s | n/a | 31.65 | 385.80 |
@@ -108,3 +115,4 @@ Status: **queued**.
 - **streams-rerun**: OBSERVED.
 - **data-rerun**: OBSERVED.
 - **files-bounded-files-upload**: OBSERVED.
+- **files-bounded-files-download**: OBSERVED.
