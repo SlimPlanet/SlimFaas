@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.89.0
+
+- [186a434a](https://github.com/SlimPlanet/SlimFaas/commit/186a434a7ea40c828db017a603dc4dd031a2d9d0) - feat(SlimFas): Make UI live traffic the dashboard home and inspect actors in context (#549) (release), 2026-11-18 by *Guillaume Chervet*
+
+
+## 0.88.2
+
+- [f06d9432](https://github.com/SlimPlanet/SlimFaas/commit/f06d9432c8d27dd57cc5b7cc80d5aa692eee6f65) - chore: limit Dependabot to security updates (#546), 2026-11-18 by *Guillaume Chervet*
+
+
 ## v0.88.2
 
 - [981b681f](https://github.com/SlimPlanet/SlimFaas/commit/981b681f593beaf3c66a81663f7ac43575294132) - Fix SlimData recovery and validate macOS, Podman and Kubernetes reliability (#506) (release), 2026-11-18 by *Guillaume Chervet*
@@ -266,15 +276,6 @@
 
 
 ## 0.83.0
-
-
-
-## v0.83.0
-
-- [ef2f8c58](https://github.com/SlimPlanet/SlimFaas/commit/ef2f8c58bb88a95f9c849fea9ef71334af087a72) - feat(SlimFaas): Modernize the dashboard with scalable traffic, data and instance logs (release) (#339), 2026-09-09 by *Guillaume Chervet*
-
-
-## 0.82.7
 
 
 
