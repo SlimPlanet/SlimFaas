@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEventHandler } from 'react';
 import { isPage, PREVIEW_BYTES, readDeadLetterPreview } from '../lib/deadLetters';
 import { isStreamFunction, isStreamMessage, isStreamSummary, newerStreamObservation, reconcileStreamCatalog, streamLink, streamPath, streamRequest,
   type StreamFunction, type StreamMessage, type StreamPage, type StreamSummary } from '../lib/streams';
@@ -13,7 +13,7 @@ function parseRoute(route: string) {
     return { name: undefined, kind: undefined, key: undefined, error: error instanceof Error ? error.message : 'Invalid route.' };
   }
 }
-export default function Streams({ route, revision, stale }: { route: string; revision: string; stale: boolean }) {
+export default function Streams({ route, revision, stale, onNavigate }: { route: string; revision: string; stale: boolean; onNavigate?: MouseEventHandler<HTMLAnchorElement> }) {
   const selection = useMemo(() => parseRoute(route), [route]);
   const [prefix, setPrefix] = useState('');
   const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
@@ -108,7 +108,7 @@ export default function Streams({ route, revision, stale }: { route: string; rev
   const next = catalog?.NextCursor ?? messages?.NextCursor;
   return <section className="streams" aria-label="Durable Streams">
     <nav className="streams__breadcrumbs" aria-label="Streams navigation">
-      <a href={streamLink()}>Streams</a>{selection.name && <> / <a href={streamLink(selection.name)}>{selection.name}</a></>}
+      <a onClick={onNavigate} href={streamLink()}>Streams</a>{selection.name && <> / <a onClick={onNavigate} href={streamLink(selection.name)}>{selection.name}</a></>}
       {selection.key && <> / {selection.key}</>}
     </nav>
     <p>Observation never reserves, replays or acknowledges work. Retention is independent of function progress.</p>
@@ -118,7 +118,7 @@ export default function Streams({ route, revision, stale }: { route: string; rev
     {!selection.name && <label className="field">Stream name prefix<input className="field__input" value={prefix} onChange={event => setPrefix(event.target.value)} /></label>}
     {catalog && <div className="streams__table"><table><caption>Accessible Streams · captured {catalog.CapturedAt}</caption>
       <thead><tr><th>Stream</th><th>Visibility</th><th>Retained</th><th>Visible functions</th><th>Retention</th></tr></thead>
-      <tbody>{catalog.Items.map(item => <tr key={item.Name}><td><a href={streamLink(item.Name)}>{item.Name}</a></td><td>{item.Visibility}</td>
+      <tbody>{catalog.Items.map(item => <tr key={item.Name}><td><a onClick={onNavigate} href={streamLink(item.Name)}>{item.Name}</a></td><td>{item.Visibility}</td>
         <td>{item.RetainedMessageCount}</td><td>{item.VisibleFunctionCount}</td><td>{item.MaxAgeSeconds}s / {item.MaxLength} messages</td></tr>)}</tbody></table>
       {!catalog.Items.length && <p>No accessible Streams match this prefix.</p>}</div>}
     {summary && <div className="streams__summary"><h2>{summary.Name}</h2><p>{summary.Visibility} · {summary.RetainedMessageCount} retained · {summary.MaxAgeSeconds}s / {summary.MaxLength} messages</p>
@@ -128,7 +128,7 @@ export default function Streams({ route, revision, stale }: { route: string; rev
     {(functions || functionDetail) && <div className="streams__table"><table><caption>Independent function consumption</caption>
       <thead><tr>{['Function', 'Subscription', 'Lag', 'Pending', 'Callback waits', 'Retries', 'Failed', 'Runnable', 'ACK through / last ACK', 'Retention gaps', 'Last status'].map(label => <th key={label}>{label}</th>)}</tr></thead>
       <tbody>{(functionDetail ? [functionDetail] : functions?.Items ?? []).map(item => <tr key={item.Function}>
-        <td><a href={streamLink(item.Stream, 'functions', item.Function)}>{item.Function}</a></td><td>{item.Active ? 'Active' : 'Unsubscribed'}</td>
+        <td><a onClick={onNavigate} href={streamLink(item.Stream, 'functions', item.Function)}>{item.Function}</a></td><td>{item.Active ? 'Active' : 'Unsubscribed'}</td>
         <td>{item.Lag}</td><td>{item.PendingCount}</td><td>{item.WaitingForCallbackCount}</td><td>{item.RetryScheduledCount}</td>
         <td>{item.FailedCount}</td><td>{item.RunnableCount}</td><td>{item.AcknowledgedThrough} / {item.LastAcknowledged}</td>
         <td>{item.RetentionGapCount}</td><td>{item.LastStatus ?? 'None'}</td></tr>)}</tbody></table>
@@ -136,7 +136,7 @@ export default function Streams({ route, revision, stale }: { route: string; rev
       {functions && <nav className="streams__pagination" aria-label="Function pages"><button className="button" disabled={functionCursors.length === 1 || busy} onClick={() => setFunctionCursors(value => value.slice(0, -1))}>Previous functions</button>
         <span>Page {functionCursors.length}</span><button className="button" disabled={!functions.NextCursor || busy} onClick={() => { if (functions.NextCursor) setFunctionCursors(value => [...value, functions.NextCursor ?? undefined]); }}>Next functions</button></nav>}</div>}
     {messages && <div className="streams__table"><table><caption>Retained history · metadata only</caption><thead><tr><th>Message ID</th><th>Appended</th><th>Content type</th><th>Payload bytes</th></tr></thead>
-      <tbody>{messages.Items.map(item => <tr key={item.Id}><td><a href={streamLink(selection.name, 'messages', item.Id)}>{item.Id}</a></td><td>{item.AppendedAt}</td><td>{item.ContentType}</td><td>{item.PayloadSize}</td></tr>)}</tbody></table>
+      <tbody>{messages.Items.map(item => <tr key={item.Id}><td><a onClick={onNavigate} href={streamLink(selection.name, 'messages', item.Id)}>{item.Id}</a></td><td>{item.AppendedAt}</td><td>{item.ContentType}</td><td>{item.PayloadSize}</td></tr>)}</tbody></table>
       {!messages.Items.length && <p>No messages on this page.</p>}</div>}
     {message && <article><h2>Message {message.Id}</h2><p>{message.AppendedAt} · {message.ContentType} · {message.PayloadSize} bytes</p>
       <div className="streams__actions"><button className="button" type="button" disabled={stale} onClick={() => void inspectBody()}>Preview body (maximum 65,536 bytes)</button>

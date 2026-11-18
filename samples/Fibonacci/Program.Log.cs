@@ -14,7 +14,7 @@ internal static partial class ProgramLog
     internal static partial void LogAuthorizationHeader(this global::Microsoft.Extensions.Logging.ILogger logger, string auth);
 
     [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Information, Message = "Fibonacci output: {Output}")]
-    internal static partial void LogFibonacciOutput(this global::Microsoft.Extensions.Logging.ILogger logger, int output);
+    internal static partial void LogFibonacciOutput(this global::Microsoft.Extensions.Logging.ILogger logger, long output);
 
     [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Information, Message = "Fibonacci4 Internal Called: {Input}")]
     internal static partial void LogFibonacci4InternalCalled(this global::Microsoft.Extensions.Logging.ILogger logger, int input);

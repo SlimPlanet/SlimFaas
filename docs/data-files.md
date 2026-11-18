@@ -542,7 +542,7 @@ wire format and durability/acceptance rules are unchanged. See the
 
 ## Live metadata inventory
 
-The built-in dashboard's **Live Stream → Data** tab shows file keys, TTL and document sizes without fetching values or documents. Search by prefix, inspect expiration and navigate pages of 100 entries. The inventory updates at the configured status interval; short-lived entries between snapshots may be missed.
+The built-in dashboard's **Views → Data** inventory shows file keys, TTL and document sizes without fetching values or documents. Search by prefix, inspect expiration and navigate pages of 100 entries. The inventory updates at the configured status interval; short-lived entries between snapshots may be missed.
 
 Metadata follows the existing data visibility policy unless `SlimFaas__ExposeDataMetadata=true` explicitly enables metadata access for dashboard visitors. This does not grant access to stored contents. See [the dashboard inventory and SSE API](user-interface.md#data-inventory).
 

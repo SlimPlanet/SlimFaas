@@ -8,27 +8,30 @@ import NetworkMap from './components/NetworkMap';
 import DataExplorer from './components/DataExplorer';
 import ScalingExplorer from './components/ScalingExplorer';
 import ErrorBoundary from './components/ErrorBoundary';
-import Icon from './components/Icon';
+import { canWake, dashboardRoute } from './lib/dashboard';
 import DeadLetters from './components/DeadLetters';
 import Streams from './components/Streams';
 
 export default function App() {
-  const [route, setRoute] = useState(window.location.hash || '#/overview');
-  useEffect(() => { const change = () => setRoute(window.location.hash || '#/overview'); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change); }, []);
-  const live = route.startsWith('#/live');
-  const path = route.split('?')[0];
+  const [route, setRoute] = useState(window.location.hash);
+  useEffect(() => { const change = () => setRoute(window.location.hash); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change); }, []);
+  const { path, params } = dashboardRoute(route);
+  const live = path.startsWith('#/live');
   const deadLetterPage = path === '#/dead-letters' || path.startsWith('#/dead-letters/');
   const streamPage = path === '#/streams' || path.startsWith('#/streams/');
   const data = path === '#/live/data';
   const scaling = path === '#/live/scaling';
   const traffic = live && !data && !scaling;
-  const selectedFunction = new URLSearchParams(route.split('?')[1] ?? '').get('function') ?? undefined;
+  const selectedFunction = params.get('function') ?? undefined;
   const stream = useStatusStream(traffic);
   const ready = stream.functions.reduce((sum, fn) => sum + fn.NumberReady, 0);
   const running = stream.jobs.reduce((sum, job) => sum + job.RunningJobs.filter(run => run.Status === 'Running').length, 0);
-  const allReady = stream.functions.length > 0 && stream.functions.every(fn => fn.NumberReady > 0);
-  return <div className="layout"><Navbar live={live} deadLetters={deadLetterPage} deadLettersEnabled={stream.deadLettersFrontEnabled && stream.deadLettersAccessible} streams={streamPage} streamsEnabled={stream.streamsAvailable} /><main id="main" className="layout__content" tabIndex={-1}>
-    <div className="page-heading"><div><span className="page-heading__eyebrow">YOUR INFRASTRUCTURE, IN FOCUS</span><h1 className="page-heading__title">{streamPage ? 'Streams' : deadLetterPage ? 'Dead Letter Queues' : live ? 'Live Stream' : 'Overview'}</h1><p className="page-heading__description">{streamPage ? 'Durable events. Retained history. Independent function progress.' : deadLetterPage ? 'Inspect retained failures. Fix the cause. Requeue safely.' : scaling ? 'Understand each scaling decision. Preview the next one.' : live ? 'Follow the traffic. Explore what is alive.' : 'A clear view of your functions, replicas and jobs.'}</p></div><span className={`badge ${stream.error ? 'badge--warning' : 'badge--success'}`}>{stream.loading ? 'Connecting' : stream.error ? 'Reconnecting' : 'Connected'}</span></div>
+  return <div className={`layout${traffic ? ' layout--traffic' : ''}`}>
+    <Navbar path={path} connected={stream.loading ? 'Connecting' : stream.error ? 'Reconnecting' : 'Connected'}
+      canWakeAll={stream.frontEnabled && stream.functions.some(canWake)} waking={stream.wakeAllCooling} wakeAll={stream.wakeUpAll}
+      streamsEnabled={stream.streamsAvailable} deadLettersEnabled={stream.deadLettersFrontEnabled && stream.deadLettersAccessible} />
+    <main id="main" className="layout__content" tabIndex={-1}>
+    {!traffic && <h1 className="page-heading__title">{streamPage ? 'Streams' : deadLetterPage ? 'Dead Letter Queues' : data ? 'Data' : scaling ? 'Scaling' : 'Overview'}</h1>}
     {stream.error && <p className="notice" role="status">{stream.error} Showing the last received status.</p>}
     {stream.actionError && <p className="notice notice--error" role="alert">{stream.actionError}</p>}
     {streamPage ? <ErrorBoundary>{!stream.streamsFrontEnabled ? <p className="notice">Streams UI is disabled. Enable SlimFaas:Streams:EnableFront and SlimFaas:EnableFront.</p> :
@@ -37,12 +40,10 @@ export default function App() {
       : !stream.deadLettersAccessible ? <p className="notice">Dead letter queues are restricted for this caller.</p>
       : <DeadLetters route={route} revision={stream.deadLetters.reduce((total, item) => total + item.Revision, 0) + stream.activitySession} stale={!!stream.error} />}</ErrorBoundary> : !live ? <>
       <div className="metrics">{[['Functions', stream.functions.length], ['Ready replicas', ready], ['Running jobs', running], ['SlimFaas nodes', stream.slimFaasReplicas]].map(([label, value]) => <div className="metrics__card" key={label}><span className="metrics__label">{label}</span><strong className="metrics__value">{Number(value).toLocaleString()}</strong></div>)}</div>
-      <div className="overview-actions"><a className="overview-actions__link" href="#/live/traffic">Explore live traffic <Icon name="arrow" /></a><button className="button button--primary" type="button" disabled={!stream.functions.length || allReady || stream.wakeAllCooling} onClick={stream.wakeUpAll}><Icon name="bolt" />{stream.wakeAllCooling ? 'Waking functions…' : 'Wake all functions'}</button></div>
       <FunctionTable functions={stream.functions} onWakeUp={stream.wakeUp} coolingDown={stream.coolingDown} deadLetters={stream.deadLetters} />
       <JobTable jobs={stream.jobs} />
     </> : <>
-      <nav className="live-tabs" aria-label="Live Stream views"><a className={`live-tabs__tab ${traffic ? 'live-tabs__tab--active' : ''}`} href="#/live/traffic" aria-current={traffic ? 'page' : undefined}><Icon name="activity" />Traffic</a><a className={`live-tabs__tab ${data ? 'live-tabs__tab--active' : ''}`} href="#/live/data" aria-current={data ? 'page' : undefined}><Icon name="data" />Data</a><a className={`live-tabs__tab ${scaling ? 'live-tabs__tab--active' : ''}`} href="#/live/scaling" aria-current={scaling ? 'page' : undefined}><Icon name="scaling" />Scaling</a></nav>
-      <ErrorBoundary>{!stream.frontEnabled ? <p className="notice">{stream.frontMessage}</p> : data ? <DataExplorer /> : scaling ? <ScalingExplorer functions={stream.functions} functionName={selectedFunction} /> : <NetworkMap {...stream} activity={stream.activity} samplingRatio={stream.samplingRatio} maxLiveEventsPerSecond={stream.maxLiveEventsPerSecond} />}</ErrorBoundary>
+      <ErrorBoundary>{!stream.frontEnabled ? <p className="notice">{stream.frontMessage}</p> : data ? <DataExplorer key={params.get('kind')} /> : scaling ? <ScalingExplorer functions={stream.functions} functionName={selectedFunction} /> : <NetworkMap {...stream} panelActor={params.get('actor')} />}</ErrorBoundary>
     </>}
-  </main><Footer /></div>;
+  </main>{!traffic && <Footer />}</div>;
 }

@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.89.1
+
+- [6a3c38ac](https://github.com/SlimPlanet/SlimFaas/commit/6a3c38ac5e79c7c7bf41f9c23e5061521eca4336) - chore(deps): refresh packages, container images, and CI tools (#551) (release), 2026-11-18 by *Guillaume Chervet*
+
+
+## 0.89.0
+
+
+
+## v0.89.0
+
+- [186a434a](https://github.com/SlimPlanet/SlimFaas/commit/186a434a7ea40c828db017a603dc4dd031a2d9d0) - feat(SlimFas): Make UI live traffic the dashboard home and inspect actors in context (#549) (release), 2026-11-18 by *Guillaume Chervet*
+
+
+## 0.88.2
+
+- [f06d9432](https://github.com/SlimPlanet/SlimFaas/commit/f06d9432c8d27dd57cc5b7cc80d5aa692eee6f65) - chore: limit Dependabot to security updates (#546), 2026-11-18 by *Guillaume Chervet*
+
+
 ## v0.88.2
 
 - [981b681f](https://github.com/SlimPlanet/SlimFaas/commit/981b681f593beaf3c66a81663f7ac43575294132) - Fix SlimData recovery and validate macOS, Podman and Kubernetes reliability (#506) (release), 2026-11-18 by *Guillaume Chervet*
@@ -257,24 +276,6 @@
 
 
 ## 0.84.0
-
-
-
-## v0.84.0
-
-- [f61f8c65](https://github.com/SlimPlanet/SlimFaas/commit/f61f8c65f2486b592b685ea2c5e649c58038dc31) - feat: add external autoscaling sources with opt-in wake-up (#341) (release), 2026-09-10 by *Guillaume Chervet*
-
-
-## 0.83.0
-
-
-
-## v0.83.0
-
-- [ef2f8c58](https://github.com/SlimPlanet/SlimFaas/commit/ef2f8c58bb88a95f9c849fea9ef71334af087a72) - feat(SlimFaas): Modernize the dashboard with scalable traffic, data and instance logs (release) (#339), 2026-09-09 by *Guillaume Chervet*
-
-
-## 0.82.7
 
 
 

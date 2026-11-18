@@ -134,7 +134,7 @@ curl -fsS "$BASE_URL/status-functions"
 curl -fsS "$BASE_URL/function/fibonacci1/hello/local"
 ```
 
-Expect `200 READY`, four functions in the JSON list, and `Hello local!`. Retry readiness while the cluster starts. In **Overview**, find `fibonacci1` through `fibonacci4`. A successful synchronous request wakes its target and waits for readiness.
+Expect `200 READY`, four functions in the JSON list, and `Hello local!`. Retry readiness while the cluster starts. In **Views → Overview**, find `fibonacci1` through `fibonacci4`. A successful synchronous request wakes its target and waits for readiness.
 
 The demo exposes the data APIs for local exploration and includes the `fibonacci` and `fibonacci5` job configurations. Local processes share the host network and have no container resource isolation.
 

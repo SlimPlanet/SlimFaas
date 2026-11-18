@@ -1,0 +1,215 @@
+[
+  {
+    "key": "intro",
+    "chapter": "SlimFaas",
+    "title": "SlimFaas",
+    "caption": "A greener way to run agent tools on Kubernetes.",
+    "voice": "Meet SlimFaas! This CNCF Sandbox project lets idle agent tools scale to zero for greener Kubernetes workloads. Already have an HTTP app on Kubernetes? You can integrate it in minutes. Route calls through SlimFaas. Your application code stays independent, in any language, with no driver to install.",
+    "card": [
+      "CNCF Sandbox project",
+      "Connect an existing HTTP app in minutes.",
+      "Keep your code and language. No driver required."
+    ],
+    "art": "dashboard",
+    "voiceSamples": 477184
+  },
+  {
+    "key": "sync-title",
+    "chapter": "Synchronous HTTP functions",
+    "title": "Synchronous functions",
+    "caption": "Call a sleeping service and get the result in the same HTTP response.",
+    "voice": "First up: synchronous functions over HTTP. Let's wake one up!",
+    "card": [
+      "POST /function/fibonacci1/fibonacci",
+      "{\"input\": 10}",
+      "200 OK  ·  {\"result\": 55}"
+    ],
+    "voiceSamples": 97280
+  },
+  {
+    "key": "idle",
+    "chapter": "Synchronous HTTP functions",
+    "title": "Start with zero replicas",
+    "caption": "The HTTP route is available while the function sleeps.",
+    "voice": "Find Fibonacci on the right. Zero ready replicas. Its HTTP address is already available.",
+    "voiceSamples": 153600
+  },
+  {
+    "key": "wake",
+    "chapter": "Synchronous HTTP functions",
+    "title": "0 → N with the HTTP proxy",
+    "caption": "The first HTTP call wakes the configured number of replicas. Here, N is one.",
+    "voice": "The HTTP proxy receives the call and wakes the deployment from zero to its configured starting count. Here, that's one pod. As soon as it's ready, the proxy forwards the call and the caller gets fifty-five.",
+    "voiceSamples": 307200
+  },
+  {
+    "key": "sleep",
+    "chapter": "Synchronous HTTP functions",
+    "title": "Back to zero",
+    "caption": "The deployment releases its worker after the idle timeout.",
+    "voice": "Now watch the idle timer. The last pod goes to sleep, ready for the next call.",
+    "voiceSamples": 112128
+  },
+  {
+    "key": "queue-title",
+    "chapter": "Asynchronous HTTP queue",
+    "title": "Asynchronous queues",
+    "caption": "Accept the burst now. Process it as workers become ready.",
+    "voice": "Next up: asynchronous queues over HTTP. Here comes the burst!",
+    "card": [
+      "POST /async-function/fibonacci1/fibonacci",
+      "30 requests  ·  {\"input\": 48}",
+      "202 Accepted"
+    ],
+    "voiceSamples": 98304
+  },
+  {
+    "key": "burst",
+    "chapter": "Asynchronous HTTP queue",
+    "title": "Thirty HTTP requests arrive together",
+    "caption": "HTTP 202 means the work has entered the queue.",
+    "voice": "Thirty HTTP requests ask for Fibonacci of forty-eight. All thirty get an accepted response while the work waits in the queue.",
+    "voiceSamples": 190976
+  },
+  {
+    "key": "scale",
+    "chapter": "Asynchronous HTTP queue",
+    "title": "N → M with Prometheus-format metrics",
+    "caption": "SlimFaas scrapes metrics and evaluates the rule locally. No Prometheus server required.",
+    "voice": "Once a pod is running, SlimFaas scrapes Prometheus-format metrics itself and evaluates the scaling rule locally. Here, queue depth takes us from one worker to four, without a separate Prometheus server.",
+    "voiceSamples": 293376
+  },
+  {
+    "key": "drain",
+    "chapter": "Asynchronous HTTP queue",
+    "title": "Let the queue absorb the spike",
+    "caption": "30 completed calculations. The deployment returns to zero.",
+    "voice": "The queue gives Kubernetes time to scale. All thirty calculations finish. With the backlog empty, the workers return to zero.",
+    "voiceSamples": 189952
+  },
+  {
+    "key": "broadcast-title",
+    "chapter": "HTTP publish / subscribe",
+    "title": "Publish / subscribe",
+    "caption": "Tell every ready subscriber when a shared tool definition changes.",
+    "voice": "Publish and subscribe over HTTP: one event for every replica!",
+    "card": [
+      "POST /publish-event/tool-catalog/tour/tools/invalidate",
+      "One tool-catalog change",
+      "2 deployments  ·  4 ready recipients"
+    ],
+    "voiceSamples": 103424
+  },
+  {
+    "key": "subscribers",
+    "chapter": "HTTP publish / subscribe",
+    "title": "Four replicas, four local caches",
+    "caption": "Each evaluator and audit pod caches the tool catalog.",
+    "voice": "Our agent system has two evaluators and two audit pods. Each keeps its own tool catalog. A tool has just changed.",
+    "voiceSamples": 172544
+  },
+  {
+    "key": "broadcast",
+    "chapter": "HTTP publish / subscribe",
+    "title": "One HTTP event reaches all four pods",
+    "caption": "Each replica invalidates its own cached copy.",
+    "voice": "Publish once. Follow those paths! All four pods receive the HTTP event and discard their stale copy.",
+    "voiceSamples": 164352
+  },
+  {
+    "key": "stream-title",
+    "chapter": "Durable HTTP Streams",
+    "title": "Durable Streams",
+    "caption": "Let each subscribed function track its own progress.",
+    "voice": "Now let's pass an agent result through a durable Stream over HTTP.",
+    "card": [
+      "POST /publish-stream/agent-output/tour/results/result-48",
+      "One retained agent result",
+      "Independent progress for each function"
+    ],
+    "voiceSamples": 107520
+  },
+  {
+    "key": "stream",
+    "chapter": "Durable HTTP Streams",
+    "title": "One result, two subscriptions",
+    "caption": "Workers within a function share its subscription.",
+    "voice": "One HTTP append gives the evaluator and the audit function their own copy to process. Each function tracks its own progress.",
+    "voiceSamples": 198656
+  },
+  {
+    "key": "ack",
+    "chapter": "Durable HTTP Streams",
+    "title": "One replica per function, per attempt",
+    "caption": "Both functions acknowledge sequence 1. Both show zero lag.",
+    "voice": "One replica per function handles this attempt. Both subscriptions acknowledge sequence one, with zero lag. Retries are possible, so make handlers safe to repeat.",
+    "voiceSamples": 245248
+  },
+  {
+    "key": "jobs",
+    "chapter": "Jobs & schedules",
+    "title": "Jobs & schedules",
+    "caption": "Queue batch work and schedule it for later.",
+    "voice": "There's more! Submit a job over HTTP or by cron. SlimFaas queues runs until a slot opens. You can also schedule a function to wake before the morning rush.",
+    "card": [
+      "POST /job/report",
+      "NumberParallelJob = 2",
+      "Extra runs wait for an available slot."
+    ],
+    "voiceSamples": 257024
+  },
+  {
+    "key": "sets",
+    "chapter": "Sets",
+    "title": "Sets",
+    "caption": "Cache small values by key over HTTP.",
+    "voice": "Cache a tool result with Sets. Post a value under a key over HTTP, set its expiry, then read it back on the next call.",
+    "card": [
+      "POST /data/sets/tool-result?ttl=60000",
+      "GET /data/sets/tool-result",
+      "This cache entry expires after one minute."
+    ],
+    "voiceSamples": 193536
+  },
+  {
+    "key": "files",
+    "chapter": "Files",
+    "title": "Files",
+    "caption": "Stream temporary artifacts by key over HTTP.",
+    "voice": "With Files, stream bytes in over HTTP and pass the key to the next agent. A few kilobytes or hundreds of megabytes? Same route! Stream the artifact back before it expires.",
+    "card": [
+      "POST /data/files?id=report&ttl=60000",
+      "GET /data/files/report",
+      "Pass the key between agents. Stream the bytes on demand."
+    ],
+    "voiceSamples": 274432
+  },
+  {
+    "key": "observability",
+    "chapter": "Observability",
+    "title": "Watch the queue drain",
+    "caption": "See requests, queue depth and ready replicas in the Live Stream dashboard.",
+    "voice": "Watch the queue drain as the workers come online. That's what the Live Stream dashboard lets you see at a glance! SlimFaas also has OpenTelemetry built in. Enable OTLP export to send traces, metrics, and logs to your own collector.",
+    "card": [
+      "Observability",
+      "Built-in OpenTelemetry",
+      "Export traces, metrics and logs over OTLP."
+    ],
+    "art": "dashboard",
+    "voiceSamples": 357888
+  },
+  {
+    "key": "closing",
+    "chapter": "Try SlimFaas",
+    "title": "Try SlimFaas",
+    "caption": "Bring an HTTP tool. Watch its first pod wake up.",
+    "voice": "Give the local demo a spin and watch your own HTTP tool wake up!",
+    "card": [
+      "Run the local demo",
+      "slimfaas.dev/get-started/local",
+      "github.com/SlimPlanet/SlimFaas"
+    ],
+    "art": "recap",
+    "voiceSamples": 101376
+  }
+]

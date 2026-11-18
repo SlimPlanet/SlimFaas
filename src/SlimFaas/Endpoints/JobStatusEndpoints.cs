@@ -68,7 +68,7 @@ public static class JobStatusEndpoints
                     j.Status.ToString(),
                     j.ElementId,
                     j.InQueueTimestamp,
-                    j.StartTimestamp))
+                    j.StartTimestamp) { Lifecycle = j.Lifecycle, Requests = j.Requests })
                 .ToList();
 
             var scheduledInfos = new List<ScheduledJobInfo>();

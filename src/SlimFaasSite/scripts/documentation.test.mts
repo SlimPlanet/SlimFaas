@@ -149,3 +149,19 @@ test('registered public route patterns have an API entry and a Bruno example', a
         assert.ok(urls.some(url => expression.test(url)), `Missing Bruno request for ${route}`);
     }
 });
+
+test('home film has a static reduced-motion preview, a direct MP4 fallback and English captions', async () => {
+    const source = await readFile('../../docs/home.md', 'utf8');
+    const raw = await remark().use(html).process(source);
+    const { contentHtml } = await renderMarkdownWithHighlight(String(raw), 'docs/home.md');
+    const $ = load(contentHtml);
+    const preview = $('.dashboard-film__preview');
+    const video = $('.dashboard-film__player');
+    assert.match(preview.attr('href')!, /dashboard\.mp4$/);
+    assert.equal(preview.attr('href'), video.attr('src'));
+    assert.equal(preview.find('source[media="(prefers-reduced-motion: reduce)"]').attr('srcset'), video.attr('poster'));
+    assert.match(preview.find('img').attr('src')!, /preview\.gif$/);
+    assert.equal(video.attr('preload'), 'none');
+    assert.match(video.find('track[kind=captions][srclang=en]').attr('src')!, /captions\.vtt$/);
+    assert.equal($('a[href$="/transcript.txt"]').length, 1);
+});

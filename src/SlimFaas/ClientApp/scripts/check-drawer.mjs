@@ -82,6 +82,7 @@ try {
   await page.getByRole('button', { name: 'daily-report', exact: true }).click();
   await page.getByRole('button', { name: 'Close details' }).click();
   await page.goto(`${base}/#/live/traffic`);
+  await page.getByRole('button', { name: 'Actors', exact: true }).click();
   const search = page.getByRole('searchbox', { name: 'Find an actor' });
   await search.fill('fibonacci1');
   await page.getByRole('button', { name: 'fibonacci1', exact: true }).first().click();
@@ -97,6 +98,8 @@ try {
   await page.keyboard.press('Escape'); await until(async () => await dialog.count() === 0);
   await until(() => activeLogs === 0);
   assert.deepEqual(await camera(), selectedCamera);
+  await page.getByRole('button', { name: 'Close list' }).click();
+  await page.getByRole('button', { name: 'Show replicas' }).click();
   const point = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes).byId.get('pod:fibonacci1/fibonacci1-00000');
   const position = await page.locator('canvas').evaluate((element, point) => ({ x: point.x * element.__zoom.k + element.__zoom.x, y: point.y * element.__zoom.k + element.__zoom.y }), { x: point.x, y: point.y });
   await page.locator('canvas').click({ position });
@@ -105,6 +108,7 @@ try {
   await page.keyboard.press('Escape'); await until(async () => await dialog.count() === 0);
   await until(() => activeLogs === 0);
   assert.equal(await page.locator('canvas').evaluate(element => element === document.activeElement), true);
+  await page.getByRole('button', { name: 'Actors', exact: true }).click();
   await replica.click();
   const trafficConnections = trafficOpens;
   await dialog.getByRole('heading', { name: 'Details', exact: true }).waitFor();
@@ -117,7 +121,7 @@ try {
   const checkWindow = async () => {
     const height = await viewport.evaluate(element => element.clientHeight);
     assert.ok(height < await page.evaluate(() => innerHeight), `Log viewport must fit the window, got ${height}px`);
-    assert.ok(await page.locator('.log-view__line').count() <= Math.ceil(height / 24) + 11);
+    await until(async () => await page.locator('.log-view__line').count() <= Math.ceil(height / 24) + 11);
     await until(() => viewport.evaluate(element => element.scrollHeight - element.scrollTop - element.clientHeight < 25));
   };
   await checkWindow();

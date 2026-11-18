@@ -12,11 +12,15 @@
 
 <div align="center">
 
+[![Live Stream dashboard showing a cold start, queued work and two kinds of message delivery](docs/media/live-stream/preview.gif)](https://slimfaas.dev/#live-stream-dashboard)
+
+[Watch the narrated video (MP4)](docs/media/live-stream/dashboard.mp4) · [English transcript](docs/media/live-stream/transcript.txt) · [Reproduce the recording](demo/live-stream-video)
+
 ### Start exploring
 
 Choose [Kubernetes](docs/get-started-kubernetes.md), [native local processes](docs/get-started-local.md), or [Docker Compose](docs/get-started-docker-compose.md). Open the built-in dashboard and follow the [Guided Tour](docs/guided-tour.md) with cURL or the [Bruno collection](demo/bruno-slimfaas-demo). Find all runtime routes in the [API Reference](docs/api-reference.md).
 
-Source builds and the .NET client require **.NET SDK 11.0.100 or a newer stable .NET 11 SDK**. Frontend builds use **Node 26 LTS** and **pnpm 12.18.0** where applicable. The NuGet client now targets `net11.0` only; see [client compatibility](docs/clients.md#runtime-compatibility).
+Source builds and the .NET client require **.NET SDK 11.0.100 or a newer stable .NET 11 SDK**. Frontend builds use **Node 26 LTS** and **pnpm 12.21.0** where applicable. The NuGet client now targets `net11.0` only; see [client compatibility](docs/clients.md#runtime-compatibility).
 
 The [precompiled local demo](docs/get-started-local.md) packages the dashboard, functions and jobs without requiring a .NET or Node installation. It requires a release containing the new `SlimFaas-Local-*` bundles; source-based development remains available in [Local Mode](docs/native-local-mode.md).
 
@@ -167,10 +171,6 @@ Ideal for **agentic workflows** and **real-time ingestion**: upload once, get an
     - AOT-friendly design,
     - minimal dependency surface.
 
-<div align="center">
-  <img src="docs/slim-faas-ram-cpu.png" alt="SlimFaas CPU RAM" />
-</div>
-
 ---
 
 ## Ready to Get Started?
@@ -243,7 +243,7 @@ Add your logo via a pull request:
 
 ### Live operational dashboard
 
-The embedded [SlimFaas dashboard](docs/user-interface.md) pairs a compact infrastructure overview with a zoomable canvas traffic map for jobs, replicas and functions. Its Data tab streams keys, TTL and file sizes without reading stored contents. Traffic identifies the Raft leader and each visible replica destination; an opt-in log viewer follows managed functions, jobs and SlimFaas nodes with bounded, filterable output.
+The embedded [SlimFaas dashboard](docs/user-interface.md) opens on a full-window live traffic map. Select a function to inspect replicas and scaling, a queue to inspect backlog and dead letters, or a Stream to browse history and subscribers. Set and Files open their metadata inventories. Wake a sleeping workload directly on the map, or use **Wake all functions** in the header.
 
 
 ### External metrics autoscaling

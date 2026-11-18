@@ -1,3 +1,4 @@
+import { lifecycle, nextSchedule, requestLabel, workloadRequests } from './podObservation.ts';
 import { formatBytes, functionState } from './live.ts';
 import type { DataSummary, FunctionStatusDetailed, JobConfigurationStatus, NetworkActivityEvent, QueueInfo, SlimFaasNodeInfo } from '../types.ts';
 import type { DeadLetterSummary } from './deadLetters.ts';
@@ -5,6 +6,7 @@ import type { StreamSummary } from './streams.ts';
 
 export interface MapNode {
   id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external' | 'stream' | 'sets' | 'files';
+  lifecycle?: ReturnType<typeof lifecycle>; requestLabel?: string; scheduleLabel?: string;
   role?: SlimFaasNodeInfo['Role'];
   state?: ReturnType<typeof functionState>; parent: string | null; x: number; y: number; status: string; detail: string;
   queueLength?: number; deadLetterCount?: number;
@@ -73,13 +75,14 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
   for (const job of [...jobs].sort((a, b) => a.Name.localeCompare(b.Name))) {
     const runs = [...job.RunningJobs].sort((a, b) => a.Name.localeCompare(b.Name));
     const group = create('job', job.Name, `${runs.filter(r => r.Status === 'Running').length} running`, runs.map(r => ({
-      id: nodeId('run', r.Name), label: r.Name, status: r.Status, detail: r.ElementId,
+      id: nodeId('run', r.Name), label: r.Name, status: r.Lifecycle ?? r.Status, lifecycle: lifecycle(r.Status, r.Lifecycle, true), detail: r.ElementId,
     })), job.Image);
+    group.scheduleLabel = nextSchedule(job.Schedules);
     for (const child of group.children) sourcePods.set(child.label, child.id);
   }
   create('external', 'external', 'People and external systems', [], 'External callers');
   create('slimfaas', 'slimfaas', `${slimNodes.length} nodes · ${slimNodes.find(n => n.Role === 'Leader')?.Name ?? 'Unknown'} leader`, slimNodes.map(n => ({
-    id: nodeId('node', n.Name), label: n.Name, status: `${n.Status} · ${n.Role ?? 'Unknown'}`, detail: 'SlimFaas node', role: n.Role,
+    id: nodeId('node', n.Name), label: n.Name, lifecycle: lifecycle(n.Status, n.Lifecycle), requestLabel: requestLabel(n.Requests), status: `${n.Lifecycle ?? n.Status} · ${n.Role ?? 'Unknown'}`, detail: 'SlimFaas node', role: n.Role,
   })));
   for (const fn of [...functions].sort((a, b) => a.Name.localeCompare(b.Name))) {
     const fnPods = [...(fn.Pods ?? [])].sort((a, b) => a.Name.localeCompare(b.Name));
@@ -88,9 +91,12 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
       pods.set(`${fn.Name}/${p.Identity}`, id); pods.set(`${fn.Name}/${p.Name}`, id);
       sourcePods.set(p.Name, id);
       if (p.Identity) sourcePods.set(p.Identity, id);
-      return { id, label: p.Name, status: p.Ready ? 'Running' : p.Status, detail: p.Identity };
+      const state = lifecycle(p.Status, p.Lifecycle ?? (p.Ready ? 'Ready' : undefined));
+      return { id, label: p.Name, lifecycle: state, status: state === p.Status ? state : state + ' · ' + p.Status,
+        requestLabel: fn.PodType === 'WebSocket' ? undefined : requestLabel(p.Requests), detail: p.Identity };
     }), fn.PodType);
     group.state = functionState(fn);
+    if (fn.PodType !== 'WebSocket') group.requestLabel = requestLabel(fn.Pods ? workloadRequests(fnPods) : null);
   }
   for (const fn of observed) {
     const group = create('function', fn.name, 'Observed traffic · inventory unknown', fn.replicas.map(identity => {
@@ -256,5 +262,12 @@ export function selectedEvent(topology: Topology, event: NetworkActivityEvent, s
 
 export function filterNodes(topology: Topology, search: string) {
   const query = search.trim().toLowerCase();
-  return topology.nodes.filter(n => !query || `${n.label} ${n.detail} ${n.kind}`.toLowerCase().includes(query));
+  if (!query) return topology.nodes;
+  const exact: MapNode[] = [];
+  const matches: MapNode[] = [];
+  for (const node of topology.nodes) {
+    if (node.label.toLowerCase() === query) exact.push(node);
+    else if (`${node.label} ${node.detail} ${node.kind}`.toLowerCase().includes(query)) matches.push(node);
+  }
+  return exact.concat(matches);
 }

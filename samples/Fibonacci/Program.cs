@@ -48,6 +48,7 @@ serviceCollection.Configure<JsonOptions>(options =>
 
 WebApplication app = builder.Build();
 app.MapTourEndpoints(slimFaasBaseUrl);
+app.MapAgentTour(builder.Configuration["AgentTourRole"]);
 app.UseCors(builder => builder
     .AllowAnyOrigin()
     .AllowAnyMethod()
@@ -336,7 +337,7 @@ internal sealed class Fibonacci
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
         Justification = "Resolved from the DI container as an instance service by the endpoints.")]
-    public int Run(int i)
+    public long Run(int i)
     {
         if (i <= 2)
         {
@@ -362,7 +363,7 @@ public partial class FibonacciInputSerializerContext : JsonSerializerContext
 }
 
 public record FibonacciOutput {
-    public int Result { get; set; }
+    public long Result { get; set; }
 }
 
 
