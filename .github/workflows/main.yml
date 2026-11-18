@@ -171,7 +171,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $typescriptConfigurations = python .bin/check-sonar-benchmark-boundary.py --print-tsconfigs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="$benchmarkExclusions" /d:sonar.test.exclusions="$benchmarkExclusions" /d:sonar.typescript.tsconfigPaths="$typescriptConfigurations" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info,artifacts/dashboard-coverage/browser.info,artifacts/dashboard-coverage/unit.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          # Each .NET module runs its own JS sensor from a different base directory.
+          # Resolve Linux LCOV source paths against this Windows checkout before scanning.
+          $dashboardReports = Get-Item artifacts/dashboard-coverage/browser.info,artifacts/dashboard-coverage/unit.info
+          foreach ($report in $dashboardReports) {
+            $lines = foreach ($line in [IO.File]::ReadLines($report.FullName)) {
+              if ($line.StartsWith('SF:')) { 'SF:' + (Resolve-Path -LiteralPath $line.Substring(3) -ErrorAction Stop).Path }
+              else { $line }
+            }
+            [IO.File]::WriteAllLines($report.FullName, [string[]]$lines)
+          }
+          $coverageReports = @((Get-Item src/SlimFaasPlanetSaver/coverage/lcov.info).FullName) + $dashboardReports.FullName -join ','
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="$benchmarkExclusions" /d:sonar.test.exclusions="$benchmarkExclusions" /d:sonar.typescript.tsconfigPaths="$typescriptConfigurations" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="$coverageReports" /d:sonar.javascript.file.suffixes="js,jsx"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet tool install --global dotnet-coverage
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
