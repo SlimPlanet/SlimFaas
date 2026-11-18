@@ -170,8 +170,8 @@ importers:
   .:
     dependencies:
       '@axa-fr/slimfaas-planet-saver':
-        specifier: ^0.88.0
-        version: 0.88.0
+        specifier: ^0.88.1
+        version: 0.88.1
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -179,8 +179,8 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
       serve:
-        specifier: 14.2.7
-        version: 14.2.7(supports-color@7.2.0)
+        specifier: 14.2.8
+        version: 14.2.8(supports-color@7.2.0)
     devDependencies:
       '@eslint/js':
         specifier: 9.39.5
@@ -193,7 +193,7 @@ importers:
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
         specifier: ^6.3.0
-        version: 6.3.0(vite@8.3.7)
+        version: 6.3.0(vite@8.3.8)
       eslint:
         specifier: 9.39.5
         version: 9.39.5(supports-color@7.2.0)
@@ -210,13 +210,13 @@ importers:
         specifier: ^17.14.0
         version: 17.14.0
       vite:
-        specifier: ^8.3.7
-        version: 8.3.7
+        specifier: ^8.3.8
+        version: 8.3.8
 
 packages:
 
-  '@axa-fr/slimfaas-planet-saver@0.88.0':
-    resolution: {integrity: sha512-MXTHP9Ep4mdncbvKhqsiLHsX2gP90f/hAaCiWE3A/JRFMNbIRH2ZuBTNzAPRDXqL4/R2gV+uoIxZvDtdCpvD7A==}
+  '@axa-fr/slimfaas-planet-saver@0.88.1':
+    resolution: {integrity: sha512-J6v8JGvAefqTpzU3UIigOIEFDi134NtAo5ea5YXXc2ro+isuaMAhu1W+aoTHm9wDsdoAppnp346/fg2Krvw/LA==}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -1460,8 +1460,8 @@ packages:
   serve-handler@6.1.7:
     resolution: {integrity: sha512-CinAq1xWb0vR3twAv9evEU8cNWkXCb9kd5ePAHUKJBkOsUpR1wt/CvGdeca7vqumL1U5cSaeVQ6zZMxiJ3yWsg==}
 
-  serve@14.2.7:
-    resolution: {integrity: sha512-mTJ9LAyBwHhO2T/PNaI0oWxmKl7FFuJ+ZEHKL1rRO69fWV1Y4qcsFB3gpuD2HfHvJCwvJq5ChibjjAGe0wc0vw==}
+  serve@14.2.8:
+    resolution: {integrity: sha512-7or7YqR3zXwHhiBGj40l9yODyQY146O+hXKaEAfQYQkcvHtMDdX95K96xr50qL9EjXScyYVJb1NIgVE8F0i5cA==}
     engines: {node: '>= 14'}
     hasBin: true
 
@@ -1612,8 +1612,8 @@ packages:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
 
-  vite@8.3.7:
-    resolution: {integrity: sha512-oxh0dMxrayBr33ScJvvBJ2HBQ2jc1TBrXKR2NyL/MJ9WPuX19mN2DXWUmywKdyw5RFVQBo8hmtb2FMC0LHrnng==}
+  vite@8.3.8:
+    resolution: {integrity: sha512-LzOn3h9rG/0vhLdXrV4yJ4QFA9eEoqCl+Yx+kGJd7aB9w6nfNgVHKSYwLPZUHrz4ZGa+t+kXjV9itvcHDLQouA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -1706,7 +1706,7 @@ packages:
 
 snapshots:
 
-  '@axa-fr/slimfaas-planet-saver@0.88.0': {}
+  '@axa-fr/slimfaas-planet-saver@0.88.1': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -1950,10 +1950,10 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@vitejs/plugin-react@6.3.0(vite@8.3.7)':
+  '@vitejs/plugin-react@6.3.0(vite@8.3.8)':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.7
+      vite: 8.3.8
 
   '@zeit/schemas@2.36.0': {}
 
@@ -3061,7 +3061,7 @@ snapshots:
       path-to-regexp: 3.3.0
       range-parser: 1.2.0
 
-  serve@14.2.7(supports-color@7.2.0):
+  serve@14.2.8(supports-color@7.2.0):
     dependencies:
       '@zeit/schemas': 2.36.0
       ajv: 8.18.0
@@ -3284,7 +3284,7 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite@8.3.7:
+  vite@8.3.8:
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
