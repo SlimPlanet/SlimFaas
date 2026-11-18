@@ -4,32 +4,18 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import wave
-
-from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 WORK = ROOT / "artifacts/live-stream-video"
 OUT = ROOT / "docs/media/live-stream"
 FPS = 20
-INK = "#121f38"
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 scenes = json.loads((HERE / "scenes.json").read_text())
 chapters = list(dict.fromkeys(s["chapter"] for s in scenes))
-
-
-def font(size, bold=False):
-    override = os.environ.get("FILM_FONT_BOLD" if bold else "FILM_FONT")
-    for name in (override, "Arial Bold.ttf" if bold else "Arial.ttf",
-                 "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"):
-        if name:
-            try:
-                return ImageFont.truetype(name, size)
-            except OSError:
-                pass
-    raise RuntimeError("Set FILM_FONT and FILM_FONT_BOLD to TrueType font files.")
 
 
 def stamp(seconds):
@@ -37,82 +23,108 @@ def stamp(seconds):
     return f"{ms // 3600000:02}:{ms // 60000 % 60:02}:{ms // 1000 % 60:02}.{ms % 1000:03}"
 
 
+def ffmpeg(*args):
+    subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-filter_complex_threads", "2", *args],
+                   cwd=WORK, check=True)
+
+
+def prepare_fonts():
+    for weight, override, filenames in [
+        ("regular", "FILM_FONT", ("Arial.ttf", "DejaVuSans.ttf")),
+        ("bold", "FILM_FONT_BOLD", ("Arial Bold.ttf", "DejaVuSans-Bold.ttf")),
+    ]:
+        candidates = [Path(os.environ.get(override, ""))]
+        for location in ("/System/Library/Fonts/Supplemental", "/usr/share/fonts/truetype/dejavu",
+                         "/usr/share/fonts/dejavu", "C:/Windows/Fonts"):
+            candidates.extend(Path(location) / name for name in filenames)
+        source = next((p for p in candidates if p.is_file()), None)
+        if source is None:
+            raise RuntimeError(f"Set {override} to an installed TrueType font")
+        shutil.copyfile(source, WORK / f"{weight}.ttf")
+
+
+def text_filter(name, value, x, y, size, color="white", weight="regular"):
+    # textfile keeps punctuation, percent signs and quotes out of the filter syntax.
+    filename = f"label-{name}.txt"
+    (WORK / filename).write_text(value, encoding="utf-8")
+    return (f"drawtext=textfile={filename}:expansion=none:fontfile={weight}.ttf:"
+            f"fontsize={size}:fontcolor={color}:x={x}:y={y}")
+
+
+def timeline(filename, paths, fps=None):
+    lines = ["ffconcat version 1.0"]
+    for path in paths:
+        lines.append(f"file '{path}'")
+        if fps:
+            lines.extend([f"option framerate {fps}", f"duration {1 / fps:.6f}"])
+    (WORK / filename).write_text("\n".join(lines) + "\n")
+    return ["-f", "concat", "-safe", "0", "-i", filename]
+
+
 class Take:
     def __init__(self, stage):
-        self.directory = WORK / stage
-        self.data = json.loads((self.directory / "take.json").read_text())
+        self.stage = stage
+        self.data = json.loads((WORK / stage / "take.json").read_text())
         self.marks = self.data["marks"]
         self.times, self.files = zip(*self.data["frames"])
-        self.loaded = None
-        self.image = None
 
-    def frame(self, ms):
+    def at(self, ms):
         index = max(0, bisect_right(self.times, ms) - 1)
-        if self.loaded != index:
-            with Image.open(self.directory / self.files[index]) as source:
-                self.image = source.convert("RGB")
-            self.loaded = index
-        return self.image
+        return f"{self.stage}/{self.files[index]}"
 
 
-def dashboard(image, key):
-    # Cut in on the function and its queue while preserving the dashboard header.
-    if key not in ("wake", "sleep", "burst", "scale", "drain"):
-        return image
-    top = 132 if key == "wake" else 205
-    region = image.crop((492, top, 1332, top + 348))
-    canvas = image.copy()
-    canvas.paste(region.resize((1440, 596), Image.Resampling.LANCZOS), (0, 108))
-    return canvas
-
-
-def card(scene, speed):
-    img = Image.new("RGB", (1920, 1080), INK)
-    draw = ImageDraw.Draw(img)
-    draw.rectangle((0, 0, 1920, 896), fill="#e3e8ef")
-    active = chapters.index(scene["chapter"])
-    for i in range(4):
-        draw.rectangle((480*i, 896, 480*i+475, 901), fill="#586dff" if i == active else "#384967")
-    draw.text((54, 914), scene["chapter"].upper(), fill="#adbaff", font=font(23, True))
-    draw.text((52, 943), scene["title"], fill="white", font=font(48, True))
-    draw.text((54, 1010), scene["caption"], fill="#e1e7f0", font=font(30))
+def encode_clip(scene, take, begin, end, speed, count):
+    key = scene["key"]
+    inputs = timeline("frames.ffconcat", (
+        take.at(min(end - 1, begin + 1000 * i / FPS * speed)) for i in range(count)
+    ), FPS)
+    prefix = "[0:v]"
+    if key in ("wake", "sleep", "burst", "scale", "drain"):
+        top = 132 if key == "wake" else 205
+        prefix += ("split[header][map];[header]crop=1440:108:0:0[h];"
+                   f"[map]crop=840:348:492:{top},scale=1440:596:flags=lanczos[m];[h][m]vstack,")
+    filters = ["scale=1824:892:flags=lanczos", "setsar=1", "pad=1920:896:48:0:0xe3e8ef",
+               "pad=1920:1080:0:0:0x121f38"]
+    for i, chapter in enumerate(chapters):
+        color = "0x586dff" if scene["chapter"] == chapter else "0x384967"
+        filters.append(f"drawbox=x={480*i}:y=896:w=476:h=6:color={color}:t=fill")
+    filters.extend([text_filter("chapter", scene["chapter"].upper(), 54, 918, 23, "0xadbaff", "bold"),
+                    text_filter("title", scene["title"], 52, 950, 48, weight="bold"),
+                    text_filter("caption", scene["caption"], 54, 1014, 30, "0xe1e7f0")])
     if speed > 1.02:
-        draw.text((1860, 913), f"{speed:.1f}× elapsed time", fill="white", anchor="ra", font=font(24))
-    return img
+        filters.append(text_filter("rate", f"{speed:.1f}× elapsed time", "1860-tw", 917, 24))
+    ffmpeg(*inputs, "-filter_complex", prefix + ",".join(filters),
+           "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+           "-pix_fmt", "yuv420p", f"{key}.mp4")
+    if key == "scale":
+        ffmpeg("-ss", str((count - 4) / FPS), "-i", f"{key}.mp4", "-frames:v", "1",
+               "-vf", "scale=960:540:flags=lanczos", "-c:v", "libwebp", "-quality", "87", str(OUT / "poster.webp"))
 
 
 def preview(takes):
-    # Six seconds per chapter. Concentrate on the actual delivery paths and pod dots.
+    # Six seconds per chapter. The crop includes each recipient and its status.
     specs = [
-        ("sync", "wake", (505, 177, 1273, 536), "One HTTP call wakes a sleeping pod"),
-        ("async", "scale", (570, 227, 1310, 574), "30 queued requests scale out to four pods"),
-        ("subscriptions", "broadcast", (337, 198, 1249, 625), "One broadcast reaches four local caches"),
-        ("subscriptions", "ack", (219, 190, 1319, 704), "One replica per function, per attempt"),
+        ("sync", "wake", (505,177,768,359), "One HTTP call wakes a sleeping pod"),
+        ("async", "scale", (570,227,740,347), "30 queued requests scale out to four pods"),
+        ("subscriptions", "broadcast", (337,198,912,427), "One broadcast reaches four local caches"),
+        ("subscriptions", "ack", (219,190,1100,514), "One replica per function, per attempt"),
     ]
-    raw = []
-    label_font, chapter_font = font(28, True), font(14, True)
     for i, (stage, key, box, label) in enumerate(specs):
         take = takes[stage]
-        start = take.marks[key]
-        for frame in range(48):
-            # Keep the short broadcast/stream trips at normal speed.
-            delta = (frame / 8) * (1.8 if key == "scale" else 1)
-            image = take.frame(start + delta * 1000)
-            shot = Image.new("RGB", (800, 450), INK)
-            shot.paste(image.crop(box).resize((800, 374), Image.Resampling.LANCZOS))
-            d = ImageDraw.Draw(shot)
-            d.rectangle((0, 374, 800, 378), fill="#556bff")
-            d.text((17, 386), "SLIMFAAS  /  " + chapters[i].upper() + ("   ·   1.8×" if key == "scale" else ""),
-                   font=chapter_font, fill="#b5c1ff")
-            d.text((16, 405), label, font=label_font, fill="white")
-            raw.append(shot)
-    palette = Image.new("RGB", (800, 450 * 12))
-    for i in range(12):
-        palette.paste(raw[i * 16], (0, i * 450))
-    palette = palette.quantize(256)
-    indexed = [frame.quantize(palette=palette, dither=Image.Dither.NONE) for frame in raw]
-    indexed[0].save(OUT / "preview.gif", save_all=True, append_images=indexed[1:],
-                    optimize=True, duration=[120, 130] * 96, loop=0, disposal=1)
+        speed = 1.8 if key == "scale" else 1
+        inputs = timeline("highlight.ffconcat", (
+            take.at(take.marks[key] + frame * 125 * speed) for frame in range(48)
+        ), 8)
+        x, y, w, h = box
+        chapter = "SLIMFAAS  /  " + chapters[i].upper() + ("   ·   1.8×" if speed != 1 else "")
+        filters = [f"crop={w}:{h}:{x}:{y}", "scale=800:374:flags=lanczos", "setsar=1",
+                   "pad=800:450:0:0:0x121f38", "drawbox=x=0:y=374:w=800:h=5:color=0x556bff:t=fill",
+                   text_filter("gif-chapter", chapter, 17, 388, 14, "0xb5c1ff", "bold"),
+                   text_filter("gif-title", label, 16, 410, 28, weight="bold")]
+        ffmpeg(*inputs, "-vf", ",".join(filters), "-c:v", "ffv1", f"highlight-{i}.mkv")
+    inputs = timeline("highlights.ffconcat", [f"highlight-{i}.mkv" for i in range(4)])
+    ffmpeg(*inputs, "-filter_complex", "split[a][b];[a]palettegen[p];[b][p]paletteuse=dither=none",
+           "-loop", "0", str(OUT / "preview.gif"))
 
 
 def main():
@@ -185,29 +197,15 @@ def main():
         wav.writeframes(audio)
     (OUT / "captions.vtt").write_text("\n".join(vtt))
     (OUT / "transcript.txt").write_text("\n".join(transcript))
-    encode = subprocess.Popen([FFMPEG, "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
-        "-s", "1920x1080", "-r", str(FPS), "-i", "-", "-i", str(WORK / "narration.wav"),
-        "-i", str(OUT / "captions.vtt"), "-map", "0:v", "-map", "1:a", "-map", "2:s",
-        "-c:s", "mov_text", "-metadata:s:s:0", "language=eng", "-metadata:s:a:0", "language=eng",
-        "-metadata", "title=SlimFaas Live Stream dashboard", "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", str(OUT / "dashboard.mp4")], stdin=subprocess.PIPE)
-    for scene, take, begin, end, speed, count in clips:
-        template = card(scene, speed)
-        previous = None
-        for i in range(count):
-            image = take.frame(min(end - 1, begin + 1000 * i / FPS * speed))
-            if image is not previous:
-                frame = template.copy()
-                frame.paste(dashboard(image, scene["key"]).resize((1824, 892), Image.Resampling.LANCZOS), (48, 0))
-                pixels = frame.tobytes()
-                if scene["key"] == "scale" and i >= count // 2:
-                    frame.resize((960, 540), Image.Resampling.LANCZOS).save(OUT / "poster.webp", quality=87)
-                previous = image
-            encode.stdin.write(pixels)
-        print(scene["key"], round(count / FPS, 2), round(speed, 2), flush=True)
-    encode.stdin.close()
-    if encode.wait():
-        raise RuntimeError("MP4 encoding failed")
+    prepare_fonts()
+    for clip in clips:
+        encode_clip(*clip)
+        print(clip[0]["key"], round(clip[-1] / FPS, 2), flush=True)
+    inputs = timeline("edit.ffconcat", [scene["key"] + ".mp4" for scene in scenes])
+    ffmpeg(*inputs, "-i", "narration.wav", "-i", str(OUT / "captions.vtt"),
+           "-map", "0:v", "-map", "1:a", "-map", "2:s", "-c:v", "copy", "-c:a", "aac", "-b:a", "112k",
+           "-c:s", "mov_text", "-metadata:s:s:0", "language=eng", "-metadata:s:a:0", "language=eng",
+           "-metadata", "title=SlimFaas Live Stream dashboard", "-movflags", "+faststart", str(OUT / "dashboard.mp4"))
     preview(takes)
     print(f"Finished {elapsed:.2f}s; GIF {(OUT / 'preview.gif').stat().st_size:,} bytes")
 

@@ -4,32 +4,28 @@ The [finished MP4](../../docs/media/live-stream/dashboard.mp4) shows the real da
 
 ## Capture on a fresh cluster
 
-Run from the repository root with Docker, kind, kubectl, Node 26, Python 3.12, FFmpeg with libx264 and about four available CPU cores. The Fibonacci computation is recursive and CPU-bound. The recording uses a private kubeconfig, a loopback port forward and the namespace `slimfaas-demo` in `kind-slimfaas-film`. For Podman, use `podman` for builds and set `KIND_EXPERIMENTAL_PROVIDER=podman`.
+Run from the repository root with Docker, kind, kubectl, Node 26, Python 3.12, FFmpeg with libx264, drawtext and palette filters and about four available CPU cores. The Fibonacci computation is recursive and CPU-bound. The recording uses a private kubeconfig, a loopback port forward and the namespace `slimfaas-demo` in `kind-slimfaas-film`. For Podman, use `podman` for builds and set `KIND_EXPERIMENTAL_PROVIDER=podman`.
 
 ```sh
 WORK="$PWD/artifacts/live-stream-video"
 mkdir -p "$WORK/voice"
-python3.12 -m venv "$WORK/venv"
-. "$WORK/venv/bin/activate"
-pip install -r demo/live-stream-video/requirements.txt
 (cd src/SlimFaas/ClientApp && npm ci && npx playwright install chromium)
 
 docker build -t localhost/slimfaas-film:record .
 docker build -t localhost/fibonacci-film:record -f samples/Fibonacci/Dockerfile .
 kind create cluster --name slimfaas-film --kubeconfig "$WORK/kubeconfig" --wait 120s
 kind load docker-image --name slimfaas-film localhost/slimfaas-film:record localhost/fibonacci-film:record
-python demo/live-stream-video/cluster.py start
+python3 demo/live-stream-video/cluster.py start
 kubectl --kubeconfig "$WORK/kubeconfig" --context kind-slimfaas-film -n slimfaas-demo rollout status statefulset/slimfaas --timeout=5m
 kubectl --kubeconfig "$WORK/kubeconfig" --context kind-slimfaas-film -n slimfaas-demo port-forward pod/slimfaas-0 39490:5000
 ```
 
-Leave the port forward running and execute the takes in a second terminal. Activate the same virtual environment there.
+Leave the port forward running and execute the takes in a second terminal.
 
 ```sh
-. artifacts/live-stream-video/venv/bin/activate
 node demo/live-stream-video/capture.mjs sync
 node demo/live-stream-video/capture.mjs async
-python demo/live-stream-video/cluster.py subscribers
+python3 demo/live-stream-video/cluster.py subscribers
 node demo/live-stream-video/capture.mjs subscriptions
 ```
 
@@ -50,8 +46,8 @@ kind delete cluster --name slimfaas-film --kubeconfig "$PWD/artifacts/live-strea
 The film uses the English synthetic voice `af_heart` from [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M). The lossless voice master is included so you can reproduce the edit offline. The generator used the [int8 Kokoro ONNX model](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0) at speed 1.04.
 
 ```sh
-python demo/live-stream-video/narrate.py
-python demo/live-stream-video/render.py
+python3 demo/live-stream-video/narrate.py
+python3 demo/live-stream-video/render.py
 ```
 
 To synthesize a revised script, pass your local Kokoro server to the first command with `--speech-url http://127.0.0.1:8880/v1/audio/speech`. To record a human narrator, skip the first command and supply one mono 24 kHz 16-bit PCM WAV named for each key in [scenes.json](scenes.json) under `artifacts/live-stream-video/voice`.

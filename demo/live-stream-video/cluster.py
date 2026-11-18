@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 import subprocess
 
-import yaml
-
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / "artifacts/live-stream-video"
 KUBE = ["kubectl", "--kubeconfig", str(WORK / "kubeconfig"), "--context", "kind-slimfaas-film"]
@@ -13,7 +11,10 @@ NAMESPACE = "slimfaas-demo"
 
 
 def manifests(name):
-    return yaml.safe_load_all((ROOT / "demo" / name).read_text(encoding="utf-8-sig"))
+    result = subprocess.run([*KUBE, "create", "--dry-run=client", "--validate=false", "-f",
+                             str(ROOT / "demo" / name), "-o", r'jsonpath={@}{"\n"}'],
+                            capture_output=True, text=True, check=True)
+    return [json.loads(line) for line in result.stdout.splitlines()]
 
 
 def install(stage):
@@ -69,7 +70,7 @@ def install(stage):
                 role = "evaluator" if name == "fibonacci3" else "audit"
                 container["env"].append({"name": "AgentTourRole", "value": role})
         resources.append(resource)
-    subprocess.run([*KUBE, "apply", "-f", "-"], input=yaml.safe_dump_all(resources),
+    subprocess.run([*KUBE, "apply", "-f", "-"], input=json.dumps({"apiVersion": "v1", "kind": "List", "items": resources}),
                    text=True, check=True)
 
 
