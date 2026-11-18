@@ -294,6 +294,32 @@ paths:
     }
 
     [Fact]
+    public void ParseEndpoints_Handles_Nullable_Union_Type_In_Json_Content_Query_Parameter()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.1.0",
+              "paths": { "/places": { "get": {
+                "parameters": [
+                  { "name": "geometry", "in": "query",
+                    "content": { "application/geo+json": { "schema": { "type": ["object", "null"] } } } },
+                  { "name": "filter", "in": "query", "schema": { "type": ["null", "string"] } }
+                ]
+              } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        var geometry = parameters.Single(p => p.Name == "geometry");
+        Assert.True(geometry.IsJsonContent);
+        Assert.Equal("object", geometry.SchemaType);
+        Assert.NotNull(geometry.Schema);
+        Assert.Equal("string", parameters.Single(p => p.Name == "filter").SchemaType);
+    }
+
+    [Fact]
     public void ParseEndpoints_Ignores_NonJson_Content_Query_Parameter()
     {
         var (svc, _) = Create();

@@ -147,8 +147,8 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 // "Simple" type (fallback; not used if Schema is provided)
                 string? schemaType =
                     schemaEl is JsonElement sch1 && sch1.TryGetProperty("type", out var typEl)
-                        ? typEl.GetString()
-                        : (param.TryGetProperty("type", out var typLegacy) ? typLegacy.GetString() : "string");
+                        ? ScalarTypeName(typEl)
+                        : (param.TryGetProperty("type", out var typLegacy) ? ScalarTypeName(typLegacy) : "string");
 
                 var location = param.GetProperty("in").GetString();
                 var (style, explode) = SerializationStyle(param, location, isSwagger2);
@@ -360,6 +360,25 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         }
 
         return false;
+    }
+
+    // OpenAPI 3.1 allows "type" to be a union such as ["object", "null"]: keep the first non-null member.
+    private static string? ScalarTypeName(JsonElement type)
+    {
+        if (type.ValueKind == JsonValueKind.String)
+            return type.GetString();
+
+        if (type.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var member in type.EnumerateArray())
+            {
+                if (member.ValueKind == JsonValueKind.String &&
+                    !string.Equals(member.GetString(), "null", StringComparison.OrdinalIgnoreCase))
+                    return member.GetString();
+            }
+        }
+
+        return "string";
     }
 
     // application/json, or a structured syntax suffix such as application/geo+json. Media type parameters
