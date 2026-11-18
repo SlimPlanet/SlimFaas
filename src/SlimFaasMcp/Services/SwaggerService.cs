@@ -89,6 +89,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         var paths     = root.GetProperty("paths");
         var endpoints = new List<Endpoint>();
         var expander  = new OpenApiSchemaExpander(root);
+        var isSwagger2 = root.TryGetProperty("swagger", out _);
 
         foreach (var path in paths.EnumerateObject())
         {
@@ -119,12 +120,17 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     schemaEl = sch;
                 else if (param.TryGetProperty("content", out var cnt) && cnt.ValueKind == JsonValueKind.Object)
                 {
-                    // OpenAPI autorise content/application/json pour query params
-                    if (cnt.TryGetProperty("application/json", out var cj))
+                    // OpenAPI autorise content/application/json (ou un type en +json) pour query params
+                    foreach (var media in cnt.EnumerateObject())
                     {
+                        if (!IsJsonMediaType(media.Name))
+                            continue;
+
                         isJsonContent = true;
-                        if (cj.TryGetProperty("schema", out var sch2))
+                        if (media.Value.ValueKind == JsonValueKind.Object &&
+                            media.Value.TryGetProperty("schema", out var sch2))
                             schemaEl = sch2;
+                        break;
                     }
                 }
 
@@ -141,17 +147,21 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 // "Simple" type (fallback; not used if Schema is provided)
                 string? schemaType =
                     schemaEl is JsonElement sch1 && sch1.TryGetProperty("type", out var typEl)
-                        ? typEl.GetString()
-                        : (param.TryGetProperty("type", out var typLegacy) ? typLegacy.GetString() : "string");
+                        ? ScalarTypeName(typEl)
+                        : (param.TryGetProperty("type", out var typLegacy) ? ScalarTypeName(typLegacy) : "string");
+
+                var location = param.GetProperty("in").GetString();
+                var (style, explode) = SerializationStyle(param, location, isSwagger2);
 
                 parameters.Add(new Parameter
                 {
                     Name        = param.GetProperty("name").GetString(),
-                    In          = param.GetProperty("in").GetString(),
+                    In          = location,
                     Required    = param.TryGetProperty("required", out var req) && TryParseBool(req, out var required) && required,
                     Description = descr,
                     SchemaType  = schemaType,
-                    Explode     = param.TryGetProperty("explode", out var explodeEl) && TryParseBool(explodeEl, out var explode) && explode,
+                    Style       = style,
+                    Explode     = explode,
                     IsJsonContent = isJsonContent,
                     // ✅ Here: we store the expanded schema; anyOf/oneOf/allOf are preserved
                     Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(ExpandAndSanitize(expander, se)!,param) : null
@@ -350,6 +360,66 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         }
 
         return false;
+    }
+
+    // OpenAPI 3.1 allows "type" to be a union such as ["object", "null"]: keep the first non-null member.
+    private static string? ScalarTypeName(JsonElement type)
+    {
+        if (type.ValueKind == JsonValueKind.String)
+            return type.GetString();
+
+        if (type.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var member in type.EnumerateArray())
+            {
+                if (member.ValueKind == JsonValueKind.String &&
+                    !string.Equals(member.GetString(), "null", StringComparison.OrdinalIgnoreCase))
+                    return member.GetString();
+            }
+        }
+
+        return "string";
+    }
+
+    // application/json, or a structured syntax suffix such as application/geo+json. Media type parameters
+    // (charset) are ignored.
+    private static bool IsJsonMediaType(string mediaType)
+    {
+        int separator = mediaType.IndexOf(';', StringComparison.Ordinal);
+        string type = (separator >= 0 ? mediaType[..separator] : mediaType).Trim();
+        return type.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+               || type.EndsWith("+json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // OpenAPI 3 defaults to the form style with explode for query and cookie parameters, and to the simple style
+    // without explode for path and header parameters. Swagger 2.0 has no style: arrays use collectionFormat, csv
+    // (comma-separated) by default and multi to repeat the parameter.
+    private static (string Style, bool Explode) SerializationStyle(JsonElement param, string? location, bool isSwagger2)
+    {
+        var defaultStyle = location is "query" or "cookie" or "formData" ? "form" : "simple";
+
+        if (isSwagger2)
+        {
+            var collectionFormat = param.TryGetProperty("collectionFormat", out var cf) && cf.ValueKind == JsonValueKind.String
+                ? cf.GetString()
+                : null;
+            return collectionFormat switch
+            {
+                "multi" => ("form", true),
+                "ssv" => ("spaceDelimited", false),
+                "pipes" => ("pipeDelimited", false),
+                "tsv" => ("tabDelimited", false),
+                _ => (defaultStyle, false)
+            };
+        }
+
+        var style = param.TryGetProperty("style", out var styleEl) && styleEl.ValueKind == JsonValueKind.String
+            ? styleEl.GetString()!
+            : defaultStyle;
+        var explode = param.TryGetProperty("explode", out var explodeEl) && TryParseBool(explodeEl, out var explicitExplode)
+            ? explicitExplode
+            : style == "form";
+        return (style, explode);
     }
 
     private static object CopyDescriptionFromParameter(object expanded, JsonElement param)
