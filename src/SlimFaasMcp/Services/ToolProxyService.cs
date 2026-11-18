@@ -159,7 +159,9 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
 
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            baseUrl = ExtractBaseUrl(swagger, swaggerUrl)
+            // Relative URLs resolve against where the document was finally retrieved, after any redirect.
+            string documentUrl = swaggerService.GetDocumentUri(swagger)?.AbsoluteUri ?? swaggerUrl;
+            baseUrl = ExtractBaseUrl(swagger, documentUrl, endpoint.Url, endpoint.Verb)
                       ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
         }
 
@@ -570,8 +572,9 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
     // values, or the Swagger 2.0 scheme, host and basePath. As both specifications define, a relative URL resolves
     // against the URL of the document, a document without servers or host uses "/", and a Swagger 2.0 document
     // without schemes uses the scheme of the document URL. A Swagger 2.0 document without host is served from the host
-    // of the document URL. A URL with a variable that has no default value has no base URL.
-    public static string? ExtractBaseUrl(JsonDocument swagger, string swaggerUrl)
+    // of the document URL. A URL with a variable that has no default value has no base URL. For an OpenAPI 3
+    // operation, the servers of the operation come first, then those of its path item, then those of the document.
+    public static string? ExtractBaseUrl(JsonDocument swagger, string swaggerUrl, string? path = null, string? verb = null)
     {
         JsonElement root = swagger.RootElement;
         Uri? documentUri = Uri.TryCreate(swaggerUrl, UriKind.Absolute, out Uri? parsedDocumentUri)
@@ -579,9 +582,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             : null;
 
         string url = "/";
-        if (root.TryGetProperty("servers", out JsonElement serversArr) &&
-            serversArr.ValueKind == JsonValueKind.Array &&
-            serversArr.GetArrayLength() > 0 &&
+        if (FindServers(root, path, verb) is { } serversArr &&
             serversArr[0].ValueKind == JsonValueKind.Object &&
             serversArr[0].TryGetProperty("url", out JsonElement urlProp) &&
             urlProp.ValueKind == JsonValueKind.String)
@@ -645,6 +646,45 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             ? resolvedUri.AbsoluteUri
             : null;
     }
+
+    // The servers that apply to an operation: the non-empty servers of the operation, else of its path item, else of the
+    // document.
+    private static JsonElement? FindServers(JsonElement root, string? path, string? verb)
+    {
+        if (path is not null &&
+            root.TryGetProperty("paths", out JsonElement paths) &&
+            paths.ValueKind == JsonValueKind.Object &&
+            paths.TryGetProperty(path, out JsonElement pathItem) &&
+            pathItem.ValueKind == JsonValueKind.Object)
+        {
+            if (verb is not null)
+            {
+                foreach (JsonProperty member in pathItem.EnumerateObject())
+                {
+                    if (string.Equals(member.Name, verb, StringComparison.OrdinalIgnoreCase) &&
+                        member.Value.ValueKind == JsonValueKind.Object &&
+                        NonEmptyServers(member.Value) is { } operationServers)
+                    {
+                        return operationServers;
+                    }
+                }
+            }
+
+            if (NonEmptyServers(pathItem) is { } pathServers)
+            {
+                return pathServers;
+            }
+        }
+
+        return NonEmptyServers(root);
+    }
+
+    private static JsonElement? NonEmptyServers(JsonElement element) =>
+        element.TryGetProperty("servers", out JsonElement servers) &&
+        servers.ValueKind == JsonValueKind.Array &&
+        servers.GetArrayLength() > 0
+            ? servers
+            : null;
 
     private static async Task<ProxyCallResult> ToProxyCallResult(HttpResponseMessage resp)
     {

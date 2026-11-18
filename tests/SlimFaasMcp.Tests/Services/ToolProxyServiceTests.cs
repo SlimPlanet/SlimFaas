@@ -165,6 +165,72 @@ public class ToolProxyServiceTests
         Assert.Equal([DocumentUrl], requestedUrls);
     }
 
+    // The servers of an operation come first, then those of its path item, then those of the document.
+    [Theory]
+    [InlineData("""{ "openapi": "3.0.0", "paths": { "/pets": { "get": { "servers": [ { "url": "/animal-api" } ] } } } }""",
+        "https://api.example.com/animal-api/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "paths": { "/pets": { "servers": [ { "url": "/animal-api" } ], "get": { } } } }""",
+        "https://api.example.com/animal-api/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "/root" } ], "paths": { "/pets": { "servers": [ { "url": "/animal-api" } ], "get": { } } } }""",
+        "https://api.example.com/animal-api/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "/root" } ], "paths": { "/pets": { "servers": [ { "url": "/path" } ], "get": { "servers": [ { "url": "/operation" } ] } } } }""",
+        "https://api.example.com/operation/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "/root" } ], "paths": { "/pets": { "get": { "servers": [ ] } } } }""",
+        "https://api.example.com/root/pets")]
+    [InlineData("""{ "openapi": "3.0.0", "servers": [ { "url": "/root" } ], "paths": { "/pets": { "get": { }, "post": { "servers": [ { "url": "/other" } ] } } } }""",
+        "https://api.example.com/root/pets")]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Uses_The_Servers_Of_The_Operation(string swaggerJson, string expectedUrl)
+    {
+        var (svc, requestedUrls) = CreateWithDocument(swaggerJson);
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        var result = await svc.ExecuteToolAsync(DocumentUrl, "get_pets", argsDoc.RootElement);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(expectedUrl, requestedUrls[^1]);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Resolves_A_Relative_Server_Url_Against_The_Redirected_Document_Url()
+    {
+        const string inputUrl = "https://api.example.com/latest";
+        const string finalUrl = "https://api.example.com/releases/current/openapi.json";
+        var requestedUrls = new List<string>();
+        var stub = new StubHttpMessageHandler(req =>
+        {
+            var url = req.RequestUri!.AbsoluteUri;
+            requestedUrls.Add(url);
+            if (url == inputUrl)
+            {
+                // What HttpClient reports once it has followed a redirect: the request that got the final response.
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{ "openapi": "3.0.0", "servers": [ { "url": "v1" } ], """ + PetsOperation + "}",
+                        Encoding.UTF8, "application/json"),
+                    RequestMessage = new HttpRequestMessage(HttpMethod.Get, finalUrl)
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+                   { Content = new StringContent("""{ "pets": [] }""", Encoding.UTF8, "application/json") };
+        });
+        var factory = new FakeHttpClientFactory(stub);
+        var swagger = new SwaggerService(factory, new MemoryCache(new MemoryCacheOptions()));
+        var svc = new ToolProxyService(swagger, factory, NullLogger<ToolProxyService>.Instance);
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        // The second call reads the document from the cache.
+        for (var i = 0; i < 2; i++)
+        {
+            var result = await svc.ExecuteToolAsync(inputUrl, "get_pets", argsDoc.RootElement);
+
+            Assert.Equal(200, result.StatusCode);
+            Assert.Equal("https://api.example.com/releases/current/v1/pets", requestedUrls[^1]);
+        }
+
+        Assert.Equal(1, requestedUrls.Count(u => u == inputUrl));
+    }
+
     private const string DocumentUrl = "https://api.example.com/docs/openapi.json";
 
     private static (ToolProxyService svc, List<string> requestedUrls) CreateWithDocument(string swaggerJson,
