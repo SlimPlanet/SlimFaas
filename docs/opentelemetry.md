@@ -153,7 +153,7 @@ See [configuration and failure behavior](autoscaling.md#external-metrics-and-opt
 
 ## Interactive scaling diagnostics
 
-Open **Live Stream → Scaling** to inspect real trigger values, source health, policy/stabilization constraints and replica application outcomes. The view reads structured decisions from the leader; it does not scrape Prometheus supervision metrics to reconstruct decisions. Existing metric names and labels are preserved.
+Open **Views → Scaling** to inspect real trigger values, source health, policy/stabilization constraints and replica application outcomes. The view reads structured decisions from the leader; it does not scrape Prometheus supervision metrics to reconstruct decisions. Existing metric names and labels are preserved.
 
 Playground previews emit no production scaling telemetry and do not extend real decision histories. Their results and capture time are returned directly to the browser. The bounded live journal is for recent troubleshooting rather than persistent audit storage; use your existing metrics/logs pipeline for longer retention. See [Scaling diagnostics and playground](user-interface.md#scaling-diagnostics-and-playground).
 

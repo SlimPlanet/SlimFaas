@@ -256,5 +256,12 @@ export function selectedEvent(topology: Topology, event: NetworkActivityEvent, s
 
 export function filterNodes(topology: Topology, search: string) {
   const query = search.trim().toLowerCase();
-  return topology.nodes.filter(n => !query || `${n.label} ${n.detail} ${n.kind}`.toLowerCase().includes(query));
+  if (!query) return topology.nodes;
+  const exact: MapNode[] = [];
+  const matches: MapNode[] = [];
+  for (const node of topology.nodes) {
+    if (node.label.toLowerCase() === query) exact.push(node);
+    else if (`${node.label} ${node.detail} ${node.kind}`.toLowerCase().includes(query)) matches.push(node);
+  }
+  return exact.concat(matches);
 }

@@ -4,17 +4,19 @@ import type { NetworkActivityEvent } from '../types.ts';
 import { selectedEvent, type MapNode, type MapGroup, type Topology } from '../lib/topology.ts';
 
 import { TrafficPlayback, displayPath, markerProgress, type Speed } from '../lib/traffic.ts';
+import { compactLabel } from '../lib/dashboard';
 import { drawSymbol } from '../lib/canvasSymbols.ts';
 
 interface Props {
   topology: Topology; events: NetworkActivityEvent[]; visibleEvents: NetworkActivityEvent[];
-  dataAvailable?: boolean;
+  dataAvailable?: boolean; wakeable: ReadonlySet<string>; onWake?: (name: string) => void; cooling?: ReadonlySet<string>;
   activitySession: number; speed: Speed; eventType: string; isolate: boolean; selected: string | null;
   onSelect: (id: string) => void; paused: boolean;
 }
 interface Camera { zoom: (factor: number) => void; fit: () => void; focus: (id: string) => void }
 
 export default function TrafficCanvas(props: Props) {
+  const [wakeButtons, setWakeButtons] = useState<{ name: string; x: number; y: number }[]>([]);
   const [hover, setHover] = useState('');
   const [activityStatus, setActivityStatus] = useState('Waiting for live activity');
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -124,6 +126,7 @@ export default function TrafficCanvas(props: Props) {
       const group = n as MapGroup;
       return { x: n.x + (n.parent ? 0 : group.width / 2), y: n.y + (n.parent ? 0 : group.height / 2) };
     };
+    let wakeLayout: { model: Topology; transform: typeof transform; names: ReadonlySet<string>; width: number; height: number } | null = null;
     const draw = (now: number) => {
       frame = requestAnimationFrame(draw);
       const { topology: model, events, visibleEvents, activitySession, speed, eventType, isolate, selected, paused, dataAvailable } = current.current;
@@ -136,6 +139,18 @@ export default function TrafficCanvas(props: Props) {
           fittedWorkloads = true;
         }
         previousModel = model; dirty.current = true;
+      }
+      if (current.current.onWake && (wakeLayout?.model !== model || wakeLayout.transform !== transform ||
+          wakeLayout.names !== current.current.wakeable || wakeLayout.width !== width || wakeLayout.height !== height)) {
+        wakeLayout = { model, transform, names: current.current.wakeable, width, height };
+        const buttons = [];
+        for (const group of model.groups) {
+          if (group.kind !== 'function' || !current.current.wakeable.has(group.label) ||
+              group.width * transform.k < 165 || group.height * transform.k < 82) continue;
+          const [x, y] = transform.apply([group.x + group.width, group.y]);
+          if (x > 65 && x <= width && y >= 0 && y < height - 32) buttons.push({ name: group.label, x: x - 68, y: y + 4 });
+        }
+        setWakeButtons(buttons);
       }
       const hadMarkers = playback.markers.size > 0 || playback.arrivals.size > 0;
       playback.update(events, activitySession, paused || document.hidden, now, model, speed, eventType, selected, isolate, dataAvailable);
@@ -199,8 +214,8 @@ export default function TrafficCanvas(props: Props) {
           context.fillStyle = colors.ink; context.font = `600 ${13 / k}px system-ui`;
           const maxChars = Math.max(10, Math.floor(boxWidth * k / 8) - 3);
           const groupLabel = group.kind === 'external' ? 'External callers' : group.label;
-          const label = groupLabel.length > maxChars ? `${groupLabel.slice(0, maxChars - 1)}…` : groupLabel;
-          context.fillText(label, boxX + 12 / k, boxY + (compact ? 30 : 38) / k);
+          const label = compactLabel(groupLabel, maxChars);
+          context.fillText(label, boxX + 12 / k, boxY + (compact ? 30 : 38) / k, boxWidth - 24 / k);
           if (boxHeight * k > (compact ? 48 : 65)) {
             context.font = `${11 / k}px system-ui`;
             const footerY = boxY + boxHeight - (compact ? 8 : 12) / k;
@@ -317,18 +332,21 @@ export default function TrafficCanvas(props: Props) {
     };
   }, []);
 
-  useEffect(() => { if (props.selected) camera.current?.focus(props.selected); }, [props.selected]);
 
   return <div className="traffic-canvas">
-    <canvas ref={canvasRef} className="traffic-canvas__surface" tabIndex={0} aria-label="Live traffic map. Use arrow keys to pan, plus and minus to zoom, Home to fit. Select instances in the list below." />
+    <canvas ref={canvasRef} className="traffic-canvas__surface" tabIndex={0} aria-label="Live traffic map. Use arrow keys to pan, plus and minus to zoom, Home to fit. Open Actors to select an instance." />
+    {wakeButtons.filter(button => props.wakeable.has(button.name)).map(button =>
+      <button key={button.name} className="button traffic-canvas__wake" type="button" aria-label={`Wake up ${button.name}`}
+        disabled={props.cooling?.has(button.name)} style={{ left: button.x, top: button.y }}
+        onClick={() => props.onWake?.(button.name)}>{props.cooling?.has(button.name) ? 'Waking…' : 'Wake up'}</button>)}
     <div className="traffic-canvas__controls">
       <button type="button" className="button button--quiet" aria-label="Zoom in" onClick={() => camera.current?.zoom(1.4)}>+</button>
       <button type="button" className="button button--quiet" aria-label="Zoom out" onClick={() => camera.current?.zoom(1 / 1.4)}>−</button>
       <button type="button" className="button button--quiet" onClick={() => camera.current?.fit()}>Fit map</button>
-      {props.selected && props.topology.byId.get(props.selected)?.kind === 'function' && <button type="button" className="button button--quiet" onClick={() => camera.current?.focus(props.selected!)}>Show replicas</button>}
+      {props.selected && <button type="button" className="button button--quiet" onClick={() => camera.current?.focus(props.selected!)}>{props.topology.byId.get(props.selected)?.kind === 'function' ? 'Show replicas' : 'Locate actor'}</button>}
     </div>
     <output className="traffic-canvas__activity" aria-live="off">{activityStatus}</output>
     {hover && <output className="traffic-canvas__hover">{hover}</output>}
-    <p className="traffic-canvas__hint">Scroll to zoom · Drag to explore · Select an instance below</p>
+    <p className="traffic-canvas__hint">Scroll to zoom · Drag to explore · Select an actor to inspect</p>
   </div>;
 }

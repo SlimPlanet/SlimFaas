@@ -1,4 +1,8 @@
+using System.Net;
+using System.Text;
+using k8s;
 using k8s.Models;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests.Kubernetes;
@@ -52,6 +56,69 @@ public sealed class KubernetesPodOwnershipTests
 
         Assert.Empty(KubernetesService.GetControllerPodNames(pods, new V1ReplicaSetList { Items = [set] }, "Deployment", "api", "a"));
         Assert.Empty(KubernetesService.GetControllerPodNames(pods, null, "Deployment", "api", null));
+    }
+
+    [Fact]
+    public async Task Browser_inventory_preserves_each_speech_deployment_and_its_ready_pods()
+    {
+        string[] names = ["smartguide-api-text-to-speech", "smartguide-api-text-to-speech-gemini25flash", "smartguide-api-text-to-speech-piper"];
+        V1DeploymentList deployments = new() { Items = [] };
+        V1ReplicaSetList sets = new() { Items = [] };
+        V1PodList pods = new() { Items = [] };
+        for (int index = 0; index < names.Length; index++)
+        {
+            string name = names[index];
+            deployments.Items.Add(new V1Deployment
+            {
+                Metadata = new() { Name = name, Uid = name },
+                Spec = new() { Replicas = index + 1, Template = new()
+                {
+                    Metadata = new() { Annotations = new Dictionary<string, string> { ["SlimFaas/Function"] = "true" } }
+                } }
+            });
+            string set = name + "-7c854fd7f6";
+            sets.Items.Add(ReplicaSet(set, set, name, name));
+            for (int replica = 0; replica <= index; replica++)
+            {
+                V1Pod pod = Pod($"{set}-{replica}", "ReplicaSet", set, set);
+                pod.Status = new() { PodIP = $"10.0.{index}.{replica + 1}", ContainerStatuses = [new() { Started = true }],
+                    Conditions = [new() { Type = "Ready", Status = "True" }, new() { Type = "ContainersReady", Status = "True" }] };
+                pods.Items.Add(pod);
+            }
+        }
+
+        using var handler = new InventoryHandler(deployments, sets, pods);
+        using var service = KubernetesTestService.Create(handler, out _);
+        var inventory = await service.ListFunctionsAsync("test", new([], new(1, []), []));
+        var snapshots = inventory.Functions.Select(FunctionEndpointsHelpers.MapToFunctionStatusDetailed)
+            .Select(StatusStreamPrivacy.ForBrowser).ToDictionary(fn => fn.Name, StringComparer.Ordinal);
+        Assert.Equal(3, snapshots.Count);
+        for (int index = 0; index < names.Length; index++)
+        {
+            var fn = snapshots[names[index]];
+            Assert.Equal(index + 1, fn.NumberRequested);
+            Assert.Equal(index + 1, fn.NumberReady);
+            Assert.Equal(Enumerable.Range(0, index + 1).Select(i => $"{names[index]}-7c854fd7f6-{i}"), fn.Pods.Select(p => p.Name));
+        }
+    }
+
+    private sealed class InventoryHandler(V1DeploymentList deployments, V1ReplicaSetList sets, V1PodList pods) : DelegatingHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            string body = request.RequestUri!.Segments[^1] switch
+            {
+                "deployments" => KubernetesJson.Serialize(deployments),
+                "replicasets" => KubernetesJson.Serialize(sets),
+                "pods" => KubernetesJson.Serialize(pods),
+                "statefulsets" or "services" => """{"items":[]}""",
+                _ => throw new InvalidOperationException(request.RequestUri.AbsolutePath)
+            };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                RequestMessage = request, Content = new StringContent(body, Encoding.UTF8, "application/json")
+            });
+        }
     }
 
     private static V1OwnerReference Owner(string kind, string name, string uid) =>

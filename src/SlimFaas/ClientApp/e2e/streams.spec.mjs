@@ -29,10 +29,12 @@ for (const mode of ['disabled', 'restricted']) {
     });
     await page.goto('http://slimfaas.test/#/streams');
     await expect(page.getByText(mode === 'disabled' ? 'Streams UI is disabled.' : 'Stream management is restricted for this caller.', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'Views' }).click();
     await expect(page.getByRole('link', { name: 'Streams', exact: true })).toHaveCount(0);
     expect(apiRequests).toBe(0);
     await page.goto('http://slimfaas.test/#/live/traffic');
     await expect(page.getByRole('button', { name: 'Event journal (0)', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Filters' }).click();
     await expect(page.getByRole('option', { name: 'stream ack', exact: true })).toHaveCount(0);
     await expect(page.getByText('protected-orders', { exact: false })).toHaveCount(0);
     expect(apiRequests).toBe(0);
@@ -56,6 +58,8 @@ test('mobile navigation remains visible and keyboard-accessible with DLQ and Str
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('http://slimfaas.test/#/live/traffic');
+  await page.getByRole('button', { name: 'Views' }).focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('link', { name: 'Dead Letter Queues', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Streams', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -162,6 +166,14 @@ test('Streams retain history, deliver independently, render inert bodies, and re
     const id = (await appended.json()).MessageId;
     await expect.poll(async () => (await rows()).filter(row => row.Active && row.Function !== name).every(row => row.Lag === 0),
       { timeout: 120_000 }).toBe(true);
+    await page.goto(cluster.peerUrl);
+    await page.getByRole('button', { name: 'Actors', exact: true }).click();
+    await page.getByRole('button', { name: 'orders', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('link', { name: id, exact: true }).click();
+    await expect(dialog.getByRole('heading', { name: `Message ${id}`, exact: true })).toBeVisible();
+    await page.goBack();
+    await expect(dialog).toHaveCount(0);
     await page.goto(`${cluster.peerUrl}/#/streams/orders/messages/${id}`);
     await expect(page.getByRole('heading', { name: `Message ${id}`, exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Preview body (maximum 65,536 bytes)' }).click();

@@ -99,6 +99,7 @@ try {
   await page.screenshot({ path: resolve(out, 'scaling-mobile.png'), fullPage: true });
   fail = true; for (const response of streams) response.end();
   await page.getByText(/Showing the last received decision/).waitFor();
+  await page.getByRole('button', { name: 'Views' }).click();
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
   await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
   await page.waitForFunction(() => !document.querySelector('.scaling-explorer'));

@@ -40,3 +40,16 @@ export function makeReactiveFixtures() {
   );
   return fixture;
 }
+
+export const speechDeployments = ['smartguide-api-text-to-speech', 'smartguide-api-text-to-speech-gemini25flash', 'smartguide-api-text-to-speech-piper'];
+
+export function makeSpeechFunctions(): FunctionStatusDetailed[] {
+  const base = makeFixtures(0, 0).functions[0];
+  return speechDeployments.map((Name, index) => ({
+    ...base, Name, NumberReady: index + 1, NumberRequested: index + 1,
+    Pods: Array.from({ length: index + 1 }, (_, replica) => ({
+      Name: `${Name}-7c854fd7f6-${String(replica).padStart(5, '0')}`,
+      Identity: fixtureIdentity(100 * (index + 1) + replica), Status: 'Running', Ready: true,
+    })),
+  }));
+}

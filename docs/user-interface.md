@@ -1,22 +1,8 @@
 # SlimFaas User Interface
 
-The [Streams page](streams.md) (`#/streams`) offers retained history and
-independent function progress, with explicit bounded body previews. Traffic
-shows distinct Stream actors, selected replica deliveries and ACKs without
-animating message deletion. One shared, caller-filtered SSE connection supplies
-Stream snapshots; observation-only routes use `activity=false`. See the
-[Streams dashboard gallery](streams.md#dashboard-gallery) for screenshots of
-the catalog, history, function progress, message preview and Traffic views.
+Open the SlimFaas root address (for example, `http://127.0.0.1:30020/`) to watch live traffic across the cluster. The map fills the browser window. Select an actor to inspect it, or open **Actors** and search by name or replica identifier. **Views** provides the global inventories, including when the cluster has no workloads.
 
-SlimFaas includes a web user interface that gives operators a live view of functions, jobs, queues, and network activity.
-
-The user interface is available at the SlimFaas root address, for example:
-
-```http
-http://<slimfaas>/
-```
-
-The UI is served by the SlimFaas application itself and uses the same backend endpoints as the API. It is intended for operational visibility and manual wake-up actions, not as a replacement for Kubernetes configuration.
+![Live Stream home showing a sleeping function and its Wake up button](images/dashboard/traffic-home.png)
 
 ---
 
@@ -43,18 +29,22 @@ the connection error; verify that the configured URL is the server's MCP endpoin
 
 ## 1. What the Page Shows
 
-The dashboard follows the same visual language as slimfaas.dev: primary blue, light surfaces and compact component-owned controls.
+Select an actor to open a side panel. On mobile the panel fills the screen. Closing it or using browser Back restores the map with its camera, filters and pause state. [Mobile function panel](images/dashboard/traffic-home-mobile-info.png)
 
 - **Overview** presents function, replica, job and node counters, compact searchable tables, and wake-up actions.
-- **Live Stream → Traffic** opens the zoomable live canvas and its searchable actor list or event journal.
-- **Live Stream → Data** lists set keys and file metadata, with expiry and file sizes.
-- **Live Stream → Scaling** explains each function’s scaling decisions and offers a read-only playground.
+- **Live Stream** opens the zoomable traffic map. **Actors**, **Event journal** and **Filters** open on demand. Select a queue to inspect its depth, destination and available dead letters. Select a durable Stream to browse its retained history and subscribers.
+- **Set** and **Files** on the map open their corresponding inventories. **Views → Data** lists set keys and file metadata, with expiry and file sizes.
+- **Scale** in a managed function’s panel explains each function’s scaling decisions and offers a read-only playground.
 - **Dead Letter Queues** provides catalog, filters, failure details, explicit 64 KiB inert body previews/downloads, and confirmed replay/deletion. Traffic combines each function's asynchronous queue and DLQ in one box with separate counters. Both surfaces require `SlimFaas:EnableFront=true`, `SlimFaas:DeadLetterQueue:EnableFront=true` (default false), and dedicated DLQ authorization. See [DLQ configuration and visibility](async-functions.md#visibility-and-dashboard-defaults).
 - **Streams** provides retained history, subscriber progress and bounded body previews. It requires global front enablement, `SlimFaas:Streams:EnableFront=true` (default false) and dedicated management access. `SlimFaas:Streams:DefaultVisibility` defaults to Private independently of each Stream's visibility. Disabled or restricted callers see no Stream navigation/live actors/events; direct routes explain the reason. See [Stream configuration](streams.md#visibility-and-dashboard-defaults).
 
-The views have stable links: `/#/overview`, `/#/live/traffic`, `/#/live/data` and `/#/live/scaling`. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
+The map shares one caller-filtered status connection across the panels. Instance logs, data inventories and scaling diagnostics open their own subscriptions while in use. See the [Streams gallery](streams.md#dashboard-gallery) for retained history, subscriber progress and message previews.
 
-![Dashboard Overview with compact functions and jobs](images/dashboard/overview.png)
+The views have stable links: `/#/overview`, `/#/live/traffic`, `/#/live/data` and `/#/live/scaling`. A panel link such as `/#/live/traffic?actor=function%3Afibonacci1` opens the actor on the map. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
+
+Deployment boxes, replica counts and traffic destinations follow the exact workload identity. For names with a common prefix, compact labels keep the end of the name visible. The panel and searchable lists show the complete name.
+
+![Three deployments sharing a name prefix, each with its own replica group](images/dashboard/traffic-speech-deployments.png)
 
 ---
 
@@ -70,8 +60,8 @@ Replica and execution lists support search and pagination instead of expanding e
 
 The UI exposes two wake-up actions:
 
-- **Wake Up** on one function calls `POST /wake-function/{functionName}`.
-- **Wake Up All Functions** calls `POST /wake-functions`.
+- **Wake up** appears on a sleeping Deployment or StatefulSet with zero requested and ready replicas. Zoom in to use the button directly on the box, or use it in the function’s **Info** panel. It calls `POST /wake-function/{functionName}`.
+- **Wake all functions** in the top bar calls `POST /wake-functions`.
 
 SlimFaas coalesces repeated wake-up calls while a wake-up is already in progress for the same function. The UI also applies a short local cooldown to avoid accidental repeated clicks.
 
@@ -117,7 +107,7 @@ Queues, Streams and logical stores are smaller than workload boxes, whose replic
 
 ![Compact queues beside workloads and Data stores beneath SlimFaas](images/dashboard/traffic-data-topology.png)
 
-Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the overview. Keyboard users can focus the canvas and use arrow keys, `+`, `-` and Home. The searchable actor table provides another way to select every instance. Selection focuses the map and highlights its connections while retaining other traffic. Enable **Isolate selection** to filter the map and journal to that actor. Active event-type and isolation filters are displayed above the map; **Clear filters** restores the global view.
+Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the overview. Keyboard users can focus the canvas and use arrow keys, `+`, `-` and Home. The searchable actor table provides another way to select every instance. Selection highlights its connections while retaining other traffic. Use **Show replicas** or **Locate actor** to explicitly center the camera. Enable **Isolate selection** to filter the map and journal to that actor. Active traffic filters are displayed above the map; **Clear filters** restores the global view.
 
 The journal retains at most 5,000 received events. **Pause** freezes the current view; **Resume live** returns to current traffic without replaying the paused interval. Markers are grouped by route and event type and independently limited to 200; the actor inventory is not sampled. Each grouped marker shows its event count. The canvas reports any events omitted by the visual limit separately from the retained journal. Reduced-motion preferences replace movement with static activity highlights.
 
@@ -356,7 +346,7 @@ or a retry after a failed creation.
 
 ![Live file inventory with TTL and exact sizes](images/dashboard/data.png)
 
-Open **Live Stream → Data**, choose **Sets** or **Files**, and search by key prefix. The table shows stable key ordering, remaining TTL, exact expiration time and, for files, the size in bytes. **Persistent** means no expiration; **Expires soon** marks the next 60 seconds. New or changed metadata is briefly highlighted. The summary shows all visible set/file counts, known file volume and upcoming expirations; it is independent of the prefix filter.
+Select **Set** or **Files** on the map and search by key prefix. The global inventory is under **Views → Data**. The table shows stable key ordering, remaining TTL, exact expiration time and, for files, the size in bytes. **Persistent** means no expiration; **Expires soon** marks the next 60 seconds. New or changed metadata is briefly highlighted. The summary shows all visible set/file counts, known file volume and upcoming expirations; it is independent of the prefix filter.
 
 Only keys, expiration and file sizes are transmitted. The dashboard never fetches set values, file contents, hashes or filenames. Internal offload files and technical TTL keys are excluded. An unreadable file size appears as **Unknown** and is excluded from the volume total.
 
@@ -449,7 +439,7 @@ Use lower intervals for more reactive dashboards and higher intervals for lower 
 
 ## Scaling diagnostics and playground
 
-Open **Live Stream → Scaling**, select a function, or use **Inspect scaling and open playground** in its Overview details. A direct link can select a function: `/#/live/scaling?function=worker`.
+Select a managed function on the map and open **Scale**. You can also use **Views → Scaling** or **Inspect scaling and open playground** in its Overview details. A direct link can select a function: `/#/live/scaling?function=worker`.
 
 ![Live scaling diagnostics and a read-only eight-replica preview in the native demo](images/dashboard/scaling-desktop.png)
 

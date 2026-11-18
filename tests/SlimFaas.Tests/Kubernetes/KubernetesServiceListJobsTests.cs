@@ -1,9 +1,7 @@
 using System.Net;
-using System.Reflection;
 using System.Text;
 using k8s;
 using k8s.Models;
-using Microsoft.Extensions.Logging.Abstractions;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests.Kubernetes;
@@ -25,7 +23,7 @@ public sealed class KubernetesServiceListJobsTests
         var handler = new RoutingHandler(
             BuildJobList("job-a", "job-b", "job-c"),
             BuildPodList(("job-a", "10.0.0.1", true), ("job-b", "10.0.0.2", false)));
-        var service = BuildService(handler, out var client);
+        var service = KubernetesTestService.Create(handler, out var client);
         using (client)
         {
             IList<Job> jobs = await service.ListJobsAsync("test");
@@ -49,7 +47,7 @@ public sealed class KubernetesServiceListJobsTests
         var handler = new RoutingHandler(
             BuildJobList("job-a", "job-b"),
             BuildPodList(("job-a", "10.0.0.1", false), ("job-a", "10.0.0.2", false), ("job-b", "10.0.0.3", true)));
-        var service = BuildService(handler, out var client);
+        var service = KubernetesTestService.Create(handler, out var client);
         using (client)
         {
             IList<Job> jobs = await service.ListJobsAsync("test");
@@ -76,7 +74,7 @@ public sealed class KubernetesServiceListJobsTests
             ["slimfaas-job-start-timestamp"] = "42"
         };
         var handler = new RoutingHandler(jobList, BuildPodList());
-        var service = BuildService(handler, out var client);
+        var service = KubernetesTestService.Create(handler, out var client);
         using (client)
         {
             IList<Job> jobs = await service.ListJobsAsync("test");
@@ -92,7 +90,7 @@ public sealed class KubernetesServiceListJobsTests
     public async Task ListJobsReturnsEmptyIpsForJobWithoutPods()
     {
         var handler = new RoutingHandler(BuildJobList("job-a"), BuildPodList());
-        var service = BuildService(handler, out var client);
+        var service = KubernetesTestService.Create(handler, out var client);
         using (client)
         {
             IList<Job> jobs = await service.ListJobsAsync("test");
@@ -152,26 +150,6 @@ public sealed class KubernetesServiceListJobsTests
             }
         }).ToList();
         return new V1PodList { Items = items };
-    }
-
-    private static KubernetesService BuildService(
-        DelegatingHandler handler,
-        out k8s.Kubernetes client)
-    {
-        var config = new KubernetesClientConfiguration { Host = "http://localhost" };
-        client = new k8s.Kubernetes(config, handler);
-
-        var service = (KubernetesService)System.Runtime.CompilerServices.RuntimeHelpers
-            .GetUninitializedObject(typeof(KubernetesService));
-
-        typeof(KubernetesService)
-            .GetField("_client", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .SetValue(service, client);
-        typeof(KubernetesService)
-            .GetField("_logger", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .SetValue(service, NullLogger<KubernetesService>.Instance);
-
-        return service;
     }
 
     private sealed class RoutingHandler(V1JobList jobList, V1PodList podList) : DelegatingHandler

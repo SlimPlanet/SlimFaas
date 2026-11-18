@@ -1,4 +1,8 @@
 .traffic-details {
+  &__inspector { min-width: 0; }
+  &__inspector .scaling-explorer__columns { grid-template-columns: 1fr; }
+  &__actions { display: flex; gap: .5rem; margin-bottom: 1rem; }
+  &__actions .button[aria-pressed=true] { color: var(--color-primary); border-color: currentColor; }
   &__controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; flex-shrink: 0; }
   &__content { min-width: 0; flex-shrink: 0; overflow-wrap: anywhere; }
   &__logs { display: flex; flex-direction: column; flex: 1; min-height: min-content; }

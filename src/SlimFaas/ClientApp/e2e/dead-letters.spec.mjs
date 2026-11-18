@@ -28,6 +28,13 @@ test('durable failures are visible on peers; bounded inert preview and concurren
     expect(message.FailureReason).toBe('NonRetryableResponse');
     expect(message.Attempts).toBe(1);
     expect(message.Request.BodyLength).toBe(body.length);
+    await page.goto(`${cluster.peerUrl}/#/live/traffic?actor=queue%3Afibonacci1`);
+    const queue = page.getByRole('dialog');
+    await queue.getByRole('link', { name: 'Open dead letters' }).click();
+    await queue.getByRole('link', { name: message.Id, exact: true }).click();
+    await expect(queue.getByRole('heading', { name: `Message ${message.Id}`, exact: true })).toBeVisible();
+    await queue.getByRole('button', { name: 'Close details' }).click();
+    await expect(page.locator('canvas')).toBeVisible();
     await page.goto(`${cluster.peerUrl}/#/dead-letters/fibonacci1/messages/${message.Id}`);
     await expect(page.getByRole('heading', { name: `Message ${message.Id}`, exact: true })).toBeVisible();
     expect(await page.evaluate(() => window.__dlqExecuted)).toBeUndefined();

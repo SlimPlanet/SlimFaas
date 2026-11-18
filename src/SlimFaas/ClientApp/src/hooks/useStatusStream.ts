@@ -230,6 +230,7 @@ export function useStatusStream(includeActivity = true) {
   const [error, setError] = useState<string | null>(null);
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
+  const pendingWake = useRef(new Set<string | null>());
   const [queuesWithActivity, setQueuesWithActivity] = useState<Set<string>>(new Set());
   const [slimFaasReplicas, setSlimFaasReplicas] = useState(1);
   const [slimFaasNodes, setSlimFaasNodes] = useState<SlimFaasNodeInfo[]>([]);
@@ -417,41 +418,33 @@ export function useStatusStream(includeActivity = true) {
     };
   }, [connect]);
 
-  const startCooldown = useCallback((name: string) => {
-    setCoolingDown(prev => new Set(prev).add(name));
-    setTimeout(() => {
-      setCoolingDown(prev => {
-        const next = new Set(prev);
-        next.delete(name);
-        return next;
-      });
-    }, COOLDOWN_MS);
+  const wakeUp = useCallback(async (name: string | null) => {
+    if (pendingWake.current.has(name)) return;
+    pendingWake.current.add(name);
+    const started = performance.now();
+    if (name === null) setWakeAllCooling(true);
+    else setCoolingDown(current => new Set(current).add(name));
+    setActionError(null);
+    try {
+      const url = name === null ? '/wake-functions' : `/wake-function/${encodeURIComponent(name)}`;
+      const response = await fetch(url, { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      setActionError(`Unable to wake ${name ?? 'functions'}: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setTimeout(() => {
+        pendingWake.current.delete(name);
+        if (name === null) setWakeAllCooling(false);
+        else setCoolingDown(current => {
+          const next = new Set(current);
+          next.delete(name);
+          return next;
+        });
+      }, Math.max(0, COOLDOWN_MS - (performance.now() - started)));
+    }
   }, []);
 
-  const wakeUp = useCallback(async (functionName: string) => {
-    if (coolingDown.has(functionName)) return;
-    startCooldown(functionName);
-    try {
-      setActionError(null);
-      const response = await fetch(`/wake-function/${encodeURIComponent(functionName)}`, { method: 'POST' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    } catch (err) {
-      setActionError(`Unable to wake ${functionName}: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [coolingDown, startCooldown]);
-
-  const wakeUpAll = useCallback(async () => {
-    if (wakeAllCooling) return;
-    setWakeAllCooling(true);
-    setTimeout(() => setWakeAllCooling(false), COOLDOWN_MS);
-    try {
-      setActionError(null);
-      const response = await fetch('/wake-functions', { method: 'POST' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    } catch (err) {
-      setActionError(`Unable to wake functions: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [wakeAllCooling]);
+  const wakeUpAll = useCallback(() => wakeUp(null), [wakeUp]);
 
   return {
     functions, dataSummary,

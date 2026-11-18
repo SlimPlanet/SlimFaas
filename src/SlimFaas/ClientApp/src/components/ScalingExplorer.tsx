@@ -111,18 +111,18 @@ function Playground({ functionName, configuration, replicas }: { functionName: s
   </section>;
 }
 
-export default function ScalingExplorer({ functions, functionName }: { functions: FunctionStatusDetailed[]; functionName?: string }) {
+export default function ScalingExplorer({ functions, functionName, fixed = false }: { fixed?: boolean; functions: FunctionStatusDetailed[]; functionName?: string }) {
   const selected = functionName ?? functions[0]?.Name ?? '';
   const workload = functions.find(f => f.Name === selected);
   const stream = useScalingStream(selected);
   const { state } = stream;
   const decision = state?.Decision;
   return <div className="scaling-explorer">
-    <div className="scaling-explorer__toolbar"><label className="field field--grow">Function<select className="field__input" value={selected} onChange={e => { window.location.hash = `/live/scaling?function=${encodeURIComponent(e.target.value)}`; }}>
+    <div className="scaling-explorer__toolbar">{!fixed && <label className="field field--grow">Function<select className="field__input" value={selected} onChange={e => { window.location.hash = `/live/scaling?function=${encodeURIComponent(e.target.value)}`; }}>
       {!functions.length && <option value="">No functions available</option>}
       {selected && !workload && <option value={selected}>Unavailable: {selected}</option>}
       {functions.map(fn => <option value={fn.Name} key={fn.Name}>{fn.Name}</option>)}
-    </select></label><span className={`badge ${stream.status === 'Live' ? 'badge--success' : 'badge--warning'}`} role="status">{scalingLabel(stream.status)}</span><button className="button button--quiet" type="button" onClick={stream.retry}>Reconnect</button></div>
+    </select></label>}<span className={`badge ${stream.status === 'Live' ? 'badge--success' : 'badge--warning'}`} role="status">{scalingLabel(stream.status)}</span><button className="button button--quiet" type="button" onClick={stream.retry}>Reconnect</button></div>
     {stream.status !== 'Live' && state && <p className="notice">Showing the last received decision. Live diagnostics are currently unavailable.</p>}
     {stream.sessionChanged && <p className="notice">The leader session changed. The recent history has restarted.</p>}
     {state?.Truncated && <p className="notice">Recent history is bounded; older or oversized details have been omitted.</p>}
