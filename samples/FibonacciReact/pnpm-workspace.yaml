@@ -1,4 +1,4 @@
-overrides:
-  "serve>compression": "^1.8.2"
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - "@axa-fr/slimfaas-planet-saver@0.89.0"

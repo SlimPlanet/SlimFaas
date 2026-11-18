@@ -100,7 +100,7 @@ uses the same dedicated access policy rather than the public metric registry.
 
 ## Container build dependencies
 
-Dockerfiles pin the .NET 11 SDK to `11.0.100` and .NET runtime images to `11.0.0`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.4` for standalone Alpine images). Frontend build stages use Node.js `26.13.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.6` on Alpine 3.24.
+Dockerfiles pin the .NET 11 SDK to `11.0.100` and .NET runtime images to `11.0.0`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.4` for standalone Alpine images). Frontend build stages use Node.js `26.13.1` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.6` on Alpine 3.24.
 
 The SDK and runtime pins must be upgraded together. NuGet audit checks all direct and transitive dependencies, including the Native AOT compiler; vulnerability warnings fail the build.
 
@@ -116,7 +116,7 @@ See the [dependency update guidelines](../CONTRIBUTING.md#dependency-updates) fo
 
 ### Dependency compatibility holds
 
-Frontend tooling uses Node 26 LTS and pnpm 12.18.0. pnpm configuration, including
+Frontend tooling uses Node 26 LTS and pnpm 12.21.0. pnpm configuration, including
 transitive overrides and explicitly allowed build scripts, lives in each
 package's `pnpm-workspace.yaml`.
 

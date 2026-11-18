@@ -28,7 +28,7 @@ spec:
       hostname: kafka
       containers:
         - name: kafka
-          image: apache/kafka:latest
+          image: apache/kafka:4.3.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9092

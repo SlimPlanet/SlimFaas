@@ -2,3 +2,8 @@ overrides:
   "esbuild": ">=0.25.0"
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - "@vitest/coverage-v8@5.1.1"
+  - "@vitest/mocker@5.1.1"
+  - "@vitest/spy@5.1.1"
+  - vitest@5.1.1
