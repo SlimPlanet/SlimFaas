@@ -1,0 +1,249 @@
+{
+  "schema": 1,
+  "created_utc": 1794565865.967361,
+  "runtime_source": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+  "reference_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+  "historical_net10_reference": "496e8739e5f7b4326f64520fe4caa4e0e23f8d06",
+  "sdk": "11.0.100",
+  "node": "26.13.0",
+  "pnpm": "12.18.0",
+  "ordered_merges": [
+    {
+      "pr": 504,
+      "source": "e1d54ec455c42897046d8ea6674d78fa0148f5a6",
+      "merge": "1d84170cee9fd9a22ac0055f262ed4e0ab3bd2de"
+    },
+    {
+      "pr": 514,
+      "source": "f36084643a75d803051a6918d2950d1a4f674ada",
+      "merge": "3643d7d4830cc092094a48f2017682a7961ed8b4"
+    }
+  ],
+  "host": {
+    "cpu": "Apple M4 Pro",
+    "logical_cpus": 14,
+    "memory_bytes": 51539607552,
+    "os": "macOS 26.7.1 (25G241)"
+  },
+  "podman_vm": {
+    "cpus": 7,
+    "memory_mib": 16384,
+    "architecture": "aarch64",
+    "campaign_storage": "VM-native XFS; disk-full tests use separate small ext4 filesystems"
+  },
+  "compilation_modes": {
+    "macos": "Native AOT ARM64",
+    "podman": "managed trimmed Linux musl ARM64",
+    "kubernetes": "exact Podman images; in-cluster driver/functions",
+    "microbenchmarks": "managed ShortRunInProcess, identical source files against each revision"
+  },
+  "publications": [
+    {
+      "path": "artifacts/pr506/builds/candidate-osx-net11-02/SlimFaas",
+      "sha256": "a4c8ceacd7bc4c7c7c52c938f661b32808d179abe6d4f292744f9b7daf901fc3",
+      "bytes": 57262728
+    },
+    {
+      "path": "artifacts/pr506/builds/baseline-osx-net11-01/SlimFaas",
+      "sha256": "53adb6c45ebbed440d284cd5e0844b28888e9127d55dc9268f5f69132cf0d1f3",
+      "bytes": 57030696
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-02/benchmark/SlimFaasBenchmark.dll",
+      "sha256": "808b47ad803dfb07126df8595a7e15416a8dfb431bbc6a56a67273a5d59ee975",
+      "bytes": 271360
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-02/memorylab/SlimFaas.MemoryLab.dll",
+      "sha256": "00d293fe4921fd29410da6f93e158096b58c9029e3b2234185e4690ae326d923",
+      "bytes": 117760
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-02/micro-after/SlimFaas.Benchmarks.dll",
+      "sha256": "32196f9d537497853b029114b7fce77c8eefc88f90cb2e974c5140f099b50dab",
+      "bytes": 39424
+    },
+    {
+      "path": "artifacts/pr506/builds/drivers-net11-02/micro-before/SlimFaas.Benchmarks.dll",
+      "sha256": "4f5e38ffe19f9f319325e4897eff69f04451272f71609202903c675d4b0c55a3",
+      "bytes": 39424
+    },
+    {
+      "path": "artifacts/pr506/builds/mcp-osx-net11-01/SlimFaasMcp",
+      "source": "8cac1116ad5022fb5e48374e557fd9689003be97",
+      "sha256": "5c0243facba768e4db056304cbfdd1bf756b1bdec37bd22c5fcd148bc89ccbd3",
+      "bytes": 18152600
+    },
+    {
+      "path": "artifacts/pr506/builds/slimdata-osx-net11-02/SlimData",
+      "source": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+      "sha256": "56db4af12bb4f08b83397b91f50e56e2db11b71af07c18785a26045947829522",
+      "bytes": 69272664
+    }
+  ],
+  "images": {
+    "candidate-net11-02": {
+      "config_sha256": "65129bdd80f7cc1cdee357e44f0aea177db2b6a0e30bb9fe78666cbda1b0159a",
+      "manifest_digest": "sha256:e74f53755810a9184b25876a7f1212a5385b475e14885a06edcb9044e12032a7",
+      "architecture": "arm64",
+      "os": "linux",
+      "labels": {
+        "io.buildah.version": "1.44.1",
+        "org.opencontainers.image.revision": "a8e1b5fd5aeed535676dc3860d3adacc9159226a"
+      }
+    },
+    "baseline-net11-01": {
+      "config_sha256": "a491f8c7937eb21dfd0336b5e2fd754db494f346ec2bf37c7be8e890b1539e42",
+      "manifest_digest": "sha256:6a871a8a00621288682e1a0999004c9b54d1adb6c7ad6a5d89c990ed40cd234a",
+      "architecture": "arm64",
+      "os": "linux",
+      "labels": {
+        "io.buildah.version": "1.44.1",
+        "org.opencontainers.image.revision": "f36084643a75d803051a6918d2950d1a4f674ada"
+      }
+    },
+    "after-tools-net11-02": {
+      "config_sha256": "183e63da96739f5da4d9b58fb10cc98773aa9b50cde6102492b554dc3c155567",
+      "manifest_digest": "sha256:bd2c8cc17b7220a50ead04d7cfb720d355d696527ed00a1c73ecf8a89c2aa5f0",
+      "architecture": "arm64",
+      "os": "linux",
+      "labels": {
+        "io.buildah.version": "1.44.1",
+        "org.opencontainers.image.revision": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+        "org.slimfaas.validation.revision": "a8e1b5fd5aeed535676dc3860d3adacc9159226a"
+      }
+    },
+    "before-tools-net11-02": {
+      "config_sha256": "fc15b5dfc2341f736d45f76550052120b66d93897ce61b53ab20838af0186047",
+      "manifest_digest": "sha256:abd9b4505756193882ed869cb90abedb9ee88d2b27ea21f3dc1ec47bcf2da180",
+      "architecture": "arm64",
+      "os": "linux",
+      "labels": {
+        "io.buildah.version": "1.44.1",
+        "org.opencontainers.image.revision": "f36084643a75d803051a6918d2950d1a4f674ada",
+        "org.slimfaas.validation.revision": "a8e1b5fd5aeed535676dc3860d3adacc9159226a"
+      }
+    },
+    "dotnet-worker-net11-01": {
+      "config_sha256": "30fb1f0be702a1138372fb9f84a8300803eb549584426db49c0923537b71189f",
+      "manifest_digest": "sha256:c90a7406161a95c01e349fbab70e71cdf37ee339b7175bcb62d9a72b0c6c92ff",
+      "architecture": "arm64",
+      "os": "linux",
+      "labels": {
+        "io.buildah.version": "1.44.1",
+        "org.opencontainers.image.created": "2026-11-06T10:31:00.336187+00:00",
+        "org.opencontainers.image.description": "The Ubuntu container image maintained by Canonical\n\nUbuntu is a Debian-based Linux operating system that runs from the desktop to the cloud, to all your internet connected things.\nIt is the world's most popular operating system across public clouds and OpenStack clouds.\nIt is the number one platform for containers; from Docker to Kubernetes to LXD, Ubuntu can run your containers at scale.\nFast, secure and simple, Ubuntu powers millions of PCs worldwide.\n",
+        "org.opencontainers.image.revision": "8cac1116ad5022fb5e48374e557fd9689003be97",
+        "org.opencontainers.image.title": "ubuntu",
+        "org.opencontainers.image.version": "26.04"
+      }
+    }
+  },
+  "linux_file_sha256": {
+    "localhost/slimfaas-pr506:before-tools-net11-02": {
+      "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "/app/SlimFaas.dll": "5e00b476145d2fa4003c5de0b7a4bf3796535ad6b91f869ff0e5fb55a16b0b44",
+      "/app/SlimData.dll": "78cb974837d0031055e190b58644918afd7df23161ea579869a2647de88b10a9",
+      "/tools/benchmark/SlimFaasBenchmark.dll": "661cf5e3d8fe16d287fdb1a14f2bd5076d0fa470d5b9a4780e685d415ae2cc59",
+      "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    },
+    "localhost/slimfaas-pr506:after-tools-net11-02": {
+      "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "/app/SlimFaas.dll": "06c952037255c731d58ed4cf5f8c1c9576161f4d7260daaae119e1e15eba7bf9",
+      "/app/SlimData.dll": "bd40e2e03ccfccd0d69dcbb4a9fea4d2d0d1d53081ca9b0c978c1bf090946fa9",
+      "/tools/benchmark/SlimFaasBenchmark.dll": "661cf5e3d8fe16d287fdb1a14f2bd5076d0fa470d5b9a4780e685d415ae2cc59",
+      "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    }
+  },
+  "common_microbenchmark_source_sha256": {
+    "benchmarks/SlimFaas.Benchmarks/QueueCountBenchmarks.cs": "cf0ff77311c327bf57f8f99f494b72877e0f428b72294553686bf10a38dfa87b",
+    "benchmarks/SlimFaas.Benchmarks/DeadLetterMetadataBenchmarks.cs": "5a5619b70a31571625e4810cf5cb4c09adf609cb419f497638033260d86b7c75",
+    "benchmarks/SlimFaas.Benchmarks/CollectionPipelineBenchmarks.cs": "bac247cc6342fa827b08b010b39ee73d54ad043551cd6d7ecaf004420995b50e",
+    "benchmarks/SlimFaas.Benchmarks/DeploymentsSnapshotBenchmarks.cs": "75f23c4e2a75d8061d7b04595b6069aa21f7e04547cae146ab812909118a4f1c",
+    "benchmarks/SlimFaas.Benchmarks/RoutingQueryBenchmarks.cs": "66f20c9fe13d849fc812a2390252a7705fac2055faf8668e03f244ce5cc96007",
+    "benchmarks/SlimFaas.Benchmarks/QueueSelectionBenchmarks.cs": "af992bb40cbbf09a8b57cb62a5cc1a25341d90a22a6e8fb9b5c2589ce7256770",
+    "benchmarks/SlimFaas.Benchmarks/SlimDataQueueBenchmarks.cs": "994786a0d88641722fc4dcd57be27340f07b563a6e2794df75039e730307a856",
+    "benchmarks/SlimFaas.Benchmarks/SchedulingBenchmarks.cs": "2ee75f78e199f8e23a338d0115cd456141c810ecacfbd6834e1aa894845bb913",
+    "benchmarks/SlimFaas.Benchmarks/DataFeatureBenchmarks.cs": "f754326dcc899982d776ab4a957495c4e2dc4e0ca09d185a1e48cb6a53bc5b6b",
+    "benchmarks/SlimFaas.Benchmarks/HttpHotPathBenchmarks.cs": "057b16f142e4fb92c3cb87bb5425a6adbc53c78c7e041072a3055fdbd9b402f1",
+    "benchmarks/SlimFaas.Benchmarks/SlimDataStateBenchmarks.cs": "f9dc13c222f57e555a55a165bd4cbbb659e702ec39c846fb3cf71cbc59313f65",
+    "benchmarks/SlimFaas.Benchmarks/Program.cs": "260cfaab7b51edb27284e6b874639e01b539e1dbd33a79157a205278249c53a2",
+    "benchmarks/SlimFaas.Benchmarks/Support/Stubs.cs": "c0283f2ed092f11998ca1888cfbf29b06389e58dac29c36aff95f79bfd98d1a8"
+  },
+  "configurations": {
+    "macos": {
+      "before_commit": "f36084643a75d803051a6918d2950d1a4f674ada",
+      "after_commit": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+      "workload_commit": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+      "sdk": "11.0.100",
+      "historical_net10_baseline": "496e8739e5f7b4326f64520fe4caa4e0e23f8d06",
+      "compare_command": [
+        "dotnet",
+        "${CANDIDATE}/artifacts/pr506/builds/drivers-net11-02/benchmark/SlimFaasBenchmark.dll"
+      ],
+      "environment": "macos",
+      "before": "${CANDIDATE}/artifacts/pr506/builds/baseline-osx-net11-01/SlimFaas",
+      "after": "${CANDIDATE}/artifacts/pr506/builds/candidate-osx-net11-02/SlimFaas",
+      "benchmark": "${CANDIDATE}/artifacts/pr506/builds/drivers-net11-02/benchmark/SlimFaasBenchmark.dll",
+      "memorylab": "${CANDIDATE}/artifacts/pr506/builds/drivers-net11-02/memorylab/SlimFaas.MemoryLab.dll"
+    },
+    "podman": {
+      "before_commit": "f36084643a75d803051a6918d2950d1a4f674ada",
+      "after_commit": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+      "workload_commit": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+      "sdk": "11.0.100",
+      "historical_net10_baseline": "496e8739e5f7b4326f64520fe4caa4e0e23f8d06",
+      "compare_command": [
+        "dotnet",
+        "${CANDIDATE}/artifacts/pr506/builds/drivers-net11-02/benchmark/SlimFaasBenchmark.dll"
+      ],
+      "environment": "podman",
+      "before": "localhost/slimfaas-pr506:before-tools-net11-02",
+      "after": "localhost/slimfaas-pr506:after-tools-net11-02",
+      "prefix": "slimfaas-pr506-net11-pbench-02"
+    },
+    "kubernetes": {
+      "before_commit": "f36084643a75d803051a6918d2950d1a4f674ada",
+      "after_commit": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+      "workload_commit": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+      "sdk": "11.0.100",
+      "historical_net10_baseline": "496e8739e5f7b4326f64520fe4caa4e0e23f8d06",
+      "compare_command": [
+        "dotnet",
+        "${CANDIDATE}/artifacts/pr506/builds/drivers-net11-02/benchmark/SlimFaasBenchmark.dll"
+      ],
+      "environment": "kubernetes",
+      "before": "localhost/slimfaas-pr506:before-tools-net11-02",
+      "after": "localhost/slimfaas-pr506:after-tools-net11-02",
+      "prefix": "slimfaas-pr506-net11-kbench-02",
+      "kubeconfig": "${CANDIDATE}/artifacts/pr506/kubernetes/kubeconfig",
+      "controller_image": "localhost/slimfaas-pr506:after-tools-net11-02"
+    }
+  },
+  "comparison_acceptance": "Pending complete retained ABBA matrices; hashes and successful correctness subsets do not establish non-regression.",
+  "raw_evidence_availability": "Original campaign volumes, journals and raw files remain on the validation host and dedicated VM. This provenance file does not publish or imply public download access to those files.",
+  "linux_runtime_core_parity": {
+    "shared_runtime_base_layers": 1,
+    "reference_layers": 5,
+    "candidate_layers": 3,
+    "layer_note": "Build layer grouping differs; file parity is checked directly.",
+    "runtime_core_sha256": {
+      "before": {
+        "/app/libcoreclr.so": "6ce41b51fc2cfb31d771212d6a077972aa9ceaee9ccd8b8fba91a983568ece87",
+        "/app/libclrgc.so": "58435b36e2bf95a65779e13e74268eb7976b97758de8036075dc805c40390d59",
+        "/app/libclrjit.so": "6f70d7ee33aca6cea2849671454664e3bb6fcf1c7329ae36ccbe0916dd6adc10",
+        "/etc/os-release": "63b1cebc6ff5789ebbe97686848877344fcfd091e7db206e612c48c8efb0636c",
+        "/lib/ld-musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793"
+      },
+      "after": {
+        "/app/libcoreclr.so": "6ce41b51fc2cfb31d771212d6a077972aa9ceaee9ccd8b8fba91a983568ece87",
+        "/app/libclrgc.so": "58435b36e2bf95a65779e13e74268eb7976b97758de8036075dc805c40390d59",
+        "/app/libclrjit.so": "6f70d7ee33aca6cea2849671454664e3bb6fcf1c7329ae36ccbe0916dd6adc10",
+        "/etc/os-release": "63b1cebc6ff5789ebbe97686848877344fcfd091e7db206e612c48c8efb0636c",
+        "/lib/ld-musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793"
+      }
+    },
+    "same_native_clr_gc_jit_os_and_libc": true,
+    "source": "a8e1b5fd5aeed535676dc3860d3adacc9159226a"
+  }
+}

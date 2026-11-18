@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
+using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
 namespace SlimFaas.Endpoints;
@@ -9,6 +10,8 @@ namespace SlimFaas.Endpoints;
 public interface IStatusStreamSnapshotCache
 {
     Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct);
+    Task<string> GetStateFrameAsync(bool includeRecentActivity, bool includeDeadLetters, CancellationToken ct) =>
+        GetStateFrameAsync(includeRecentActivity, ct);
 }
 
 public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDisposable
@@ -28,8 +31,10 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
     private readonly IJobConfiguration? _jobConfiguration;
     private readonly IJobService? _jobService;
     private readonly IScheduleJobService? _scheduleJobService;
+    private readonly IJobQueue? _jobQueue;
     private readonly ILogger<StatusStreamSnapshotCache> _logger;
     private readonly StatusLeader? _leader;
+    private readonly SlimFaas.DeadLetters.IDeadLetterService? _deadLetters;
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private readonly SemaphoreSlim _queuesLock = new(1, 1);
@@ -49,7 +54,8 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
     private string _cachedQueuesKey = string.Empty;
     private DateTimeOffset _queuesExpiresAt;
 
-    private IList<JobConfigurationStatus>? _cachedJobs;
+    private sealed record JobSnapshot(IList<JobConfigurationStatus> Jobs, bool Available = true);
+    private JobSnapshot? _cachedJobs;
     private DateTimeOffset _jobsExpiresAt;
 
     public StatusStreamSnapshotCache(
@@ -62,7 +68,9 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         IJobConfiguration? jobConfiguration = null,
         IJobService? jobService = null,
         IScheduleJobService? scheduleJobService = null,
-        StatusLeader? leader = null)
+        StatusLeader? leader = null,
+        IJobQueue? jobQueue = null,
+        SlimFaas.DeadLetters.IDeadLetterService? deadLetters = null)
     {
         _replicasService = replicasService;
         _functionStatusCache = functionStatusCache;
@@ -74,6 +82,8 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         _jobService = jobService;
         _scheduleJobService = scheduleJobService;
         _leader = leader;
+        _jobQueue = jobQueue;
+        _deadLetters = deadLetters;
     }
 
     public async Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct)
@@ -110,36 +120,71 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         }
     }
 
-    private async Task<string> BuildStateFrameAsync(bool includeRecentActivity, CancellationToken ct)
+    public Task<string> GetStateFrameAsync(bool includeRecentActivity, bool includeDeadLetters, CancellationToken ct) =>
+        includeDeadLetters ? BuildStateFrameAsync(includeRecentActivity, ct, true) : GetStateFrameAsync(includeRecentActivity, ct);
+
+    private async Task<string> BuildStateFrameAsync(bool includeRecentActivity, CancellationToken ct, bool includeDeadLetters = false)
     {
         var functions = _functionStatusCache.GetAllDetailed(_replicasService);
         var queues = await GetQueuesAsync(functions, ct).ConfigureAwait(false);
-        var jobs = await GetJobsAsync(ct).ConfigureAwait(false);
+        var jobSnapshot = await GetJobsAsync(ct).ConfigureAwait(false);
         var slimFaasInfo = _replicasService.Deployments.SlimFaas;
         var leaderName = _leader?.FindLeader(slimFaasInfo.Pods);
         var slimFaasNodes = slimFaasInfo.Pods
             .Select(p => new SlimFaasNodeInfo(
                 p.Name,
                 p.Ready == true ? "Running" : (p.Started == true ? "Starting" : "Pending"),
-                leaderName is null ? "Unknown" : p.Name == leaderName ? "Leader" : "Follower"))
+                leaderName is null ? "Unknown" : p.Name == leaderName ? "Leader" : "Follower", p.ObservedLifecycle, p.Requests))
             .ToList();
 
         var payload = new StatusStreamPayload(
+            Requests: TotalRequests(functions, slimFaasInfo.Pods, jobSnapshot.Jobs, jobSnapshot.Available),
             Functions: functions.Select(StatusStreamPrivacy.ForBrowser).ToArray(),
             Queues: queues,
-            Jobs: jobs,
+            Jobs: jobSnapshot.Jobs,
             RecentActivity: includeRecentActivity
-                ? _activityTracker.GetRecent().Select(StatusStreamPrivacy.ForBrowser).ToArray()
+                ? _activityTracker.GetRecent().Where(item => includeDeadLetters || !item.Type.StartsWith("dead_letter", StringComparison.Ordinal))
+                    .Select(StatusStreamPrivacy.ForBrowser).ToArray()
                 : Array.Empty<NetworkActivityEvent>(),
             SlimFaasReplicas: slimFaasInfo.Replicas,
             SlimFaasNodes: slimFaasNodes,
             FrontEnabled: _slimFaasOptions.Value.EnableFront,
             FrontMessage: _slimFaasOptions.Value.EnableFront ? null : "SlimFaas front is disabled by configuration (SlimFaas:EnableFront=false).",
             LiveActivitySamplingRatio: _slimFaasOptions.Value.StatusStream.LiveEventSamplingRatio,
-            MaxLiveEventsPerSecond: _slimFaasOptions.Value.StatusStream.MaxLiveEventsPerSecond);
+            MaxLiveEventsPerSecond: _slimFaasOptions.Value.StatusStream.MaxLiveEventsPerSecond,
+            DeadLetters: includeDeadLetters && _deadLetters is not null ? (await _deadLetters.ReadAsync(ct).ConfigureAwait(false)).Summaries.Take(500).ToArray() : null,
+            DeadLettersFrontEnabled: _deadLetters?.FrontEnabled == true,
+            DeadLettersAccessible: includeDeadLetters);
 
         string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
         return $"event: state\ndata: {json}\n\n";
+    }
+
+    internal static PodRequests TotalRequests(IReadOnlyList<FunctionStatusDetailed> functions, IList<PodInformation> nodes,
+        IList<JobConfigurationStatus> jobs, bool jobsAvailable = true)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var total = jobsAvailable ? PodRequests.Empty : PodRequests.Unavailable;
+        void AddPod(string key, string? lifecycle, PodRequests? requests)
+        {
+            if (!PodObservation.IsTerminal(lifecycle) && seen.Add(key))
+                total = total.Add(requests ?? PodRequests.Unavailable);
+        }
+        foreach (var node in nodes) AddPod(node.Uid ?? node.Name, node.ObservedLifecycle, node.Requests);
+        foreach (var function in functions)
+        {
+            if (function.PodType == nameof(PodType.WebSocket)) continue;
+            foreach (var pod in function.Pods) AddPod(pod.Uid ?? pod.Name, pod.Lifecycle, pod.Requests);
+        }
+        foreach (var job in jobs)
+        {
+            foreach (var run in job.RunningJobs)
+            {
+                if (run.Requests is not null) total = total.Add(run.Requests);
+                else if (!PodObservation.IsTerminal(run.Status)) total = total.Add(PodRequests.Unavailable);
+            }
+        }
+        return total;
     }
 
     private async Task<IList<QueueInfo>> GetQueuesAsync(IReadOnlyList<FunctionStatusDetailed> functions, CancellationToken ct)
@@ -191,13 +236,13 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         }
     }
 
-    private async Task<IList<JobConfigurationStatus>> GetJobsAsync(CancellationToken ct)
+    private async Task<JobSnapshot> GetJobsAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
         if (_jobConfiguration is null || _jobService is null)
         {
-            return Array.Empty<JobConfigurationStatus>();
+            return new JobSnapshot([]);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -218,15 +263,16 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
 
             try
             {
-                _cachedJobs = await JobStatusEndpoints.BuildJobStatusesAsync(
+                _cachedJobs = new JobSnapshot(await JobStatusEndpoints.BuildJobStatusesAsync(
                     _jobConfiguration,
                     _jobService,
-                    _scheduleJobService).ConfigureAwait(false);
+                    _scheduleJobService,
+                    _jobQueue).ConfigureAwait(false));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogUnableToBuildJobsSnapshotFor(ex);
-                _cachedJobs = Array.Empty<JobConfigurationStatus>();
+                _cachedJobs = new JobSnapshot([], Available: false);
             }
 
             _jobsExpiresAt = ttlMs <= 0 ? DateTimeOffset.MinValue : now.AddMilliseconds(ttlMs);

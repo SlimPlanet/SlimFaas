@@ -1,0 +1,32 @@
+meta {
+  name: Process a synchronous request over WebSocket
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/function/{{wsFunction}}/tour/ws/{{wsFunction}}/sync
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":10,"nonce":"{{wsFunction}}-sync"}
+}
+
+tests {
+  test("The exact new worker responds with its computation and correlation identity", function () {
+    expect(res.getStatus()).to.equal(200);
+    const body = res.getBody();
+    expect(body.function).to.equal(bru.getVar("wsFunction"));
+    expect(body.mode).to.equal("sync");
+    expect(body.nonce).to.equal(bru.getVar("wsFunction") + "-sync");
+    expect(body.input).to.equal(10);
+    expect(body.result).to.equal(55);
+    expect(body.elementId).to.be.a("string").and.not.empty;
+  });
+}

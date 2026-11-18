@@ -9,7 +9,7 @@ using SlimData.Commands;
 
 namespace SlimData.Tests;
 
-public sealed class SlimPersistentStateTests
+public sealed partial class SlimPersistentStateTests
 {
     [Fact]
     public async Task ApplyAsync_ignores_configuration_entries()
@@ -308,7 +308,7 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
-    public async Task Restore_invalid_snapshot_clears_old_state_and_restoring_flag()
+    public async Task Restore_invalid_snapshot_preserves_old_state_and_clears_restoring_flag()
     {
         var root = GetTemporaryDirectory();
         var snapshotPath = Path.Combine(root, "invalid.snapshot");
@@ -325,7 +325,8 @@ public sealed class SlimPersistentStateTests
                 InvokeRestoreAsync(state, new FileInfo(snapshotPath), CancellationToken.None));
 
             Assert.False(state.IsRestoring);
-            Assert.Empty(state.SlimDataState.KeyValues);
+            Assert.Single(state.SlimDataState.KeyValues);
+            Assert.Equal("old-value", Encoding.UTF8.GetString(state.SlimDataState.KeyValues["old-key"].Span));
         }
         finally
         {

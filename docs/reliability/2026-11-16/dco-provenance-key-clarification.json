@@ -1,0 +1,14 @@
+{
+  "reason": "Sonar json:S6418 flags numeric authorized_at approval timestamp as auth. This record concerns DCO user approval, contains no credential, and is renamed precisely without excluding evidence or suppressing a security rule.",
+  "original_git_blob": "11f5fc5256c6a14a948c6ba8ceb3c1203ed8c10d",
+  "before_sha256": "7bcc6c66b2346c2db50cd5d031ad9b5d14053b354ab6f42ab9f92b4ab99a6cf6",
+  "after_sha256": "eafc3c35f72c6f1e2dd009adad585f285b3d6ca731be9eb18cf51d6dc355e148",
+  "mapping": {
+    "user_authorized": "user_approved",
+    "authorized_at": "approved_at",
+    "authorization": "approval_record",
+    "permission_before_authorization": "permission_before_approval"
+  },
+  "all_field_values_preserved": true,
+  "runtime_change": false
+}

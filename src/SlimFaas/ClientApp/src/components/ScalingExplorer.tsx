@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { curveStepAfter, line, scaleLinear } from 'd3';
 import type { FunctionStatusDetailed, ScaleConfig } from '../types.ts';
 import { useScalingStream } from '../hooks/useScalingStream.ts';
@@ -111,24 +111,37 @@ function Playground({ functionName, configuration, replicas }: { functionName: s
   </section>;
 }
 
-export default function ScalingExplorer({ functions, functionName }: { functions: FunctionStatusDetailed[]; functionName?: string }) {
+export default function ScalingExplorer({ functions, functionName, fixed = false }: { fixed?: boolean; functions: FunctionStatusDetailed[]; functionName?: string }) {
   const selected = functionName ?? functions[0]?.Name ?? '';
   const workload = functions.find(f => f.Name === selected);
   const stream = useScalingStream(selected);
   const { state } = stream;
   const decision = state?.Decision;
+  const tabId = useId();
+  const [tab, setTab] = useState<'Diagnostics' | 'Playground'>('Diagnostics');
+  const tabs = ['Diagnostics', 'Playground'] as const;
   return <div className="scaling-explorer">
-    <div className="scaling-explorer__toolbar"><label className="field field--grow">Function<select className="field__input" value={selected} onChange={e => { window.location.hash = `/live/scaling?function=${encodeURIComponent(e.target.value)}`; }}>
+    <div className="scaling-explorer__toolbar">{!fixed && <label className="field field--grow">Function<select className="field__input" value={selected} onChange={e => { window.location.hash = `/live/scaling?function=${encodeURIComponent(e.target.value)}`; }}>
       {!functions.length && <option value="">No functions available</option>}
       {selected && !workload && <option value={selected}>Unavailable: {selected}</option>}
       {functions.map(fn => <option value={fn.Name} key={fn.Name}>{fn.Name}</option>)}
-    </select></label><span className={`badge ${stream.status === 'Live' ? 'badge--success' : 'badge--warning'}`} role="status">{scalingLabel(stream.status)}</span><button className="button button--quiet" type="button" onClick={stream.retry}>Reconnect</button></div>
+    </select></label>}<span className={`badge ${stream.status === 'Live' ? 'badge--success' : 'badge--warning'}`} role="status">{scalingLabel(stream.status)}</span><button className="button button--quiet" type="button" onClick={stream.retry}>Reconnect</button></div>
     {stream.status !== 'Live' && state && <p className="notice">Showing the last received decision. Live diagnostics are currently unavailable.</p>}
     {stream.sessionChanged && <p className="notice">The leader session changed. The recent history has restarted.</p>}
     {state?.Truncated && <p className="notice">Recent history is bounded; older or oversized details have been omitted.</p>}
+    <div className="scaling-explorer__tabs" role="tablist" aria-label="Scale views">{tabs.map(name =>
+      <button type="button" className="button" key={name} id={tabId + name} role="tab" aria-selected={tab === name}
+        aria-controls={tabId + name + '-panel'} tabIndex={tab === name ? 0 : -1} onClick={() => setTab(name)}
+        onKeyDown={event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs[1] : tabs.find(value => value !== name)!;
+          setTab(next); document.getElementById(tabId + next)?.focus();
+        }}>{name}</button>)}</div>
+    <div role="tabpanel" id={tabId + 'Diagnostics-panel'} aria-labelledby={tabId + 'Diagnostics'} hidden={tab !== 'Diagnostics'}>
     {decision && state ? <>
       <div className="metrics">{[['Ready replicas', state.ObservedReadyReplicas], ['Requested replicas', state.ObservedRequestedReplicas], ['Raw metric target', decision.RawTarget], ['Final target', decision.Target]].map(([label, value]) => <div className="metrics__card" key={String(label)}><span className="metrics__label">{label}</span><strong className="metrics__value">{scalingValue(value as number | null)}</strong></div>)}</div>
-      <div className="scaling-explorer__columns"><div className="scaling-explorer__live">
+      <div className="scaling-explorer__live">
         <Decision title={`Decision at ${time(decision.TimestampMs)}`} decision={decision} />
         <dl className="scaling-explorer__context"><div><dt>Last HTTP activity</dt><dd>{time(decision.LastHttpActivityMs)}</dd></div><div><dt>Last scheduled activity</dt><dd>{time(decision.LastScheduleActivityMs)}</dd></div><div><dt>Inactivity timeout remaining</dt><dd>{Math.ceil(decision.InactivityRemainingSeconds)} s</dd></div><div><dt>Dependencies</dt><dd>{decision.DependenciesReady ? 'Ready' : 'Waiting'}</dd></div></dl>
         <h2 className="scaling-explorer__heading">Signals</h2>
@@ -139,8 +152,13 @@ export default function ScalingExplorer({ functions, functionName }: { functions
           {trigger.State === 'NotEvaluated' && <p className="scaling-signal__source">This trigger was not evaluated in this cycle, including local triggers while the function sleeps.</p>}
         </article>) : <p className="empty-state">No metric triggers configured.</p>}
         {decision.Sources.length > 0 && <><h2 className="scaling-explorer__heading">External sources</h2><div className="table-wrap"><table className="table"><thead><tr><th className="table__th">Source</th><th className="table__th">State</th><th className="table__th">Last successful scrape</th></tr></thead><tbody>{decision.Sources.map(source => <tr className="table__row" key={source.Name}><td className="table__td">{source.Name}</td><td className="table__td">{scalingLabel(source.State)}</td><td className="table__td">{time(source.LastSuccessMs)}<span className="scaling-signal__source">Every {source.IntervalMs / 1000} s</span></td></tr>)}</tbody></table></div></>}
-      </div><Playground key={selected} functionName={selected} configuration={state.Configuration} replicas={state.ObservedRequestedReplicas} /></div>
+      </div>
       <section className="scaling-explorer__history"><h2>Recent decisions</h2><HistoryChart events={state.Events} /><div className="table-wrap"><table className="table"><thead><tr><th className="table__th">Time</th><th className="table__th">Replicas</th><th className="table__th">Application</th><th className="table__th">Reasons / signals</th></tr></thead><tbody>{[...state.Events].reverse().map(event => <tr className="table__row" key={event.Id}><td className="table__td scaling-history__time">{time(event.TimestampMs)}</td><td className="table__td">{event.CurrentReplicas} → {event.Target}</td><td className="table__td">{scalingLabel(event.Application)}</td><td className="table__td">{event.Reasons.map(scalingLabel).join(' · ')}<span className="scaling-signal__source">{event.Signals.join(' · ')}</span></td></tr>)}</tbody></table></div></section>
     </> : <p className="empty-state">{selected ? 'Waiting for a scaling decision from the leader…' : 'Select a function to inspect its scaling.'}</p>}
+    </div>
+    <div role="tabpanel" id={tabId + 'Playground-panel'} aria-labelledby={tabId + 'Playground'} hidden={tab !== 'Playground'}>
+      {state ? <Playground key={selected} functionName={selected} configuration={state.Configuration} replicas={state.ObservedRequestedReplicas} />
+        : <p className="empty-state">Waiting for the current configuration…</p>}
+    </div>
   </div>;
 }

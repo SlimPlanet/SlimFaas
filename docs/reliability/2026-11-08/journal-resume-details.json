@@ -1,0 +1,37 @@
+{
+  "resume_events": [
+    {
+      "event": "resume-verified",
+      "phase": "initialization",
+      "seconds": 0.8600549999999991,
+      "utc": 1794186089.2490716,
+      "monotonic": 15.146536272
+    },
+    {
+      "event": "resume-verified",
+      "phase": "initialization",
+      "seconds": 0.8738325430000007,
+      "utc": 1794186370.4079187,
+      "monotonic": 13.312822161
+    }
+  ],
+  "job_receipt_counts": {
+    "d0dba0560b6b4e2c8ca42360ce2a4c3e": 1,
+    "96dc51c7d93a4fdf9270ce8e77b66424": 1,
+    "f856f6707c2c4ac58dc3e32d30cc81c4": 1,
+    "3067e43213ec44168193cc238d2ad1e1": 1,
+    "3c0a4cf92b9b47839c935bf09c994c80": 1,
+    "eb3aa90d2db84b7e829f8089ed681dd5": 2,
+    "43f0c35b50164214b06f80db6edf1902": 1,
+    "d2c19d008bdf45179c7ab6c48d743257": 1,
+    "c9f69794bab0408ab1562dd5161e10f4": 1,
+    "1633e40f7f6e4c15adb546a7cc634ff0": 1,
+    "a2a097a778c3448baad1971669fa8241": 1,
+    "da54df5ac2ed4372b7d4545abd93d07e": 1,
+    "4c67a3f2f4d14e21b128c4e0b52763ec": 1,
+    "7110bdb423bf4b9691afb1c4bdd42dde": 1,
+    "a7f8fcd53c3c4944aa7b3c1b5491d96f": 1,
+    "c8eeeddda1274cb88c54e68316537cb9": 1
+  },
+  "extra_job_receipts": 1
+}

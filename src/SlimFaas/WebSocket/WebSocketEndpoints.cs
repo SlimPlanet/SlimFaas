@@ -1,9 +1,12 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using SlimData;
+using SlimFaas.Streams;
 
 namespace SlimFaas.WebSocket;
 
@@ -48,7 +51,9 @@ public static class WebSocketEndpoints
         }
 
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
-        using var connection = new WebSocketClientConnection { Socket = socket };
+        using var connection = new WebSocketClientConnection { Socket = socket, Ready = false };
+        connection.Streams = context.RequestServices.GetService<IStreamService>();
+        connection.RequestContext = context;
 
         try
         {
@@ -56,9 +61,19 @@ public static class WebSocketEndpoints
         }
         finally
         {
+            connection.Ready = false;
             if (!string.IsNullOrEmpty(connection.FunctionName))
             {
                 registry.Unregister(connection);
+                if (context.RequestServices.GetService<IWebSocketClusterDirectory>() is { } directory)
+                {
+                    using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    try { await directory.RemoveAsync(connection, cleanup.Token); }
+                    catch (Exception exception)
+                    {
+                        logger.LogWebSocketDirectoryLifecycleFailed(exception, connection.FunctionName);
+                    }
+                }
             }
 
             // Résoudre tous les callbacks en attente avec une erreur
@@ -70,7 +85,7 @@ public static class WebSocketEndpoints
             // Annuler tous les sync streams en cours
             foreach (var (_, stream) in connection.PendingSyncStreams)
             {
-                await stream.Cts.CancelAsync();
+                await stream.CancelAsync();
                 stream.ResponseChunks.Writer.TryComplete(new OperationCanceledException("WebSocket disconnected"));
                 stream.ResponseStartTcs.TrySetCanceled();
                 stream.ResponseEndTcs.TrySetCanceled();
@@ -109,7 +124,7 @@ public static class WebSocketEndpoints
             // ── Frame binaire → streaming synchrone ──
             if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Binary)
             {
-                HandleBinaryFrame(ms.ToArray(), connection, logger);
+                await HandleBinaryFrameAsync(ms.ToArray(), connection, logger);
                 continue;
             }
 
@@ -136,7 +151,7 @@ public static class WebSocketEndpoints
     /// <summary>
     /// Traite une frame binaire de streaming synchrone (SyncResponseStart, SyncResponseChunk, SyncResponseEnd, SyncCancel).
     /// </summary>
-    private static void HandleBinaryFrame(
+    private static async Task HandleBinaryFrameAsync(
         byte[] data,
         WebSocketClientConnection connection,
         ILogger logger)
@@ -176,7 +191,10 @@ public static class WebSocketEndpoints
                 break;
 
             case WebSocketMessageType.SyncResponseChunk:
-                pendingStream.ResponseChunks.Writer.TryWrite(payload.ToArray());
+                try { await pendingStream.ResponseChunks.Writer.WriteAsync(payload.ToArray(), pendingStream.Token); }
+                catch (Exception exception) when (pendingStream.Token.IsCancellationRequested &&
+                    (exception is OperationCanceledException or ChannelClosedException))
+                { logger.LogSyncFrameDiscardedAfterCancellation(correlationId); }
                 break;
 
             case WebSocketMessageType.SyncResponseEnd:
@@ -186,7 +204,7 @@ public static class WebSocketEndpoints
                 break;
 
             case WebSocketMessageType.SyncCancel:
-                pendingStream.Cts.Cancel();
+                await pendingStream.CancelAsync();
                 pendingStream.ResponseChunks.Writer.TryComplete(new OperationCanceledException());
                 pendingStream.ResponseStartTcs.TrySetCanceled();
                 pendingStream.ResponseEndTcs.TrySetCanceled();
@@ -215,7 +233,7 @@ public static class WebSocketEndpoints
                 break;
 
             case WebSocketMessageType.AsyncCallback:
-                HandleAsyncCallback(envelope, connection, logger);
+                await HandleAsyncCallback(envelope, connection, logger);
                 break;
 
             case WebSocketMessageType.Ping:
@@ -254,14 +272,15 @@ public static class WebSocketEndpoints
             logger.LogFailedToDeserializeRegisterPayload(ex);
         }
 
-        if (payload == null || string.IsNullOrWhiteSpace(payload.FunctionName))
+        if (payload == null || string.IsNullOrWhiteSpace(payload.FunctionName) || connection.FunctionName.Length > 0)
         {
             await connection.SendAsync(new WebSocketEnvelope
             {
                 Type = WebSocketMessageType.RegisterResponse,
                 CorrelationId = envelope.CorrelationId,
                 Payload = JsonSerializer.SerializeToElement(
-                    new RegisterResponsePayload { Success = false, Error = "Invalid register payload: functionName is required." },
+                    new RegisterResponsePayload { Success = false, Error = connection.FunctionName.Length > 0
+                        ? "This connection is already registered." : "Invalid register payload: functionName is required." },
                     AppJsonContext.Default.RegisterResponsePayload),
             }, ct);
             return;
@@ -271,6 +290,58 @@ public static class WebSocketEndpoints
         connection.Configuration = payload.Configuration ?? new WebSocketFunctionConfiguration();
 
         var (success, error) = registry.TryRegister(connection, replicasService);
+        var directory = connection.RequestContext?.RequestServices.GetService<IWebSocketClusterDirectory>();
+        try
+        {
+            if (success && directory is not null)
+            {
+                var reserved = await directory.ReserveAsync(connection, ct);
+                success = reserved.Status < 400;
+                error = reserved.Error;
+            }
+            if (success && connection.Streams is { } streams)
+            {
+                var function = WebSocketFunctionRepository.CreateDeployment(payload.FunctionName, connection.Configuration,
+                    [connection.ConnectionId]);
+                error = await StreamConfiguration.ApplyAsync(streams, function, connection.RequestContext, ct,
+                    StreamConfiguration.Fingerprint(connection.Configuration));
+                success = error is null;
+            }
+            else if (success && connection.Configuration.SubscribeStreams.Count > 0)
+            {
+                success = false;
+                error = "Durable Stream delivery is unavailable.";
+            }
+            if (success && directory is not null)
+            {
+                connection.Ready = true;
+                var activated = await directory.ActivateAsync(connection, ct);
+                success = activated.Status < 400;
+                error = activated.Error;
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWebSocketDirectoryLifecycleFailed(exception, payload.FunctionName);
+            success = false;
+            error = "Cluster function registration is unavailable.";
+        }
+        if (!success)
+        {
+            connection.Ready = false;
+            registry.Unregister(connection);
+            if (directory is not null)
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try { await directory.RemoveAsync(connection, cleanup.Token); }
+                catch (Exception exception)
+                {
+                    logger.LogWebSocketDirectoryLifecycleFailed(exception, payload.FunctionName);
+                }
+            }
+            connection.FunctionName = "";
+        }
+        connection.Ready = success;
 
         await connection.SendAsync(new WebSocketEnvelope
         {
@@ -292,7 +363,7 @@ public static class WebSocketEndpoints
         }
     }
 
-    private static void HandleAsyncCallback(
+    private static async Task HandleAsyncCallback(
         WebSocketEnvelope envelope,
         WebSocketClientConnection connection,
         ILogger logger)
@@ -317,10 +388,36 @@ public static class WebSocketEndpoints
             return;
         }
 
+        if (payload.ElementId.StartsWith("stream_", StringComparison.Ordinal))
+        {
+            if (connection.Streams is not { } streams || connection.RequestContext is not { } context)
+            {
+                logger.LogAsyncCallbackForUnknownElementId(payload.ElementId);
+                return;
+            }
+            var state = await streams.ReadAsync(context.RequestAborted);
+            var attempt = DurableStreamStore.Attempt(state, payload.ElementId);
+            var definition = attempt is null ? null : DurableStreamStore.Definition(state, attempt.Stream);
+            if (attempt is null || definition is null || attempt.Function != connection.FunctionName || !streams.CanAccess(context, definition))
+            {
+                logger.LogAsyncCallbackForUnknownElementId(payload.ElementId);
+                return;
+            }
+            await streams.MutateAsync(new()
+            {
+                Action = DurableStreamAction.Complete, Stream = attempt.Stream, Function = attempt.Function,
+                ElementId = payload.ElementId, StatusCode = payload.StatusCode
+            }, context.RequestAborted);
+            if (payload.StatusCode != 202 && connection.StreamRequests.TryRemove(payload.ElementId, out var reserved) && reserved == 1)
+                connection.ReleaseRequest();
+            return;
+        }
         if (connection.PendingCallbacks.TryRemove(payload.ElementId, out var tcs))
         {
-            tcs.TrySetResult(payload.StatusCode);
-            logger.LogAsyncCallbackResolvedElementIdStatus(payload.ElementId, payload.StatusCode);
+            if (tcs.TrySetResult(payload.StatusCode))
+                logger.LogAsyncCallbackResolvedElementIdStatus(payload.ElementId, payload.StatusCode);
+            else
+                logger.LogAsyncCallbackForUnknownElementId(payload.ElementId);
         }
         else
         {
@@ -328,4 +425,3 @@ public static class WebSocketEndpoints
         }
     }
 }
-

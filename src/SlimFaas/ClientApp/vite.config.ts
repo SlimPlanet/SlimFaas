@@ -7,6 +7,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, '../wwwroot'),
     emptyOutDir: true,
+    sourcemap: !!process.env.DASHBOARD_COVERAGE_DIR,
   },
   server: {
     proxy: {

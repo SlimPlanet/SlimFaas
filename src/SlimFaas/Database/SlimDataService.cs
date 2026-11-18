@@ -1,3 +1,4 @@
+using ZLinq;
 using System.Buffers;
 using System.Collections.Immutable;
 using System.Data;
@@ -6,8 +7,8 @@ using System.IO.Hashing;
 using System.Net;
 using System.Text;
 using DotNext;
+using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Consensus.Raft;
-using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimData.Commands;
@@ -37,6 +38,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     private readonly SlimDataBatchLoadController _loadController;
     private readonly SlimDataBatchCapacityLimiter? _partitionCapacityLimiter;
     private readonly string _generationId = Guid.NewGuid().ToString("N");
+    private readonly Lock _leaderEpochLock = new();
+    private CancellationTokenSource? _leaderEpoch = new();
 
     // Delays (in seconds) shared by every read-path Retry.DoAsync so that no
     // array is allocated per call.
@@ -44,8 +47,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
     // Client reused for every batch flush (up to one flush every ~3-5 ms in
     // low-latency mode) instead of a CreateClient/Dispose per flush. Same pattern
-    // as SendClient: the underlying handler is never rotated anymore, which is
-    // harmless here (pod IPs, leader failover through the per-request URI).
+    // as SendClient: its SocketsHttpHandler bounds pooled connection age while
+    // leader failover still selects the URI independently for each request.
     private HttpClient? _batchHttpClient;
 
     public const string HttpClientName = "SlimDataHttpClient";
@@ -112,6 +115,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                 coalesceWindow: TimeSpan.FromMilliseconds(3),
                 timingProvider: _lowLoadFastPathEnabled ? _loadController.GetTiming : null);
         }
+        _cluster.LeaderChanged += OnLeaderChanged;
     }
 
     // SlimPersistentState is a singleton: cache the resolution instead of querying
@@ -124,7 +128,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _persistentState ??= _serviceProvider.GetRequiredService<SlimPersistentState>();
 
     public IReadOnlyList<AdaptiveBatchQueueStatistics> BatchQueueStatistics
-        => _batchPartitions
+        => _batchPartitions.AsValueEnumerable()
             .SelectMany(static partition => partition.Batcher.GetQueueStatistics())
             .ToArray();
 
@@ -332,6 +336,42 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _ = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
     }
 
+    public async Task<FileAdmissionResult> ExecuteFileAdmissionAsync(FileAdmissionMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.FileAdmission, FileAdmissionStore.IndexKey);
+        _logger.LogFileAdmissionQueueMap(operation.RequestId, mutation.ElementId, mutation.FileId, mutation.Action);
+        operation.Value = MemoryPackExactSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.KeyValueResult?.Value is { } value
+            ? MemoryPackPayload.Deserialize<FileAdmissionResult>(value)
+                ?? throw new DataException("Missing file admission result.")
+            : throw new DataException("Missing file admission result.");
+    }
+
+    public async Task<WebSocketDirectoryResult> ExecuteWebSocketDirectoryAsync(WebSocketDirectoryMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.WebSocketDirectory, WebSocketDirectoryStore.Key);
+        operation.Value = WebSocketDirectoryStore.SerializeMutation(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.WebSocketDirectoryResult ?? throw new DataException("Missing WebSocket directory result.");
+    }
+
+    public async Task<DurableStreamMutationResult> ExecuteStreamAsync(DurableStreamMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.Stream, DurableStreamStore.DefinitionPrefix + mutation.Stream);
+        operation.Value = MemoryPackExactSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.StreamResult ?? throw new DataException("Missing durable Stream result.");
+    }
+
+    public async Task<DeadLetterMutationResult> ExecuteDeadLetterAsync(DeadLetterMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.DeadLetter, "Queue:" + mutation.Function);
+        operation.Value = MemoryPackExactSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.DeadLetterResult ?? throw new DataException("Missing durable DLQ result.");
+    }
+
     private async Task<SlimDataBatchOperationResult> EnqueueMutationAsync(
         SlimDataBatchOperation operation,
         bool latencySensitive = false)
@@ -373,7 +413,9 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             RequestId = Guid.NewGuid().ToString("N"),
             Operations = batch.ToArray()
         };
-        var payload = MemoryPackSerializer.Serialize(request);
+        // Generated dispatch bypasses partially published root formatters;
+        // exact sizing also avoids a second payload-sized temporary buffer.
+        var payload = MemoryPackExactSerializer.Serialize(request);
         var attempt = 0;
 
         while (true)
@@ -381,6 +423,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                if (_logger.IsEnabled(LogLevel.Trace))
+                    TraceQueueOperations(request, null, "send-attempt", attempt + 1);
                 var response = await SendCommandBatchAsync(payload, cancellationToken)
                     .ConfigureAwait(false);
                 if (response.SequenceGap)
@@ -408,6 +452,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                     }
                 }
 
+                if (_logger.IsEnabled(LogLevel.Trace))
+                    TraceQueueOperations(request, response, "response-validated", attempt + 1);
                 partition.LastSuccessfulSequence = sequence;
                 return response.Results;
             }
@@ -420,11 +466,53 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         }
     }
 
+    private void TraceQueueOperations(SlimDataCommandBatchRequest request,
+        SlimDataCommandBatchResponse? response, string stage, int attempt)
+    {
+        if (!_logger.IsEnabled(LogLevel.Trace))
+            return;
+        for (int index = 0; index < request.Operations.Length; index++)
+        {
+            SlimDataBatchOperation operation = request.Operations[index];
+            if (operation.Kind is not (SlimDataBatchOperationKind.ListLeftPush or
+                SlimDataBatchOperationKind.ListRightPop or SlimDataBatchOperationKind.ListCallback or
+                SlimDataBatchOperationKind.FileAdmission))
+                continue;
+            SlimDataBatchOperationResult? result = response?.Results[index];
+            if (operation.Kind == SlimDataBatchOperationKind.ListCallback)
+            {
+                foreach (QueueItemStatus item in operation.CallbackItems)
+                    TraceElement(item.Id, item.HttpCode);
+            }
+            else
+            {
+                TraceElement(operation.ElementId, null);
+            }
+            if (result?.QueueItems is { } reservations)
+            {
+                foreach (QueueData item in reservations)
+                    _logger.LogQueueReservationResult(operation.RequestId, item.Id, item.TryNumber, item.ReservedIp,
+                        item.LastRetryTimeTicks, item.HttpTimeoutTicks);
+            }
+
+            void TraceElement(string elementId, int? statusCode) =>
+                _logger.LogQueueOperationStage(stage, request.ProducerId, request.GenerationId, request.Sequence,
+                    request.RequestId, operation.RequestId, operation.Kind, operation.Key, elementId, statusCode,
+                    attempt, result?.Applied, response?.Duplicate);
+        }
+    }
+
     private async Task<SlimDataCommandBatchResponse> SendCommandBatchAsync(
         byte[] payload,
         CancellationToken cancellationToken)
     {
-        var endpoint = await GetAndWaitForLeader(cancellationToken).ConfigureAwait(false);
+        // A leader URI belongs to the observed leader and consensus epochs. Cancel a stale
+        // in-flight request when either epoch ends instead of holding the ordered
+        // producer until HttpClient.Timeout. The caller retries the same batch
+        // identity, including when the previous leader already committed it.
+        using var consensusCancellation = CreateLeaderRequestCancellation(cancellationToken);
+        CancellationToken requestToken = consensusCancellation.Token;
+        var endpoint = await GetAndWaitForLeader(requestToken).ConfigureAwait(false);
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             new Uri($"{endpoint}{UnifiedBatchResource}"))
@@ -432,16 +520,17 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             Content = new ByteArrayContent(payload)
         };
         HttpClient httpClient = _batchHttpClient ??= _httpClientFactory.CreateClient(HttpClientName);
-        // The body is consumed in full below. Keep HttpClient.Timeout active until
-        // it has arrived; ResponseHeadersRead leaves body reads without a deadline
-        // and can permanently block this producer's ordered mutation queue.
+        // Headers-only completion avoids HttpClient's full-body buffer followed
+        // by ReadAsByteArrayAsync's second large copy. Keep the configured timeout
+        // over the whole exchange, including the body, as well as both epochs.
+        consensusCancellation.CancelAfter(httpClient.Timeout);
         using var response = await httpClient.SendAsync(
                 request,
-                HttpCompletionOption.ResponseContentRead,
-                cancellationToken)
+                HttpCompletionOption.ResponseHeadersRead,
+                requestToken)
             .ConfigureAwait(false);
 
-        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        byte[] bytes = await ReadCommandBatchBodyAsync(httpClient, response, requestToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
             throw new InvalidDataException(
@@ -452,7 +541,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
         if (response.StatusCode == HttpStatusCode.Conflict && bytes.Length > 0)
         {
-            return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(bytes)
+            return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(bytes)
                    ?? throw new DataException("The unified SlimData endpoint returned an empty conflict response.");
         }
 
@@ -460,8 +549,51 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         if (!response.IsSuccessStatusCode)
             throw new DataException($"The unified SlimData endpoint returned HTTP {(int)response.StatusCode}.");
 
-        return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(bytes)
+        return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(bytes)
                ?? throw new DataException("The unified SlimData endpoint returned a null response.");
+    }
+
+    private static async Task<byte[]> ReadCommandBatchBodyAsync(
+        HttpClient client, HttpResponseMessage response, CancellationToken token)
+    {
+        if (response.Content.Headers.ContentLength is not { } length)
+        {
+            // Preserve the configured buffer limit for older or chunked peers.
+            await response.Content.LoadIntoBufferAsync(client.MaxResponseContentBufferSize, token).ConfigureAwait(false);
+            return await response.Content.ReadAsByteArrayAsync(token).ConfigureAwait(false);
+        }
+
+        if (length > client.MaxResponseContentBufferSize || length > Array.MaxLength)
+            throw new HttpRequestException("The unified SlimData response exceeds the configured buffer limit.");
+
+        byte[] bytes = GC.AllocateUninitializedArray<byte>(checked((int)length));
+        await using var stream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        await stream.ReadExactlyAsync(bytes, token).ConfigureAwait(false);
+        return bytes;
+    }
+
+    private CancellationTokenSource CreateLeaderRequestCancellation(CancellationToken cancellationToken)
+    {
+        using (_leaderEpochLock.EnterScope())
+        {
+            ObjectDisposedException.ThrowIf(_leaderEpoch is null, this);
+            return CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, _cluster.ConsensusToken, _leaderEpoch.Token);
+        }
+    }
+
+    private void OnLeaderChanged(ICluster cluster, IClusterMember? leader)
+    {
+        CancellationTokenSource previous;
+        using (_leaderEpochLock.EnterScope())
+        {
+            if (_leaderEpoch is null)
+                return;
+            previous = _leaderEpoch;
+            _leaderEpoch = new CancellationTokenSource();
+        }
+        try { previous.Cancel(); }
+        finally { previous.Dispose(); }
     }
 
     private static bool IsRetryableBatchFailure(
@@ -475,7 +607,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             not BatchQueueFullException;
     }
 
-    private async Task<byte[]?> DoGetAsync(string key)
+    private async Task WaitForReadBarrierAsync()
     {
         using var timeout = new CancellationTokenSource(ReadBarrierTimeout);
         try
@@ -487,6 +619,12 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             // Weak avoids forcing unrelated pending writes on the leader; a
             // completed SetAsync is already committed before it returns.
             await _cluster.ApplyReadBarrierAsync(ReadBarrierType.Weak, timeout.Token)
+                .ConfigureAwait(false);
+            // DotNext's weak leader fast path can return once its write barrier
+            // is committed, while the local state-machine applier is behind.
+            // Do not capture local values until the visible commit is applied.
+            var log = _cluster.AuditTrail;
+            await log.WaitForApplyAsync(log.LastCommittedEntryIndex, timeout.Token)
                 .ConfigureAwait(false);
             await MasterWaitForLeaseToken(timeout.Token).ConfigureAwait(false);
         }
@@ -500,7 +638,11 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             throw new SlimDataUnavailableException(
                 "Raft read barrier or leader lease timed out.", ex);
         }
+    }
 
+    private async Task<byte[]?> DoGetAsync(string key)
+    {
+        await WaitForReadBarrierAsync().ConfigureAwait(false);
         var data = SimplePersistentState.Invoke();
         if (TryReadExpireAtFromKeyValues(data, key, out var expireAt) &&
             expireAt <= DateTime.UtcNow.Ticks)
@@ -515,9 +657,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
     private async Task<IDictionary<string, byte[]>> DoHashGetAllAsync(string key)
     {
-        await GetAndWaitForLeader().ConfigureAwait(false);
-        await WaitForLocalApplyAsync().ConfigureAwait(false);
-        await MasterWaitForLeaseToken().ConfigureAwait(false);
+        await WaitForReadBarrierAsync().ConfigureAwait(false);
 
         var data = SimplePersistentState.Invoke();
         if (TryReadExpireAtFromHashsets(data, key, out var expireAt) &&
@@ -564,11 +704,11 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         if (countTypes.Contains(CountType.WaitingForRetry))
             result.AddRange(value.GetQueueWaitingForRetryElement(nowTicks));
 
-        return result
+        return result.AsValueEnumerable()
             .Select(static item => new QueueData(
                 item.Id,
                 item.Value.ToArray(),
-                item.NumberOfTries(),
+                item.GetTryNumber(),
                 item.IsLastTry(),
                 item.GetLastRetryTimeTicks(),
                 item.GetHttpTimeoutTicks(),
@@ -592,14 +732,39 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             return 0;
         }
 
-        var nowTicks = DateTime.UtcNow.Ticks;
+        return CountQueueElements(value, countTypes, maximum, DateTime.UtcNow.Ticks);
+    }
+
+    internal static long CountQueueElements(
+        ImmutableArray<QueueElement> queue,
+        IList<CountType> countTypes,
+        int maximum,
+        long nowTicks)
+    {
+        bool availableRequested = countTypes.Contains(CountType.Available) && maximum > 0;
+        bool runningRequested = countTypes.Contains(CountType.Running);
+        bool retryRequested = countTypes.Contains(CountType.WaitingForRetry);
+        if (queue.IsDefaultOrEmpty || (!availableRequested && !runningRequested && !retryRequested))
+            return 0;
+
+        int available = 0;
         long count = 0;
-        if (countTypes.Contains(CountType.Available))
-            count += value.GetQueueAvailableElement(nowTicks, maximum).Length;
-        if (countTypes.Contains(CountType.Running))
-            count += value.GetQueueRunningElement(nowTicks).Length;
-        if (countTypes.Contains(CountType.WaitingForRetry))
-            count += value.GetQueueWaitingForRetryElement(nowTicks).Length;
+        foreach (QueueElement element in queue)
+        {
+            switch (element.GetState(nowTicks))
+            {
+                case QueueElementState.Available when availableRequested && available < maximum:
+                    available++;
+                    count++;
+                    if (available == maximum && !runningRequested && !retryRequested)
+                        return count;
+                    break;
+                case QueueElementState.Running when runningRequested:
+                case QueueElementState.WaitingForRetry when retryRequested:
+                    count++;
+                    break;
+            }
+        }
         return count;
     }
 
@@ -623,21 +788,18 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         var runningReservations = new List<QueueRunningReservation>();
         foreach (QueueElement element in queue)
         {
-            if (element.IsFinished(nowTicks))
-                continue;
-            if (element.IsRunning(nowTicks))
+            switch (element.GetState(nowTicks))
             {
-                runningReservations.Add(new QueueRunningReservation(
-                    element.Id,
-                    element.GetLastReservedIp()));
-                continue;
+                case QueueElementState.Running:
+                    runningReservations.Add(new QueueRunningReservation(element.Id, element.GetLastReservedIp()));
+                    break;
+                case QueueElementState.WaitingForRetry:
+                    waitingForRetry++;
+                    break;
+                case QueueElementState.Available:
+                    available++;
+                    break;
             }
-            if (element.IsWaitingForRetry(nowTicks))
-            {
-                waitingForRetry++;
-                continue;
-            }
-            available++;
         }
 
         return new QueueDispatchState(
@@ -764,8 +926,26 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        foreach (var partition in _batchPartitions)
-            await partition.Batcher.DisposeAsync().ConfigureAwait(false);
+        try
+        {
+            foreach (var partition in _batchPartitions)
+                await partition.Batcher.DisposeAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _cluster.LeaderChanged -= OnLeaderChanged;
+            CancellationTokenSource? epoch;
+            using (_leaderEpochLock.EnterScope())
+            {
+                epoch = _leaderEpoch;
+                _leaderEpoch = null;
+            }
+            if (epoch is not null)
+            {
+                await epoch.CancelAsync().ConfigureAwait(false);
+                epoch.Dispose();
+            }
+        }
     }
 
     internal static int GetPartitionIndex(string key, int partitionCount)

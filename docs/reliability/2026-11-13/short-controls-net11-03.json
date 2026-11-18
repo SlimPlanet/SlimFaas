@@ -1,0 +1,3622 @@
+{
+  "schema": 1,
+  "created_utc": 1794629758.7611709,
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "driver_source": "a3e28adcfe700bb5ad920e1170a72c781cffed76",
+  "short_controls": {
+    "podman-full": {
+      "passed": true,
+      "confirmed_operations": 514,
+      "unknown_outcomes": 21,
+      "missing_confirmed_operations": [],
+      "sdk_cases": null,
+      "phases": [
+        {
+          "phase": "protocol-probe-with-silent-follower",
+          "passed": true,
+          "suspended_follower": 2,
+          "restarted_leader": 1,
+          "ready_and_write_seconds": 4.138096747999953,
+          "restart_to_listener_seconds": 1.8699046059991815
+        },
+        {
+          "phase": "payloads",
+          "bytes": 65536,
+          "chunked": true,
+          "id": "bc46ed77a03545428d5984be2eabf3a1",
+          "seconds": 0.2516209549976338,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 1048576,
+          "chunked": false,
+          "id": "76929df4058e4ea2a7962dec8bda536e",
+          "seconds": 0.38870697500169626,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 262144,
+          "chunked": false,
+          "id": "18a857bc754f49f1a8fa15df30061f25",
+          "seconds": 0.824315542999102,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 1048576,
+          "chunked": true,
+          "id": "aa3c0985ae224a4d8e644c8d82fd4ad6",
+          "seconds": 0.37394377999953576,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 65536,
+          "chunked": false,
+          "id": "d59637358be74ed8a0e42a288e9c70d6",
+          "seconds": 1.225882835999073,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 262144,
+          "chunked": true,
+          "id": "6a69f72703e44ec9abc7480ee9cc4e06",
+          "seconds": 1.2276240059982229,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2000000,
+          "chunked": false,
+          "id": "5ea57a8be28b4f3ba35e858233c58bed",
+          "seconds": 0.4048094659992785,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2000000,
+          "chunked": true,
+          "id": "563610e7b98144449f3c8689b636b304",
+          "seconds": 0.24684773700209917,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2097152,
+          "chunked": false,
+          "id": "40919c8c1ec24091ae10bfc31ea4d150",
+          "seconds": 0.24146814300183905,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2097152,
+          "chunked": true,
+          "id": "37b1a7a3745c43689bd94034a594544e",
+          "seconds": 0.23917297200023313,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 4194304,
+          "chunked": false,
+          "id": "4b35b07a70ea41a1b126979123ac6a4d",
+          "seconds": 0.2463715689991659,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 4194304,
+          "chunked": true,
+          "id": "65cfbad8d10147229adba7b8afb0a1f2",
+          "seconds": 0.23147899800096639,
+          "passed": true
+        },
+        {
+          "phase": "api-smoke",
+          "passed": true
+        },
+        {
+          "phase": "file-boundaries",
+          "passed": true
+        },
+        {
+          "phase": "wake-and-cancel",
+          "passed": true
+        },
+        {
+          "phase": "retries-dlq-jobs",
+          "passed": true,
+          "job_ids": [
+            "7b49cadd21dd455ba972119e2840affc",
+            "5ec2c1bf68df44e88a1e848ae1f2f896",
+            "32d3a0f058a54cafb3d5ca12b4983490"
+          ],
+          "dlq_id": "dlq-236a67ec-20d2-4220-bff3-64fce9cbf35f"
+        },
+        {
+          "phase": "stream-fanout-retention",
+          "passed": true,
+          "initial_append_order": [
+            "8148ab6581a44edd8e04b44ed84b4874_00000000000000000001",
+            "8148ab6581a44edd8e04b44ed84b4874_00000000000000000002",
+            "8148ab6581a44edd8e04b44ed84b4874_00000000000000000003"
+          ],
+          "retention_gap_summaries": {
+            "chaos-fanout-a": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-a",
+              "Active": true,
+              "Generation": "6efda83eb7034b399fba9b34c7cd51cc",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-14T03:43:26.670714+00:00",
+              "Revision": 39
+            },
+            "chaos-fanout-b": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-b",
+              "Active": true,
+              "Generation": "42dc929edf684880853fc4c332144ca6",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-14T03:43:26.6721039+00:00",
+              "Revision": 39
+            }
+          },
+          "functions": [
+            "chaos-fanout-a",
+            "chaos-fanout-b"
+          ]
+        },
+        {
+          "phase": "scheduled-job",
+          "schedule_id": "21e1080f-acd1-40f4-a343-3b342f8a8ab3",
+          "job_arg": "1f5bfbe79e734263833ed4c362ba7010",
+          "passed": true
+        },
+        {
+          "phase": "job-environments",
+          "id": "7fd3feaad14f42d995f10a95e275617b",
+          "passed": true
+        },
+        {
+          "phase": "job-supervisor-recovery",
+          "id": "a122e4135fdd4d909173e117b4bc6153",
+          "queue_id": "4f31b12a-837f-4913-a52a-3d9efb50abf6",
+          "passed": true
+        },
+        {
+          "phase": "startup-job-configuration",
+          "job_argument": "e170aa789984410f964d273131e4def2",
+          "passed": true
+        },
+        {
+          "phase": "job-during-node-stop",
+          "passed": true,
+          "follower": 0,
+          "job_id": "7d5b12b43dfa4002a932d19c1ecdb61f",
+          "seconds": 1.0178863840010308
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 262144,
+          "chunked": true,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 262144,
+          "chunked": false,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 65536,
+          "chunked": false,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 65536,
+          "chunked": true,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 1048576,
+          "chunked": false,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 1048576,
+          "chunked": true,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2000000,
+          "chunked": false,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2000000,
+          "chunked": true,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2097152,
+          "chunked": false,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2097152,
+          "chunked": true,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 4194304,
+          "chunked": true,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 4194304,
+          "chunked": false,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        },
+        {
+          "phase": "websocket",
+          "function": "chaos-ws-3d38409dbd0542dcbecb846561f81284",
+          "stream": "stream-chaos-ws-3d38409dbd0542dcbecb846561f81284",
+          "passed": true
+        },
+        {
+          "phase": "websocket-owner-timeout",
+          "passed": true,
+          "delivery_timeout_seconds": 8,
+          "owner_absence_after_acceptance_seconds": 20,
+          "id": "755f722fe1d44d358196c4eeab34aef6",
+          "default_retry_statuses": true
+        },
+        {
+          "phase": "leader-lease-burst",
+          "leader": 2,
+          "silent_follower": 0,
+          "healthy_writes": 28,
+          "silent_writes": 28,
+          "probe_seconds": 0.007962931998918066,
+          "probe_budget_seconds": 15,
+          "passed": true
+        },
+        {
+          "phase": "stale-leader-http-route",
+          "ingress_node": 0,
+          "old_leader": 2,
+          "seconds": 7.16266805000123,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-1s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 1,
+          "actual_absence_seconds": 1.000504183000885,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.0379743250014144,
+          "full_recovery_seconds": 0.33844958400004543,
+          "accepted": 295,
+          "unknown": 10,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-1s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 1,
+          "actual_absence_seconds": 1.0001876409987744,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.030950226999266306,
+          "full_recovery_seconds": 1.52348233900193,
+          "accepted": 303,
+          "unknown": 10,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-1s",
+          "fault": "process-suspension",
+          "nodes": [
+            0,
+            2
+          ],
+          "requested_absence_seconds": 1,
+          "actual_absence_seconds": 1.0030909369997971,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 3.054618111000309,
+          "full_recovery_seconds": 4.315964599998551,
+          "accepted": 312,
+          "unknown": 10,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-5s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 5,
+          "actual_absence_seconds": 5.000373199000023,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.08254520500122453,
+          "full_recovery_seconds": 1.1542279450004571,
+          "accepted": 334,
+          "unknown": 10,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-5s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 5,
+          "actual_absence_seconds": 5.001132117999077,
+          "new_leader_observed_seconds": 4.712763589999668,
+          "ready_after_resume_seconds": 1.0246897719989647,
+          "full_recovery_seconds": 1.29137738099962,
+          "accepted": 342,
+          "unknown": 10,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-5s",
+          "fault": "process-suspension",
+          "nodes": [
+            0,
+            1
+          ],
+          "requested_absence_seconds": 5,
+          "actual_absence_seconds": 5.001349368001684,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 4.0549781679983425,
+          "full_recovery_seconds": 5.34415283600174,
+          "accepted": 351,
+          "unknown": 10,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-10s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 10,
+          "actual_absence_seconds": 10.000373566002963,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 1.0469689819983614,
+          "full_recovery_seconds": 1.9593574489990715,
+          "accepted": 395,
+          "unknown": 10,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-10s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 10,
+          "actual_absence_seconds": 10.000102565001725,
+          "new_leader_observed_seconds": 4.088341984002909,
+          "ready_after_resume_seconds": 1.0247592300001998,
+          "full_recovery_seconds": 1.3406808959989576,
+          "accepted": 421,
+          "unknown": 11,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-10s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 10,
+          "actual_absence_seconds": 10.001028817001497,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 2.0659677010007726,
+          "full_recovery_seconds": 2.9861411419988144,
+          "accepted": 430,
+          "unknown": 11,
+          "passed": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "15f761ea72cfcee6b02917dcdd778a3228dd10eb1999de56a0a231103b23dba0",
+      "report_bytes": 12252,
+      "retained_original": "${VM_EVIDENCE}/podman/linux-final-net11-03-01/campaign/report.json"
+    },
+    "podman-sdk": {
+      "passed": true,
+      "confirmed_operations": null,
+      "unknown_outcomes": null,
+      "missing_confirmed_operations": null,
+      "sdk_cases": 72,
+      "phases": null,
+      "report_sha256": "5f5da1fb67fa30eb497ca77a629ad01d6781146bd45d237368e5caefa300bb9e",
+      "report_bytes": 28336,
+      "retained_original": "${VM_EVIDENCE}/podman/linux-dotnet-net11-03-01/probe-output/report.json"
+    },
+    "kubernetes-sdk": {
+      "passed": true,
+      "confirmed_operations": null,
+      "unknown_outcomes": null,
+      "missing_confirmed_operations": null,
+      "sdk_cases": 72,
+      "phases": null,
+      "report_sha256": "82056742e1fbcc13748b06f0cb189c177fc3c653d803a9d8e0e7c488d45092e6",
+      "report_bytes": 28988,
+      "retained_original": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-03-dotnet-01/dotnet-sdk/probe-output/report.json"
+    },
+    "kubernetes-quick": {
+      "passed": true,
+      "confirmed_operations": 328,
+      "unknown_outcomes": 9,
+      "missing_confirmed_operations": [],
+      "sdk_cases": null,
+      "phases": [
+        {
+          "phase": "payloads",
+          "bytes": 262144,
+          "chunked": false,
+          "id": "77cbdfb983e041f5a395257e90a645c2",
+          "seconds": 0.3050224770013301,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 65536,
+          "chunked": false,
+          "id": "f237a0a2c6aa43bebb79f0ec09f1ebaa",
+          "seconds": 0.3067762720020255,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 65536,
+          "chunked": true,
+          "id": "f42d027e55a1460f94ed03e5f30bebf8",
+          "seconds": 0.3594209590009996,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 262144,
+          "chunked": true,
+          "id": "2eab4493cbc04568894bac363b38be1b",
+          "seconds": 0.36054291899927193,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 1048576,
+          "chunked": false,
+          "id": "9af89ff5752541559c2220ef5e63ebb5",
+          "seconds": 0.573715465998248,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 1048576,
+          "chunked": true,
+          "id": "8195f97f092b4c4390b7805cbf363516",
+          "seconds": 0.5746235089973197,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2000000,
+          "chunked": false,
+          "id": "93e9bbeb8bb6402ab100b2607669e515",
+          "seconds": 0.5306990470016899,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2000000,
+          "chunked": true,
+          "id": "2c748a1f64b94aaaa1f264858a21357f",
+          "seconds": 0.5346935130000929,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2097152,
+          "chunked": false,
+          "id": "baf4ab052cf34518b683c83bf71eef14",
+          "seconds": 0.22721386500052176,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2097152,
+          "chunked": true,
+          "id": "5f533367d08441b78f840278e60f042e",
+          "seconds": 0.24437348199717235,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 4194304,
+          "chunked": false,
+          "id": "3eb0a60c7525422bbcb5cadc1270d551",
+          "seconds": 0.2372783430000709,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 4194304,
+          "chunked": true,
+          "id": "856ba7ccd58d436990f44400b1b427a8",
+          "seconds": 0.2458752349994029,
+          "passed": true
+        },
+        {
+          "phase": "api-smoke",
+          "passed": true
+        },
+        {
+          "phase": "file-boundaries",
+          "passed": true
+        },
+        {
+          "phase": "retries-dlq-jobs",
+          "passed": true,
+          "job_ids": [
+            "dac67fb14f964f87ba8d39d34e7b3c4b",
+            "6e1c73b04a714510ac125ee2738823f5",
+            "f7e8f88bae5c4a2a99161d4383295e6c"
+          ],
+          "dlq_id": "dlq-3d4c4e1f-f9fe-484d-92cc-a306031288c9"
+        },
+        {
+          "phase": "job-during-node-stop",
+          "passed": true,
+          "follower": 1,
+          "job_id": "d9282496d47249b78ab40c497f1f2dbd",
+          "seconds": 1.0283166540029924
+        },
+        {
+          "phase": "leader-lease-burst",
+          "leader": 0,
+          "silent_follower": 1,
+          "healthy_writes": 28,
+          "silent_writes": 14,
+          "probe_seconds": 0.008082390999334166,
+          "probe_budget_seconds": 15,
+          "passed": true
+        },
+        {
+          "phase": "stale-leader-http-route",
+          "ingress_node": 1,
+          "old_leader": 0,
+          "seconds": 6.71303949600042,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-1s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 1.0,
+          "actual_absence_seconds": 1.0007481829998142,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.036663155999121955,
+          "full_recovery_seconds": 0.8725405969998974,
+          "accepted": 165,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-1s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 1.0,
+          "actual_absence_seconds": 1.0013920170022175,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.03656719799982966,
+          "full_recovery_seconds": 1.6654400779989373,
+          "accepted": 173,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-1s",
+          "fault": "process-suspension",
+          "nodes": [
+            0,
+            2
+          ],
+          "requested_absence_seconds": 1.0,
+          "actual_absence_seconds": 1.0001154320016212,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 3.074740774998645,
+          "full_recovery_seconds": 4.71692555700065,
+          "accepted": 182,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-5s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 5.0,
+          "actual_absence_seconds": 5.000397408002755,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.0857882519994746,
+          "full_recovery_seconds": 0.9409263149973413,
+          "accepted": 197,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-5s",
+          "fault": "process-suspension",
+          "nodes": [
+            2
+          ],
+          "requested_absence_seconds": 5.0,
+          "actual_absence_seconds": 5.000308991999191,
+          "new_leader_observed_seconds": 4.897738080999261,
+          "ready_after_resume_seconds": 1.0554792490002,
+          "full_recovery_seconds": 1.7165773449996777,
+          "accepted": 207,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-5s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 5.0,
+          "actual_absence_seconds": 5.000924700998439,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 4.048713029998908,
+          "full_recovery_seconds": 5.733729397001298,
+          "accepted": 217,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-10s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 10.0,
+          "actual_absence_seconds": 10.00048873200285,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.0652035459970648,
+          "full_recovery_seconds": 0.9583148909987358,
+          "accepted": 234,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-10s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 10.0,
+          "actual_absence_seconds": 10.000194190000911,
+          "new_leader_observed_seconds": 5.123974735997763,
+          "ready_after_resume_seconds": 1.037349546997575,
+          "full_recovery_seconds": 1.341771647999849,
+          "accepted": 244,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-10s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 10.0,
+          "actual_absence_seconds": 10.001285108999582,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 3.0656552990003547,
+          "full_recovery_seconds": 4.783633939001447,
+          "accepted": 253,
+          "unknown": 0,
+          "passed": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "10a228ce9955b43b57f4994de33d37d96405ce9586eb1fd6698a280cbb71133e",
+      "report_bytes": 7463,
+      "retained_original": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-03-quick-01/campaign/report.json"
+    },
+    "kubernetes-protocol": {
+      "passed": true,
+      "confirmed_operations": 259,
+      "unknown_outcomes": 11,
+      "missing_confirmed_operations": [],
+      "sdk_cases": null,
+      "phases": [
+        {
+          "phase": "api-smoke",
+          "passed": true
+        },
+        {
+          "phase": "protocol-probe-with-silent-follower",
+          "passed": true,
+          "suspended_follower": 1,
+          "restarted_leader": 0,
+          "ready_and_write_seconds": 0.4365127780001785,
+          "restart_to_listener_seconds": 201.85790637399987
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "c9b12bbd820155abe30e5647aa6a4f1afb8912b1d04470b0dea5fec0f20beb69",
+      "report_bytes": 543,
+      "retained_original": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-03-protocol-01/campaign/report.json"
+    },
+    "kubernetes-python": {
+      "passed": true,
+      "confirmed_operations": 278,
+      "unknown_outcomes": 15,
+      "missing_confirmed_operations": [],
+      "sdk_cases": null,
+      "phases": [
+        {
+          "phase": "api-smoke",
+          "passed": true
+        },
+        {
+          "phase": "wake-and-cancel",
+          "passed": true
+        },
+        {
+          "phase": "stream-fanout-retention",
+          "passed": true,
+          "initial_append_order": [
+            "f115aa60a20b4dc1aef43488b0c09881_00000000000000000001",
+            "f115aa60a20b4dc1aef43488b0c09881_00000000000000000002",
+            "f115aa60a20b4dc1aef43488b0c09881_00000000000000000003"
+          ],
+          "retention_gap_summaries": {
+            "chaos-fanout-a": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-a",
+              "Active": true,
+              "Generation": "68f3f2b955fc4c95bd2e173dacc2f8f6",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-14T03:57:37.83762+00:00",
+              "Revision": 43
+            },
+            "chaos-fanout-b": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-b",
+              "Active": true,
+              "Generation": "a5d12b31e0354d149c2c1950f0bd3f7e",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-14T03:57:37.8393094+00:00",
+              "Revision": 43
+            }
+          },
+          "functions": [
+            "chaos-fanout-a",
+            "chaos-fanout-b"
+          ]
+        },
+        {
+          "phase": "scheduled-job",
+          "schedule_id": "41567649-a21e-4c90-98a6-2c064f321474",
+          "job_arg": "f519e1bb4fb04568bcf7d547c758acdb",
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 262144,
+          "chunked": false,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 65536,
+          "chunked": true,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 262144,
+          "chunked": true,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 65536,
+          "chunked": false,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 1048576,
+          "chunked": false,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 1048576,
+          "chunked": true,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2000000,
+          "chunked": false,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2000000,
+          "chunked": true,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2097152,
+          "chunked": false,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2097152,
+          "chunked": true,
+          "port": 35121,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 4194304,
+          "chunked": false,
+          "port": 35122,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 4194304,
+          "chunked": true,
+          "port": 35123,
+          "passed": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        },
+        {
+          "phase": "websocket",
+          "function": "chaos-ws-1fcebdbb650345e3b5527d95dab5f8b3",
+          "stream": "stream-chaos-ws-1fcebdbb650345e3b5527d95dab5f8b3",
+          "passed": true
+        },
+        {
+          "phase": "websocket-owner-timeout",
+          "passed": true,
+          "delivery_timeout_seconds": 8,
+          "owner_absence_after_acceptance_seconds": 20,
+          "id": "8dd1c083a4f14f28a0dc1bb88ac8305f",
+          "default_retry_statuses": true
+        },
+        {
+          "phase": "leader-lease-burst",
+          "leader": 2,
+          "silent_follower": 0,
+          "healthy_writes": 28,
+          "silent_writes": 13,
+          "probe_seconds": 0.007677139001316391,
+          "probe_budget_seconds": 15,
+          "passed": true
+        },
+        {
+          "phase": "stale-leader-http-route",
+          "ingress_node": 0,
+          "old_leader": 2,
+          "seconds": 9.136092199001723,
+          "passed": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "b8eb2ae96297239c708001748e363175850301cab06a96973c88d4c309213c8b",
+      "report_bytes": 4796,
+      "retained_original": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-03-python-01/campaign/report.json"
+    },
+    "kubernetes-dotnet": {
+      "passed": true,
+      "confirmed_operations": 81,
+      "unknown_outcomes": 0,
+      "missing_confirmed_operations": [],
+      "sdk_cases": null,
+      "phases": [
+        {
+          "phase": "api-smoke",
+          "passed": true
+        }
+      ],
+      "report_sha256": "752d92ff836dcdce8a1d5e539ade5fb5085c31b02239649e57645e809ad7cd34",
+      "report_bytes": 207,
+      "retained_original": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-03-dotnet-01/campaign/report.json"
+    },
+    "native-quick": {
+      "passed": true,
+      "confirmed_operations": 173,
+      "unknown_outcomes": 11,
+      "missing_confirmed_operations": [],
+      "sdk_cases": null,
+      "phases": [
+        {
+          "phase": "protocol-probe-with-silent-follower",
+          "passed": true,
+          "suspended_follower": 0,
+          "restarted_leader": 2,
+          "ready_and_write_seconds": 6.5158358339976985,
+          "restart_to_listener_seconds": 3.0774312909998116
+        },
+        {
+          "phase": "job-during-node-stop",
+          "passed": true,
+          "follower": 2,
+          "job_id": "d5bb9c86ccc34136b47b5371172aecfd",
+          "seconds": 0.6309187910010223
+        },
+        {
+          "phase": "leader-lease-burst",
+          "leader": 1,
+          "silent_follower": 0,
+          "healthy_writes": 27,
+          "silent_writes": 27,
+          "probe_seconds": 0.006996000000071945,
+          "probe_budget_seconds": 15,
+          "passed": true
+        },
+        {
+          "phase": "stale-leader-http-route",
+          "ingress_node": 2,
+          "old_leader": 1,
+          "seconds": 8.983033166001405,
+          "passed": true
+        },
+        {
+          "phase": "api-smoke",
+          "passed": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "b83dfe68a1755f4cbd17ee5b6e6cd25fdc0aa15b72c4d68efdcd00dee5720539",
+      "retained_original": "${CANDIDATE}/artifacts/pr506/macos/net11-03-quick-01/report.json"
+    },
+    "native-python": {
+      "passed": true,
+      "confirmed_operations": 249,
+      "unknown_outcomes": 25,
+      "missing_confirmed_operations": [],
+      "sdk_cases": null,
+      "phases": [
+        {
+          "phase": "api-smoke",
+          "passed": true
+        },
+        {
+          "phase": "wake-and-cancel",
+          "passed": true
+        },
+        {
+          "phase": "stream-fanout-retention",
+          "passed": true,
+          "initial_append_order": [
+            "0ea63758f3f94a399279d1ebb2755926_00000000000000000001",
+            "0ea63758f3f94a399279d1ebb2755926_00000000000000000002",
+            "0ea63758f3f94a399279d1ebb2755926_00000000000000000003"
+          ],
+          "retention_gap_summaries": {
+            "chaos-fanout-a": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-a",
+              "Active": true,
+              "Generation": "cd18b76b7bbc43449cbbf271c9d9c9cc",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-14T03:16:38.386945+00:00",
+              "Revision": 39
+            },
+            "chaos-fanout-b": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-b",
+              "Active": true,
+              "Generation": "70be2c3d168641a080d93846b609c0fe",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-14T03:16:38.389284+00:00",
+              "Revision": 39
+            }
+          },
+          "functions": [
+            "chaos-fanout-a",
+            "chaos-fanout-b"
+          ]
+        },
+        {
+          "phase": "scheduled-job",
+          "schedule_id": "b16ae415-527f-4868-bd19-0b5006c68e8b",
+          "job_arg": "33e4ef95ddb94316b89e43af1a1d98b4",
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 65536,
+          "chunked": true,
+          "port": 44522,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 262144,
+          "chunked": false,
+          "port": 44523,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 262144,
+          "chunked": true,
+          "port": 44521,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 65536,
+          "chunked": false,
+          "port": 44521,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 1048576,
+          "chunked": false,
+          "port": 44522,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 1048576,
+          "chunked": true,
+          "port": 44523,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2000000,
+          "chunked": true,
+          "port": 44522,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2000000,
+          "chunked": false,
+          "port": 44521,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2097152,
+          "chunked": false,
+          "port": 44523,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 2097152,
+          "chunked": true,
+          "port": 44521,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 4194304,
+          "chunked": false,
+          "port": 44522,
+          "passed": true
+        },
+        {
+          "phase": "websocket-async",
+          "bytes": 4194304,
+          "chunked": true,
+          "port": 44523,
+          "passed": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        },
+        {
+          "phase": "websocket",
+          "function": "chaos-ws-307bc9a5caa24012bd013c96b91b7bdd",
+          "stream": "stream-chaos-ws-307bc9a5caa24012bd013c96b91b7bdd",
+          "passed": true
+        },
+        {
+          "phase": "websocket-owner-timeout",
+          "passed": true,
+          "delivery_timeout_seconds": 8,
+          "owner_absence_after_acceptance_seconds": 20,
+          "id": "af03de0b81474f26a412b86b6a986c40",
+          "default_retry_statuses": true
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "e9a78cff0e5f5877b10bbfeab8a2ab633925a7c159f4be2df657bffd7b89f68e",
+      "retained_original": "${CANDIDATE}/artifacts/pr506/macos/python-sdk-net11-03-01/report.json"
+    },
+    "native-dotnet-sdk": {
+      "passed": true,
+      "confirmed_operations": null,
+      "unknown_outcomes": null,
+      "missing_confirmed_operations": null,
+      "sdk_cases": 72,
+      "phases": null,
+      "report_sha256": "be0c5a56e2def0bac2fbf827a4b9066bb89df6ed92aaa4a0c5ad63c088ed24c0",
+      "retained_original": "${CANDIDATE}/artifacts/pr506/preflight/bundle-sdk-net11-03-01/report.json"
+    }
+  },
+  "proofs": {
+    "net11-03-current-resource-smoke": {
+      "started": 1794629013.970177,
+      "finished": 1794629111.128963,
+      "rows": [
+        {
+          "variant": "after",
+          "status": {
+            "passed": true,
+            "error": null,
+            "statuses": [
+              {
+                "suite": "http",
+                "exit_code": 0
+              }
+            ],
+            "finished_utc": 1794629111.1144562
+          },
+          "isolated": true,
+          "driver_sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+          "resources": [
+            {
+              "load_shape": "steady",
+              "CpuMillisecondsPerMessage": 8.958487999999988,
+              "RaftEntriesPerMessage": 1.2,
+              "PeakWorkingSetBytes": 378421248,
+              "CpuSeconds": 1.1198109999999986,
+              "RaftEntries": 150,
+              "InitialSnapshot": {
+                "CpuSeconds": 8.331538,
+                "RaftEntries": 272,
+                "WorkingSetBytes": 371245056,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:16.828752+00:00",
+                    "CpuSeconds": 1.592007,
+                    "DiagnosticsCpuSeconds": 1.583218,
+                    "RaftEntries": 272,
+                    "WorkingSetBytes": 115539968
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:16.828864+00:00",
+                    "CpuSeconds": 5.77636,
+                    "DiagnosticsCpuSeconds": 5.770678,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 146112512
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:16.829072+00:00",
+                    "CpuSeconds": 0.963171,
+                    "DiagnosticsCpuSeconds": 0.959203,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 109592576
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 9.451348999999999,
+                "RaftEntries": 272,
+                "WorkingSetBytes": 378421248,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:19.241312+00:00",
+                    "CpuSeconds": 2.088991,
+                    "DiagnosticsCpuSeconds": 1.583218,
+                    "RaftEntries": 272,
+                    "WorkingSetBytes": 116113408
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:19.242266+00:00",
+                    "CpuSeconds": 6.159695,
+                    "DiagnosticsCpuSeconds": 5.770678,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 146604032
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:19.241258+00:00",
+                    "CpuSeconds": 1.202663,
+                    "DiagnosticsCpuSeconds": 0.959203,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 115703808
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 9.811106,
+                "RaftEntries": 422,
+                "WorkingSetBytes": 379977728,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:21.790086+00:00",
+                    "CpuSeconds": 2.227959,
+                    "DiagnosticsCpuSeconds": 2.222028,
+                    "RaftEntries": 422,
+                    "WorkingSetBytes": 116211712
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:21.79037+00:00",
+                    "CpuSeconds": 6.276641,
+                    "DiagnosticsCpuSeconds": 6.272008,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 146685952
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:21.790198+00:00",
+                    "CpuSeconds": 1.306506,
+                    "DiagnosticsCpuSeconds": 1.30343,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 117080064
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "paced",
+              "CpuMillisecondsPerMessage": 33.300230000000006,
+              "RaftEntriesPerMessage": 3.13,
+              "PeakWorkingSetBytes": 396509184,
+              "CpuSeconds": 3.3300230000000006,
+              "RaftEntries": 313,
+              "InitialSnapshot": {
+                "CpuSeconds": 10.541603,
+                "RaftEntries": 425,
+                "WorkingSetBytes": 382287872,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:26.892364+00:00",
+                    "CpuSeconds": 2.511041,
+                    "DiagnosticsCpuSeconds": 2.499984,
+                    "RaftEntries": 425,
+                    "WorkingSetBytes": 116277248
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:26.892482+00:00",
+                    "CpuSeconds": 6.510815,
+                    "DiagnosticsCpuSeconds": 6.502327,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 146751488
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:26.892437+00:00",
+                    "CpuSeconds": 1.519747,
+                    "DiagnosticsCpuSeconds": 1.512326,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 119259136
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 13.871626000000001,
+                "RaftEntries": 708,
+                "WorkingSetBytes": 393560064,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:39.287927+00:00",
+                    "CpuSeconds": 3.978245,
+                    "DiagnosticsCpuSeconds": 3.747159,
+                    "RaftEntries": 708,
+                    "WorkingSetBytes": 123568128
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:39.287504+00:00",
+                    "CpuSeconds": 7.505434,
+                    "DiagnosticsCpuSeconds": 7.346323,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 147996672
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:39.288458+00:00",
+                    "CpuSeconds": 2.387947,
+                    "DiagnosticsCpuSeconds": 2.23216,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121995264
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 14.217241999999999,
+                "RaftEntries": 738,
+                "WorkingSetBytes": 393625600,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:41.835237+00:00",
+                    "CpuSeconds": 4.116457,
+                    "DiagnosticsCpuSeconds": 4.105737,
+                    "RaftEntries": 738,
+                    "WorkingSetBytes": 123584512
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:41.835423+00:00",
+                    "CpuSeconds": 7.609837,
+                    "DiagnosticsCpuSeconds": 7.60274,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 148045824
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:41.835534+00:00",
+                    "CpuSeconds": 2.490948,
+                    "DiagnosticsCpuSeconds": 2.484403,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121995264
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "burst",
+              "CpuMillisecondsPerMessage": 1.5205470000000005,
+              "RaftEntriesPerMessage": 0.042,
+              "PeakWorkingSetBytes": 483508224,
+              "CpuSeconds": 1.5205470000000005,
+              "RaftEntries": 42,
+              "InitialSnapshot": {
+                "CpuSeconds": 14.942813000000001,
+                "RaftEntries": 740,
+                "WorkingSetBytes": 393625600,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:46.933402+00:00",
+                    "CpuSeconds": 4.411767,
+                    "DiagnosticsCpuSeconds": 4.400119,
+                    "RaftEntries": 740,
+                    "WorkingSetBytes": 123584512
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:46.933253+00:00",
+                    "CpuSeconds": 7.83137,
+                    "DiagnosticsCpuSeconds": 7.822362,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 148045824
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:46.93333+00:00",
+                    "CpuSeconds": 2.699676,
+                    "DiagnosticsCpuSeconds": 2.691864,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121995264
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 16.46336,
+                "RaftEntries": 740,
+                "WorkingSetBytes": 483508224,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:49.157192+00:00",
+                    "CpuSeconds": 5.154569,
+                    "DiagnosticsCpuSeconds": 4.400119,
+                    "RaftEntries": 740,
+                    "WorkingSetBytes": 169607168
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:49.157326+00:00",
+                    "CpuSeconds": 8.230311,
+                    "DiagnosticsCpuSeconds": 7.822362,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 170442752
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:49.157156+00:00",
+                    "CpuSeconds": 3.07848,
+                    "DiagnosticsCpuSeconds": 2.691864,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 143458304
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 16.827105,
+                "RaftEntries": 782,
+                "WorkingSetBytes": 484917248,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:04:51.956529+00:00",
+                    "CpuSeconds": 5.300402,
+                    "DiagnosticsCpuSeconds": 5.289601,
+                    "RaftEntries": 782,
+                    "WorkingSetBytes": 170901504
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:04:51.956125+00:00",
+                    "CpuSeconds": 8.339328,
+                    "DiagnosticsCpuSeconds": 8.331126,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 170491904
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:04:51.956862+00:00",
+                    "CpuSeconds": 3.187375,
+                    "DiagnosticsCpuSeconds": 3.180022,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 143523840
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "complete": true
+    },
+    "net11-03-linux-resource-smoke": {
+      "started": 1794629111.4423418,
+      "finished": 1794629300.797148,
+      "passed": true,
+      "observations": [
+        {
+          "variant": "before",
+          "image": "localhost/slimfaas-pr506:before-tools-net11-03",
+          "source": "f36084643a75d803051a6918d2950d1a4f674ada",
+          "isolation_valid": true,
+          "raw": "${CANDIDATE}/artifacts/pr506/resource-smoke-net11-03/linux-before/workload",
+          "status": {
+            "passed": true,
+            "error": null,
+            "statuses": [
+              {
+                "suite": "http",
+                "exit_code": 0
+              }
+            ],
+            "finished_utc": 1794629206.8618336
+          },
+          "resources": [
+            {
+              "load_shape": "steady",
+              "CpuMillisecondsPerMessage": 11.175162162162186,
+              "RaftEntriesPerMessage": 1.3873873873873874,
+              "PeakWorkingSetBytes": 420597760,
+              "CpuSeconds": 1.2404430000000026,
+              "RaftEntries": 154,
+              "InitialSnapshot": {
+                "CpuSeconds": 15.174796999999998,
+                "RaftEntries": 285,
+                "WorkingSetBytes": 405475328,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:05:50.9202687+00:00",
+                    "CpuSeconds": 3.70049,
+                    "DiagnosticsCpuSeconds": 3.67824,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 111599616
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:05:50.9202624+00:00",
+                    "CpuSeconds": 6.526198,
+                    "DiagnosticsCpuSeconds": 6.515412,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 150007808
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:05:50.9202938+00:00",
+                    "CpuSeconds": 4.948109,
+                    "DiagnosticsCpuSeconds": 4.924652,
+                    "RaftEntries": 285,
+                    "WorkingSetBytes": 143867904
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 16.41524,
+                "RaftEntries": 285,
+                "WorkingSetBytes": 420597760,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:05:53.077525+00:00",
+                    "CpuSeconds": 3.99061,
+                    "DiagnosticsCpuSeconds": 3.67824,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121442304
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:05:53.0775165+00:00",
+                    "CpuSeconds": 6.936646,
+                    "DiagnosticsCpuSeconds": 6.515412,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 147685376
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:05:53.077529+00:00",
+                    "CpuSeconds": 5.487984,
+                    "DiagnosticsCpuSeconds": 4.924652,
+                    "RaftEntries": 285,
+                    "WorkingSetBytes": 151470080
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 17.441055,
+                "RaftEntries": 439,
+                "WorkingSetBytes": 421445632,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:05:55.8929846+00:00",
+                    "CpuSeconds": 4.330056,
+                    "DiagnosticsCpuSeconds": 4.316364,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121839616
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:05:55.8930424+00:00",
+                    "CpuSeconds": 7.244702,
+                    "DiagnosticsCpuSeconds": 7.228132,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 147677184
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:05:55.8931406+00:00",
+                    "CpuSeconds": 5.866297,
+                    "DiagnosticsCpuSeconds": 5.841596,
+                    "RaftEntries": 439,
+                    "WorkingSetBytes": 151928832
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "paced",
+              "CpuMillisecondsPerMessage": 44.53961000000003,
+              "RaftEntriesPerMessage": 3.14,
+              "PeakWorkingSetBytes": 418770944,
+              "CpuSeconds": 4.453961000000003,
+              "RaftEntries": 314,
+              "InitialSnapshot": {
+                "CpuSeconds": 18.705301,
+                "RaftEntries": 442,
+                "WorkingSetBytes": 394993664,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:06:00.765954+00:00",
+                    "CpuSeconds": 4.724641,
+                    "DiagnosticsCpuSeconds": 4.715503,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 110751744
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:06:00.7639867+00:00",
+                    "CpuSeconds": 7.60971,
+                    "DiagnosticsCpuSeconds": 7.600961,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 134119424
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:06:00.7640476+00:00",
+                    "CpuSeconds": 6.37095,
+                    "DiagnosticsCpuSeconds": 6.360207,
+                    "RaftEntries": 442,
+                    "WorkingSetBytes": 150122496
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 23.159262000000002,
+                "RaftEntries": 728,
+                "WorkingSetBytes": 412160000,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:06:13.1157815+00:00",
+                    "CpuSeconds": 6.064939,
+                    "DiagnosticsCpuSeconds": 5.858102,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 132141056
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:06:13.1163049+00:00",
+                    "CpuSeconds": 8.918919,
+                    "DiagnosticsCpuSeconds": 8.716996,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 132861952
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:06:13.1157254+00:00",
+                    "CpuSeconds": 8.175404,
+                    "DiagnosticsCpuSeconds": 7.912157,
+                    "RaftEntries": 728,
+                    "WorkingSetBytes": 147156992
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 23.740675000000003,
+                "RaftEntries": 756,
+                "WorkingSetBytes": 400834560,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:06:15.9278464+00:00",
+                    "CpuSeconds": 6.256291,
+                    "DiagnosticsCpuSeconds": 6.244346,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 128221184
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:06:15.9278477+00:00",
+                    "CpuSeconds": 9.0943,
+                    "DiagnosticsCpuSeconds": 9.082505,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 132882432
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:06:15.9278991+00:00",
+                    "CpuSeconds": 8.390084,
+                    "DiagnosticsCpuSeconds": 8.376352,
+                    "RaftEntries": 756,
+                    "WorkingSetBytes": 139730944
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "burst",
+              "CpuMillisecondsPerMessage": 1.8522169999999996,
+              "RaftEntriesPerMessage": 0.043,
+              "PeakWorkingSetBytes": 467038208,
+              "CpuSeconds": 1.8522169999999996,
+              "RaftEntries": 43,
+              "InitialSnapshot": {
+                "CpuSeconds": 24.919609,
+                "RaftEntries": 759,
+                "WorkingSetBytes": 403156992,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:06:20.8084727+00:00",
+                    "CpuSeconds": 6.637224,
+                    "DiagnosticsCpuSeconds": 6.625078,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 130392064
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:06:20.8089321+00:00",
+                    "CpuSeconds": 9.440118,
+                    "DiagnosticsCpuSeconds": 9.431799,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 132976640
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:06:20.808494+00:00",
+                    "CpuSeconds": 8.842267,
+                    "DiagnosticsCpuSeconds": 8.830696,
+                    "RaftEntries": 759,
+                    "WorkingSetBytes": 139788288
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 26.771826,
+                "RaftEntries": 759,
+                "WorkingSetBytes": 467034112,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:06:23.0267909+00:00",
+                    "CpuSeconds": 7.189607,
+                    "DiagnosticsCpuSeconds": 6.625078,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 145354752
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:06:23.0267486+00:00",
+                    "CpuSeconds": 9.937485,
+                    "DiagnosticsCpuSeconds": 9.431799,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 144199680
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:06:23.026789+00:00",
+                    "CpuSeconds": 9.644734,
+                    "DiagnosticsCpuSeconds": 8.830696,
+                    "RaftEntries": 759,
+                    "WorkingSetBytes": 177479680
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 27.602413,
+                "RaftEntries": 802,
+                "WorkingSetBytes": 467316736,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:06:25.8977932+00:00",
+                    "CpuSeconds": 7.455465,
+                    "DiagnosticsCpuSeconds": 7.445297,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 145428480
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:06:25.8968671+00:00",
+                    "CpuSeconds": 10.202606,
+                    "DiagnosticsCpuSeconds": 10.192364,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 144318464
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:06:25.8971543+00:00",
+                    "CpuSeconds": 9.944342,
+                    "DiagnosticsCpuSeconds": 9.927757,
+                    "RaftEntries": 802,
+                    "WorkingSetBytes": 177569792
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+          "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+          "isolation_valid": true,
+          "raw": "${CANDIDATE}/artifacts/pr506/resource-smoke-net11-03/linux-after/workload",
+          "status": {
+            "passed": true,
+            "error": null,
+            "statuses": [
+              {
+                "suite": "http",
+                "exit_code": 0
+              }
+            ],
+            "finished_utc": 1794629300.5141423
+          },
+          "resources": [
+            {
+              "load_shape": "steady",
+              "CpuMillisecondsPerMessage": 11.47284158415843,
+              "RaftEntriesPerMessage": 1.0693069306930694,
+              "PeakWorkingSetBytes": 410554368,
+              "CpuSeconds": 1.1587570000000014,
+              "RaftEntries": 108,
+              "InitialSnapshot": {
+                "CpuSeconds": 14.846143999999999,
+                "RaftEntries": 240,
+                "WorkingSetBytes": 383160320,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:24.5955576+00:00",
+                    "CpuSeconds": 3.726559,
+                    "DiagnosticsCpuSeconds": 3.703122,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 112513024
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:24.5954553+00:00",
+                    "CpuSeconds": 7.393695,
+                    "DiagnosticsCpuSeconds": 7.370492,
+                    "RaftEntries": 240,
+                    "WorkingSetBytes": 158654464
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:24.5951729+00:00",
+                    "CpuSeconds": 3.72589,
+                    "DiagnosticsCpuSeconds": 3.703812,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 111992832
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 16.004901,
+                "RaftEntries": 240,
+                "WorkingSetBytes": 410554368,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:26.7419128+00:00",
+                    "CpuSeconds": 4.030063,
+                    "DiagnosticsCpuSeconds": 3.703122,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121262080
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:26.7421116+00:00",
+                    "CpuSeconds": 7.932673,
+                    "DiagnosticsCpuSeconds": 7.370492,
+                    "RaftEntries": 240,
+                    "WorkingSetBytes": 168038400
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:26.741973+00:00",
+                    "CpuSeconds": 4.042165,
+                    "DiagnosticsCpuSeconds": 3.703812,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121253888
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 17.042151,
+                "RaftEntries": 348,
+                "WorkingSetBytes": 412135424,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:29.5562188+00:00",
+                    "CpuSeconds": 4.363765,
+                    "DiagnosticsCpuSeconds": 4.344236,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121815040
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:29.5567806+00:00",
+                    "CpuSeconds": 8.311277,
+                    "DiagnosticsCpuSeconds": 8.288316,
+                    "RaftEntries": 348,
+                    "WorkingSetBytes": 168636416
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:29.5574535+00:00",
+                    "CpuSeconds": 4.367109,
+                    "DiagnosticsCpuSeconds": 4.35292,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121683968
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "paced",
+              "CpuMillisecondsPerMessage": 43.099770000000035,
+              "RaftEntriesPerMessage": 3.12,
+              "PeakWorkingSetBytes": 406380544,
+              "CpuSeconds": 4.3099770000000035,
+              "RaftEntries": 312,
+              "InitialSnapshot": {
+                "CpuSeconds": 18.316848999999998,
+                "RaftEntries": 350,
+                "WorkingSetBytes": 390750208,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:34.4363306+00:00",
+                    "CpuSeconds": 4.771136,
+                    "DiagnosticsCpuSeconds": 4.762888,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 111947776
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:34.4364595+00:00",
+                    "CpuSeconds": 8.805086,
+                    "DiagnosticsCpuSeconds": 8.795917,
+                    "RaftEntries": 350,
+                    "WorkingSetBytes": 167063552
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:34.4363878+00:00",
+                    "CpuSeconds": 4.740627,
+                    "DiagnosticsCpuSeconds": 4.733472,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 111738880
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 22.626826,
+                "RaftEntries": 622,
+                "WorkingSetBytes": 406380544,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:46.8364085+00:00",
+                    "CpuSeconds": 6.037097,
+                    "DiagnosticsCpuSeconds": 5.855733,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 124985344
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:46.836644+00:00",
+                    "CpuSeconds": 10.580686,
+                    "DiagnosticsCpuSeconds": 10.324672,
+                    "RaftEntries": 622,
+                    "WorkingSetBytes": 157020160
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:46.8366955+00:00",
+                    "CpuSeconds": 6.009043,
+                    "DiagnosticsCpuSeconds": 5.8274,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 124375040
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 23.308972,
+                "RaftEntries": 662,
+                "WorkingSetBytes": 387911680,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:49.4147602+00:00",
+                    "CpuSeconds": 6.26131,
+                    "DiagnosticsCpuSeconds": 6.25382,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121294848
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:49.4153365+00:00",
+                    "CpuSeconds": 10.829721,
+                    "DiagnosticsCpuSeconds": 10.822493,
+                    "RaftEntries": 662,
+                    "WorkingSetBytes": 145379328
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:49.4154956+00:00",
+                    "CpuSeconds": 6.217941,
+                    "DiagnosticsCpuSeconds": 6.212089,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 121237504
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "burst",
+              "CpuMillisecondsPerMessage": 1.935652000000001,
+              "RaftEntriesPerMessage": 0.043,
+              "PeakWorkingSetBytes": 472555520,
+              "CpuSeconds": 1.935652000000001,
+              "RaftEntries": 43,
+              "InitialSnapshot": {
+                "CpuSeconds": 24.536679,
+                "RaftEntries": 665,
+                "WorkingSetBytes": 391725056,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:54.5368833+00:00",
+                    "CpuSeconds": 6.647602,
+                    "DiagnosticsCpuSeconds": 6.636567,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 122740736
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:54.5371444+00:00",
+                    "CpuSeconds": 11.291266,
+                    "DiagnosticsCpuSeconds": 11.278569,
+                    "RaftEntries": 665,
+                    "WorkingSetBytes": 145530880
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:54.5369588+00:00",
+                    "CpuSeconds": 6.597811,
+                    "DiagnosticsCpuSeconds": 6.586202,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 123453440
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 26.472331,
+                "RaftEntries": 665,
+                "WorkingSetBytes": 472555520,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:56.6995659+00:00",
+                    "CpuSeconds": 7.326963,
+                    "DiagnosticsCpuSeconds": 6.636567,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 148054016
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:56.7000253+00:00",
+                    "CpuSeconds": 11.921158,
+                    "DiagnosticsCpuSeconds": 11.278569,
+                    "RaftEntries": 665,
+                    "WorkingSetBytes": 172068864
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:56.6999536+00:00",
+                    "CpuSeconds": 7.22421,
+                    "DiagnosticsCpuSeconds": 6.586202,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 152432640
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 27.407577,
+                "RaftEntries": 708,
+                "WorkingSetBytes": 472772608,
+                "Nodes": [
+                  {
+                    "Node": "http://127.0.0.1:31021/",
+                    "CapturedAtUtc": "2026-11-14T04:07:59.5863576+00:00",
+                    "CpuSeconds": 7.629187,
+                    "DiagnosticsCpuSeconds": 7.60492,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 148107264
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31022/",
+                    "CapturedAtUtc": "2026-11-14T04:07:59.581904+00:00",
+                    "CpuSeconds": 12.2674,
+                    "DiagnosticsCpuSeconds": 12.247422,
+                    "RaftEntries": 708,
+                    "WorkingSetBytes": 172158976
+                  },
+                  {
+                    "Node": "http://127.0.0.1:31023/",
+                    "CapturedAtUtc": "2026-11-14T04:07:59.5812542+00:00",
+                    "CpuSeconds": 7.51099,
+                    "DiagnosticsCpuSeconds": 7.492764,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 152506368
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "net11-03-kubernetes-resource-smoke": {
+      "started": 1794629111.4423418,
+      "finished": 1794629495.384198,
+      "passed": true,
+      "observations": [
+        {
+          "variant": "before",
+          "image": "localhost/slimfaas-pr506:before-tools-net11-03",
+          "source": "f36084643a75d803051a6918d2950d1a4f674ada",
+          "isolation_valid": true,
+          "raw": "${CANDIDATE}/artifacts/pr506/resource-smoke-net11-03/kubernetes-before/workload",
+          "status": {
+            "passed": true,
+            "error": null,
+            "statuses": [
+              {
+                "suite": "http",
+                "exit_code": 0
+              }
+            ],
+            "finished_utc": 1794629379.1639879
+          },
+          "resources": [
+            {
+              "load_shape": "steady",
+              "CpuMillisecondsPerMessage": 11.325590909090911,
+              "RaftEntriesPerMessage": 1.0636363636363637,
+              "PeakWorkingSetBytes": 500215808,
+              "CpuSeconds": 1.2458150000000003,
+              "RaftEntries": 117,
+              "InitialSnapshot": {
+                "CpuSeconds": 18.449571,
+                "RaftEntries": 260,
+                "WorkingSetBytes": 488321024,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:43.1506374+00:00",
+                    "CpuSeconds": 9.16424,
+                    "DiagnosticsCpuSeconds": 9.162165,
+                    "RaftEntries": 260,
+                    "WorkingSetBytes": 191967232
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:43.1506409+00:00",
+                    "CpuSeconds": 4.75691,
+                    "DiagnosticsCpuSeconds": 4.725455,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 151269376
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:43.1510002+00:00",
+                    "CpuSeconds": 4.528421,
+                    "DiagnosticsCpuSeconds": 4.52173,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 145084416
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 19.695386,
+                "RaftEntries": 260,
+                "WorkingSetBytes": 494768128,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:45.5688721+00:00",
+                    "CpuSeconds": 9.696956,
+                    "DiagnosticsCpuSeconds": 9.162165,
+                    "RaftEntries": 260,
+                    "WorkingSetBytes": 181178368
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:45.5688216+00:00",
+                    "CpuSeconds": 5.079927,
+                    "DiagnosticsCpuSeconds": 4.725455,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 157007872
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:45.5688981+00:00",
+                    "CpuSeconds": 4.918503,
+                    "DiagnosticsCpuSeconds": 4.52173,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 156581888
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 20.604315,
+                "RaftEntries": 377,
+                "WorkingSetBytes": 504774656,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:48.1382297+00:00",
+                    "CpuSeconds": 10.002712,
+                    "DiagnosticsCpuSeconds": 9.998457,
+                    "RaftEntries": 377,
+                    "WorkingSetBytes": 185806848
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:48.1381586+00:00",
+                    "CpuSeconds": 5.426756,
+                    "DiagnosticsCpuSeconds": 5.387709,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 159309824
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:48.137767+00:00",
+                    "CpuSeconds": 5.174847,
+                    "DiagnosticsCpuSeconds": 5.158653,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 159657984
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "paced",
+              "CpuMillisecondsPerMessage": 44.078979999999994,
+              "RaftEntriesPerMessage": 3.13,
+              "PeakWorkingSetBytes": 496766976,
+              "CpuSeconds": 4.407897999999999,
+              "RaftEntries": 313,
+              "InitialSnapshot": {
+                "CpuSeconds": 21.990092,
+                "RaftEntries": 380,
+                "WorkingSetBytes": 489177088,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:53.2711252+00:00",
+                    "CpuSeconds": 10.455709,
+                    "DiagnosticsCpuSeconds": 10.433509,
+                    "RaftEntries": 380,
+                    "WorkingSetBytes": 186032128
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:53.2710425+00:00",
+                    "CpuSeconds": 5.903104,
+                    "DiagnosticsCpuSeconds": 5.853552,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 153559040
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:08:53.2709639+00:00",
+                    "CpuSeconds": 5.631279,
+                    "DiagnosticsCpuSeconds": 5.604679,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 149585920
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 26.39799,
+                "RaftEntries": 655,
+                "WorkingSetBytes": 491278336,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:05.461812+00:00",
+                    "CpuSeconds": 12.291609,
+                    "DiagnosticsCpuSeconds": 11.973029,
+                    "RaftEntries": 655,
+                    "WorkingSetBytes": 180125696
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:05.4623463+00:00",
+                    "CpuSeconds": 7.134361,
+                    "DiagnosticsCpuSeconds": 6.871271,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 155402240
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:05.4622567+00:00",
+                    "CpuSeconds": 6.97202,
+                    "DiagnosticsCpuSeconds": 6.725236,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 155750400
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 27.098682,
+                "RaftEntries": 693,
+                "WorkingSetBytes": 499552256,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:08.2741047+00:00",
+                    "CpuSeconds": 12.521608,
+                    "DiagnosticsCpuSeconds": 12.510617,
+                    "RaftEntries": 693,
+                    "WorkingSetBytes": 180178944
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:08.2740744+00:00",
+                    "CpuSeconds": 7.391317,
+                    "DiagnosticsCpuSeconds": 7.328853,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 159805440
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:08.2742111+00:00",
+                    "CpuSeconds": 7.185757,
+                    "DiagnosticsCpuSeconds": 7.169186,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 159567872
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "burst",
+              "CpuMillisecondsPerMessage": 1.9334170000000022,
+              "RaftEntriesPerMessage": 0.042,
+              "PeakWorkingSetBytes": 553656320,
+              "CpuSeconds": 1.9334170000000022,
+              "RaftEntries": 42,
+              "InitialSnapshot": {
+                "CpuSeconds": 28.279887,
+                "RaftEntries": 696,
+                "WorkingSetBytes": 491130880,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:13.1567284+00:00",
+                    "CpuSeconds": 12.959306,
+                    "DiagnosticsCpuSeconds": 12.951452,
+                    "RaftEntries": 696,
+                    "WorkingSetBytes": 176189440
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:13.1566489+00:00",
+                    "CpuSeconds": 7.777231,
+                    "DiagnosticsCpuSeconds": 7.719001,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 157212672
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:13.1566452+00:00",
+                    "CpuSeconds": 7.54335,
+                    "DiagnosticsCpuSeconds": 7.535276,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 157728768
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 30.213304,
+                "RaftEntries": 696,
+                "WorkingSetBytes": 553656320,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:15.3915273+00:00",
+                    "CpuSeconds": 13.58787,
+                    "DiagnosticsCpuSeconds": 12.951452,
+                    "RaftEntries": 696,
+                    "WorkingSetBytes": 195854336
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:15.39087+00:00",
+                    "CpuSeconds": 8.33127,
+                    "DiagnosticsCpuSeconds": 7.719001,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 178843648
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:15.3922305+00:00",
+                    "CpuSeconds": 8.294164,
+                    "DiagnosticsCpuSeconds": 7.535276,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 178958336
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 31.071112,
+                "RaftEntries": 738,
+                "WorkingSetBytes": 553848832,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:18.2697297+00:00",
+                    "CpuSeconds": 13.890815,
+                    "DiagnosticsCpuSeconds": 13.872127,
+                    "RaftEntries": 738,
+                    "WorkingSetBytes": 195915776
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:18.2691263+00:00",
+                    "CpuSeconds": 8.608805,
+                    "DiagnosticsCpuSeconds": 8.569305,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 178884608
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:09:18.2690948+00:00",
+                    "CpuSeconds": 8.571492,
+                    "DiagnosticsCpuSeconds": 8.552467,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 179048448
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+          "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+          "isolation_valid": true,
+          "raw": "${CANDIDATE}/artifacts/pr506/resource-smoke-net11-03/kubernetes-after/workload",
+          "status": {
+            "passed": true,
+            "error": null,
+            "statuses": [
+              {
+                "suite": "http",
+                "exit_code": 0
+              }
+            ],
+            "finished_utc": 1794629491.4231422
+          },
+          "resources": [
+            {
+              "load_shape": "steady",
+              "CpuMillisecondsPerMessage": 11.306594059405906,
+              "RaftEntriesPerMessage": 1.0693069306930694,
+              "PeakWorkingSetBytes": 508600320,
+              "CpuSeconds": 1.1419659999999965,
+              "RaftEntries": 108,
+              "InitialSnapshot": {
+                "CpuSeconds": 19.010415000000002,
+                "RaftEntries": 246,
+                "WorkingSetBytes": 490569728,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:36.1663894+00:00",
+                    "CpuSeconds": 9.696027,
+                    "DiagnosticsCpuSeconds": 9.624127,
+                    "RaftEntries": 246,
+                    "WorkingSetBytes": 187428864
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:36.1664611+00:00",
+                    "CpuSeconds": 4.646698,
+                    "DiagnosticsCpuSeconds": 4.639654,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 154316800
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:36.16645+00:00",
+                    "CpuSeconds": 4.66769,
+                    "DiagnosticsCpuSeconds": 4.573862,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 148824064
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 20.152381,
+                "RaftEntries": 246,
+                "WorkingSetBytes": 508600320,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:38.3213988+00:00",
+                    "CpuSeconds": 10.192915,
+                    "DiagnosticsCpuSeconds": 9.624127,
+                    "RaftEntries": 246,
+                    "WorkingSetBytes": 187990016
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:38.3213963+00:00",
+                    "CpuSeconds": 4.939357,
+                    "DiagnosticsCpuSeconds": 4.639654,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 160034816
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:38.3213289+00:00",
+                    "CpuSeconds": 5.020109,
+                    "DiagnosticsCpuSeconds": 4.573862,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 160575488
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 21.053164,
+                "RaftEntries": 354,
+                "WorkingSetBytes": 499507200,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:41.1441695+00:00",
+                    "CpuSeconds": 10.523234,
+                    "DiagnosticsCpuSeconds": 10.453099,
+                    "RaftEntries": 354,
+                    "WorkingSetBytes": 184926208
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:41.1434137+00:00",
+                    "CpuSeconds": 5.239166,
+                    "DiagnosticsCpuSeconds": 5.227129,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 152748032
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:41.1436848+00:00",
+                    "CpuSeconds": 5.290764,
+                    "DiagnosticsCpuSeconds": 5.223935,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 161832960
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "paced",
+              "CpuMillisecondsPerMessage": 41.550550000000015,
+              "RaftEntriesPerMessage": 3.09,
+              "PeakWorkingSetBytes": 501616640,
+              "CpuSeconds": 4.155055000000001,
+              "RaftEntries": 309,
+              "InitialSnapshot": {
+                "CpuSeconds": 22.371388,
+                "RaftEntries": 357,
+                "WorkingSetBytes": 494018560,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:46.26022+00:00",
+                    "CpuSeconds": 10.979663,
+                    "DiagnosticsCpuSeconds": 10.890183,
+                    "RaftEntries": 357,
+                    "WorkingSetBytes": 186474496
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:46.2609104+00:00",
+                    "CpuSeconds": 5.690366,
+                    "DiagnosticsCpuSeconds": 5.669505,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 152375296
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:46.2602451+00:00",
+                    "CpuSeconds": 5.701359,
+                    "DiagnosticsCpuSeconds": 5.637711,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 155168768
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 26.526443,
+                "RaftEntries": 603,
+                "WorkingSetBytes": 501190656,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:58.4235194+00:00",
+                    "CpuSeconds": 12.720754,
+                    "DiagnosticsCpuSeconds": 12.333215,
+                    "RaftEntries": 603,
+                    "WorkingSetBytes": 181641216
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:58.4237356+00:00",
+                    "CpuSeconds": 6.873272,
+                    "DiagnosticsCpuSeconds": 6.676404,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 158150656
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:10:58.4237815+00:00",
+                    "CpuSeconds": 6.932417,
+                    "DiagnosticsCpuSeconds": 6.690679,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 161398784
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 27.207115,
+                "RaftEntries": 666,
+                "WorkingSetBytes": 499150848,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:01.2472874+00:00",
+                    "CpuSeconds": 12.971712,
+                    "DiagnosticsCpuSeconds": 12.886826,
+                    "RaftEntries": 666,
+                    "WorkingSetBytes": 181698560
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:01.2469211+00:00",
+                    "CpuSeconds": 7.104645,
+                    "DiagnosticsCpuSeconds": 7.091255,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 158208000
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:01.2469247+00:00",
+                    "CpuSeconds": 7.130758,
+                    "DiagnosticsCpuSeconds": 7.065708,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 159244288
+                  }
+                ]
+              }
+            },
+            {
+              "load_shape": "burst",
+              "CpuMillisecondsPerMessage": 2.016045999999996,
+              "RaftEntriesPerMessage": 0.042,
+              "PeakWorkingSetBytes": 565198848,
+              "CpuSeconds": 2.016045999999996,
+              "RaftEntries": 42,
+              "InitialSnapshot": {
+                "CpuSeconds": 28.282229,
+                "RaftEntries": 669,
+                "WorkingSetBytes": 497655808,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:06.1012977+00:00",
+                    "CpuSeconds": 13.345703,
+                    "DiagnosticsCpuSeconds": 13.294377,
+                    "RaftEntries": 669,
+                    "WorkingSetBytes": 180850688
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:06.1016688+00:00",
+                    "CpuSeconds": 7.463346,
+                    "DiagnosticsCpuSeconds": 7.453728,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 158334976
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:06.1016789+00:00",
+                    "CpuSeconds": 7.47318,
+                    "DiagnosticsCpuSeconds": 7.415931,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 158470144
+                  }
+                ]
+              },
+              "FinalProcessSnapshot": {
+                "CpuSeconds": 30.298274999999997,
+                "RaftEntries": 669,
+                "WorkingSetBytes": 560107520,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:08.5349641+00:00",
+                    "CpuSeconds": 13.999695,
+                    "DiagnosticsCpuSeconds": 13.294377,
+                    "RaftEntries": 669,
+                    "WorkingSetBytes": 201408512
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:08.5344825+00:00",
+                    "CpuSeconds": 8.201709,
+                    "DiagnosticsCpuSeconds": 7.453728,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 183046144
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:08.5344741+00:00",
+                    "CpuSeconds": 8.096871,
+                    "DiagnosticsCpuSeconds": 7.415931,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 175652864
+                  }
+                ]
+              },
+              "FinalDiagnosticsSnapshot": {
+                "CpuSeconds": 31.036635,
+                "RaftEntries": 711,
+                "WorkingSetBytes": 558206976,
+                "Nodes": [
+                  {
+                    "Node": "http://slimfaas-0.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:11.1572344+00:00",
+                    "CpuSeconds": 14.255934,
+                    "DiagnosticsCpuSeconds": 14.170385,
+                    "RaftEntries": 711,
+                    "WorkingSetBytes": 199421952
+                  },
+                  {
+                    "Node": "http://slimfaas-1.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:11.1566321+00:00",
+                    "CpuSeconds": 8.460995,
+                    "DiagnosticsCpuSeconds": 8.453295,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 183128064
+                  },
+                  {
+                    "Node": "http://slimfaas-2.slimfaas:5000/",
+                    "CapturedAtUtc": "2026-11-14T04:11:11.1566327+00:00",
+                    "CpuSeconds": 8.319706,
+                    "DiagnosticsCpuSeconds": 8.247217,
+                    "RaftEntries": 0,
+                    "WorkingSetBytes": 175656960
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "net11-03-fault-controls": [
+      {
+        "mode": "network",
+        "iteration": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-network-net11-03-01",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "sharedmemory",
+        "iteration": 1,
+        "exit_code": 32,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-03-01",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "sharedmemory",
+        "iteration": 1,
+        "attempt": 2,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-03-01-r2",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "sharedmemory",
+        "iteration": 2,
+        "attempt": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-03-02",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "sharedmemory",
+        "iteration": 3,
+        "attempt": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-03-03",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "sharedmemory",
+        "iteration": 4,
+        "attempt": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-03-04",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "sharedmemory",
+        "iteration": 5,
+        "attempt": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-03-05",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "privatememory",
+        "iteration": 1,
+        "attempt": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-privatememory-net11-03-01",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "privatememory",
+        "iteration": 2,
+        "attempt": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-privatememory-net11-03-02",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      },
+      {
+        "mode": "privatememory",
+        "iteration": 3,
+        "attempt": 1,
+        "exit_code": 0,
+        "vm_path": "${VM_EVIDENCE}/podman/linux-disk-privatememory-net11-03-03",
+        "harness_sha256": "4e7f18bff9bb1029060c543e369ed03b287bd26a3b166a7a70d4d7cd596840cd"
+      }
+    ],
+    "net11-03-runtime-core-parity": {
+      "checked_utc": 1794628448.7526872,
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "files": {
+        "before": {
+          "/app/libcoreclr.so": "6ce41b51fc2cfb31d771212d6a077972aa9ceaee9ccd8b8fba91a983568ece87",
+          "/app/libclrgc.so": "58435b36e2bf95a65779e13e74268eb7976b97758de8036075dc805c40390d59",
+          "/app/libclrjit.so": "6f70d7ee33aca6cea2849671454664e3bb6fcf1c7329ae36ccbe0916dd6adc10",
+          "/etc/os-release": "63b1cebc6ff5789ebbe97686848877344fcfd091e7db206e612c48c8efb0636c",
+          "/lib/ld-musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793",
+          "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f"
+        },
+        "after": {
+          "/app/libcoreclr.so": "6ce41b51fc2cfb31d771212d6a077972aa9ceaee9ccd8b8fba91a983568ece87",
+          "/app/libclrgc.so": "58435b36e2bf95a65779e13e74268eb7976b97758de8036075dc805c40390d59",
+          "/app/libclrjit.so": "6f70d7ee33aca6cea2849671454664e3bb6fcf1c7329ae36ccbe0916dd6adc10",
+          "/etc/os-release": "63b1cebc6ff5789ebbe97686848877344fcfd091e7db206e612c48c8efb0636c",
+          "/lib/ld-musl-aarch64.so.1": "53282acc2be8a08a9fdcf880334bf35bbfd0a13862b7f3616be3919fcda11793",
+          "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f"
+        }
+      },
+      "same_native_clr_gc_jit_os_libc_and_driver": true
+    },
+    "net11-03-kubernetes-runtime-files": {
+      "checked_utc": 1794628506.798923,
+      "namespace": "slimfaas-pr506-net11-03-protocol-01",
+      "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "three_distinct_workers": true,
+      "all_node_files_match_frozen_publication": true,
+      "pods": [
+        {
+          "pod": "slimfaas-0",
+          "uid": "88f7d9e0-9911-41e7-a967-20413823cdcd",
+          "worker": "slimfaas-pr506-worker",
+          "container_statuses": [
+            {
+              "allocatedResources": {
+                "cpu": "5m",
+                "memory": "32Mi"
+              },
+              "containerID": "containerd://fae22926cb7b0ea75078468b0e2662ef55711f2eebf7853d14ac486277322f74",
+              "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+              "imageID": "docker.io/library/import-2026-11-14@sha256:6a08bc5adcb77f2beb9a54912858663a1d6a3c3a6f1409f624c59e57f259c684",
+              "lastState": {},
+              "name": "fault-agent",
+              "ready": true,
+              "resources": {
+                "requests": {
+                  "cpu": "5m",
+                  "memory": "32Mi"
+                }
+              },
+              "restartCount": 0,
+              "started": true,
+              "state": {
+                "running": {
+                  "startedAt": "2026-11-14T03:51:52Z"
+                }
+              },
+              "user": {
+                "linux": {
+                  "gid": 0,
+                  "supplementalGroups": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    6,
+                    10,
+                    11,
+                    20,
+                    26,
+                    27
+                  ],
+                  "uid": 0
+                }
+              },
+              "volumeMounts": [
+                {
+                  "mountPath": "/src/.bin/test-slimdata-local-chaos.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_kubernetes_backend.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_fault_agent.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_receipt_sink.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/run-platform-workload.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/tests/SlimFaas.Tests/Local/chaos_function.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                  "name": "kube-api-access-6p4pl",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                }
+              ]
+            },
+            {
+              "allocatedResources": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "containerID": "containerd://495799c6d74b78f3a81d86b2491a925ca256850267bec824414d28926b185ee3",
+              "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+              "imageID": "docker.io/library/import-2026-11-14@sha256:6a08bc5adcb77f2beb9a54912858663a1d6a3c3a6f1409f624c59e57f259c684",
+              "lastState": {
+                "terminated": {
+                  "containerID": "containerd://df91b6f468c60eeca5c9bd7a01eac78e9660bc53acdfbf069f146dae9fb3cb94",
+                  "exitCode": 137,
+                  "finishedAt": "2026-11-14T03:52:03Z",
+                  "reason": "Error",
+                  "startedAt": "2026-11-14T03:51:52Z"
+                }
+              },
+              "name": "runtime",
+              "ready": false,
+              "resources": {
+                "limits": {
+                  "memory": "1Gi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "256Mi"
+                }
+              },
+              "restartCount": 1,
+              "started": true,
+              "state": {
+                "running": {
+                  "startedAt": "2026-11-14T03:52:04Z"
+                }
+              },
+              "user": {
+                "linux": {
+                  "gid": 1000,
+                  "supplementalGroups": [
+                    1000
+                  ],
+                  "uid": 1000
+                }
+              },
+              "volumeMounts": [
+                {
+                  "mountPath": "/database",
+                  "name": "state"
+                },
+                {
+                  "mountPath": "/src/.bin/test-slimdata-local-chaos.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_kubernetes_backend.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_fault_agent.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_receipt_sink.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/run-platform-workload.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/tests/SlimFaas.Tests/Local/chaos_function.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                  "name": "kube-api-access-6p4pl",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                }
+              ]
+            }
+          ],
+          "files": {
+            "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+            "/app/SlimFaas.dll": "b53cd5e070cd6f9e0eca357b62d63fccdbcbb83f2c097977cb3999f33e16e768",
+            "/app/SlimData.dll": "9ea29b40a6ebf144a448ffcb9746072135a594455ebc64ac0595c0e7630e4d54",
+            "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f"
+          }
+        },
+        {
+          "pod": "slimfaas-1",
+          "uid": "651f4977-6040-4a84-b68c-fdcef9931d96",
+          "worker": "slimfaas-pr506-worker3",
+          "container_statuses": [
+            {
+              "allocatedResources": {
+                "cpu": "5m",
+                "memory": "32Mi"
+              },
+              "containerID": "containerd://38066ca4db668df60b05dd6a9747c373c01bbb2d03b9aa09c5c3409413fe4ab0",
+              "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+              "imageID": "docker.io/library/import-2026-11-14@sha256:6a08bc5adcb77f2beb9a54912858663a1d6a3c3a6f1409f624c59e57f259c684",
+              "lastState": {},
+              "name": "fault-agent",
+              "ready": true,
+              "resources": {
+                "requests": {
+                  "cpu": "5m",
+                  "memory": "32Mi"
+                }
+              },
+              "restartCount": 0,
+              "started": true,
+              "state": {
+                "running": {
+                  "startedAt": "2026-11-14T03:51:52Z"
+                }
+              },
+              "user": {
+                "linux": {
+                  "gid": 0,
+                  "supplementalGroups": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    6,
+                    10,
+                    11,
+                    20,
+                    26,
+                    27
+                  ],
+                  "uid": 0
+                }
+              },
+              "volumeMounts": [
+                {
+                  "mountPath": "/src/.bin/test-slimdata-local-chaos.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_kubernetes_backend.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_fault_agent.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_receipt_sink.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/run-platform-workload.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/tests/SlimFaas.Tests/Local/chaos_function.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                  "name": "kube-api-access-svff2",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                }
+              ]
+            },
+            {
+              "allocatedResources": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "containerID": "containerd://cb8e6e7e30bca172295776ec9b9a9112c24d4234e10213eeb98f3389ecd821a6",
+              "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+              "imageID": "docker.io/library/import-2026-11-14@sha256:6a08bc5adcb77f2beb9a54912858663a1d6a3c3a6f1409f624c59e57f259c684",
+              "lastState": {},
+              "name": "runtime",
+              "ready": false,
+              "resources": {
+                "limits": {
+                  "memory": "1Gi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "256Mi"
+                }
+              },
+              "restartCount": 0,
+              "started": true,
+              "state": {
+                "running": {
+                  "startedAt": "2026-11-14T03:51:52Z"
+                }
+              },
+              "user": {
+                "linux": {
+                  "gid": 1000,
+                  "supplementalGroups": [
+                    1000
+                  ],
+                  "uid": 1000
+                }
+              },
+              "volumeMounts": [
+                {
+                  "mountPath": "/database",
+                  "name": "state"
+                },
+                {
+                  "mountPath": "/src/.bin/test-slimdata-local-chaos.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_kubernetes_backend.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_fault_agent.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_receipt_sink.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/run-platform-workload.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/tests/SlimFaas.Tests/Local/chaos_function.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                  "name": "kube-api-access-svff2",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                }
+              ]
+            }
+          ],
+          "files": {
+            "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+            "/app/SlimFaas.dll": "b53cd5e070cd6f9e0eca357b62d63fccdbcbb83f2c097977cb3999f33e16e768",
+            "/app/SlimData.dll": "9ea29b40a6ebf144a448ffcb9746072135a594455ebc64ac0595c0e7630e4d54",
+            "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f"
+          }
+        },
+        {
+          "pod": "slimfaas-2",
+          "uid": "435dd8ba-0fbe-47d4-a319-6d35b8ca740e",
+          "worker": "slimfaas-pr506-worker2",
+          "container_statuses": [
+            {
+              "allocatedResources": {
+                "cpu": "5m",
+                "memory": "32Mi"
+              },
+              "containerID": "containerd://630b4e6758530b98cacf4874419fb6cf573bf223debc523ca74dee763d2840e9",
+              "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+              "imageID": "docker.io/library/import-2026-11-14@sha256:6a08bc5adcb77f2beb9a54912858663a1d6a3c3a6f1409f624c59e57f259c684",
+              "lastState": {},
+              "name": "fault-agent",
+              "ready": true,
+              "resources": {
+                "requests": {
+                  "cpu": "5m",
+                  "memory": "32Mi"
+                }
+              },
+              "restartCount": 0,
+              "started": true,
+              "state": {
+                "running": {
+                  "startedAt": "2026-11-14T03:51:52Z"
+                }
+              },
+              "user": {
+                "linux": {
+                  "gid": 0,
+                  "supplementalGroups": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    6,
+                    10,
+                    11,
+                    20,
+                    26,
+                    27
+                  ],
+                  "uid": 0
+                }
+              },
+              "volumeMounts": [
+                {
+                  "mountPath": "/src/.bin/test-slimdata-local-chaos.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_kubernetes_backend.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_fault_agent.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_receipt_sink.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/run-platform-workload.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/tests/SlimFaas.Tests/Local/chaos_function.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                  "name": "kube-api-access-jvtvl",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                }
+              ]
+            },
+            {
+              "allocatedResources": {
+                "cpu": "250m",
+                "memory": "256Mi"
+              },
+              "containerID": "containerd://8d064925cad4c9845069efe51b947575cc8593899c04585e9f9877aed5c6b226",
+              "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+              "imageID": "docker.io/library/import-2026-11-14@sha256:6a08bc5adcb77f2beb9a54912858663a1d6a3c3a6f1409f624c59e57f259c684",
+              "lastState": {},
+              "name": "runtime",
+              "ready": false,
+              "resources": {
+                "limits": {
+                  "memory": "1Gi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "256Mi"
+                }
+              },
+              "restartCount": 0,
+              "started": true,
+              "state": {
+                "running": {
+                  "startedAt": "2026-11-14T03:51:52Z"
+                }
+              },
+              "user": {
+                "linux": {
+                  "gid": 1000,
+                  "supplementalGroups": [
+                    1000
+                  ],
+                  "uid": 1000
+                }
+              },
+              "volumeMounts": [
+                {
+                  "mountPath": "/database",
+                  "name": "state"
+                },
+                {
+                  "mountPath": "/src/.bin/test-slimdata-local-chaos.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_kubernetes_backend.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_fault_agent.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/slimdata_receipt_sink.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/.bin/run-platform-workload.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/src/tests/SlimFaas.Tests/Local/chaos_function.py",
+                  "name": "tools-source",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                },
+                {
+                  "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                  "name": "kube-api-access-jvtvl",
+                  "readOnly": true,
+                  "recursiveReadOnly": "Disabled"
+                }
+              ]
+            }
+          ],
+          "files": {
+            "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+            "/app/SlimFaas.dll": "b53cd5e070cd6f9e0eca357b62d63fccdbcbb83f2c097977cb3999f33e16e768",
+            "/app/SlimData.dll": "9ea29b40a6ebf144a448ffcb9746072135a594455ebc64ac0595c0e7630e4d54",
+            "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f"
+          }
+        }
+      ]
+    },
+    "net11-03-allow-endurance": {
+      "released_utc": 1794629497.865539,
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "short_controls_and_serial_collector_smokes_passed": true,
+      "cgroup_monitor_pid": 36227
+    },
+    "net11-03-correctness-controls": {
+      "short_controls": "passed",
+      "long_endurance": "launched; require all final reports/jobs before timed matrices",
+      "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "utc": 1794629691.61796
+    }
+  },
+  "long_endurance": "all six roles launched; not complete",
+  "comparative_performance": "pending; collector smokes are not a non-regression comparison"
+}

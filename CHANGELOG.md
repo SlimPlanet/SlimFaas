@@ -1,5 +1,124 @@
 # Changelog
 
+## v0.89.0
+
+- [186a434a](https://github.com/SlimPlanet/SlimFaas/commit/186a434a7ea40c828db017a603dc4dd031a2d9d0) - feat(SlimFas): Make UI live traffic the dashboard home and inspect actors in context (#549) (release), 2026-11-18 by *Guillaume Chervet*
+
+
+## 0.88.2
+
+- [f06d9432](https://github.com/SlimPlanet/SlimFaas/commit/f06d9432c8d27dd57cc5b7cc80d5aa692eee6f65) - chore: limit Dependabot to security updates (#546), 2026-11-18 by *Guillaume Chervet*
+
+
+## v0.88.2
+
+- [981b681f](https://github.com/SlimPlanet/SlimFaas/commit/981b681f593beaf3c66a81663f7ac43575294132) - Fix SlimData recovery and validate macOS, Podman and Kubernetes reliability (#506) (release), 2026-11-18 by *Guillaume Chervet*
+
+
+## 0.88.1
+
+
+
+## v0.88.1
+
+- [6897512d](https://github.com/SlimPlanet/SlimFaas/commit/6897512d6c19ef8234e187ba38d38be3ee5cc5ea) - fix(SlimFaas): wait for stopping nodes on Ctrl+Break and retry bundle cleanup on Windows (#401), 2026-11-14 by *Guillaume Delahaye*
+- [2adcbbe3](https://github.com/SlimPlanet/SlimFaas/commit/2adcbbe37b84c8e342d06d652ad6b96799a86488) - fix(slimfaas-mcp): read path item parameters and component parameter references (#516) (release), 2026-11-14 by *Asish*
+
+
+## 0.88.0
+
+
+
+## v0.88.0
+
+- [766cb5ca](https://github.com/SlimPlanet/SlimFaas/commit/766cb5caafc634565abe94624eb06a1d2adc8b46) - feat(dashboard): pair workload queues and visualize Data traffic (#503) (release), 2026-11-07 by *Guillaume Chervet*
+
+
+## v0.87.1
+
+- [bd26db5d](https://github.com/SlimPlanet/SlimFaas/commit/bd26db5d417e7fef82e2148d38eb317d650a0149) - fix(clients): cancel the sync stream when the handler fails after starting the response (#492) (#493) (release), 2026-11-07 by *Asish*
+
+
+## 0.87.0
+
+
+
+## v0.87.0
+
+- [1f5c5c5c](https://github.com/SlimPlanet/SlimFaas/commit/1f5c5c5c0cade6415ee41addd57a7f9ec4fc6488) - feat: durable Streams with HTTP and WebSocket consumers (#491) (release), 2026-11-04 by *Guillaume Chervet*
+- [dbc5c5ef](https://github.com/SlimPlanet/SlimFaas/commit/dbc5c5ef2c502c3fff482c550a11a1b05b84d1de) - feat: durable dead letter queues with private-by-default APIs and dashboards (#484), 2026-11-04 by *Guillaume Chervet*
+
+
+## 0.86.3
+
+
+
+## 0.86.4
+
+
+
+## v0.86.4
+
+- [7f81422b](https://github.com/SlimPlanet/SlimFaas/commit/7f81422b5572d6bfc42313a29677a09ca8851486) - fix(Jobs): queue Default jobs under the name the jobs worker reads (#494) (#495) (release), 2026-11-02 by *Asish*
+
+
+## v0.86.3
+
+- [e9e42e1c](https://github.com/SlimPlanet/SlimFaas/commit/e9e42e1cb44a3a5df58fbab4f1c44f489844517d) - fix(slimfaas-mcp): send header parameters as request headers (#489) (#490) (release), 2026-11-02 by *Asish*
+
+
+## 0.86.2
+
+
+
+## v0.86.2
+
+- [1cff8913](https://github.com/SlimPlanet/SlimFaas/commit/1cff8913a6934a5c157abfc6d6d580cc5f4b4413) - fix(slimfaas-mcp): encode path parameters as single URL segments (#487) (#488) (release), 2026-11-02 by *Asish*
+
+
+## 0.86.1
+
+
+
+## v0.86.1
+
+- [325c4bbe](https://github.com/SlimPlanet/SlimFaas/commit/325c4bbe00db187b3068a3524ccc6813a6b60f42) - fix(slimfaas-mcp): send only the body argument as the JSON request body (#485) (#486) (release), 2026-10-31 by *Asish*
+- [89efdaca](https://github.com/SlimPlanet/SlimFaas/commit/89efdaca5e84934b874507d116d4fbefc05660d5) - docs(autoscaling): explain how to combine SlimFaas with a HorizontalPodAutoscaler (#186) (#482), 2026-10-31 by *Asish*
+
+
+## 0.86.0
+
+
+
+## v0.86.0
+
+- [112482a7](https://github.com/SlimPlanet/SlimFaas/commit/112482a7e420d104baccfb9360330204e6b8bad5) - feat(dashboard): show job queues and their message exchanges (#468) (#483) (release), 2026-10-30 by *NopeCharon*
+
+
+## 0.85.1
+
+
+
+## v0.85.1
+
+- [0816350f](https://github.com/SlimPlanet/SlimFaas/commit/0816350f2966cc1d9f5dc417c6c2972e3213ff67) - fix(slimfaas-mcp): keep single-property JSON request bodies as objects (#171) (#470) (release), 2026-10-29 by *NopeCharon*
+
+
+## 0.85.0
+
+
+
+## v0.85.0
+
+- [3af14d57](https://github.com/SlimPlanet/SlimFaas/commit/3af14d57e1b496717eff82d59af2e39a8a6baab8) - fix(Jobs): validate cron fields and run N/step to the end of the field (#480) (#481) (release), 2026-10-29 by *NopeCharon*
+- [289555bc](https://github.com/SlimPlanet/SlimFaas/commit/289555bc59ac4d276536d48241e0664b006b3070) - chore(deps): update .NET and JavaScript dependencies (#479), 2026-10-27 by *Guillaume Chervet*
+- [30783a49](https://github.com/SlimPlanet/SlimFaas/commit/30783a49ad785955d7fbe9387df8cc26527fee48) - feat(Jobs): evaluate cron schedules in an optional IANA time zone (#426) (#469)(release), 2026-10-27 by *NopeCharon*
+
+
+## 0.84.16
+
+
+
 ## v0.84.16
 
 - [bfbd344a](https://github.com/SlimPlanet/SlimFaas/commit/bfbd344a9cc0abd5e1911563f998e488274c6698) - fix: make the Windows guided tour repeatable (#444) (release), 2026-10-01 by *Guillaume Chervet*
@@ -158,123 +277,5 @@
 
 ## 0.83.0
 
-
-
-## v0.83.0
-
-- [ef2f8c58](https://github.com/SlimPlanet/SlimFaas/commit/ef2f8c58bb88a95f9c849fea9ef71334af087a72) - feat(SlimFaas): Modernize the dashboard with scalable traffic, data and instance logs (release) (#339), 2026-09-09 by *Guillaume Chervet*
-
-
-## 0.82.7
-
-
-
-## v0.82.7
-
-- [ffff804f](https://github.com/SlimPlanet/SlimFaas/commit/ffff804f82f23bdb1cedca3211be9a63b7424084) - fix: release job concurrency slots before TTL cleanup (#337) (release), 2026-09-08 by *Guillaume Chervet*
-
-
-## 0.82.6
-
-
-
-## v0.82.6
-
-- [b8a688ea](https://github.com/SlimPlanet/SlimFaas/commit/b8a688eadda28cb6e243ddb775fc990f9e398791) - docs: Restore CloMonitor Legal compliance detection (#336) (release), 2026-09-08 by *Copilot*
-
-
-## 0.82.5
-
-
-
-## v0.82.5
-
-- [48b7fc86](https://github.com/SlimPlanet/SlimFaas/commit/48b7fc869de28f2ac6e23d208371bb000f5dc39f) - docs: add guided onboarding, feature diagrams and standalone local demos (#334) (release), 2026-09-08 by *Guillaume Chervet*
-
-
-## 0.82.4
-
-
-
-## v0.82.4
-
-- [8a7fb497](https://github.com/SlimPlanet/SlimFaas/commit/8a7fb49773b8481d5bb6843d44875a510fe38909) - chore: update .NET and client dependencies (release) (#330), 2026-09-02 by *Guillaume Chervet*
-
-
-## 0.82.3
-
-
-
-## v0.82.3
-
-- [aae3e8d8](https://github.com/SlimPlanet/SlimFaas/commit/aae3e8d88599914304aed584063a83257b2930b6) - fix(slimdata): make key-value reads linearizable (#329) (release), 2026-09-02 by *Guillaume Chervet*
-
-
-## 0.82.2
-
-
-
-## v0.82.2
-
-- [19a3e5b7](https://github.com/SlimPlanet/SlimFaas/commit/19a3e5b7b539416fa11ed7991aa966772deef96c) - fix: planet-saver clean npm packages (release), 2026-09-01 by *Guillaume Chervet*
-
-
-## 0.82.1
-
-
-
-## v0.82.1
-
-- [381f9b0c](https://github.com/SlimPlanet/SlimFaas/commit/381f9b0c6a65035d9a507df4a2a17ecb77e53573) - fix: npm pubish token via oidc (release), 2026-09-01 by *Guillaume Chervet*
-
-
-## 0.82.0
-
-
-
-## v0.82.0
-
-- [78c7387d](https://github.com/SlimPlanet/SlimFaas/commit/78c7387d3a16e83dc49fd24baa4e27ff9dcbe802) - fix(slimplanet): Content-Length was set to 0 (#327) (release), 2026-08-28 by *antoinelrnld*
-- [35a66252](https://github.com/SlimPlanet/SlimFaas/commit/35a662523fe83be3f184b00d81b14a59e69fe0e7) - feat: Improve SlimData/RAFT recovery under load (#317)(release), 2026-08-21 by *Copilot*
-- [e357700e](https://github.com/SlimPlanet/SlimFaas/commit/e357700ec4e1202f27d0cce5a6a696078d377a7a) - doc: Elevate CNCF presence in README header and de-duplicate community content (#315), 2026-08-14 by *Copilot*
-
-
-## 0.81.1
-
-
-
-## v0.81.1
-
-- [5d766c95](https://github.com/SlimPlanet/SlimFaas/commit/5d766c95aafaab9da2c280cea34585f687f65a09) - perf: hot-path reads with zero allocation (~89×), queue counts ~25×, schedule evaluation ~52× faster (release) (#313), 2026-08-14 by *Guillaume Delahaye*
-
-
-## 0.81.0
-
-- [3cb41f11](https://github.com/SlimPlanet/SlimFaas/commit/3cb41f1177b5217e132b12b286d74820f0fe6e40) - fix: Stabilize Raft cluster catch-up timeout in SlimData test (#312), 2026-08-07 by *Copilot*
-
-
-## v0.81.0
-
-- [8dc88d7a](https://github.com/SlimPlanet/SlimFaas/commit/8dc88d7a651df1c796d54e523bf47c5b7bce168c) - feat: optimize async (release) (#311), 2026-08-07 by *Guillaume Chervet*
-
-
-## 0.80.0
-
-
-
-## v0.80.0
-
-- [780153dc](https://github.com/SlimPlanet/SlimFaas/commit/780153dc307eee841e3960a73d59dc065fd104e7) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
-- [309a2119](https://github.com/SlimPlanet/SlimFaas/commit/309a21194601a8334c1ab314552d3bb257477e48) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
-- [b9f9a9f3](https://github.com/SlimPlanet/SlimFaas/commit/b9f9a9f3e354dc5872b97d124f9b31a3be8b4e15) - feat: optimise sync request (#310), 2026-08-04 by *Guillaume Chervet*
-
-
-## 0.79.4
-
-
-
-## v0.79.4
-
-- [bbe315ad](https://github.com/SlimPlanet/SlimFaas/commit/bbe315ad2270a3c03426490a1e756bfeed9adaa6) - fix: enhance scale (#309) (release), 2026-08-02 by *Guillaume Chervet*
 
 

@@ -27,8 +27,8 @@ export function DataInventory({ page, now, changed }: { page: DataPage; now: num
   </>;
 }
 
-export default function DataExplorer() {
-  const [kind, setKind] = useState('sets');
+export default function DataExplorer({ initialKind }: { initialKind?: string }) {
+  const [kind, setKind] = useState(() => initialKind ?? (new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('kind') === 'files' ? 'files' : 'sets'));
   const [search, setSearch] = useState('');
   const [prefix, setPrefix] = useState('');
   const [cursors, setCursors] = useState(['']);
@@ -56,7 +56,7 @@ export default function DataExplorer() {
   const resetPage = () => { setCursors(['']); previous.current = null; setHighlights(new Map()); };
   return <section className="data-explorer" aria-label="Live data inventory">
     <div className="toolbar">
-      <div className="segmented" aria-label="Data kind">{['sets', 'files'].map(value => <button className={`segmented__button ${kind === value ? 'segmented__button--active' : ''}`} type="button" key={value} aria-pressed={kind === value} onClick={() => { setKind(value); resetPage(); }}>{value === 'sets' ? 'Sets' : 'Files'}</button>)}</div>
+      {!initialKind && <div className="segmented" aria-label="Data kind">{['sets', 'files'].map(value => <button className={`segmented__button ${kind === value ? 'segmented__button--active' : ''}`} type="button" key={value} aria-pressed={kind === value} onClick={() => { setKind(value); resetPage(); }}>{value === 'sets' ? 'Sets' : 'Files'}</button>)}</div>}
       <label className="field field--grow">Key prefix<input className="field__input" type="search" placeholder="Filter keys by prefix…" value={search} onChange={e => setSearch(e.target.value)} /></label>
       <span className={`badge ${stale ? 'badge--warning' : 'badge--success'}`}>{stale ? page ? 'Stale' : status.startsWith('Metadata access') ? 'Restricted' : 'Connecting' : 'Live'}</span>
     </div>

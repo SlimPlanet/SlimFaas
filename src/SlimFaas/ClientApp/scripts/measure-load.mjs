@@ -22,11 +22,13 @@ try {
    const original=CanvasRenderingContext2D.prototype.fillRect;
    CanvasRenderingContext2D.prototype.fillRect=function(...args){if(this.canvas.classList.contains('traffic-canvas__surface')) window.__draws.push(performance.now()); return original.apply(this,args);};
  });
- await page.goto(`${process.env.DASHBOARD_LOAD_URL ?? 'http://127.0.0.1:6011'}/#/live/traffic`);
+ await page.goto(`${process.env.DASHBOARD_LOAD_URL ?? 'http://127.0.0.1:6011'}/`);
  await page.getByRole('button',{name:'Event journal (5,000)',exact:true}).waitFor();
- await page.waitForFunction(()=>['JOB','FUNCTION','SLIMFAAS'].every(label=>window.__labels.has(label)));
+ await page.waitForFunction(()=>['JOB','FUNCTION'].every(label=>window.__labels.has(label)));
  await page.screenshot({path:out+'/traffic-dense-overview.png',fullPage:true});
+ await page.getByRole('button',{name:'Actors',exact:true}).click();
  const search=page.getByRole('searchbox',{name:'Find an actor'});
+ await search.fill('slimfaas'); await page.getByRole('button',{name:'slimfaas',exact:true}).waitFor();
  for(const id of ['fibonacci1-09999','daily-report-slimfaas-job-09999']){
    await search.fill(id); await page.getByRole('button',{name:id,exact:true}).click();
    assert.equal(await page.getByRole('dialog').getByRole('heading',{level:2}).innerText(),id);
@@ -45,6 +47,8 @@ try {
  await search.fill('daily-report');await page.getByRole('button',{name:'daily-report',exact:true}).click();
  await page.keyboard.press('Escape');
  await page.locator('canvas').scrollIntoViewIfNeeded();
+ await page.getByRole('button',{name:'Close list'}).click();
+ await page.getByRole('button',{name:'Locate actor'}).click();
  for(let i=0;i<4;i++) await page.getByRole('button',{name:'Zoom in',exact:true}).click();
  await page.locator('canvas').focus();
  await page.screenshot({path:out+'/traffic-dense-detail.png'});

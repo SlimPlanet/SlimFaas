@@ -21,9 +21,17 @@ public class JobConfiguration : IJobConfiguration
 {
     public const string Default = "Default";
 
+    /// <summary>
+    /// Returns the configuration a job name is processed under, with its configured case.
+    /// As in <see cref="JobService.EnqueueJobAsync"/>, an unknown name uses <see cref="Default"/>.
+    /// </summary>
+    public static string ResolveName(IDictionary<string, SlimfaasJob> configurations, string name)
+        => configurations.Keys.FirstOrDefault(key => string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+           ?? Default;
 
     private SlimFaasJobConfiguration _configuration;
     private readonly SlimFaasJobConfiguration _initialConfiguration;
+    private readonly bool _useImplicitDefault;
 
     public SlimFaasJobConfiguration Configuration
     {
@@ -37,6 +45,8 @@ public class JobConfiguration : IJobConfiguration
     public JobConfiguration(IOptions<SlimFaasOptions> slimFaasOptions, IKubernetesService kubernetesService, ILogger<JobConfiguration> logger, INamespaceProvider namespaceProvider)
     {
         _namespace = namespaceProvider.CurrentNamespace;
+        // Native processes can only run commands declared by the supervisor.
+        _useImplicitDefault = slimFaasOptions.Value.Orchestrator != "Process";
         SlimFaasJobConfiguration? slimfaasJobConfiguration = null;
         Dictionary<string, string> resources = new();
         resources.Add("cpu", "100m");
@@ -80,7 +90,7 @@ public class JobConfiguration : IJobConfiguration
             slimfaasJobConfiguration = new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase));
         }
 
-        if (!slimfaasJobConfiguration.Configurations.TryAdd(Default, defaultSlimfaasJob))
+        if (_useImplicitDefault && !slimfaasJobConfiguration.Configurations.TryAdd(Default, defaultSlimfaasJob))
         {
             if (slimfaasJobConfiguration.Configurations[Default].Resources == null)
             {
@@ -108,7 +118,7 @@ public class JobConfiguration : IJobConfiguration
 
         foreach (var kvp in configuration.Configurations)
         {
-            if (kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
+            if (_useImplicitDefault && kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
                 continue;
             mergedConfigurations[kvp.Key] = kvp.Value;
         }
@@ -117,7 +127,7 @@ public class JobConfiguration : IJobConfiguration
         {
             foreach (var kvp in configuration.Schedules)
             {
-                if (kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
+                if (_useImplicitDefault && kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
                     continue;
                 mergedSchedules[kvp.Key] = kvp.Value;
             }

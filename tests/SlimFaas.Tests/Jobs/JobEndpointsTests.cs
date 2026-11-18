@@ -29,6 +29,13 @@ public class JobEndpointsTests
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
         Mock<IJobService> jobServiceMock = new();
         setupJobService(jobServiceMock); // spécifique à chaque test
+        Mock<IJobConfiguration> jobConfigurationMock = new();
+        jobConfigurationMock.SetupGet(c => c.Configuration).Returns(new SlimFaasJobConfiguration(
+            new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["daisy"] = new("image", []),
+                [JobConfiguration.Default] = new("image", [])
+            }));
 
         IHost host = await new HostBuilder()
             .ConfigureWebHost(builder =>
@@ -43,6 +50,7 @@ public class JobEndpointsTests
                         s.AddSingleton<IReplicasService, MemoryReplicasService>();
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(_ => jobServiceMock.Object);
+                        s.AddSingleton<IJobConfiguration>(_ => jobConfigurationMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                         s.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         s.AddMemoryCache();
@@ -94,6 +102,69 @@ public class JobEndpointsTests
                 It.IsAny<CreateJob>(),
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()),
             Times.AtMost(expectedCreateCalls));
+    }
+
+    [Theory(DisplayName = "POST /job/{name} – trace l'entrée de l'exécution dans la file du job")]
+    [InlineData("/job/daisy", "daisy")]
+    [InlineData("/job/unknown", JobConfiguration.Default)]
+    public async Task CreateJob_Records_Request_And_Enqueue_Activity(string path, string configurationName)
+    {
+        (IHost host, _, _) = await BuildHostAsync(jobServiceMock =>
+        {
+            jobServiceMock.Setup(s => s.EnqueueJobAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<CreateJob>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(new ResultWithError<EnqueueJobResult>(new EnqueueJobResult("element-1")));
+            jobServiceMock.SetupGet(s => s.Jobs)
+                .Returns(new List<KubernetesJob>());
+        });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .PostAsync($"http://localhost:5000{path}",
+                JsonContent.Create(new CreateJob(new List<string>(), "image")));
+
+        Assert.Equal(HttpStatusCode.Accepted, resp.StatusCode);
+        IList<NetworkActivityEvent> activity = host.Services.GetRequiredService<NetworkActivityTracker>().GetRecent();
+        Assert.Equal(2, activity.Count);
+        NetworkActivityEvent requestIn = activity[0];
+        Assert.Equal(NetworkActivityTracker.EventTypes.RequestIn, requestIn.Type);
+        Assert.Equal(NetworkActivityTracker.Actors.External, requestIn.Source);
+        Assert.Equal(NetworkActivityTracker.Actors.SlimFaas, requestIn.Target);
+        NetworkActivityEvent enqueue = activity[1];
+        Assert.Equal(NetworkActivityTracker.EventTypes.Enqueue, enqueue.Type);
+        Assert.Equal(NetworkActivityTracker.Actors.SlimFaas, enqueue.Source);
+        Assert.Equal(configurationName, enqueue.Target);
+        Assert.Equal($"job:{configurationName}", enqueue.QueueName);
+        Assert.Equal(requestIn.SourcePod, enqueue.SourcePod);
+        Assert.Equal(requestIn.Id, enqueue.CorrelationId);
+    }
+
+    [Fact(DisplayName = "POST /job/{name} – une exécution refusée répond à l'appelant sans entrer dans la file")]
+    public async Task CreateJob_Rejected_Records_Response_Without_Enqueue()
+    {
+        (IHost host, _, _) = await BuildHostAsync(jobServiceMock =>
+        {
+            jobServiceMock.Setup(s => s.EnqueueJobAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<CreateJob>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(new ResultWithError<EnqueueJobResult>(null, new ErrorResult("image_not_allowed")));
+            jobServiceMock.SetupGet(s => s.Jobs)
+                .Returns(new List<KubernetesJob>());
+        });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .PostAsync("http://localhost:5000/job/daisy",
+                JsonContent.Create(new CreateJob(new List<string>(), "image")));
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        IList<NetworkActivityEvent> activity = host.Services.GetRequiredService<NetworkActivityTracker>().GetRecent();
+        Assert.Equal(
+            new[] { NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.EventTypes.RequestEnd },
+            activity.Select(e => e.Type));
+        Assert.Equal(activity[0].Id, activity[1].CorrelationId);
+        Assert.Null(activity[1].QueueName);
     }
 
     #endregion

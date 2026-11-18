@@ -8,7 +8,7 @@ starts the automated build, verification and publication process.
 
 This process applies after the migration is activated. Historical releases and
 tags remain available, but do not retroactively acquire signatures or SBOMs.
-The migration starts at the published version `0.84.16` and preserves the existing
+The migration starts at the published version `0.89.0` and preserves the existing
 changelog. New tags are `X.Y.Z`, without a `v` prefix.
 
 ## Daily use
@@ -191,13 +191,13 @@ python3 .bin/test-release.py
 python3 .bin/install-release-tools.py actionlint
 artifacts/release-tools/actionlint
 dotnet test
-python3 .bin/build-release.py packages --version 0.84.16 --sha "$(git rev-parse HEAD)"
+python3 .bin/build-release.py packages --version 0.89.0 --sha "$(git rev-parse HEAD)"
 python3 .bin/build-release.py native --product SlimFaas --rid osx-arm64 \
-  --version 0.84.16 --sha "$(git rev-parse HEAD)"
+  --version 0.89.0 --sha "$(git rev-parse HEAD)"
 ```
 
-Use the current `version.txt` and host RID. Package building requires Node 24,
-pnpm 10.14.0, .NET 10, Python 3.12+ and uv 0.9.0. Preview stamping changes package
+Use the current `version.txt` and host RID. Package building requires Node 26,
+pnpm 12.18.0, .NET 11, Python 3.12+ and uv 0.9.0. Preview stamping changes package
 metadata only in the build checkout; run preview builds in a disposable checkout.
 The native bundle test runs the runtime, functions and jobs with an empty PATH.
 On a source checkout, also validate `slimfaas.local.yaml`, run `local up`, and call

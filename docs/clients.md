@@ -1,8 +1,79 @@
 ﻿# SlimFaas Clients
 
+The Python client bounds incoming WebSocket envelopes to 32 MiB by default,
+with a four-frame buffer and backpressure. Configure positive `max_message_size`
+and `max_queue` constructor options for your memory budget. JSON/base64 overhead
+counts toward the envelope limit; it is separate from server HTTP body limits.
+Older clients inherited a 1 MiB receive limit and closed with code 1009 before
+dispatching valid larger Async bodies, including 2 MB and 2 MiB. Upgrade those
+clients; see [Python message limits](../client/python/slimfaas-client/README.md#incoming-message-limits).
+
+Server retry defaults include `504` for expired delivery reservations and
+WebSocket delivery timeouts. Explicit `HttpStatusRetries` lists override them;
+include `504` for bounded recovery after a worker/owner disappears. Existing
+queue entries retain their original policy. See [function retry configuration](functions.md#6-function-configuration).
+
+Async `TryNumber` / `try_number` is zero-based. With two configured retries,
+deliveries are numbered `0`, `1`, `2`, and only the final one has
+`IsLastTry` / `is_last_try` set to `true`. Runtimes predating the queue metadata
+correction exposed one-based attempts and an inverted final-attempt flag;
+upgrade the runtime to obtain the corrected values. The client wire format is
+unchanged. See [async delivery metadata](async-functions.md#deferred-completion-callbacks).
+
+For retained events, use `SubscribeStreams` / `subscribe_streams` and
+`OnStreamMessage` / `on_stream_message`. See [Durable Streams](streams.md) for
+registration, deferred callbacks, visibility, and reconnect semantics.
+
 SlimFaas clients let a process register itself as a **virtual function** through WebSocket instead of exposing an HTTP server.
 
+The Python client keeps strong references to active request, Stream and event
+handler tasks until they finish, then releases them. Awaiting application work
+inside a handler therefore does not leave its task vulnerable to garbage collection.
+
 This is useful for jobs, agents, desktop services, local workers, or any process that must receive SlimFaas requests without being deployed as a Kubernetes `Deployment`.
+
+Try the [independent persistent WebSocket job in the Guided Tour](guided-tour.md#10-run-an-independent-websocket-job).
+It reuses `FibonacciBatch --ws-mode` from the base demos, exercising sync replies,
+async/event processing proofs and exact Stream ACK/history checks through the official
+.NET client. `--subscribe-stream Public:name` is repeatable; the equivalent
+`SLIMFAAS_SUBSCRIBE_STREAMS` environment value accepts comma-separated
+subscriptions. The demonstration's proof writes use `SlimFaas__BaseUrl`;
+`SLIMFAAS_WS_URL` supplies one outbound connection address; comma-separated
+`SLIMFAAS_WS_URLS` optionally opens several identically configured clients.
+One connection to any node is sufficient for sync, async, Streams and events;
+the base demos deliberately use one owner. `--registration-key <function-name>-ready` writes a bounded-TTL
+readiness proof only after all configured clients successfully register.
+It is optional; ordinary WebSocket mode does not require a Data Set proof.
+No client API or
+wire-protocol changes are required.
+
+### Multi-node routing and failure semantics
+
+SlimData/Raft stores registration metadata, compatible configuration and a
+30-second owner lease, renewed every five seconds. Sockets and pending responses
+remain on their owner. Any ingress discovers the virtual function and relays
+sync/async requests or event fan-out directly to that owner over an authenticated
+internal transport. This works independently of dashboard/SSE settings.
+Streams retain owner-local consumption with shared Raft reservations.
+
+The owner enforces per-client capacity. Sync bodies remain streamed with bounded
+buffers; cancellation propagates to the owner. An unavailable owner returns an
+explicit failure, not a blind synchronous replay. Async delivery retains the
+normal retry/DLQ behavior. An ambiguous attempt's element ID stays fenced on its
+connection until a late callback or disconnect; retries may use another replica.
+A dispatch cancelled before acquiring the socket send lock releases its ID, since
+no callback can arrive. A failed active send aborts its transport before retry;
+this prevents an ambiguous frame from producing a callback for a later attempt.
+Events remain best effort: `204` is acceptance, not delivery confirmation, and
+partial fan-out is not automatically resent. Disconnect removes the route;
+crashes expire the lease, and reconnect creates a new connection identity.
+
+An early successful sync response stops further request-body reads while an
+already dispatched frame finishes within the existing 300-second delivery
+budget. Normal response completion must not cancel that frame or its response
+headers: canceling an active WebSocket send can abort the shared worker
+connection and interrupt unrelated deliveries. Caller cancellation and actual
+transport failures keep their existing cancellation and fencing behavior.
 
 Client libraries:
 
@@ -14,6 +85,17 @@ Client libraries:
 ---
 
 The built-in [Live Stream dashboard](user-interface.md#5-network-map) shows synchronous WebSocket dispatch/completion and publication fan-out to connected replicas. These are server-side observation events; client registration and binary/text WebSocket protocols are unchanged.
+
+## Runtime compatibility
+
+The .NET client targets **net11.0 only** and requires .NET 11. This removes the
+previous net8.0, net9.0 and net10.0 package assets. Applications using an older
+runtime must upgrade before taking this client version. Registration payloads,
+HTTP routes, WebSocket messages and sync streaming contracts remain compatible.
+
+The Python client supports **Python 3.10 or later**. It uses `websockets>=16.1.1,<17`
+because websockets 17 requires Python 3.11. Development dependencies retain
+`pygments==2.19.2` until a newer distribution passes the repository's FOSSA policy.
 
 ## A worker connects to SlimFaas
 
@@ -38,6 +120,14 @@ sequenceDiagram
 ```
 
 Multiple connected clients with the same function name must use identical configuration. SlimFaas routes work to connected clients; starting more external worker processes remains your responsibility. See the examples below for event subscriptions and disconnect behavior.
+
+The existing JSON `Configuration` (.NET) / `configuration` (Python) string is
+validated and applied by the runtime. Set
+`{"DefaultAsync":{"DeadLetterQueue":{"Enabled":true}}}` to opt into durable
+terminal-failure capture. Retry settings, deferred callbacks, offloaded bodies,
+and replay use the normal async pipeline, with fresh execution IDs. See
+[Dead Letter Queues](async-functions.md#websocket-clients) for examples and
+the independent private-by-default management policy.
 
 ## 1. Connection Endpoint
 
@@ -241,6 +331,12 @@ If the WebSocket request times out server-side, SlimFaas returns `504` for that 
 
 ## 7. Synchronous HTTP-Over-WebSocket
 
+The .NET client's `Response.WriteAsync` splits large buffers into ordered chunks
+of at most 64 KiB, including the byte-array Stream overload. A single large write
+therefore remains below the 256 KiB complete-frame limit of cross-node peer
+relays. Cancellation stops further chunks; status, headers, body bytes and the
+existing wire protocol remain unchanged.
+
 Requests sent to:
 
 ```http
@@ -269,6 +365,12 @@ Binary frame format:
 ```
 
 The `correlationId` links all frames for the same synchronous request/response stream.
+
+When a sync handler throws or raises, both official clients report the failure for it:
+
+- if the handler has not started the response, the client sends a `500` and ends the stream;
+- if the status and headers are already sent, the status can no longer change, so the client sends `SyncCancel`. SlimFaas then aborts the HTTP response, and the caller sees a truncated response instead of waiting for an end of stream that never comes;
+- if the response is already complete, nothing more is sent.
 
 ---
 

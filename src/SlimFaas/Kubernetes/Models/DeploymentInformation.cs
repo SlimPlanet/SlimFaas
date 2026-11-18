@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using ZLinq;
 
 namespace SlimFaas.Kubernetes;
 
@@ -8,7 +9,32 @@ public record DeploymentsInformations(
     IList<DeploymentInformation> Functions,
     SlimFaasDeploymentInformation SlimFaas,
     IEnumerable<PodInformation> Pods,
-    Dictionary<string, bool>? LocalProcesses = null);
+    Dictionary<string, bool>? LocalProcesses = null)
+{
+    internal DeploymentInformation? FindFunction(string functionName) => FindFunction(Functions, functionName);
+
+    internal static DeploymentInformation? FindFunction(IEnumerable<DeploymentInformation> source, string functionName)
+    {
+        using var enumerator = source.AsValueEnumerable().Enumerator;
+        if (enumerator.TryGetSpan(out var functions))
+        {
+            foreach (DeploymentInformation function in functions)
+            {
+                if (function.Deployment == functionName)
+                    return function;
+            }
+        }
+        else
+        {
+            while (enumerator.TryGetNext(out DeploymentInformation? function))
+            {
+                if (function.Deployment == functionName)
+                    return function;
+            }
+        }
+        return null;
+    }
+}
 
 [JsonSerializable(typeof(DeploymentsInformations))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -42,7 +68,10 @@ public record DeploymentInformation(
     FunctionTrust Trust = FunctionTrust.Trusted,
     ScaleConfig? Scale = null,
     int NumberParallelRequestPerPod = 10,
-    ResourcesConfiguration? Resources = null
+    ResourcesConfiguration? Resources = null,
+    IList<SubscribeStream>? SubscribeStreams = null,
+    int StreamMaxAgeSeconds = 86400,
+    int StreamMaxLength = 100000
 );
 
 public record PodInformation(
@@ -55,6 +84,11 @@ public record PodInformation(
     string ResourceVersion = "",
     string? ServiceName = null)
 {
+    public string? Lifecycle { get; init; }
+    internal string? ObservedLifecycle => Lifecycle ?? (IsTerminating ? "Terminating" : null);
+    public PodRequests? Requests { get; init; }
+    public string? Uid { get; init; }
+    public bool IsTerminating { get; init; }
     public IDictionary<string, string>? Annotations { get; init; }
     public string? RoutingKey { get; init; }
     public string? EndpointUrl { get; init; }

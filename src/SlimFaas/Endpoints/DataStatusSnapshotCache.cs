@@ -20,6 +20,8 @@ public sealed class DataStatusSnapshotCache(ISupplier<SlimDataPayload> state, IO
 
     private sealed record Snapshot(DataStatusEntry[] Sets, DataStatusEntry[] Files, DataStatusSummary Summary);
 
+    public DataStatusSummary GetSummary() => GetPage("sets", "", "", 0).Summary;
+
     public DataStatusPage GetPage(string kind, string prefix, string after, int limit)
     {
         var now = _clock.GetUtcNow();
@@ -74,7 +76,7 @@ public sealed class DataStatusSnapshotCache(ISupplier<SlimDataPayload> state, IO
                 if (ticks <= DateTime.MaxValue.Ticks) expiry = new DateTimeOffset(ticks, TimeSpan.Zero).ToUnixTimeMilliseconds();
             }
 
-            long? length = null;
+            long? length = isSet ? pair.Value.Length : null;
             if (isFile)
             {
                 try
@@ -95,7 +97,7 @@ public sealed class DataStatusSnapshotCache(ISupplier<SlimDataPayload> state, IO
         files.Sort(static (a, b) => string.CompareOrdinal(a.Id, b.Id));
         var summary = new DataStatusSummary(sets.Count, files.Count, files.Sum(f => f.SizeBytes ?? 0),
             files.Count(f => f.SizeBytes is null),
-            sets.Concat(files).Count(e => e.ExpiresAtMs is long expiry && expiry <= nowMs + 60_000));
+            sets.Concat(files).Count(e => e.ExpiresAtMs is long expiry && expiry <= nowMs + 60_000), sets.Sum(entry => entry.SizeBytes ?? 0));
         return new Snapshot(sets.ToArray(), files.ToArray(), summary);
     }
 

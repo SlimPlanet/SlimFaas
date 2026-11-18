@@ -1,4 +1,7 @@
-export interface PodStatus {
+export interface PodRequests { CpuMillis: number; MemoryBytes: number; KnownPods: number; UnknownPods: number }
+interface PodObservation { Lifecycle?: string | null; Requests?: PodRequests | null }
+
+export interface PodStatus extends PodObservation {
   Name: string;
   Status: string;
   Ready: boolean;
@@ -108,6 +111,9 @@ export interface FunctionStatusDetailed {
 // ---- Network Activity / Stream ----
 
 export interface NetworkActivityEvent {
+  DeadLetterId?: string | null;
+  ElementId?: string | null;
+  OriginalElementId?: string | null;
   ReceivedAt?: number; // Browser-only monotonic receipt time; never read from server JSON.
   Id: string;
   Type: string; // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish", "request_waiting", "request_started", "request_end"
@@ -119,6 +125,12 @@ export interface NetworkActivityEvent {
   SourcePod: string | null;  // pod name, opaque address token or full SlimFaas job run name
   TargetPod: string | null;  // pod name or opaque address token of the downstream replica
   CorrelationId?: string | null; // Preceding activity id; completions reference their corresponding start.
+  DataKind?: string | null;
+  DataOperation?: string | null;
+  DataStatusCode?: number | null;
+  StreamName?: string | null;
+  StreamFunction?: string | null;
+  StreamMessageId?: string | null;
 }
 
 export interface QueueInfo {
@@ -126,13 +138,28 @@ export interface QueueInfo {
   Length: number;
 }
 
-export interface SlimFaasNodeInfo {
+export interface SlimFaasNodeInfo extends PodObservation {
   Role?: 'Leader' | 'Follower' | 'Unknown' | null;
   Name: string;
   Status: string;  // "Running", "Starting", "Pending"
 }
 
+export interface DataSummary {
+  Sets: number; Files: number; SetBytes: number; FileBytes: number; UnknownFileSizes: number;
+}
+
 export interface StatusStreamPayload {
+  Requests?: PodRequests | null;
+  DataSummary?: DataSummary | null;
+  Streams?: import('./lib/streams').StreamSummary[];
+  StreamSubscriptions?: import('./lib/streams').StreamFunction[];
+  StreamsAvailable?: boolean;
+  StreamsFrontEnabled?: boolean;
+  StreamsAccessible?: boolean;
+  StreamsTruncated?: boolean;
+  DeadLetters?: import('./lib/deadLetters').DeadLetterSummary[];
+  DeadLettersFrontEnabled?: boolean;
+  DeadLettersAccessible?: boolean;
   Functions: FunctionStatusDetailed[];
   Queues: QueueInfo[];
   Jobs: JobConfigurationStatus[];
@@ -152,7 +179,7 @@ export interface CreateJobResources {
   Limits: Record<string, string> | null;
 }
 
-export interface RunningJobStatus {
+export interface RunningJobStatus extends PodObservation {
   Name: string;
   Status: string;
   ElementId: string;
@@ -179,4 +206,5 @@ export interface JobConfigurationStatus {
   DependsOn: string[] | null;
   Schedules: ScheduledJobInfo[];
   RunningJobs: RunningJobStatus[];
+  QueueLength: number; // Queued executions not yet created.
 }

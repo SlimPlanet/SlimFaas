@@ -1,0 +1,4179 @@
+{
+  "run": "42538554797",
+  "head_sha": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+  "workflow_conclusion": "success",
+  "artifacts": [
+    {
+      "id": 13645191885,
+      "name": "slimdata-local-endurance-windows-native-follower",
+      "bytes": 97847473,
+      "sha256": "f41a22293c533d318d4fde8a3a528cf27b7e024cf37f48885641e68cc022222b",
+      "records": {
+        "endurance-windows-native/accounting.json": {
+          "accepted": 22043,
+          "completed_deliveries": 8179,
+          "distinct_delivered_ids": 8172,
+          "repeated_deliveries": {
+            "31bafb1352a345f5ad59b04b696249a0": 2,
+            "2521919a293645639a028c747acbe3ef": 2,
+            "4a42dd723bb846dfb742fcf6495a3014": 3,
+            "bf2fab137f3d4b7abf844853340abf09": 4
+          },
+          "unknown_summary": {
+            "count": 24,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 5
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 5
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 5
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "job",
+                "outcome": "job-executed",
+                "count": 1
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 2
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 1
+              }
+            ]
+          },
+          "original_member": {
+            "path": "endurance-windows-native/accounting.json",
+            "bytes": 3331,
+            "sha256": "aad3e08c5fcda9274afcf56a19ab03f321766863cd3678483ed7da2f0fa54c23"
+          }
+        },
+        "endurance-windows-native/parameters.json": {
+          "started_utc": 1794183313.3676944,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "35659246cba054fdf7688422e3de7a4c8e0debe354435c9b7fe7178c14fea070",
+          "slimdata_sha256": null,
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "artifacts\\local-chaos\\native\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\endurance-windows-native",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "job-environments,job-recovery,payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "follower",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance-windows-native/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "job-environments",
+              "id": "a39eb5a1d6494ec982fd7a001dc342a9",
+              "passed": true
+            },
+            {
+              "phase": "job-supervisor-recovery",
+              "id": "ca6d20ff52314b5ca37b2a83c5a78ac1",
+              "queue_id": "159a789b-4344-4e56-9105-6c402ca54546",
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "31bafb1352a345f5ad59b04b696249a0",
+              "seconds": 1.5629999999999882,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "2521919a293645639a028c747acbe3ef",
+              "seconds": 4.343999999999937,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "3e4ae281ef0a439c8c22d77de9e01b71",
+              "seconds": 11.625,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "f91ff14ad2b74d5d8ea4aab3eee2e193",
+              "seconds": 13.202999999999975,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "4d428d7416ef4eb9ab609479a0c1e415",
+              "seconds": 13.405999999999949,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "df2b91215798431697abb7ba8a37aad0",
+              "seconds": 9.156000000000063,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "03f32e36d0214e299f18ca5a3edf09fd",
+              "seconds": 0.5940000000000509,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "206efec9bfc14f60a184d268dc25a735",
+              "seconds": 0.32799999999997453,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "d1c6ab1949e54d1aa9ca7716025921cd",
+              "seconds": 0.6409999999999627,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "5954f855d01547e2aaa3a5cdace27291",
+              "seconds": 0.5320000000000391,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "9b983cc3f2e94e678fefa281c4a06fdd",
+              "seconds": 0.2969999999999118,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "edd6f98374e34028a719b9cdc3455905",
+              "seconds": 0.375,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "2a29adce74904f44b33312ebb0c580be",
+                "aab4c43ed7b0443181e16de5ea4c1924",
+                "cf9d9a37ffaf4475b65960418e615e9c"
+              ],
+              "dlq_id": "dlq-2cdab213-a456-4d03-8266-1f0ebd95aa81"
+            },
+            {
+              "phase": "absence-follower-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 1.1090000000000373,
+              "full_recovery_seconds": 1.8590000000000373,
+              "accepted": 199,
+              "unknown": 2,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 1.125,
+              "full_recovery_seconds": 2.7659999999999627,
+              "accepted": 392,
+              "unknown": 5,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.5309999999999491,
+              "full_recovery_seconds": 6.218999999999937,
+              "accepted": 1362,
+              "unknown": 8,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.5470000000000255,
+              "full_recovery_seconds": 18.71900000000005,
+              "accepted": 4331,
+              "unknown": 11,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1799.9999999999998,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 1.8130000000001019,
+              "full_recovery_seconds": 44.03200000000015,
+              "accepted": 10229,
+              "unknown": 13,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.0000000000005,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.6099999999996726,
+              "full_recovery_seconds": 95.9380000000001,
+              "accepted": 22016,
+              "unknown": 16,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 22043,
+          "unknown": 24,
+          "missing": [],
+          "finished_utc": 1794190625.5490701
+        }
+      }
+    },
+    {
+      "id": 13644930210,
+      "name": "slimdata-local-endurance-quorum",
+      "bytes": 5680589,
+      "sha256": "8865a1474ef8258a2abd5ac42e8d50ca8f67bc5b0250a291f44d24c2fc211c7a",
+      "records": {
+        "endurance/accounting.json": {
+          "accepted": 164,
+          "completed_deliveries": 49,
+          "distinct_delivered_ids": 44,
+          "repeated_deliveries": {
+            "e81b946184904c4b8f59e0238a213e96": 3,
+            "305b00ccfb794d52a2e426941479c7c0": 4
+          },
+          "unknown_summary": {
+            "count": 26168,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "executed",
+                "count": 1
+              },
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 3261
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 3270
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 3270
+              },
+              {
+                "kind": "file",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 3269
+              },
+              {
+                "kind": "hashset",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "job",
+                "outcome": "job-executed",
+                "count": 3
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 3268
+              },
+              {
+                "kind": "minority-probe",
+                "outcome": "committed-on-all-nodes",
+                "count": 6
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 3271
+              },
+              {
+                "kind": "set",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "stream",
+                "outcome": "executed",
+                "count": 3
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 3267
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 3276
+              }
+            ]
+          },
+          "original_member": {
+            "path": "endurance/accounting.json",
+            "bytes": 3147018,
+            "sha256": "1e3ea750f9c3d3d5acdbcdc23882185531f2ce2933f474aee12b982c06ad35a9"
+          }
+        },
+        "endurance/parameters.json": {
+          "started_utc": 1794183000.076942,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "7d2323117c246df17998fb3ae9e8df103cc187233137ad20aeb2f8ed18e8d853",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/endurance",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "quorum",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "8a623d8ec6e641d6926376944f0c38d6",
+              "seconds": 0.4065878260000062,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "d6448101a1224cd1abfe9bc27b1b4441",
+              "seconds": 0.4072593500000039,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "c981b9fb3fea4fdbad8126d14dc3dde5",
+              "seconds": 0.41036543199999187,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "24987c8fe1b948749d9324bdb30f966c",
+              "seconds": 0.5116277710000077,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "dd6ce66c03204b7b9ee022d667ded849",
+              "seconds": 1.377992759999998,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "c935d05c12b8430b8c123270fc2b7356",
+              "seconds": 1.3775477559999985,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "f4e014a923684f94a85962424a98c774",
+              "seconds": 1.4507091129999878,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "cb7e0beb97554d43aeb52b4088511525",
+              "seconds": 1.3542680209999958,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "0b8525e81c194d53a034a3f1ef6bb8e6",
+              "seconds": 0.261330233999999,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "caedf7930a0540ee8d00d6f10114338c",
+              "seconds": 0.2663230160000012,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "13512d8d7b5c4d4ea457957deadeb28d",
+              "seconds": 0.344529743999999,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "d6076309bb8747f3859a80a671b80ac5",
+              "seconds": 0.34311372900000947,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "f34cbed1d85145afac03d3b0a0551260",
+                "1bfbfe9c42f34d1fbd0b2f0d3b722753",
+                "c6577137a3ad409f8edd955f71281179"
+              ],
+              "dlq_id": "dlq-31da7c89-dc5a-4b18-b87f-44e946901aad"
+            },
+            {
+              "phase": "absence-quorum-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.000126885000014,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.174009864999988,
+              "full_recovery_seconds": 3.5103908469999965,
+              "accepted": 111,
+              "unknown": 65,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.00012530699999,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.05775354299999,
+              "full_recovery_seconds": 3.543413077999986,
+              "accepted": 111,
+              "unknown": 250,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.0000884289999,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 2.6391881730000932,
+              "full_recovery_seconds": 3.8017698690000543,
+              "accepted": 113,
+              "unknown": 1388,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.0001298320001,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.855634026999951,
+              "full_recovery_seconds": 4.48745540699997,
+              "accepted": 113,
+              "unknown": 4894,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.0001125929998,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 1.2196901710003658,
+              "full_recovery_seconds": 8.956167045000257,
+              "accepted": 113,
+              "unknown": 11949,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.000109327,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.651419838000038,
+              "full_recovery_seconds": 17.615153486000054,
+              "accepted": 113,
+              "unknown": 26160,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 164,
+          "unknown": 26168,
+          "missing": [],
+          "finished_utc": 1794189795.8082964
+        }
+      }
+    },
+    {
+      "id": 13644891476,
+      "name": "slimdata-local-endurance-windows-native-leader",
+      "bytes": 98450375,
+      "sha256": "3ee196414097aeb916b8bc6c4b556200892b61d95e828baa102131602bd63c7e",
+      "records": {
+        "endurance-windows-native/accounting.json": {
+          "accepted": 22865,
+          "completed_deliveries": 8447,
+          "distinct_delivered_ids": 8442,
+          "repeated_deliveries": {
+            "2802418e355f49908640d026933f8a7b": 3,
+            "f5b601853cb4499090541880e23b2bd1": 4
+          },
+          "unknown_summary": {
+            "count": 21,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 4
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 4
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 4
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 2
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 5
+              }
+            ]
+          },
+          "original_member": {
+            "path": "endurance-windows-native/accounting.json",
+            "bytes": 2835,
+            "sha256": "f0a2523e291e55895e4b7300b321026537bb5a9f9365f80bd4f6a2e9211d138f"
+          }
+        },
+        "endurance-windows-native/parameters.json": {
+          "started_utc": 1794183154.0018988,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "b2e266827c9d83ec7c6cd609a8dcc13f55596374ab619ae86c947cf4625c467a",
+          "slimdata_sha256": null,
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "artifacts\\local-chaos\\native\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\endurance-windows-native",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "job-environments,job-recovery,payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "leader",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance-windows-native/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "job-environments",
+              "id": "24cae3de26b94b37966c24207bff312a",
+              "passed": true
+            },
+            {
+              "phase": "job-supervisor-recovery",
+              "id": "70e320c6a423458289bd477e1273e819",
+              "queue_id": "9f006869-5747-4d96-83c3-1879ae401b9a",
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "9b93298be30b46e19bf06b41f4f2c765",
+              "seconds": 0.25,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "b0a098a5fcec4ad5aede5546a7f71bab",
+              "seconds": 0.2659999999999627,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "cbf678d7c03a46708040eae79b0b0471",
+              "seconds": 1.2349999999999568,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "91eb2dae06734b4bbd39ce874235fd98",
+              "seconds": 1.2349999999999568,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "6160459a7492489a90627ead0c3f2211",
+              "seconds": 4.796999999999969,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "6e4618c73e334ab8a62bb28e91e1ba76",
+              "seconds": 4.781000000000006,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "eff32e376ca04fa39c086423c242b70e",
+              "seconds": 0.29700000000002547,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "0d7dd2b0734b43aa96515407a3683cf4",
+              "seconds": 4.281000000000006,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "390f1960dcd54440b76ae206c747c8ca",
+              "seconds": 4.312000000000012,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "e8ab6de40e2a4b34bfac03afc85af14c",
+              "seconds": 0.5,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "f86158c0f1284199a00bbff0929aa7cf",
+              "seconds": 0.2810000000000059,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "668fc69896bb4ba2aa6efa8404a2888b",
+              "seconds": 9.327999999999975,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "a577b1aba72d435a9fd50ed17ef81b46",
+                "965425123119442a940262d2d25e0d12",
+                "bff4f347af7d436c9d24036b388a012a"
+              ],
+              "dlq_id": "dlq-22bc8b88-05f7-4bba-98a0-73258aa2394f"
+            },
+            {
+              "phase": "absence-leader-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.0,
+              "new_leader_observed_seconds": 4.937999999999988,
+              "ready_after_resume_seconds": 1.0159999999999627,
+              "full_recovery_seconds": 1.4849999999999568,
+              "accepted": 184,
+              "unknown": 4,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                2
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.01599999999996,
+              "new_leader_observed_seconds": 4.140999999999963,
+              "ready_after_resume_seconds": 0.07800000000003138,
+              "full_recovery_seconds": 2.2030000000000314,
+              "accepted": 359,
+              "unknown": 7,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.00000000000006,
+              "new_leader_observed_seconds": 5.0,
+              "ready_after_resume_seconds": 1.1719999999999118,
+              "full_recovery_seconds": 4.078999999999951,
+              "accepted": 1355,
+              "unknown": 11,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                2
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.0,
+              "new_leader_observed_seconds": 4.125,
+              "ready_after_resume_seconds": 1.0150000000001,
+              "full_recovery_seconds": 11.29600000000005,
+              "accepted": 4401,
+              "unknown": 14,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.0,
+              "new_leader_observed_seconds": 4.9370000000001255,
+              "ready_after_resume_seconds": 1.1869999999998981,
+              "full_recovery_seconds": 31.467999999999847,
+              "accepted": 10538,
+              "unknown": 17,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                2
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.0000000000005,
+              "new_leader_observed_seconds": 4.358999999999924,
+              "ready_after_resume_seconds": 0.3899999999994179,
+              "full_recovery_seconds": 60.71799999999985,
+              "accepted": 22831,
+              "unknown": 21,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 22865,
+          "unknown": 21,
+          "missing": [],
+          "finished_utc": 1794190368.9903705
+        }
+      }
+    },
+    {
+      "id": 13644182600,
+      "name": "slimdata-local-endurance-leader",
+      "bytes": 17558675,
+      "sha256": "6203bb0e04f5cdcee691ccca2607a7f16c435f6a053f5e563635db2ec1d4674c",
+      "records": {
+        "endurance/accounting.json": {
+          "accepted": 22761,
+          "completed_deliveries": 8380,
+          "distinct_delivered_ids": 8375,
+          "repeated_deliveries": {
+            "9f42a1fd515b4ac09a42eb78dc6696cc": 3,
+            "2c001a494a104a3cb9e6cd272768d738": 4
+          },
+          "unknown_summary": {
+            "count": 33,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 4
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 3
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 5
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 6
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 4
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 7
+              }
+            ]
+          },
+          "original_member": {
+            "path": "endurance/accounting.json",
+            "bytes": 4135,
+            "sha256": "486166368fc3414aa1043ac7716a0f7263055d39e2c54d303b2db5ff59fcd548"
+          }
+        },
+        "endurance/parameters.json": {
+          "started_utc": 1794183013.2576997,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "6b3b8182159c25fc0f595d65afde73f9866f69b12582da3ccdad61b9b0f3aa2c",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/endurance",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "leader",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "f6c19bcdd702419da440108d23956791",
+              "seconds": 0.2866358400000024,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "3071bb1b034848a0b1d987ff004e81c5",
+              "seconds": 0.29924319600000615,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "b03d6a055f8c44a382b8a1fcdc975684",
+              "seconds": 0.37718025400000954,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "3b2393269c35466d8443d3bc4b4bbf65",
+              "seconds": 0.43582314300000746,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "d97ccfb1a9f04a6ea4b3e340858cf477",
+              "seconds": 1.2112421580000046,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "1f3b588dafcf444fb25f2d044cb6a9ac",
+              "seconds": 1.2141218250000065,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "895ef1b732b747f8916ef80d1371cf9d",
+              "seconds": 1.2939341530000092,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "b9f1f72dae3748c7ac91b0ff9380e1c6",
+              "seconds": 1.172918022999994,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "ce94d9bce5054e11a2588e531740fd4c",
+              "seconds": 0.2536834979999867,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "490fc509f84d47da94de825f67dc6c62",
+              "seconds": 0.3764143540000191,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "369c73f690a74a8d84600e83f00d78d1",
+              "seconds": 0.3683458319999886,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "6285352a283e429294be88a1402b47ab",
+              "seconds": 0.38539325499999677,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "edc774bb9bc04162a4fddf2811aa6f67",
+                "9088e00f21344c4d81454bf8f85763e4",
+                "4f32442d32824ae4bd9cba459d86dba5"
+              ],
+              "dlq_id": "dlq-6c220376-d3bd-4924-8015-7283ad911ee8"
+            },
+            {
+              "phase": "absence-leader-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                2
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.000103897999992,
+              "new_leader_observed_seconds": 4.644533800999994,
+              "ready_after_resume_seconds": 0.164111604999988,
+              "full_recovery_seconds": 0.5411716090000027,
+              "accepted": 189,
+              "unknown": 3,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.00010432900001,
+              "new_leader_observed_seconds": 4.849473546000013,
+              "ready_after_resume_seconds": 0.15367047500001263,
+              "full_recovery_seconds": 0.8210945270000138,
+              "accepted": 361,
+              "unknown": 6,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.00009496300004,
+              "new_leader_observed_seconds": 4.639886044999997,
+              "ready_after_resume_seconds": 0.7448278329999312,
+              "full_recovery_seconds": 3.0630956519999017,
+              "accepted": 1349,
+              "unknown": 9,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.0000925950001,
+              "new_leader_observed_seconds": 4.639268222000055,
+              "ready_after_resume_seconds": 0.8931022639999355,
+              "full_recovery_seconds": 8.070564312999977,
+              "accepted": 4358,
+              "unknown": 12,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.0001136839999,
+              "new_leader_observed_seconds": 4.844874356999981,
+              "ready_after_resume_seconds": 1.096469961999901,
+              "full_recovery_seconds": 18.036348967000322,
+              "accepted": 10452,
+              "unknown": 16,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.0001103160002,
+              "new_leader_observed_seconds": 4.6419112980001955,
+              "ready_after_resume_seconds": 1.1498557939994498,
+              "full_recovery_seconds": 28.552321405999464,
+              "accepted": 22731,
+              "unknown": 19,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 22761,
+          "unknown": 33,
+          "missing": [],
+          "finished_utc": 1794189938.2595725
+        }
+      }
+    },
+    {
+      "id": 13644069613,
+      "name": "slimdata-local-endurance-follower",
+      "bytes": 17782998,
+      "sha256": "b9d6ad1b44c7e4820c8afe94d2841c64f8c3264a22a22484773302e04c9cf20b",
+      "records": {
+        "endurance/accounting.json": {
+          "accepted": 23237,
+          "completed_deliveries": 8548,
+          "distinct_delivered_ids": 8543,
+          "repeated_deliveries": {
+            "c7dc9f3a76dd4dba9fb65e1f637a985a": 3,
+            "81e37e6ec0504b82a2f011e57a6128df": 4
+          },
+          "unknown_summary": {
+            "count": 30,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 4
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 3
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 5
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 3
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 4
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 5
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 5
+              }
+            ]
+          },
+          "original_member": {
+            "path": "endurance/accounting.json",
+            "bytes": 3844,
+            "sha256": "acccb6f7ba18ee83c08c1be1087c7c4c10b38eeb0a5a792c9d2970f20ac9692f"
+          }
+        },
+        "endurance/parameters.json": {
+          "started_utc": 1794183007.657903,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "6ea434b9e4f22966a68e830fc8481a27d2e407d9b3aa64b63258daf3f104038f",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/endurance",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "follower",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "2058d7637e8046d08f7b27f02dc536d9",
+              "seconds": 0.35330605200000775,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "6b0326737e0c4504b852744d91f957ae",
+              "seconds": 0.7490372580000013,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "60852b59b87d45bea1416a4b1303ba65",
+              "seconds": 0.8266459959999963,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "7da23fdd379747d6bc2583c9590bb4df",
+              "seconds": 0.8305187070000102,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "04f0d6dcdd354306b0aacc612a70376b",
+              "seconds": 0.4836625979999951,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "9426d89843ff4912b5eb3b38db825388",
+              "seconds": 0.5464323089999965,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "582a6d5b77ed401ea17627e57d43c305",
+              "seconds": 0.5342330330000067,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "8d88b82aeaec4ce5abaf8a72b24007b9",
+              "seconds": 0.536393812,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "bc31c22b98c246feb3d9b67eec5cdd9a",
+              "seconds": 0.5448459760000048,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "23372c0cdff84b9f827742eb3e2275d4",
+              "seconds": 0.24615024599999913,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "a84abc7db2a34e3785cc7bc4e5d0013d",
+              "seconds": 0.2680545249999966,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "66c32fe52ef84d34b40f272e58ba8940",
+              "seconds": 0.29052671600000224,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "735d9b7661f84141b0d950de1e19a8d6",
+                "73112d7b57334472ae01acbd945c9be9",
+                "6cb6c76e7e4e430a9220e76f7ac34992"
+              ],
+              "dlq_id": "dlq-6c8ff64c-802d-4032-a6a1-a726e8b1d733"
+            },
+            {
+              "phase": "absence-follower-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.000094328000017,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.09199972499999376,
+              "full_recovery_seconds": 0.5185526939999932,
+              "accepted": 202,
+              "unknown": 2,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.000104026,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.27213271000002237,
+              "full_recovery_seconds": 0.9614250060000131,
+              "accepted": 394,
+              "unknown": 5,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.000101972,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.4227166489999945,
+              "full_recovery_seconds": 2.3192536200000404,
+              "accepted": 1414,
+              "unknown": 8,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.000101697,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.5630819149998842,
+              "full_recovery_seconds": 5.9631231419998585,
+              "accepted": 4524,
+              "unknown": 10,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.000083875,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.1635965200002829,
+              "full_recovery_seconds": 12.796259641000233,
+              "accepted": 10745,
+              "unknown": 12,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.0000844429997,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 1.0652675359997374,
+              "full_recovery_seconds": 28.36176572400018,
+              "accepted": 23199,
+              "unknown": 14,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 23237,
+          "unknown": 30,
+          "missing": [],
+          "finished_utc": 1794189904.2316833
+        }
+      }
+    },
+    {
+      "id": 13643999038,
+      "name": "slimdata-local-endurance-windows-native-quorum",
+      "bytes": 86571341,
+      "sha256": "e067b97630908ed76d26a1fbf2187dc431b941eb548d2007b810ccf9476a5924",
+      "records": {
+        "endurance-windows-native/accounting.json": {
+          "accepted": 142,
+          "completed_deliveries": 44,
+          "distinct_delivered_ids": 37,
+          "repeated_deliveries": {
+            "40aa5d7b89c14f1e914a396a9029037b": 2,
+            "7d822b0c9c7542d4aae7434198afbfd5": 2,
+            "3917897765d74d6b80063ca21b0d43dd": 3,
+            "5166814f8db445e9a794de2d8dc39230": 4
+          },
+          "unknown_summary": {
+            "count": 26346,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "executed",
+                "count": 4
+              },
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 3284
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 3294
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 3292
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 3292
+              },
+              {
+                "kind": "hashset",
+                "outcome": "committed-on-all-nodes",
+                "count": 2
+              },
+              {
+                "kind": "job",
+                "outcome": "job-executed",
+                "count": 2
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 3287
+              },
+              {
+                "kind": "minority-probe",
+                "outcome": "committed-on-all-nodes",
+                "count": 6
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 3291
+              },
+              {
+                "kind": "set",
+                "outcome": "committed-on-all-nodes",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "executed",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 3291
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 3297
+              }
+            ]
+          },
+          "original_member": {
+            "path": "endurance-windows-native/accounting.json",
+            "bytes": 3300248,
+            "sha256": "85c1c4dad05d7b33bb284f8b16e3c66d7c4d0d9f604dd557bbcca14bcc230dea"
+          }
+        },
+        "endurance-windows-native/parameters.json": {
+          "started_utc": 1794183278.0873015,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "a026043a69e2d6c5b583640fa934fc0248026c4079d8fb090167c78e4b7978ed",
+          "slimdata_sha256": null,
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "artifacts\\local-chaos\\native\\SlimFaas.exe",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\endurance-windows-native",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "job-environments,job-recovery,payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "quorum",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance-windows-native/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "job-environments",
+              "id": "b23747e908e34ca3992dbb2c54e74d9e",
+              "passed": true
+            },
+            {
+              "phase": "job-supervisor-recovery",
+              "id": "35f41e42167d42688d2e925f226898fc",
+              "queue_id": "fdc8dff8-b031-4657-bb1b-ff43b82da922",
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "b59712328b1849ac8c8cb29d51ba4ab4",
+              "seconds": 5.093000000000018,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "d7fd95f373034666868d1bf778f46550",
+              "seconds": 5.109000000000037,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "40aa5d7b89c14f1e914a396a9029037b",
+              "seconds": 5.265000000000043,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "7d822b0c9c7542d4aae7434198afbfd5",
+              "seconds": 5.281000000000006,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "86c02ab986cb491bbcd1c6d08bd310bc",
+              "seconds": 11.625,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "43e18a7c68ee40ee8a30a1e4b8460a24",
+              "seconds": 11.672000000000025,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "ac8daaf819a44e16a02b966ff9e15254",
+              "seconds": 0.5319999999999823,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "1ffc75a977784a38a3a0733f6952e435",
+              "seconds": 0.5939999999999941,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "aebbc889f01449fca49552491f5fa850",
+              "seconds": 0.3280000000000314,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "19df2319a80e4607a04268afb3717edc",
+              "seconds": 0.3439999999999941,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "721e0263357a4554acc65a6b9fbf1d2e",
+              "seconds": 20.656000000000006,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "62c8a7cb9f1b4042a8756a78ca9e246b",
+              "seconds": 20.687999999999988,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "6d5fbef23fe543658a9439b7f248c491",
+                "1117abf2bc824354807a43d1910bd252",
+                "8b9aade4ba734fa092201fa4fe64b8c0"
+              ],
+              "dlq_id": "dlq-d7f0128a-d418-4b27-b8d8-c6c220130766"
+            },
+            {
+              "phase": "absence-quorum-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 2.328000000000088,
+              "full_recovery_seconds": 2.969000000000051,
+              "accepted": 113,
+              "unknown": 65,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 2.25,
+              "full_recovery_seconds": 3.9529999999999745,
+              "accepted": 115,
+              "unknown": 255,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.2350000000000136,
+              "full_recovery_seconds": 8.282000000000039,
+              "accepted": 115,
+              "unknown": 1393,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 899.9999999999999,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.234000000000151,
+              "full_recovery_seconds": 20.313000000000102,
+              "accepted": 115,
+              "unknown": 4927,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.2029999999999745,
+              "full_recovery_seconds": 43.422000000000025,
+              "accepted": 115,
+              "unknown": 12045,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.0000000000005,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.25,
+              "full_recovery_seconds": 84.84400000000005,
+              "accepted": 115,
+              "unknown": 26338,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 142,
+          "unknown": 26346,
+          "missing": [],
+          "finished_utc": 1794190292.892764
+        }
+      }
+    },
+    {
+      "id": 13641375020,
+      "name": "slimdata-local-quick-windows-latest",
+      "bytes": 4501778,
+      "sha256": "d176490ba6b0a2ffe7f1e6dd0f7caa82cd33bc8a7995ee0834fe1b4793f6dd5e",
+      "records": {
+        "lease-burst/accounting.json": {
+          "accepted": 47,
+          "completed_deliveries": 0,
+          "distinct_delivered_ids": 0,
+          "repeated_deliveries": {},
+          "unknown_summary": {
+            "count": 0,
+            "by_kind_and_outcome": []
+          },
+          "original_member": {
+            "path": "lease-burst/accounting.json",
+            "bytes": 132,
+            "sha256": "7569ee637ec14f36d4a0eb099fba2e16df7fe64df070426fc0f39b307b8932d4"
+          }
+        },
+        "lease-burst/parameters.json": {
+          "started_utc": 1794183479.957434,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "06ab94fad5376c9d6b04203f97fba701149f2db69963736898c2b11b1c0d90db",
+          "slimdata_sha256": "46162f3ac01470530aad58aaa17d139b6756df8b2cb575fd7e9623863f5b43a0",
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "D:\\a\\SlimFaas\\SlimFaas\\src\\SlimFaas\\bin\\Release\\net10.0\\SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\lease-burst",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15.0,
+            "recovery_timeout": 180.0,
+            "scenarios": "lease-burst,leader-route",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "lease-burst/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "leader-lease-burst",
+              "leader": 1,
+              "silent_follower": 0,
+              "healthy_writes": 23,
+              "silent_writes": 21,
+              "probe_seconds": 0.014999999999986358,
+              "probe_budget_seconds": 15,
+              "passed": true
+            },
+            {
+              "phase": "stale-leader-http-route",
+              "ingress_node": 2,
+              "old_leader": 1,
+              "seconds": 6.735000000000014,
+              "passed": true
+            }
+          ],
+          "accepted": 47,
+          "unknown": 0,
+          "missing": [],
+          "finished_utc": 1794183506.60115
+        },
+        "quick/accounting.json": {
+          "accepted": 289,
+          "completed_deliveries": 97,
+          "distinct_delivered_ids": 92,
+          "repeated_deliveries": {
+            "3292f2bfb594416eb73bb36489b52db5": 3,
+            "4ea00b79191640dab9b7c1028c5c1b2f": 4
+          },
+          "unknown_summary": {
+            "count": 14,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "executed",
+                "count": 1
+              },
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 2
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 3
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "file",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 1
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "sync",
+                "outcome": "executed",
+                "count": 1
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 2
+              }
+            ]
+          },
+          "original_member": {
+            "path": "quick/accounting.json",
+            "bytes": 1954,
+            "sha256": "6ad3e6c4e82a415998954b11f2a7a6045d8381686e2a1242e66de2f5b89dc1c5"
+          }
+        },
+        "quick/parameters.json": {
+          "started_utc": 1794183054.2455108,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "06ab94fad5376c9d6b04203f97fba701149f2db69963736898c2b11b1c0d90db",
+          "slimdata_sha256": "46162f3ac01470530aad58aaa17d139b6756df8b2cb575fd7e9623863f5b43a0",
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "D:\\a\\SlimFaas\\SlimFaas\\src\\SlimFaas\\bin\\Release\\net10.0\\SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\quick",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 180,
+            "scenarios": "payloads,api,files,wake,retries,chaos,restarts",
+            "durations": [
+              1.0,
+              5.0,
+              10.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "quick/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "eae83aba915a4027a0d60c212977d530",
+              "seconds": 2.1709999999999923,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "5ee6660c3d2c466e84081a4612c3a508",
+              "seconds": 2.187000000000012,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "c7265c914ef043dbb7898b9b0e174364",
+              "seconds": 2.187000000000012,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "0c7249b8783f49edb65a78d44c82479c",
+              "seconds": 2.187000000000012,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "7c308fd630b042fe8861ca23c5e19eda",
+              "seconds": 5.796999999999997,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "80cb99aa706c4daa90fac8c7116aefe7",
+              "seconds": 5.7809999999999775,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "3f69c37734fe4f30a66dfa0d5e0768b0",
+              "seconds": 5.8589999999999804,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "ef64f647e9524e82a50bfb6930ca1d40",
+              "seconds": 5.875,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "1d7d1684670741068669efbc79b1f231",
+              "seconds": 0.36000000000001364,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "490a2fb5f9244bc38b159b7bf268d2c1",
+              "seconds": 0.42199999999999704,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "485039730ee14633b41dc0081d701a6c",
+              "seconds": 0.36000000000001364,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "6c7160439e334c78bbbb811b3e67adc9",
+              "seconds": 0.39099999999999113,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "wake-and-cancel",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "67ca653bcf69477692ba03efe4b206be",
+                "b2a263b2f76b46a28a3207eba28e0153",
+                "84250ad0fdff4be7a34957fea3de6578"
+              ],
+              "dlq_id": "dlq-0cc47786-b0ce-4753-b411-b92599c96961"
+            },
+            {
+              "phase": "absence-follower-1s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 1.0,
+              "actual_absence_seconds": 1.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.32900000000000773,
+              "full_recovery_seconds": 0.7819999999999823,
+              "accepted": 120,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-1s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 1.0,
+              "actual_absence_seconds": 1.0159999999999627,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.4370000000000118,
+              "full_recovery_seconds": 1.4840000000000373,
+              "accepted": 128,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-1s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 1.0,
+              "actual_absence_seconds": 1.0160000000000196,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.3120000000000118,
+              "full_recovery_seconds": 0.9529999999999745,
+              "accepted": 137,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-5s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 5.0,
+              "actual_absence_seconds": 5.0160000000000196,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.25,
+              "full_recovery_seconds": 1.2649999999999864,
+              "accepted": 162,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-5s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 5.0,
+              "actual_absence_seconds": 5.014999999999986,
+              "new_leader_observed_seconds": 4.9839999999999804,
+              "ready_after_resume_seconds": 1.1720000000000255,
+              "full_recovery_seconds": 2.1569999999999823,
+              "accepted": 170,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-5s",
+              "fault": "process-suspension",
+              "nodes": [
+                1,
+                2
+              ],
+              "requested_absence_seconds": 5.0,
+              "actual_absence_seconds": 5.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 6.187000000000012,
+              "full_recovery_seconds": 6.8910000000000196,
+              "accepted": 179,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-10s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 10.0,
+              "actual_absence_seconds": 10.0,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.375,
+              "full_recovery_seconds": 1.25,
+              "accepted": 205,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-10s",
+              "fault": "process-suspension",
+              "nodes": [
+                2
+              ],
+              "requested_absence_seconds": 10.0,
+              "actual_absence_seconds": 10.0,
+              "new_leader_observed_seconds": 4.156000000000006,
+              "ready_after_resume_seconds": 1.0779999999999745,
+              "full_recovery_seconds": 1.75,
+              "accepted": 229,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-10s",
+              "fault": "process-suspension",
+              "nodes": [
+                1,
+                2
+              ],
+              "requested_absence_seconds": 10.0,
+              "actual_absence_seconds": 10.015999999999963,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 6.078000000000031,
+              "full_recovery_seconds": 6.781000000000006,
+              "accepted": 236,
+              "unknown": 4,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 289,
+          "unknown": 14,
+          "missing": [],
+          "finished_utc": 1794183215.8362837
+        },
+        "startup-jobs/accounting.json": {
+          "accepted": 59,
+          "completed_deliveries": 43,
+          "distinct_delivered_ids": 34,
+          "repeated_deliveries": {
+            "7e561d0e920c4f1a840bd3260e9fa791": 2,
+            "a9bcfee9b5d545fba0d103627158cd56": 2,
+            "cb517caa36ec4cbd92f6a614aa1ee2e8": 2,
+            "ee366884b706467d8eb23fec4aebf562": 2,
+            "214be95d231248d5bd6c16aee5f3d0e9": 2,
+            "2b98bbdb361a427580ebfb7aa777a797": 2,
+            "e50e2ec72c70425795d8b357e77753a3": 2,
+            "a49124235e3348d8a11429fe0cf6ea3c": 2,
+            "99a8ab4db568425a957870f9bb8bba46": 2
+          },
+          "unknown_summary": {
+            "count": 18,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 2
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 4
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 3
+              },
+              {
+                "kind": "file",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "job",
+                "outcome": "job-executed",
+                "count": 1
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "set",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "stream",
+                "outcome": "executed",
+                "count": 1
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 2
+              }
+            ]
+          },
+          "original_member": {
+            "path": "startup-jobs/accounting.json",
+            "bytes": 2783,
+            "sha256": "619ba0aa1f8679715eb2aef079cfcb9b882fabfad1b7ef8d9763d911e3ed8b6a"
+          }
+        },
+        "startup-jobs/parameters.json": {
+          "started_utc": 1794183216.3986158,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "06ab94fad5376c9d6b04203f97fba701149f2db69963736898c2b11b1c0d90db",
+          "slimdata_sha256": "46162f3ac01470530aad58aaa17d139b6756df8b2cb575fd7e9623863f5b43a0",
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "D:\\a\\SlimFaas\\SlimFaas\\src\\SlimFaas\\bin\\Release\\net10.0\\SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\startup-jobs",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "startup-jobs,job-environments,job-recovery,schedules,streams,restarts",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "startup-jobs/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "startup-job-configuration",
+              "job_argument": "65d7e0ad7e0d451797cd86397dcc269c",
+              "passed": true
+            },
+            {
+              "phase": "job-environments",
+              "id": "1c82c2b74af04cc5aadfd570b041d4ec",
+              "passed": true
+            },
+            {
+              "phase": "job-supervisor-recovery",
+              "id": "a42c40642ecd40baad5a6b44c587a20b",
+              "queue_id": "0539ea5c-e553-4b0b-9ca1-6fa87833f237",
+              "passed": true
+            },
+            {
+              "phase": "scheduled-job",
+              "schedule_id": "8614df01-6a65-428d-bf58-9decf9dc5598",
+              "job_arg": "aa8573f5f8904e609e37d6e63469d4b5",
+              "passed": true
+            },
+            {
+              "phase": "stream-fanout-retention",
+              "passed": true,
+              "initial_append_order": [
+                "0d08dc43fde44d4f9d19bf45236acbb4_00000000000000000001",
+                "0d08dc43fde44d4f9d19bf45236acbb4_00000000000000000002",
+                "0d08dc43fde44d4f9d19bf45236acbb4_00000000000000000003"
+              ],
+              "retention_gap_summaries": {
+                "chaos-fanout-a": {
+                  "Stream": "chaos-bounded",
+                  "Function": "chaos-fanout-a",
+                  "Active": true,
+                  "Generation": "b5654b6ec1024167bbf7f932136c3ab4",
+                  "StartSequence": 0,
+                  "AcknowledgedThrough": 6,
+                  "LastAcknowledged": 6,
+                  "RetentionGapCount": 1,
+                  "Lag": 0,
+                  "PendingCount": 0,
+                  "WaitingForCallbackCount": 0,
+                  "RetryScheduledCount": 0,
+                  "FailedCount": 0,
+                  "RunnableCount": 0,
+                  "LastStatus": 200,
+                  "CapturedAt": "2026-11-09T00:16:49.5585487+00:00",
+                  "Revision": 39
+                },
+                "chaos-fanout-b": {
+                  "Stream": "chaos-bounded",
+                  "Function": "chaos-fanout-b",
+                  "Active": true,
+                  "Generation": "392a22e8c0fe49d896e82bdc4bbe68b6",
+                  "StartSequence": 0,
+                  "AcknowledgedThrough": 6,
+                  "LastAcknowledged": 6,
+                  "RetentionGapCount": 1,
+                  "Lag": 0,
+                  "PendingCount": 0,
+                  "WaitingForCallbackCount": 0,
+                  "RetryScheduledCount": 0,
+                  "FailedCount": 0,
+                  "RunnableCount": 0,
+                  "LastStatus": 200,
+                  "CapturedAt": "2026-11-09T00:16:49.5608823+00:00",
+                  "Revision": 39
+                }
+              },
+              "functions": [
+                "chaos-fanout-a",
+                "chaos-fanout-b"
+              ]
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 59,
+          "unknown": 18,
+          "missing": [],
+          "finished_utc": 1794183479.3038087
+        },
+        "websocket/accounting.json": {
+          "accepted": 75,
+          "completed_deliveries": 44,
+          "distinct_delivered_ids": 43,
+          "repeated_deliveries": {
+            "fe08ed5647a24c668eec2544596d1b6a": 2
+          },
+          "unknown_summary": {
+            "count": 10,
+            "by_kind_and_outcome": [
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 3
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 3
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 4
+              }
+            ]
+          },
+          "original_member": {
+            "path": "websocket/accounting.json",
+            "bytes": 1421,
+            "sha256": "42ab55949f01b680b85236f581194ce8853c6da1a095f3ca18844291beac634d"
+          }
+        },
+        "websocket/parameters.json": {
+          "started_utc": 1794183508.11097,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "06ab94fad5376c9d6b04203f97fba701149f2db69963736898c2b11b1c0d90db",
+          "slimdata_sha256": "46162f3ac01470530aad58aaa17d139b6756df8b2cb575fd7e9623863f5b43a0",
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "D:\\a\\SlimFaas\\SlimFaas\\src\\SlimFaas\\bin\\Release\\net10.0\\SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\websocket",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": true,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 120.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "websocket",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "websocket/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": false,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": false,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": true,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": true,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": true,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": false,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": true,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": false,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": true,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": true,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": false,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": false,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            },
+            {
+              "phase": "websocket",
+              "function": "chaos-ws-72d34327a1ad42f48b1596b25fe0328a",
+              "stream": "stream-chaos-ws-72d34327a1ad42f48b1596b25fe0328a",
+              "passed": true
+            }
+          ],
+          "accepted": 75,
+          "unknown": 10,
+          "missing": [],
+          "finished_utc": 1794183748.3054416
+        },
+        "websocket-timeout/accounting.json": {
+          "accepted": 1,
+          "completed_deliveries": 1,
+          "distinct_delivered_ids": 1,
+          "repeated_deliveries": {},
+          "unknown_summary": {
+            "count": 0,
+            "by_kind_and_outcome": []
+          },
+          "original_member": {
+            "path": "websocket-timeout/accounting.json",
+            "bytes": 131,
+            "sha256": "470277637bc21aae38a9ba1958f6f7c68fe9567cd4b41d95349955f296430185"
+          }
+        },
+        "websocket-timeout/parameters.json": {
+          "started_utc": 1794183748.905189,
+          "platform": "Windows-10-10.0.26100-SP0",
+          "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "06ab94fad5376c9d6b04203f97fba701149f2db69963736898c2b11b1c0d90db",
+          "slimdata_sha256": "46162f3ac01470530aad58aaa17d139b6756df8b2cb575fd7e9623863f5b43a0",
+          "harness_sha256": "c6390061b40ebd25ef5f137cfd48b79378b1b35871d7b5da29e9d559e8dd1b12",
+          "arguments": {
+            "runtime": "D:\\a\\SlimFaas\\SlimFaas\\src\\SlimFaas\\bin\\Release\\net10.0\\SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts\\local-chaos\\websocket-timeout",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": true,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 30.0,
+            "recovery_timeout": 60.0,
+            "scenarios": "websocket-timeout",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "websocket-timeout/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "websocket-owner-timeout",
+              "passed": true,
+              "delivery_timeout_seconds": 8,
+              "owner_absence_after_acceptance_seconds": 20,
+              "id": "70f4ca08fbaf4a199ddd9b41bb5d9e29",
+              "default_retry_statuses": true
+            }
+          ],
+          "accepted": 1,
+          "unknown": 0,
+          "missing": [],
+          "finished_utc": 1794183787.4341066
+        }
+      }
+    },
+    {
+      "id": 13640861765,
+      "name": "slimdata-local-quick-ubuntu-latest",
+      "bytes": 5571224,
+      "sha256": "579f3b309020ed04e394937179953882a769871a6e96e15f200f824e388facb8",
+      "records": {
+        "disk/accounting.json": {
+          "accepted": 172,
+          "completed_deliveries": 39,
+          "distinct_delivered_ids": 39,
+          "repeated_deliveries": {},
+          "unknown_summary": {
+            "count": 77,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 17
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 11
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 11
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 4
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 9
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 5
+              },
+              {
+                "kind": "set",
+                "outcome": "committed-on-all-nodes",
+                "count": 1
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 7
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 12
+              }
+            ]
+          },
+          "original_member": {
+            "path": "disk/accounting.json",
+            "bytes": 9245,
+            "sha256": "9d38e11d913d9ccca5867f878993fd1c962f7889633e7f834faafa2be4d17ad3"
+          }
+        },
+        "disk/parameters.json": {
+          "started_utc": 1794183484.494848,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "38006138455a81a0d1353f233a3177e9f99b2ff61e3b84b72eb7b171f4c8eb22",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/disk",
+            "state_directory": "/home/runner/work/SlimFaas/SlimFaas/artifacts/local-chaos/disk-resources/mount/state",
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "api,diskfull,job-diskfull,restarts",
+            "durations": [
+              15.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "disk/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "disk-full",
+              "full_recovery_seconds": 6.4514974760001,
+              "passed": true
+            },
+            {
+              "phase": "job-journal-disk-full",
+              "full_recovery_seconds": 8.28916373200002,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 172,
+          "unknown": 77,
+          "missing": [],
+          "finished_utc": 1794183562.3108027
+        },
+        "lease-burst/accounting.json": {
+          "accepted": 55,
+          "completed_deliveries": 0,
+          "distinct_delivered_ids": 0,
+          "repeated_deliveries": {},
+          "unknown_summary": {
+            "count": 0,
+            "by_kind_and_outcome": []
+          },
+          "original_member": {
+            "path": "lease-burst/accounting.json",
+            "bytes": 126,
+            "sha256": "6e8383736b256d324749a48e510ffccad4ea051850d4313447330c4002051721"
+          }
+        },
+        "lease-burst/parameters.json": {
+          "started_utc": 1794183332.1650763,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "38006138455a81a0d1353f233a3177e9f99b2ff61e3b84b72eb7b171f4c8eb22",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/lease-burst",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15.0,
+            "recovery_timeout": 180.0,
+            "scenarios": "lease-burst,leader-route",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "lease-burst/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "leader-lease-burst",
+              "leader": 0,
+              "silent_follower": 1,
+              "healthy_writes": 28,
+              "silent_writes": 24,
+              "probe_seconds": 0.007973694999918735,
+              "probe_budget_seconds": 15,
+              "passed": true
+            },
+            {
+              "phase": "stale-leader-http-route",
+              "ingress_node": 1,
+              "old_leader": 0,
+              "seconds": 6.665704513000037,
+              "passed": true
+            }
+          ],
+          "accepted": 55,
+          "unknown": 0,
+          "missing": [],
+          "finished_utc": 1794183352.2827315
+        },
+        "network/accounting.json": {
+          "accepted": 240,
+          "completed_deliveries": 63,
+          "distinct_delivered_ids": 63,
+          "repeated_deliveries": {},
+          "unknown_summary": {
+            "count": 23,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 3
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 3
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 10
+              }
+            ]
+          },
+          "original_member": {
+            "path": "network/accounting.json",
+            "bytes": 2832,
+            "sha256": "04cd54b4431a215b39100a16832f798116ce82d95dbca74c8e392d6f1a8d0546"
+          }
+        },
+        "network/parameters.json": {
+          "started_utc": 1794183418.268463,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "38006138455a81a0d1353f233a3177e9f99b2ff61e3b84b72eb7b171f4c8eb22",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/network",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 180,
+            "scenarios": "api,latency,partitions,restarts",
+            "durations": [
+              1.0,
+              5.0,
+              10.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "network/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "network-latency",
+              "delay_ms": 25,
+              "actual_fault_seconds": 10.014927198999999,
+              "full_recovery_seconds": 1.5074341089999734,
+              "passed": true
+            },
+            {
+              "phase": "network-partition-1s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 1.0068064829999912,
+              "full_recovery_seconds": 5.076550951000058,
+              "passed": true
+            },
+            {
+              "phase": "network-partition-5s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 5.008478128999968,
+              "full_recovery_seconds": 2.3522201020000466,
+              "passed": true
+            },
+            {
+              "phase": "network-partition-10s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 10.00881438700003,
+              "full_recovery_seconds": 1.6974168980000286,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 240,
+          "unknown": 23,
+          "missing": [],
+          "finished_utc": 1794183484.300248
+        },
+        "quick/accounting.json": {
+          "accepted": 319,
+          "completed_deliveries": 101,
+          "distinct_delivered_ids": 96,
+          "repeated_deliveries": {
+            "308f8125f5824e169d9580e962ff3bac": 3,
+            "4b70403cabda4f7fa259573810095ad7": 4
+          },
+          "unknown_summary": {
+            "count": 9,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 2
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "sync",
+                "outcome": "executed",
+                "count": 1
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 2
+              }
+            ]
+          },
+          "original_member": {
+            "path": "quick/accounting.json",
+            "bytes": 1276,
+            "sha256": "20fa1ccce6e54fd36fdbf90726c97d57aba5b7294a5381e9a3e7d11203af3eb4"
+          }
+        },
+        "quick/parameters.json": {
+          "started_utc": 1794183031.9478827,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "38006138455a81a0d1353f233a3177e9f99b2ff61e3b84b72eb7b171f4c8eb22",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/quick",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 180,
+            "scenarios": "payloads,api,files,wake,retries,chaos,restarts",
+            "durations": [
+              1.0,
+              5.0,
+              10.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "quick/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "8f3c7b74632a4b94a8028d5803ceddeb",
+              "seconds": 0.5675005689999466,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "513b8047a85e44eebca8f9072bdf47ae",
+              "seconds": 0.5688835850000373,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "1349da18205b4d07b9918c4a6c59735f",
+              "seconds": 0.5740810590000365,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "bae826c6f2454245a4a0599c340f2229",
+              "seconds": 0.6023462190000259,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "6a67dc52b24c42abbcfa49b65cce4cfe",
+              "seconds": 0.7936007740000264,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "b05ff277ea0e40dcab6ff54b33c2da7b",
+              "seconds": 0.83265785399999,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "97376861a88243adbf7e2cfff765fad5",
+              "seconds": 0.8314331569999922,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "f33ab74bdde94754aecaf6393a9bb141",
+              "seconds": 0.8903880010000194,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "6c5ecfc005424c85bbba77d3b8e10747",
+              "seconds": 0.2717823230000249,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "6797b309147e4f199ae83db597c647fd",
+              "seconds": 0.3269186030000242,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "ca0b36623dfa46e7b571937a08f0e20d",
+              "seconds": 0.2976925130000154,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "6945873de85d411081dbf88370cc9e46",
+              "seconds": 0.32569435300001714,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "wake-and-cancel",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "0f0d4c39ced0444898f6829f74cff18f",
+                "e865c1d1f11b4b33b45e9545f8ac0d1b",
+                "5e2a86314e5147e9ab3fd5527c498810"
+              ],
+              "dlq_id": "dlq-7bc5685c-2903-40d9-b38d-9b97672c1e5e"
+            },
+            {
+              "phase": "absence-follower-1s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 1.0,
+              "actual_absence_seconds": 1.0001146300000414,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.04931431599999314,
+              "full_recovery_seconds": 0.6116389979999894,
+              "accepted": 120,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-1s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 1.0,
+              "actual_absence_seconds": 1.0001062040000193,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.03172957599997517,
+              "full_recovery_seconds": 1.202237771,
+              "accepted": 128,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-1s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 1.0,
+              "actual_absence_seconds": 1.0000878570000395,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.11373845899998969,
+              "full_recovery_seconds": 1.2488539109999692,
+              "accepted": 137,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-5s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 5.0,
+              "actual_absence_seconds": 5.000109564000013,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.10624127099998759,
+              "full_recovery_seconds": 0.8774432039999738,
+              "accepted": 159,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-5s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 5.0,
+              "actual_absence_seconds": 5.000109118000012,
+              "new_leader_observed_seconds": 4.041538523999975,
+              "ready_after_resume_seconds": 1.055421838999962,
+              "full_recovery_seconds": 1.4516451480000114,
+              "accepted": 168,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-5s",
+              "fault": "process-suspension",
+              "nodes": [
+                1,
+                2
+              ],
+              "requested_absence_seconds": 5.0,
+              "actual_absence_seconds": 5.000108968999996,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 4.048492409000005,
+              "full_recovery_seconds": 5.111102674999984,
+              "accepted": 177,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-10s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 10.0,
+              "actual_absence_seconds": 10.00011416000001,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.14065038600000435,
+              "full_recovery_seconds": 0.5982621050000034,
+              "accepted": 215,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-10s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 10.0,
+              "actual_absence_seconds": 10.000107912000033,
+              "new_leader_observed_seconds": 4.447255545000019,
+              "ready_after_resume_seconds": 1.0415664649999599,
+              "full_recovery_seconds": 1.4969508389999646,
+              "accepted": 236,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-10s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 10.0,
+              "actual_absence_seconds": 10.000101666999967,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.0614284669999847,
+              "full_recovery_seconds": 4.322750393000035,
+              "accepted": 246,
+              "unknown": 1,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 319,
+          "unknown": 9,
+          "missing": [],
+          "finished_utc": 1794183142.120612
+        },
+        "startup-jobs/accounting.json": {
+          "accepted": 80,
+          "completed_deliveries": 42,
+          "distinct_delivered_ids": 34,
+          "repeated_deliveries": {
+            "678831cd834a447d8ca2b884cbc78b83": 2,
+            "4d895909877046499fdd6df85cbb39a8": 2,
+            "45791eb695534142ad50ebf7733d8106": 2,
+            "a02ac5fe53424bfd9fa8e93fc87a5155": 2,
+            "131540bf3e7847718bb3125eb8400bc0": 2,
+            "b8eb0780f6d64804aff92efc485060c5": 2,
+            "fb079bc7720946a09918537408d494a6": 2,
+            "0459686cc6fc4f29b9ae23983eb0dacd": 2
+          },
+          "unknown_summary": {
+            "count": 12,
+            "by_kind_and_outcome": [
+              {
+                "kind": "async",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "file",
+                "outcome": "absent-at-final-observation",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "job",
+                "outcome": "unresolved",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 4
+              }
+            ]
+          },
+          "original_member": {
+            "path": "startup-jobs/accounting.json",
+            "bytes": 1893,
+            "sha256": "a34d357726605615069ab578a51df051c4024e34ad561632ea42a46e4c549b57"
+          }
+        },
+        "startup-jobs/parameters.json": {
+          "started_utc": 1794183142.2576668,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "38006138455a81a0d1353f233a3177e9f99b2ff61e3b84b72eb7b171f4c8eb22",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/startup-jobs",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "startup-jobs,job-environments,job-recovery,schedules,streams,restarts",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "startup-jobs/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "startup-job-configuration",
+              "job_argument": "1011a589a8ba485e86ae5cf35b4833e7",
+              "passed": true
+            },
+            {
+              "phase": "job-environments",
+              "id": "80c3b4d61dfc452286f1b191a51447b5",
+              "passed": true
+            },
+            {
+              "phase": "job-supervisor-recovery",
+              "id": "fc7421c35cdc4bf0b9c22c4ae4e6b58b",
+              "queue_id": "b33a68aa-8924-4cc6-bad0-6d458e0219c3",
+              "passed": true
+            },
+            {
+              "phase": "scheduled-job",
+              "schedule_id": "1a7c237c-0b39-4abd-a8c2-80a65660dbc5",
+              "job_arg": "28a38f93f61348858c72ed56a0920b4b",
+              "passed": true
+            },
+            {
+              "phase": "stream-fanout-retention",
+              "passed": true,
+              "initial_append_order": [
+                "479db0132a0d4d1eb059f05da293d2f9_00000000000000000001",
+                "479db0132a0d4d1eb059f05da293d2f9_00000000000000000002",
+                "479db0132a0d4d1eb059f05da293d2f9_00000000000000000003"
+              ],
+              "retention_gap_summaries": {
+                "chaos-fanout-a": {
+                  "Stream": "chaos-bounded",
+                  "Function": "chaos-fanout-a",
+                  "Active": true,
+                  "Generation": "e04b9f2fb1704c38bf31a4fb8e72e27d",
+                  "StartSequence": 0,
+                  "AcknowledgedThrough": 6,
+                  "LastAcknowledged": 6,
+                  "RetentionGapCount": 1,
+                  "Lag": 0,
+                  "PendingCount": 0,
+                  "WaitingForCallbackCount": 0,
+                  "RetryScheduledCount": 0,
+                  "FailedCount": 0,
+                  "RunnableCount": 0,
+                  "LastStatus": 200,
+                  "CapturedAt": "2026-11-09T00:15:00.8060324+00:00",
+                  "Revision": 39
+                },
+                "chaos-fanout-b": {
+                  "Stream": "chaos-bounded",
+                  "Function": "chaos-fanout-b",
+                  "Active": true,
+                  "Generation": "3f3f71436ab4469c84e4b2a2b08e23c2",
+                  "StartSequence": 0,
+                  "AcknowledgedThrough": 6,
+                  "LastAcknowledged": 6,
+                  "RetentionGapCount": 1,
+                  "Lag": 0,
+                  "PendingCount": 0,
+                  "WaitingForCallbackCount": 0,
+                  "RetryScheduledCount": 0,
+                  "FailedCount": 0,
+                  "RunnableCount": 0,
+                  "LastStatus": 200,
+                  "CapturedAt": "2026-11-09T00:15:00.8073958+00:00",
+                  "Revision": 39
+                }
+              },
+              "functions": [
+                "chaos-fanout-a",
+                "chaos-fanout-b"
+              ]
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 80,
+          "unknown": 12,
+          "missing": [],
+          "finished_utc": 1794183332.0178933
+        },
+        "websocket/accounting.json": {
+          "accepted": 93,
+          "completed_deliveries": 46,
+          "distinct_delivered_ids": 46,
+          "repeated_deliveries": {},
+          "unknown_summary": {
+            "count": 10,
+            "by_kind_and_outcome": [
+              {
+                "kind": "counter",
+                "outcome": "unresolved",
+                "count": 1
+              },
+              {
+                "kind": "hashset",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "set",
+                "outcome": "absent-at-final-observation",
+                "count": 2
+              },
+              {
+                "kind": "stream",
+                "outcome": "unresolved",
+                "count": 2
+              },
+              {
+                "kind": "sync",
+                "outcome": "unresolved",
+                "count": 3
+              }
+            ]
+          },
+          "original_member": {
+            "path": "websocket/accounting.json",
+            "bytes": 1339,
+            "sha256": "a720b9c62297d518aca11553fa4c79c966b8019024e1126535cee9251fcc1dbe"
+          }
+        },
+        "websocket/parameters.json": {
+          "started_utc": 1794183352.7374315,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "38006138455a81a0d1353f233a3177e9f99b2ff61e3b84b72eb7b171f4c8eb22",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/websocket",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": true,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 120.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "websocket",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "websocket/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": true,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": true,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 262144,
+              "chunked": false,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 65536,
+              "chunked": false,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": true,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 1048576,
+              "chunked": false,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": false,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2000000,
+              "chunked": true,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": false,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 2097152,
+              "chunked": true,
+              "port": 35121,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": false,
+              "port": 35122,
+              "passed": true
+            },
+            {
+              "phase": "websocket-async",
+              "bytes": 4194304,
+              "chunked": true,
+              "port": 35123,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            },
+            {
+              "phase": "websocket",
+              "function": "chaos-ws-b1ae04e8cef94ea68b428ea864d43c7b",
+              "stream": "stream-chaos-ws-b1ae04e8cef94ea68b428ea864d43c7b",
+              "passed": true
+            }
+          ],
+          "accepted": 93,
+          "unknown": 10,
+          "missing": [],
+          "finished_utc": 1794183386.5258737
+        },
+        "websocket-timeout/accounting.json": {
+          "accepted": 1,
+          "completed_deliveries": 1,
+          "distinct_delivered_ids": 1,
+          "repeated_deliveries": {},
+          "unknown_summary": {
+            "count": 0,
+            "by_kind_and_outcome": []
+          },
+          "original_member": {
+            "path": "websocket-timeout/accounting.json",
+            "bytes": 125,
+            "sha256": "24670bed11e129ce75bc1ddad4a803dec1a5b9e11b7880b597a151f7dfb63970"
+          }
+        },
+        "websocket-timeout/parameters.json": {
+          "started_utc": 1794183386.6858313,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "environment_overrides": {},
+          "commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+          "runtime_sha256": "38006138455a81a0d1353f233a3177e9f99b2ff61e3b84b72eb7b171f4c8eb22",
+          "slimdata_sha256": "0cb33d4742cef153a9191118d7e407c26dd97812f5d9ebf9c409af32d71813f7",
+          "harness_sha256": "85834768ee9a42a469dc5eef233abac6c4c8ec7775de0c5573f719cc5e11b43d",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/websocket-timeout",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": true,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 30.0,
+            "recovery_timeout": 60.0,
+            "scenarios": "websocket-timeout",
+            "durations": [
+              1,
+              5,
+              10
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "websocket-timeout/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "websocket-owner-timeout",
+              "passed": true,
+              "delivery_timeout_seconds": 8,
+              "owner_absence_after_acceptance_seconds": 20,
+              "id": "712080a2dda24400bbb2ec273b03b7fb",
+              "default_retry_statuses": true
+            }
+          ],
+          "accepted": 1,
+          "unknown": 0,
+          "missing": [],
+          "finished_utc": 1794183418.085405
+        }
+      }
+    }
+  ],
+  "summary_note": "Reports and parameters are unchanged. Accounting unknown-ID arrays are summarized by operation/outcome; complete IDs remain in the original SHA-256-attributed ZIPs. Each summarized accounting member has its own raw-byte SHA-256 and size."
+}

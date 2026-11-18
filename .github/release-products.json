@@ -4,11 +4,11 @@
     {"product":"SlimFaas", "os":"ubuntu-24.04-arm", "rid":"linux-arm64"},
     {"product":"SlimFaas", "os":"windows-2025", "rid":"win-x64"},
     {"product":"SlimFaas", "os":"macos-15-intel", "rid":"osx-x64"},
-    {"product":"SlimFaas", "os":"macos-14", "rid":"osx-arm64"},
+    {"product":"SlimFaas", "os":"macos-15", "rid":"osx-arm64"},
     {"product":"SlimFaasMcp", "os":"ubuntu-24.04", "rid":"linux-x64"},
     {"product":"SlimFaasMcp", "os":"windows-2025", "rid":"win-x64"},
     {"product":"SlimFaasMcp", "os":"macos-15-intel", "rid":"osx-x64"},
-    {"product":"SlimFaasMcp", "os":"macos-14", "rid":"osx-arm64"}
+    {"product":"SlimFaasMcp", "os":"macos-15", "rid":"osx-arm64"}
   ],
   "images": [
     {"name":"slimfaas", "file":"Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},

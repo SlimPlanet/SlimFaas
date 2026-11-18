@@ -35,7 +35,7 @@ def test_packages(directory, version):
         dotnet = root / "dotnet"
         dotnet.mkdir()
         (dotnet / "Consumer.csproj").write_text(f'''<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework></PropertyGroup>
   <ItemGroup><PackageReference Include="SlimFaasClient" Version="{version}" /></ItemGroup>
 </Project>
 ''')

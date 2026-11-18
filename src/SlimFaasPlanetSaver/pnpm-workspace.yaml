@@ -1,0 +1,4 @@
+overrides:
+  "esbuild": ">=0.25.0"
+allowBuilds:
+  esbuild: true

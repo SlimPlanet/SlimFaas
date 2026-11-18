@@ -9,6 +9,37 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class FunctionStatusCacheTests
 {
+    [Fact]
+    public void Detailed_status_preserves_real_then_virtual_order_and_cache_identity()
+    {
+        var first = new DeploymentInformation("z-first", "default", [], new SlimFaasConfiguration(), 0);
+        var second = first with { Deployment = "a-second" };
+        var virtualFunction = first with { Deployment = "virtual", PodType = PodType.WebSocket };
+        using var memory = new MemoryCache(new MemoryCacheOptions());
+        var cache = new FunctionStatusCache(memory, CreateWebSocketRepo(virtualFunction));
+        var replicas = CreateReplicasService(first, second);
+
+        var result = cache.GetAllDetailed(replicas);
+        Assert.Equal(["z-first", "a-second", "virtual"], result.Select(function => function.Name));
+        Assert.Same(result, cache.GetAllDetailed(replicas));
+    }
+
+    [Fact]
+    public void Name_cache_remains_ordinal_and_rejects_exact_duplicates()
+    {
+        var real = new DeploymentInformation("Function", "default", [], new SlimFaasConfiguration(), 0);
+        using var memory = new MemoryCache(new MemoryCacheOptions());
+        var cache = new FunctionStatusCache(memory, CreateWebSocketRepo(real with { Deployment = "function" }));
+        var replicas = CreateReplicasService(real);
+        Assert.Equal("Function", cache.GetOne(replicas, "Function")?.Name);
+        Assert.Equal("function", cache.GetOne(replicas, "function")?.Name);
+        Assert.Null(cache.GetOne(replicas, "FUNCTION"));
+
+        using var duplicateMemory = new MemoryCache(new MemoryCacheOptions());
+        var duplicates = new FunctionStatusCache(duplicateMemory, CreateWebSocketRepo(real));
+        Assert.Throws<ArgumentException>(() => duplicates.GetOne(replicas, "Function"));
+    }
+
     private static IReplicasService CreateReplicasService(params DeploymentInformation[] functions)
     {
         var mock = new Mock<IReplicasService>();
@@ -117,4 +148,3 @@ public class FunctionStatusCacheTests
         Assert.Equal("fibonacci", result[0].Name);
     }
 }
-

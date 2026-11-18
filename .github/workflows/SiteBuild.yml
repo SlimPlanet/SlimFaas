@@ -6,18 +6,15 @@ on:
       node_version:
         required: false
         type: string
-        default: "24.21.0"
+        default: "26.13.0"
       pnpm_version:
         required: false
         type: string
-        default: "10.14.0"
+        default: "12.18.0"
       working_directory:
         required: false
         type: string
         default: "src/SlimFaasSite"
-
-permissions:
-  contents: read
 
 jobs:
   build:
@@ -29,7 +26,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ inputs.node_version }}
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: ${{ inputs.pnpm_version }}
           run_install: false

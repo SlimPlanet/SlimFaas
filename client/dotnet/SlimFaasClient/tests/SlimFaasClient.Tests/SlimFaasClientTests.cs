@@ -211,6 +211,7 @@ public class SerializationTests
                 ],
                 DefaultVisibility = "Private",
                 NumberParallelRequest = 5,
+                Configuration = """{"DefaultAsync":{"DeadLetterQueue":{"Enabled":true}}}""",
             },
         };
 
@@ -221,6 +222,7 @@ public class SerializationTests
         Assert.Equal(["ev1", "ev2"], round.Configuration.SubscribeEvents.Select(e => e.Name).Order(StringComparer.Ordinal));
         Assert.Equal("Private", round.Configuration.DefaultVisibility);
         Assert.Equal(5, round.Configuration.NumberParallelRequest);
+        Assert.Equal(dto.Configuration.Configuration, round.Configuration.Configuration);
     }
 }
 
@@ -255,4 +257,3 @@ public class SlimFaasClientConfigTests
         Assert.Equal(64 * 1024, options.ReceiveBufferSize);
     }
 }
-

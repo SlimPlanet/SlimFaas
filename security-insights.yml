@@ -1,6 +1,6 @@
 header:
   schema-version: 2.2.0
-  last-updated: '2026-10-12'
+  last-updated: '2026-11-18'
   last-reviewed: '2026-10-12'
   url: https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/security-insights.yml
   comment: |
@@ -146,10 +146,10 @@ repository:
           release: false
         results:
           adhoc:
-            name: Dependabot alerts and weekly update pull requests
+            name: Dependabot alerts and security update pull requests
             predicate-uri: https://docs.github.com/code-security/dependabot
             location: https://github.com/SlimPlanet/SlimFaas/security/dependabot
-        comment: Weekly grouped updates for NuGet, npm/pnpm, Docker base images and GitHub Actions; see .github/dependabot.yml.
+        comment: Dependabot security updates are enabled. Scheduled version pull requests are disabled in .github/dependabot.yml.
       - name: OpenSSF Scorecard
         type: other
         version: 2.4.1

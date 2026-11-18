@@ -6,6 +6,8 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Local;
 using SlimFaas.WebSocket;
 
+using ZLinq;
+
 namespace SlimFaas.Endpoints;
 
 public class SyncFunction
@@ -69,6 +71,15 @@ public static class SyncFunctionEndpoints
 
         if (function is null)
         {
+            if (context.RequestServices.GetService<IWebSocketClusterDirectory>() is { } directory)
+            {
+                await directory.RefreshAsync(ct);
+                function = webSocketFunctionRepository.GetVirtualDeployments()
+                    .FirstOrDefault(deployment => deployment.Deployment.Equals(functionName, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+        if (function is null)
+        {
             logger.LogNotFound404(functionName);
             return Results.NotFound();
         }
@@ -98,6 +109,7 @@ public static class SyncFunctionEndpoints
             // ── Fonction virtuelle WebSocket → streaming binaire ──
             if (function.Namespace == "websocket-virtual")
             {
+                functionName = function.Deployment;
                 var wsResult = await HandleSyncFunctionViaWebSocket(
                     functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, activityCaller.SourcePod, requestInId, ct);
                 return wsResult;
@@ -202,19 +214,12 @@ public static class SyncFunctionEndpoints
     {
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
 
-        var headers = context.Request.Headers
-            .ToDictionary(h => h.Key, h => h.Value.ToArray().Where(v => v != null).Select(v => v!).ToArray());
+        var headers = context.Request.Headers.AsValueEnumerable()
+            .ToDictionary(static h => h.Key,
+                static h => h.Value.AsValueEnumerable().Where(static v => v != null).Select(static v => v!).ToArray());
 
-        // Le body stream est null pour GET/HEAD/DELETE/TRACE
-        Stream? bodyStream = null;
         var method = context.Request.Method;
-        if (!HttpMethods.IsGet(method) &&
-            !HttpMethods.IsHead(method) &&
-            !HttpMethods.IsDelete(method) &&
-            !HttpMethods.IsTrace(method))
-        {
-            bodyStream = context.Request.Body;
-        }
+        Stream bodyStream = context.Request.Body;
 
         try
         {
@@ -232,7 +237,7 @@ public static class SyncFunctionEndpoints
             // Écrire la réponse HTTP
             context.Response.StatusCode = statusCode;
 
-            foreach (var (key, values) in responseHeaders)
+            foreach (var (key, values) in WebSocketPeerHeaders.Filter(responseHeaders))
             {
                 context.Response.Headers[key] = values;
             }
@@ -259,6 +264,7 @@ public static class SyncFunctionEndpoints
             {
                 return Results.StatusCode(503);
             }
+            context.Abort();
             return Results.Empty;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -268,6 +274,21 @@ public static class SyncFunctionEndpoints
             {
                 return Results.StatusCode(499);
             }
+            context.Abort();
+            return Results.Empty;
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogWebSocketRelayFailed(exception, functionName);
+            if (!context.Response.HasStarted) return Results.StatusCode(504);
+            context.Abort();
+            return Results.Empty;
+        }
+        catch (Exception exception) when (exception is IOException or System.Net.WebSockets.WebSocketException)
+        {
+            logger.LogWebSocketRelayFailed(exception, functionName);
+            if (!context.Response.HasStarted) return Results.StatusCode(503);
+            context.Abort();
             return Results.Empty;
         }
     }

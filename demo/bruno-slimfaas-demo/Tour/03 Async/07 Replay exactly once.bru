@@ -1,0 +1,20 @@
+meta {
+  name: Replay the retained request exactly once
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/data/dead-letters/fibonacci1/messages/{{durableDlqId}}/requeue
+  body: none
+  auth: none
+}
+
+tests {
+  test("Receipt identifies a fresh execution, not completion", function () {
+    expect(res.getStatus()).to.equal(202);
+    expect(res.getBody().DeadLetterId).to.equal(bru.getVar("durableDlqId"));
+    expect(res.getBody().ElementId).not.to.equal(res.getBody().OriginalElementId);
+    bru.setVar("durableReplayId", res.getBody().ElementId);
+  });
+}

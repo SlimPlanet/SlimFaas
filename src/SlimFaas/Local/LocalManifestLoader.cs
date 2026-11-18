@@ -283,7 +283,7 @@ public static partial class LocalManifestLoader
                 function.Health.StartupTimeoutSeconds, errors);
             if (function.Shutdown is not null)
             {
-                if (!function.Shutdown.Path.StartsWith('/'))
+                if (!function.Shutdown.Path.StartsWith('/', StringComparison.Ordinal))
                     errors.Add($"functions.{name}.shutdown.path must start with '/'.");
                 if (function.Shutdown.TimeoutSeconds < 1)
                     errors.Add($"functions.{name}.shutdown.timeoutSeconds must be positive.");
@@ -434,8 +434,14 @@ public static partial class LocalManifestLoader
                     {
                         ResultWithError<long> result = Cron.GetNextJobExecutionTimestamp(
                             schedule.Schedule,
-                            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                        if (!result.IsSuccess)
+                            DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                            schedule.TimeZone);
+                        if (result.Error?.Key == Cron.InvalidTimeZone)
+                        {
+                            errors.Add(
+                                $"jobs.{name}.annotations: SlimFaas/Schedules.TimeZone: {result.Error.Description}");
+                        }
+                        else if (!result.IsSuccess)
                         {
                             errors.Add(
                                 $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule " +
@@ -572,7 +578,7 @@ public static partial class LocalManifestLoader
             ? value[authorityStart..]
             : value[authorityStart..authorityEnd];
 
-        if (authority.StartsWith('['))
+        if (authority.StartsWith('[', StringComparison.Ordinal))
         {
             int closingBracket = authority.IndexOf(']', StringComparison.Ordinal);
             return closingBracket >= 0 &&
@@ -586,7 +592,7 @@ public static partial class LocalManifestLoader
                    ipv6Port == uri.Port;
         }
 
-        int separator = authority.LastIndexOf(':');
+        int separator = authority.LastIndexOf(':', StringComparison.Ordinal);
         return separator > 0 &&
                int.TryParse(
                    authority[(separator + 1)..],
@@ -604,7 +610,7 @@ public static partial class LocalManifestLoader
         int startupTimeout,
         List<string> errors)
     {
-        if (string.IsNullOrEmpty(path) || !path.StartsWith('/'))
+        if (string.IsNullOrEmpty(path) || !path.StartsWith('/', StringComparison.Ordinal))
             errors.Add($"{prefix}.path must start with '/'.");
         if (period < 1)
             errors.Add($"{prefix}.periodSeconds must be positive.");

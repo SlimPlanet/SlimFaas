@@ -190,14 +190,14 @@ public class RaftClusterTests(ITestOutputHelper output)
         var elapsed = Stopwatch.StartNew();
         void Phase(string name) => output.WriteLine($"{elapsed.Elapsed.TotalSeconds:F1}s: {name}");
         Phase("bootstrap");
-        // This scenario exercises membership and replication with a stable bootstrap leader.
-        // Coverage instrumentation on hosted runners can pause heartbeats beyond 600 ms;
-        // allow that scheduling overhead without changing the bounded readiness checks.
+        // This test exercises data and membership with a stable leader. Coverage on
+        // Windows can exceed sub-second election windows; dedicated recovery tests
+        // exercise leader replacement explicitly. Keep normal Raft elections enabled.
         Dictionary<string, string> config1 = new()
         {
             { "partitioning", "false" },
             { "lowerElectionTimeout", "3000" },
-            { "upperElectionTimeout", "5000" },
+            { "upperElectionTimeout", "6000" },
             { "publicEndPoint", "http://localhost:3262/" },
             { "coldStart", "true" },
             { "warmupRounds", "512" },
@@ -209,7 +209,7 @@ public class RaftClusterTests(ITestOutputHelper output)
         {
             { "partitioning", "false" },
             { "lowerElectionTimeout", "3000" },
-            { "upperElectionTimeout", "5000" },
+            { "upperElectionTimeout", "6000" },
             { "publicEndPoint", "http://localhost:3263/" },
             { "coldStart", "false" },
             { "warmupRounds", "512" },
@@ -221,7 +221,7 @@ public class RaftClusterTests(ITestOutputHelper output)
         {
             { "partitioning", "false" },
             { "lowerElectionTimeout", "3000" },
-            { "upperElectionTimeout", "5000" },
+            { "upperElectionTimeout", "6000" },
             { "publicEndPoint", "http://localhost:3264/" },
             { "coldStart", "false" },
             { "warmupRounds", "512" },
@@ -459,9 +459,18 @@ public class RaftClusterTests(ITestOutputHelper output)
         //await GetLocalClusterView(host1).ForceReplicationAsync();
         //Assert.Null(await databaseServiceSlave.GetAsync("key1"));
 
+        async Task SynchronizeFollowerReaderAsync()
+        {
+            using var timeout = new CancellationTokenSource(DefaultTimeout);
+            await GetLocalClusterView(host3).ApplyReadBarrierAsync(ReadBarrierType.Weak, timeout.Token);
+        }
+
         await databaseServiceSlave.HashSetAsync("hashsetKey1",
             new Dictionary<string, byte[]> { { "field1",MemoryPackSerializer.Serialize("value1") }, { "field2", MemoryPackSerializer.Serialize("value2") } });
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        // ForceReplicationAsync advances the leader; the follower can still have
+        // the previous commit index. Synchronize before asserting its local hash view.
+        await SynchronizeFollowerReaderAsync();
         IDictionary<string, byte[]> hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
 
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(hashGet["field1"]));
@@ -469,6 +478,7 @@ public class RaftClusterTests(ITestOutputHelper output)
 
         await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1", "field1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        await SynchronizeFollowerReaderAsync();
         hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
         Assert.Single(hashGet);
 
@@ -476,6 +486,7 @@ public class RaftClusterTests(ITestOutputHelper output)
             new Dictionary<string, byte[]> { { "field3",MemoryPackSerializer.Serialize("value3") } });
         await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        await SynchronizeFollowerReaderAsync();
         hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
         Assert.Empty(hashGet);
 
@@ -523,6 +534,9 @@ public class RaftClusterTests(ITestOutputHelper output)
         await databaseServiceSlave.ListCallbackAsync("listKey1", queueItemStatus);
 
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        // Queue counts are a local follower view, just like the hash reads above.
+        // The leader's replication completion does not prove this follower applied the callback.
+        await SynchronizeFollowerReaderAsync();
         var listLength2 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
 
         Assert.Empty(listLength2);

@@ -1,0 +1,11 @@
+{
+  "file": "delivery-ledgers.json.gz",
+  "cases": 32,
+  "receipts": 10098,
+  "original_files": 64,
+  "compressed_bytes": 1184840,
+  "compressed_sha256": "7bba07450895278f8e455260f48d72be5711226744eb3ce6351593e5a70af20c",
+  "expanded_sha256": "d071824ddf2c37a4cd947a7824df341096528791d3591df9b87828ea75fc36e3",
+  "expanded_bytes": 8661722,
+  "scope": "Closed bounded diagnostics 05-12 only. The original formal ten-duplicate case did not export per-ID receipts and is not reconstructed here."
+}

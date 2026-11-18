@@ -175,7 +175,8 @@ public partial class KubernetesService
                             RestartPolicy: s.RestartPolicy == "Never" ? restartPolicy : s.RestartPolicy,
                             Resources: s.Resources ?? resources,
                             Environments: s.Environments ?? environments,
-                            DependsOn: s.DependsOn ?? dependsOn
+                            DependsOn: s.DependsOn ?? dependsOn,
+                            TimeZone: s.TimeZone
                         )).ToList();
                     }
                 }

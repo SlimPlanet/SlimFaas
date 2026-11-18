@@ -1,0 +1,46 @@
+meta {
+  name: Publish to the single connected WebSocket owner
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/publish-event/{{wsStream}}/tour/ws/{{wsFunction}}/event
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":10,"nonce":"{{wsFunction}}-event"}
+}
+
+tests {
+  test("The subscribed worker actually processed this best-effort publication", async function () {
+    expect(res.getStatus()).to.equal(204);
+    const name = bru.getVar("wsFunction");
+    const deadline = Date.now() + 30000;
+    let processed = false;
+    do {
+      const response = await bru.sendRequest({ method: "GET", url: bru.getEnvVar("baseUrl") + "/data/sets/" + name + "-event" }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+      if (response.status === 200) {
+        const proof = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+        processed = proof.function === name && proof.mode === "event" && proof.nonce === name + "-event" && proof.result === 55;
+        if (processed) break;
+      }
+      await bru.sleep(200);
+    } while (Date.now() < deadline);
+    expect(processed, "204 accepts an event but does not guarantee delivery; inspect worker logs").to.equal(true);
+  });
+}
+
+docs {
+  Publish-event remains best effort: no durable queue, retry or exactly-once guarantee.
+  The base demo registers one outbound connection; any SlimFaas ingress routes to that owner.
+}

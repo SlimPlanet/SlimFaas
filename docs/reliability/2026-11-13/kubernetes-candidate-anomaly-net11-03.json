@@ -1,0 +1,534 @@
+{
+  "checked_utc": null,
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "driver_source": "a3e28adcfe700bb5ad920e1170a72c781cffed76",
+  "namespace": "slimfaas-pr506-net11-kbench-03-http-attempt-1-3-after",
+  "verdict": "FAIL",
+  "results_sha256": "061d2fb1c9605649d170de40dc4b9f9b80615896ea8af3ed5a5cbebd372b53d8",
+  "log_sha256": "7715c6695cfc52d4c0241506d27393c27708fd1c346ec3ab4687851287e08a39",
+  "settings": {
+    "SlimFaasUrl": "http://slimfaas-http:5000",
+    "DirectUrl": "http://benchmark-latency:5000",
+    "NodeUrls": [
+      "http://slimfaas-0.slimfaas:5000",
+      "http://slimfaas-1.slimfaas:5000",
+      "http://slimfaas-2.slimfaas:5000"
+    ],
+    "Function": "benchmark-latency",
+    "ScaleFunction": "benchmark-scale",
+    "DurationSeconds": null,
+    "WarmupSeconds": null,
+    "Repetitions": null,
+    "PayloadBytes": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "Concurrency": [
+      null,
+      null,
+      null
+    ],
+    "ScaleMessages": null,
+    "ScaleConcurrency": null,
+    "ScaleTargetReplicas": null,
+    "Profile": "async-queue",
+    "AsyncPacedMessages": null,
+    "AsyncPacedIntervalMilliseconds": null,
+    "AsyncBurstMessages": null,
+    "AsyncBurstConcurrency": null,
+    "SamplesFormat": "csv.gz"
+  },
+  "latency_cases": null,
+  "focused_cases": null,
+  "failed_requests": null,
+  "missing": null,
+  "duplicates": null,
+  "anomalous_cases": [
+    {
+      "Mode": "async",
+      "PayloadBytes": null,
+      "Concurrency": null,
+      "Repetition": null,
+      "Completed": null,
+      "Failed": null,
+      "ElapsedSeconds": null,
+      "RatePerSecond": null,
+      "P50Milliseconds": null,
+      "P95Milliseconds": null,
+      "P99Milliseconds": null,
+      "MaxMilliseconds": null,
+      "AsyncDelivery": {
+        "RunId": "async-1048576-16-2-a3159a14959c45aa88835075fd8998e4",
+        "Count": null,
+        "ArrivalP50Milliseconds": null,
+        "ArrivalP95Milliseconds": null,
+        "ArrivalP99Milliseconds": null,
+        "CompletionP50Milliseconds": null,
+        "CompletionP95Milliseconds": null,
+        "CompletionP99Milliseconds": null,
+        "UniqueCount": null,
+        "DuplicateCount": null,
+        "ArrivalMeanMilliseconds": null,
+        "CompletionMeanMilliseconds": null
+      },
+      "MeanMilliseconds": null,
+      "AsyncMissing": null,
+      "AsyncDuplicates": null,
+      "AsyncResources": {
+        "CpuMillisecondsPerMessage": null,
+        "RaftEntriesPerMessage": null,
+        "PeakWorkingSetBytes": null,
+        "CpuSeconds": null,
+        "RaftEntries": null,
+        "InitialSnapshot": {
+          "CpuSeconds": null,
+          "RaftEntries": null,
+          "WorkingSetBytes": null,
+          "Nodes": [
+            {
+              "Node": "http://slimfaas-0.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:38:27.1373398+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            },
+            {
+              "Node": "http://slimfaas-1.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:38:27.1377436+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            },
+            {
+              "Node": "http://slimfaas-2.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:38:27.1377977+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            }
+          ]
+        },
+        "FinalProcessSnapshot": {
+          "CpuSeconds": null,
+          "RaftEntries": null,
+          "WorkingSetBytes": null,
+          "Nodes": [
+            {
+              "Node": "http://slimfaas-0.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:40:39.6341142+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            },
+            {
+              "Node": "http://slimfaas-1.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:40:39.6357843+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            },
+            {
+              "Node": "http://slimfaas-2.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:40:39.6346536+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            }
+          ]
+        },
+        "FinalDiagnosticsSnapshot": {
+          "CpuSeconds": null,
+          "RaftEntries": null,
+          "WorkingSetBytes": null,
+          "Nodes": [
+            {
+              "Node": "http://slimfaas-0.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:40:41.9593073+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            },
+            {
+              "Node": "http://slimfaas-1.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:40:41.9589044+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            },
+            {
+              "Node": "http://slimfaas-2.slimfaas:5000/",
+              "CapturedAtUtc": "2026-11-15T02:40:41.9590898+00:00",
+              "CpuSeconds": null,
+              "DiagnosticsCpuSeconds": null,
+              "RaftEntries": null,
+              "WorkingSetBytes": null
+            }
+          ]
+        }
+      },
+      "LoadShape": "steady",
+      "Resources": {
+        "CpuSeconds": null,
+        "CpuMillisecondsPerRequest": null,
+        "PeakWorkingSetBytes": null
+      }
+    }
+  ],
+  "scaling": {
+    "Messages": null,
+    "Concurrency": null,
+    "TargetReplicas": null,
+    "Accepted": null,
+    "Failed": null,
+    "FirstAcceptedMilliseconds": null,
+    "AllAcceptedMilliseconds": null,
+    "RequestedOneMilliseconds": null,
+    "ReadyOneMilliseconds": null,
+    "RequestedTargetMilliseconds": null,
+    "ReadyTargetMilliseconds": null,
+    "QueueDrainedMilliseconds": null,
+    "PeakReadyQueue": null,
+    "TimedOut": null
+  },
+  "execution": {
+    "exit_code": null,
+    "raw": "${CANDIDATE}/artifacts/pr506/measurements/kubernetes-net11-03-serial-01/http-attempt-1/3-after/workload",
+    "finished": null
+  },
+  "status": {
+    "passed": null,
+    "error": null,
+    "statuses": [
+      {
+        "suite": "http",
+        "exit_code": null
+      }
+    ],
+    "finished_utc": null
+  },
+  "raw_archive": {
+    "archive": "raw.tar.gz",
+    "sha256": "8ebfaea9e691cd449b69998401a92910b3072396dfd257d91364305521edc0a8",
+    "vm_original": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-kbench-03-http-attempt-1-3-after",
+    "large_members_retained_in_archive": [
+      "workload/state/",
+      "workload/latency-samples.csv.gz"
+    ]
+  },
+  "note": "All cases complete; exit1 is caused by ten duplicate deliveries in one1MiB C16 repetition,not by the final4MiBcase. No request failures or missingIDs. No observed runtime restart/OOM. Cause not established; preserve full originals and reproduction before changes.",
+  "resource_cases": null,
+  "all_resource_cpu_rss_raft_positive": null,
+  "all_resource_boundaries_three_nodes": null,
+  "shutdown": {
+    "namespace": "slimfaas-pr506-net11-kbench-03-http-attempt-1-3-after",
+    "started_utc": null,
+    "passed": null,
+    "polls": [
+      {
+        "utc": null,
+        "remaining_writers": [
+          {
+            "name": "benchmark-latency-f6dc987cb-7fkmm",
+            "uid": "e16dd690-1eb0-4048-9114-6997d1bfb86f",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "benchmark-scale-c94884cfb-4ck8g",
+            "uid": "f676723b-7bbd-4de7-b250-f0bf7508de72",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "benchmark-scale-c94884cfb-b8xnx",
+            "uid": "128cb51c-f4d6-45c1-9917-c992e0eaea3b",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "benchmark-scale-c94884cfb-gfb8c",
+            "uid": "635f1ee0-78f3-44d9-9048-c030cb131260",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "benchmark-scale-c94884cfb-schvx",
+            "uid": "ceac3a3f-6acc-4ede-8e74-16b382540d42",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "receipts-655b597fbb-6lg4s",
+            "uid": "ea92a213-edb5-4216-ba17-a28cb20341c9",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-0",
+            "uid": "1f998479-2c75-41d8-8c10-d2033299d4e0",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-1",
+            "uid": "46cd2dd3-d22d-4d8b-8e69-7dda71ee1b36",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-2",
+            "uid": "fd207e17-7f06-4def-8ae0-2d24f91a14ba",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          }
+        ],
+        "completed_job_uids": [
+          "fbf3a1a8-3b05-4925-9648-0e4eb646561c"
+        ]
+      },
+      {
+        "utc": null,
+        "remaining_writers": [
+          {
+            "name": "receipts-655b597fbb-6lg4s",
+            "uid": "ea92a213-edb5-4216-ba17-a28cb20341c9",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-0",
+            "uid": "1f998479-2c75-41d8-8c10-d2033299d4e0",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-1",
+            "uid": "46cd2dd3-d22d-4d8b-8e69-7dda71ee1b36",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-2",
+            "uid": "fd207e17-7f06-4def-8ae0-2d24f91a14ba",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          }
+        ],
+        "completed_job_uids": [
+          "fbf3a1a8-3b05-4925-9648-0e4eb646561c"
+        ]
+      },
+      {
+        "utc": null,
+        "remaining_writers": [
+          {
+            "name": "receipts-655b597fbb-6lg4s",
+            "uid": "ea92a213-edb5-4216-ba17-a28cb20341c9",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-0",
+            "uid": "1f998479-2c75-41d8-8c10-d2033299d4e0",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-1",
+            "uid": "46cd2dd3-d22d-4d8b-8e69-7dda71ee1b36",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-2",
+            "uid": "fd207e17-7f06-4def-8ae0-2d24f91a14ba",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          }
+        ],
+        "completed_job_uids": [
+          "fbf3a1a8-3b05-4925-9648-0e4eb646561c"
+        ]
+      },
+      {
+        "utc": null,
+        "remaining_writers": [
+          {
+            "name": "receipts-655b597fbb-6lg4s",
+            "uid": "ea92a213-edb5-4216-ba17-a28cb20341c9",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-0",
+            "uid": "1f998479-2c75-41d8-8c10-d2033299d4e0",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-1",
+            "uid": "46cd2dd3-d22d-4d8b-8e69-7dda71ee1b36",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-2",
+            "uid": "fd207e17-7f06-4def-8ae0-2d24f91a14ba",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          }
+        ],
+        "completed_job_uids": [
+          "fbf3a1a8-3b05-4925-9648-0e4eb646561c"
+        ]
+      },
+      {
+        "utc": null,
+        "remaining_writers": [
+          {
+            "name": "receipts-655b597fbb-6lg4s",
+            "uid": "ea92a213-edb5-4216-ba17-a28cb20341c9",
+            "owners": [
+              "ReplicaSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-0",
+            "uid": "1f998479-2c75-41d8-8c10-d2033299d4e0",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-1",
+            "uid": "46cd2dd3-d22d-4d8b-8e69-7dda71ee1b36",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-2",
+            "uid": "fd207e17-7f06-4def-8ae0-2d24f91a14ba",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          }
+        ],
+        "completed_job_uids": [
+          "fbf3a1a8-3b05-4925-9648-0e4eb646561c"
+        ]
+      },
+      {
+        "utc": null,
+        "remaining_writers": [
+          {
+            "name": "slimfaas-0",
+            "uid": "1f998479-2c75-41d8-8c10-d2033299d4e0",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          },
+          {
+            "name": "slimfaas-1",
+            "uid": "46cd2dd3-d22d-4d8b-8e69-7dda71ee1b36",
+            "owners": [
+              "StatefulSet"
+            ],
+            "deletion_timestamp": "2026-11-15T03:10:18Z"
+          }
+        ],
+        "completed_job_uids": [
+          "fbf3a1a8-3b05-4925-9648-0e4eb646561c"
+        ]
+      },
+      {
+        "utc": null,
+        "remaining_writers": [],
+        "completed_job_uids": [
+          "fbf3a1a8-3b05-4925-9648-0e4eb646561c"
+        ]
+      }
+    ],
+    "finished_utc": null
+  },
+  "runtime_logs": {
+    "slimfaas-0-runtime.log": {
+      "bytes": null,
+      "sha256": "68187d360685beb563e01dcc1b192c3769ccbed739bbb8d4eeeaac2c2721a1a9"
+    },
+    "slimfaas-1-runtime.log": {
+      "bytes": null,
+      "sha256": "b307956f977354fe15cecbaecaa33c89103916ba3b4eef930f84e3769fe3e03b"
+    },
+    "slimfaas-2-runtime.log": {
+      "bytes": null,
+      "sha256": "f5ec66cb6c340a31e138f3670c84d2a0678672083b91e4468cb7a373d13a1f4f"
+    }
+  },
+  "known_limits": [
+    "The benchmark target retains receipt ID counters in memory and exports aggregate counts. Its HTTP receipt directory is empty; individual duplicate IDs were not exported before target shutdown. The full client samples and Raft state remain archived.",
+    "Runtime logs show unplanned Raft term changes during the run. This establishes consensus instability, not its cause or the precise duplicate delivery mechanism.",
+    "No observed OOM or runtime restart; normal final controller shutdown separately terminates runtime containers."
+  ]
+}

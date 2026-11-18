@@ -96,7 +96,8 @@ public class JobService(
     {
         var configuration = jobConfiguration.Configuration.Configurations;
         name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
-        var conf = configuration[name];
+        if (!configuration.TryGetValue(name, out SlimfaasJob? conf))
+            return new ResultWithError<EnqueueJobResult>(null, new ErrorResult("configuration_not_found"));
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
             return new ResultWithError<EnqueueJobResult>(null , new ErrorResult("visibility_private"));
@@ -117,7 +118,7 @@ public class JobService(
         List<string>? dependsOn = createJob.DependsOn ?? conf.DependsOn;
 
         CreateJob newCreateJob = new(
-            createJob.Args,
+            createJob.Args ?? [],
             image,
             BackoffLimit: conf.BackoffLimit,
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
@@ -126,10 +127,11 @@ public class JobService(
             Environments: environments,
             DependsOn: dependsOn);
 
-        string fullName = $"{name}{KubernetesService.SlimfaasJobKey}{TinyGuid.NewTinyGuid()}";
+        string queueName = QueueName(name);
+        string fullName = $"{queueName}{KubernetesService.SlimfaasJobKey}{TinyGuid.NewTinyGuid()}";
         JobInQueue createJobInQueue = new(newCreateJob, fullName, DateTime.UtcNow.Ticks);
         var createJobSerialized = MemoryPackSerializer.Serialize(createJobInQueue);
-        var elementId = await jobQueue.EnqueueAsync(name, createJobSerialized);
+        var elementId = await jobQueue.EnqueueAsync(queueName, createJobSerialized);
 
         return new ResultWithError<EnqueueJobResult>(new EnqueueJobResult(elementId));
     }
@@ -145,9 +147,18 @@ public class JobService(
         return jobs;
     }
 
+    /// <summary>
+    /// Queue of a job configuration. <see cref="SlimJobsWorker"/> reads each queue under the
+    /// lower-case configuration name, which also prefixes the Kubernetes Job name: Kubernetes
+    /// object names must be lower case, while the built-in configuration is named
+    /// <see cref="JobConfiguration.Default"/>.
+    /// </summary>
+    public static string QueueName(string configurationName) => configurationName.ToLowerInvariant();
+
     public async Task<IList<JobListResult>> ListJobAsync(string jobName)
     {
-        var countElement = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available });
+        string name = JobConfiguration.ResolveName(jobConfiguration.Configuration.Configurations, jobName);
+        var countElement = await jobQueue.CountElementAsync(QueueName(name), new List<CountType> { CountType.Available });
         var result = new List<JobListResult>();
 
         var index = -1;
@@ -172,13 +183,15 @@ public class JobService(
     {
         var configuration = jobConfiguration.Configuration.Configurations;
         name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
-        var conf = configuration[name];
+        if (!configuration.TryGetValue(name, out SlimfaasJob? conf))
+            return false;
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
             return false;
         }
 
-        var countElement = await jobQueue.CountElementAsync(name, new List<CountType> { CountType.Available });
+        string queueName = QueueName(name);
+        var countElement = await jobQueue.CountElementAsync(queueName, new List<CountType> { CountType.Available });
         var element = countElement.FirstOrDefault(e => e.Id == elementId);
         if (element != null)
         {
@@ -186,7 +199,7 @@ public class JobService(
             [
                 new() { Id = elementId, HttpCode = SlimDataInterpreter.DeleteFromQueueCode }
             ];
-            await jobQueue.ListCallbackAsync(name, new ListQueueItemStatus { Items = items });
+            await jobQueue.ListCallbackAsync(queueName, new ListQueueItemStatus { Items = items });
             return true;
         }
 

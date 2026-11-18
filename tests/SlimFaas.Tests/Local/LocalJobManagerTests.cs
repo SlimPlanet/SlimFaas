@@ -5,6 +5,113 @@ namespace SlimFaas.Tests.Local;
 
 public sealed class LocalJobManagerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task JobWithMissingArguments_RunsWithoutStoppingTheMonitor(bool restart)
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0, startManager: !restart);
+        ProcessCreateJobCommand command = fixture.Command("no-arguments");
+        await fixture.Manager.CreateAsync(command with { CreateJob = command.CreateJob with { Args = null! } },
+            CancellationToken.None);
+        if (restart)
+            await fixture.RestartAsync();
+
+        Assert.Equal(command.JobFullName, (await fixture.WaitForAsync(JobStatus.Succeeded)).Name);
+        Assert.False(fixture.Manager.Completion.IsCompleted);
+    }
+
+    [Fact]
+    public async Task IncorrectArgument_FailsOnlyThatJobAndTheNextJobStillRuns()
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0);
+        ProcessCreateJobCommand command = fixture.Command("invalid-argument");
+        await fixture.Manager.CreateAsync(command with { CreateJob = command.CreateJob with { Args = [null!] } },
+            CancellationToken.None);
+        await fixture.WaitForAsync(JobStatus.Failed);
+        await fixture.Manager.DeleteAsync(command.JobFullName, CancellationToken.None);
+
+        ProcessCreateJobCommand next = fixture.Command("subsequent-job");
+        await fixture.Manager.CreateAsync(next, CancellationToken.None);
+        Assert.Equal(next.JobFullName, (await fixture.WaitForAsync(JobStatus.Succeeded)).Name);
+        Assert.False(fixture.Manager.Completion.IsCompleted);
+    }
+
+    [Fact]
+    public async Task PendingPlan_IsDurableBeforeLaunchingAndResumesWithTheSameIdentity()
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0, startManager: false);
+        ProcessCreateJobCommand command = fixture.Command("pending-job");
+        await fixture.Manager.CreateAsync(command, CancellationToken.None);
+
+        Assert.Equal(JobStatus.Pending, Assert.Single(fixture.Manager.Snapshot()).Status);
+        await fixture.RestartAsync();
+
+        Job completed = await fixture.WaitForAsync(JobStatus.Succeeded);
+        Assert.Equal(command.ElementId, completed.ElementId);
+        Assert.Equal(command.JobFullName, completed.Name);
+        await fixture.Manager.CreateAsync(command, CancellationToken.None);
+        Assert.Single(fixture.Manager.Snapshot());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TerminalStatus_IsRetainedAcrossSupervisorRestart(bool failed)
+    {
+        await using var fixture = new JobFixture(
+            failed ? ["definitely-not-a-real-assembly.dll"] : ["--info"], backoffLimit: 0);
+        await fixture.Manager.CreateAsync(fixture.Command("terminal-job"), CancellationToken.None);
+        Job before = await fixture.WaitForAsync(failed ? JobStatus.Failed : JobStatus.Succeeded);
+
+        await fixture.RestartAsync();
+
+        Job after = Assert.Single(fixture.Manager.Snapshot());
+        Assert.Equal((before.Name, before.Status, before.ElementId, before.StartTimestamp),
+            (after.Name, after.Status, after.ElementId, after.StartTimestamp));
+    }
+
+    [Fact]
+    public async Task DeletedPendingPlan_DoesNotRunAfterSupervisorRestart()
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0, startManager: false);
+        ProcessCreateJobCommand command = fixture.Command("deleted-job");
+        await fixture.Manager.CreateAsync(command, CancellationToken.None);
+        await fixture.Manager.DeleteAsync(command.JobFullName, CancellationToken.None);
+
+        await fixture.RestartAsync();
+
+        Assert.Empty(fixture.Manager.Snapshot());
+        await fixture.Manager.CreateAsync(command, CancellationToken.None);
+        Assert.Empty(fixture.Manager.Snapshot());
+    }
+
+    [Fact]
+    public async Task MalformedStore_FailsStartupWithoutDiscardingTheOriginalFile()
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0, startManager: false);
+        string directory = Path.Combine(fixture.StateDirectory, "jobs");
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, "broken.json");
+        await File.WriteAllTextAsync(path, "{broken");
+
+        await Assert.ThrowsAsync<System.Text.Json.JsonException>(() => fixture.Manager.StartAsync(CancellationToken.None));
+
+        Assert.Equal("{broken", await File.ReadAllTextAsync(path));
+    }
+
+    [Fact]
+    public async Task UnwritableStore_DoesNotAcknowledgeOrPublishTheJob()
+    {
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 0, startManager: false);
+        await File.WriteAllTextAsync(Path.Combine(fixture.StateDirectory, "jobs"), "occupied");
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            fixture.Manager.CreateAsync(fixture.Command("not-durable"), CancellationToken.None));
+
+        Assert.Empty(fixture.Manager.Snapshot());
+    }
+
     [Fact]
     public async Task CreateAsync_IsIdempotentAndTracksSuccessfulExit()
     {
@@ -40,7 +147,7 @@ public sealed class LocalJobManagerTests
             [JobAnnotationNames.NumberParallelJob] = "3",
             [JobAnnotationNames.DependsOn] = "function-one,function-two",
             [JobAnnotationNames.Schedules] =
-                """[{"Schedule":"*/5 * * * *","Args":["39"],"DependsOn":["function-two"]}]"""
+                """[{"Schedule":"*/5 * * * *","Args":["39"],"DependsOn":["function-two"],"TimeZone":"Europe/Paris"}]"""
         };
         await using var fixture = new JobFixture(["--info"], backoffLimit: 4, annotations: annotations);
 
@@ -56,17 +163,20 @@ public sealed class LocalJobManagerTests
         Assert.Equal(4, schedule.BackoffLimit);
         Assert.Equal(60, schedule.TtlSecondsAfterFinished);
         Assert.Equal("Never", schedule.RestartPolicy);
+        Assert.Equal("Europe/Paris", schedule.TimeZone);
     }
 
     private sealed class JobFixture : IAsyncDisposable
     {
         private readonly string _root;
         private readonly LocalStateStore _state;
+        private readonly LoadedLocalManifest _loaded;
 
         public JobFixture(
             List<string> arguments,
             int backoffLimit,
-            Dictionary<string, string>? annotations = null)
+            Dictionary<string, string>? annotations = null,
+            bool startManager = true)
         {
             _root = Path.Combine(Path.GetTempPath(), "SlimFaas.Tests", Guid.NewGuid().ToString("N"));
             string statePath = Path.Combine(_root, "state");
@@ -102,12 +212,22 @@ public sealed class LocalJobManagerTests
                 _root,
                 statePath,
                 IsPersistent: true);
+            _loaded = loaded;
             _state = LocalStateStore.Open(loaded, clean: false);
             Manager = new LocalJobManager(loaded, _state, "test-token");
-            Manager.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+            if (startManager)
+                Manager.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         }
 
-        public LocalJobManager Manager { get; }
+        public LocalJobManager Manager { get; private set; }
+        public string StateDirectory => _state.DirectoryPath;
+
+        public async Task RestartAsync()
+        {
+            await Manager.DisposeAsync();
+            Manager = new LocalJobManager(_loaded, _state, "test-token");
+            await Manager.StartAsync(CancellationToken.None);
+        }
 
         public ProcessCreateJobCommand Command(string fullName)
             => new(

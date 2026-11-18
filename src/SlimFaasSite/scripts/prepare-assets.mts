@@ -24,9 +24,11 @@ for (const id of Object.keys(DOCUMENTATION_CATALOG) as DocumentationId[]) {
         }
         search.push({ title: `${page.title} — ${$(element).text()}`, url: `${route}#${$(element).attr('id')}`, text: content.join(' ').replace(/\s+/g, ' ').trim() });
     });
-    $('img[src^="/documentation-assets/"]').each((_, element) => {
-        assets.add($(element).attr('src')!.split(/[?#]/)[0].slice('/documentation-assets/'.length));
-    });
+    for (const attribute of ['src', 'srcset', 'poster', 'href']) {
+        $(`[${attribute}^="/documentation-assets/"]`).each((_, element) => {
+            assets.add($(element).attr(attribute)!.split(/[?#]/)[0].slice('/documentation-assets/'.length));
+        });
+    }
 }
 await mkdir(publicDirectory, { recursive: true });
 await writeFile(path.join(publicDirectory, 'search-index.json'), JSON.stringify(search));

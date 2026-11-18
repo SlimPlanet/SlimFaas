@@ -40,7 +40,12 @@ metadata:
 
 HTTP publication does not wake sleeping replicas or queue events durably. Wake subscribers and wait for readiness before publishing. A configured subscriber with no ready replicas can still lead to a `204` response, while no allowed subscription returns `404`. Per-target failures are logged, so `204` is not an acknowledgment from every replica.
 
-Connected WebSocket subscribers receive events through their registered clients. Use [async function calls](functions.md#2-asynchronous-functions) when work needs a durable queue, and the [Guided Tour](guided-tour.md#5-publish-an-event) to observe fan-out in the UI.
+Connected WebSocket subscribers receive events through their registered clients.
+An ingress node discovers all owners in the Raft-backed directory and performs
+bounded owner-group fan-out, delivering once to each selected connection without
+calling public event routes recursively. Individual failures are logged; partial
+fan-out is not automatically replayed and there is no exactly-once guarantee.
+One client connection is sufficient across the cluster. Use [async function calls](functions.md#2-asynchronous-functions) when work needs a durable queue, and the [Guided Tour](guided-tour.md#5-publish-an-event) to observe fan-out in the UI.
 
 ## 4. Example
 ```bash

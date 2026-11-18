@@ -1,0 +1,296 @@
+{
+  "source": "358539344c76220d6872737cb3f5e20de12b6e15",
+  "main_workflow_run": 43986623561,
+  "dashboard_workflow_run": 43986623305,
+  "reliability_workflow_run": 43986623162,
+  "job": 133716322953,
+  "artifact": 14286935445,
+  "task": {
+    "id": "AaHm57uJQTYjdua-nDVI",
+    "type": "REPORT",
+    "componentId": "AaG7Vz5R2NabkLtq81dP",
+    "componentKey": "SlimPlanet_SlimFaas",
+    "componentName": "SlimFaas",
+    "componentQualifier": "TRK",
+    "analysisId": "45a99a1a-c53b-47c7-85c4-cf9d296864fe",
+    "status": "SUCCESS",
+    "submittedAt": "2026-11-17T00:28:29+0000",
+    "submitterLogin": "guillaume-chervet@github",
+    "startedAt": "2026-11-17T00:28:29+0000",
+    "executedAt": "2026-11-17T00:28:35+0000",
+    "executionTimeMs": 6165,
+    "logs": false,
+    "hasScannerContext": true,
+    "organization": "slimplanet",
+    "pullRequest": "506",
+    "warningCount": 2,
+    "warnings": []
+  },
+  "scope_boundary_passed": true,
+  "analyzed_pr_files": 360,
+  "coverage": {
+    "src/SlimData/QueueElementExtensions.cs": {
+      "coverage": "99.3",
+      "lines_to_cover": "144",
+      "uncovered_lines": "1"
+    },
+    "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.cs": {
+      "scope": "Unchanged file omitted by the PR API; project submission checked separately"
+    },
+    "client/python/slimfaas-client/src/slimfaas_client/_client.py": {
+      "coverage": "69.3",
+      "lines_to_cover": "322",
+      "uncovered_lines": "99"
+    }
+  },
+  "submitted_projects": {
+    "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimFaasMcp/SlimFaasMcp.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaas.Tests/SlimFaas.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "client/dotnet/SlimFaasClient/tests/SlimFaasClient.Tests/SlimFaasClient.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimFaasKafka/SlimFaasKafka.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaasKafka.Tests/SlimFaasKafka.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaasMcp.Tests/SlimFaasMcp.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimData/SlimData.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimFaas/SlimFaas.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "true"
+    },
+    "tests/SlimData.Tests/SlimData.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    }
+  },
+  "excluded_projects": [
+    "benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj",
+    "benchmarks/SlimFaas.CollectionProbe/SlimFaas.CollectionProbe.csproj",
+    "tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj",
+    "docs/reliability/2026-11-12/socket-memory-probe/SocketMemoryProbe.csproj"
+  ],
+  "windows_coverage_tests": {
+    "passed": 2459,
+    "failed": 0,
+    "skipped": 0,
+    "live_journal_reader_sharing_fix": "PASS"
+  },
+  "coverage_import": {
+    "main_files_with_coverage": 301,
+    "total_files": 543,
+    "test_files": 242
+  },
+  "workflows": "All three workflows complete successfully, including Windows Sonar test job, multi-platform AOT/native bundles/container builds, native local persistent restart, documentation and reliability. Conditional publication/deployment jobs skipped.",
+  "external_quality_gate": {
+    "check_run": 133720755617,
+    "result": "failure",
+    "security_rating_on_new_code": "D",
+    "reliability_rating_on_new_code": "C",
+    "note": "Independent from scanner scope, coverage and test acceptance; findings not waived or excluded."
+  },
+  "license_compliance": "success;All checks passed; no dependency/lockfile change in the routing delivery.",
+  "jobs": [
+    {
+      "id": 133716322533,
+      "name": "Unit Tests",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133716322953,
+      "name": "SonarCloud",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133716323037,
+      "name": "Native local smoke and persistent restart",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133716325088,
+      "name": "deploy_website",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 133718651605,
+      "name": "tags",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718728945,
+      "name": "build_slimfaas_aot (macos-15, osx-arm64, SlimFaas-osx-arm64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718728986,
+      "name": "build_slimfaas_aot (ubuntu-24.04, linux-x64, SlimFaas-linux-x64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729035,
+      "name": "build_slimfaas_aot (macos-15-intel, osx-x64, SlimFaas-osx-x64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729056,
+      "name": "build_slimfaas_aot (ubuntu-24.04-arm, linux-arm64, SlimFaas-linux-arm64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729062,
+      "name": "build_slimfaas_aot (windows-latest, win-x64, SlimFaas-win-x64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729131,
+      "name": "build_slimfaas_mcp_aot (ubuntu-latest, linux-x64, SlimFaasMcp-linux-x64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729167,
+      "name": "build_slimfaas_mcp_aot (macos-15-intel, osx-x64, SlimFaasMcp-osx-x64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729171,
+      "name": "build_slimfaas_mcp_aot (windows-latest, win-x64, SlimFaasMcp-win-x64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729222,
+      "name": "build_slimfaas / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729233,
+      "name": "build_slimfaas_mcp_aot (macos-15, osx-arm64, SlimFaasMcp-osx-arm64.zip)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729295,
+      "name": "build_fibonacci_webapp / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729344,
+      "name": "build_slimfaas_dotnet / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729427,
+      "name": "build_fibonacci_batch / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729447,
+      "name": "build_fibonacci_api / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729467,
+      "name": "build_slimfaas_kafka / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729468,
+      "name": "build_fibonacci_mcp / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729504,
+      "name": "build_fibonacci_kafka_producer / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718729763,
+      "name": "build_fibonacci_kafka_listener / build",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 133718730391,
+      "name": "change_log",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 133718730535,
+      "name": "build_slimfaas_planet_saver",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 133727221972,
+      "name": "publish_native_release",
+      "status": "completed",
+      "conclusion": "skipped"
+    }
+  ],
+  "retained_files_sha256": {
+    "artifacts/pr506/ci/sonar-358-boundary.zip": "869fb4e02b3f815c4ab546e80d438c0b6c1465b62bd333fc96a95fe4275c612a",
+    "artifacts/pr506/ci/sonar-358-job.log": "9e1bd4babcd7f5876524d54f10941d5bd7ddcabcea9d3a4117a5401dcf6fcdb8",
+    "artifacts/pr506/ci/ci-358-jobs.json": "26de984a798b06b39728dfa919b007490ae4701af8d8536e88466e30688ae708",
+    "artifacts/pr506/ci/sonar-358-boundary/completed-scan.json": "40a57046c1cb2e4670b799980dbacafd77682cca2ede07d5154004977d4364be",
+    "artifacts/pr506/ci/sonar-358-boundary/inventory.json": "32c4130ff85a6847d73e0650204412115d7fabaac57039f62e576372e3bb3bbc",
+    "artifacts/pr506/ci/sonar-358-boundary/scanner-end.log": "f9b230f1e241f6092dbc5dc35d57753d35f4b6d9b3f868c0be9d461ef37cb1eb",
+    "artifacts/pr506/ci/sonar-358-boundary/submitted-projects.json": "b21655fe90c00d6e39e4c864f4517080f5fd0c478887b0e06fc6abb57f137ff9"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "source_commit": "a95d49e8cd48c433e482a724e5f0c77c7ea29eb5",
+  "runtime_sha256": "1f2ea78a7db8f945a0b69b86eeab616eb576fef78624f3f9f180b3b5dc8e05c4",
+  "runtime_bytes": 72996352,
+  "native_product_version": "1.0.0+a95d49e8cd48c433e482a724e5f0c77c7ea29eb5",
+  "compiler_options": {
+    "IlcGenerateDgmlFile": false,
+    "IlcGenerateMstatFile": false,
+    "IlcSingleThreaded": true
+  },
+  "attempts": [
+    {
+      "log": "leader-event-aot-publish.log",
+      "exit_code": 1,
+      "note": "Compiler object write reported ENOSPC; no capacity trace was collected.",
+      "log_sha256": "389750594fcee70696c4bf67b0438a79fd3b4be73ae9eb8e6725257c5a2d9377",
+      "source_commit": "4e80c9a19f3f5e2a633f23ad00b510e8b25676dc"
+    },
+    {
+      "log": "final-a95-aot-publish.log",
+      "exit_code": 1,
+      "note": "Same 316317819-byte incomplete object; free space after exit alone did not reveal the transient peak.",
+      "log_sha256": "34159801871a36548ac4ba1536285e7afd975d2f83ff858b15236782f55b1da6",
+      "source_commit": "a95d49e8cd48c433e482a724e5f0c77c7ea29eb5"
+    },
+    {
+      "log": "final-a95-aot-plain-publish.log",
+      "exit_code": 1,
+      "note": "Uncompressed 472977837-byte object completed; optional mstat emission failed. Capacity trace reached actual ENOSPC. Compression alone does not explain the failure.",
+      "log_sha256": "5daa6c80574fd533a690bce3475ba21c59f1bc3c7d663b0521ab03c63045a8ba",
+      "capacity_file": "final-a95-plain-capacity.jsonl",
+      "capacity_sha256": "7aee47e8eb9182e562be409941225e28346d0718bc937a87e4f43cdb5833e71a",
+      "minimum_free_bytes": 57344,
+      "first_sample": {
+        "utc": 1794184382.2882507,
+        "free_bytes": 4279726080
+      },
+      "last_sample": {
+        "utc": 1794184673.5478806,
+        "exit_code": 1,
+        "free_bytes": 3767599104
+      },
+      "source_commit": "a95d49e8cd48c433e482a724e5f0c77c7ea29eb5"
+    },
+    {
+      "log": "final-a95-aot-minimal-publish.log",
+      "exit_code": 0,
+      "note": "Successful standard publish with optional DGML/mstat disabled and one compiler thread. Runtime code unchanged.",
+      "log_sha256": "7e33c6320d5fa813b9bdffa72b0df9a4ec7cf9c867a3dd4931362307eed5e91c",
+      "capacity_file": "final-a95-minimal-capacity.jsonl",
+      "capacity_sha256": "f46cf9c417752aa3fc7be59cac55b188f2990b7d3b0e0f6f15fe83071d909eaf",
+      "minimum_free_bytes": 65773568,
+      "first_sample": {
+        "utc": 1794184906.0678334,
+        "free_bytes": 4318486528
+      },
+      "last_sample": {
+        "utc": 1794185311.2286134,
+        "exit_code": 0,
+        "free_bytes": 2996359168
+      },
+      "source_commit": "a95d49e8cd48c433e482a724e5f0c77c7ea29eb5"
+    }
+  ],
+  "inactive_symbols": {
+    "archive": "C:\\github\\SlimFaas\\artifacts\\slimdata-lts\\inactive-native-symbols.zip",
+    "bytes": 900364105,
+    "sha256": "f74bbed3367e14d61d538a10a9ddb7a69ce8ed1a8c526cb9c6e58436c174a70c",
+    "symbol_files": 15,
+    "free_bytes_after": 3639627776,
+    "note": "Original symbol bytes verified before releasing indexed build-only PDBs. Runtime executables and all campaign volumes were untouched.",
+    "index_sha256": "0d948f36d922e7426db2b8ae2056a236afb1107f8cbafb6fb21aa8f9a66edda0"
+  },
+  "note": "Build-environment evidence, separate from runtime recovery. All campaign volumes and published executables were retained. Indexed inactive PDB bytes were archived and verified before releasing their working copies. The successful build still had little transient staging margin."
+}

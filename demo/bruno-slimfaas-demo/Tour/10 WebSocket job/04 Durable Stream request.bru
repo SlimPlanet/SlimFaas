@@ -1,0 +1,52 @@
+meta {
+  name: Verify Stream processing and exact worker ACK over WebSocket
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/publish-stream/{{wsStream}}/tour/ws/{{wsFunction}}/stream
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":10,"nonce":"{{wsFunction}}-stream"}
+}
+
+tests {
+  test("The worker processes and acknowledges the exact retained publication", async function () {
+    expect(res.getStatus()).to.equal(202);
+    const message = res.getBody().MessageId;
+    expect(message).to.match(/^[a-f0-9]+_[0-9]{20}$/);
+    bru.setVar("wsMessageId", message);
+    const sequence = Number(message.split("_").pop()), base = bru.getEnvVar("baseUrl");
+    const name = bru.getVar("wsFunction"), stream = bru.getVar("wsStream"), deadline = Date.now() + 180000;
+    let complete = false;
+    do {
+      const proof = await bru.sendRequest({ method: "GET", url: base + "/data/sets/" + name + "-stream" }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+      if (proof.status === 200) {
+        const body = typeof proof.data === "string" ? JSON.parse(proof.data) : proof.data;
+        expect(body.function).to.equal(name);
+        expect(body.nonce).to.equal(name + "-stream");
+        expect(body.streamName).to.equal(stream);
+        expect(body.messageId).to.equal(message);
+        expect(body.elementId).to.be.a("string").and.not.empty;
+        expect(body.result).to.equal(55);
+        const subscriptions = await bru.sendRequest({ method: "GET", url: base + "/data/streams/" + stream + "/functions" });
+        expect(subscriptions.status).to.equal(200);
+        complete = subscriptions.data.Items.some(item => item.Function === name && item.Active && item.AcknowledgedThrough >= sequence);
+        if (complete) break;
+      }
+      await bru.sleep(500);
+    } while (Date.now() < deadline);
+    expect(complete, "202 alone is not worker processing/ACK success").to.equal(true);
+  });
+}

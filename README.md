@@ -12,9 +12,15 @@
 
 <div align="center">
 
+[![Live Stream dashboard showing a cold start, queued work and two kinds of message delivery](docs/media/live-stream/preview.gif)](https://slimfaas.dev/#live-stream-dashboard)
+
+[Watch the narrated video (MP4)](docs/media/live-stream/dashboard.mp4) · [English transcript](docs/media/live-stream/transcript.txt) · [Reproduce the recording](demo/live-stream-video)
+
 ### Start exploring
 
 Choose [Kubernetes](docs/get-started-kubernetes.md), [native local processes](docs/get-started-local.md), or [Docker Compose](docs/get-started-docker-compose.md). Open the built-in dashboard and follow the [Guided Tour](docs/guided-tour.md) with cURL or the [Bruno collection](demo/bruno-slimfaas-demo). Find all runtime routes in the [API Reference](docs/api-reference.md).
+
+Source builds and the .NET client require **.NET SDK 11.0.100 or a newer stable .NET 11 SDK**. Frontend builds use **Node 26 LTS** and **pnpm 12.18.0** where applicable. The NuGet client now targets `net11.0` only; see [client compatibility](docs/clients.md#runtime-compatibility).
 
 The [precompiled local demo](docs/get-started-local.md) packages the dashboard, functions and jobs without requiring a .NET or Node installation. It requires a release containing the new `SlimFaas-Local-*` bundles; source-based development remains available in [Local Mode](docs/native-local-mode.md).
 
@@ -48,10 +54,11 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
 - `N → M` scaling powered by PromQL, plus opt-in `0 → N` wake-up from independent OpenMetrics exporters,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
-- built-in **User Interface** at the SlimFaas root address to see functions, jobs, queues, and real-time messages.
+- built-in **User Interface** at the SlimFaas root address to see functions, jobs, nearby queues, Streams, and real-time messages, including Data API journeys and store counts/volumes.
 - **[Scaling diagnostics and playground](docs/user-interface.md#scaling-diagnostics-and-playground)** to explain live decisions and preview changes without modifying production.
 - temporary **Data Files** endpoints to ingest and stage binaries (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 - temporary **Data Sets** endpoints (`/data/sets`) to store small, Redis-like KV payloads (cache, JSON state, flags) with optional TTL — replicated through the cluster via a robust consensus layer.
+- opt-in **[Dead Letter Queues](docs/async-functions.md#dead-letter-queues)** to retain terminal async failures, inspect original payloads, and requeue safely through private-by-default APIs and an optional dashboard page.
 
 
 ---
@@ -164,10 +171,6 @@ Ideal for **agentic workflows** and **real-time ingestion**: upload once, get an
     - AOT-friendly design,
     - minimal dependency surface.
 
-<div align="center">
-  <img src="docs/slim-faas-ram-cpu.png" alt="SlimFaas CPU RAM" />
-</div>
-
 ---
 
 ## Ready to Get Started?
@@ -185,9 +188,10 @@ Check out:
     - [User Interface](docs/user-interface.md) – Monitor functions, queues, jobs, and real-time messages.
     - [Clients](docs/clients.md) – Integrate SlimFaas with .NET and Python applications.
     - [Events](docs/events.md) – Use internal publish/subscribe events.
+    - [Streams](docs/streams.md) - Durable events, retained history, and independent HTTP/WebSocket function consumption.
     - [Jobs](docs/jobs.md) – Define, schedule, and run one-off jobs.
     - [OpenTelemetry](docs/opentelemetry.md) – Enable distributed tracing, metrics, and logs.
-    - [Benchmarks](docs/benchmarking.md) – Measure sync overhead, async delivery latency, and native-local scaling speed.
+    - [Benchmarks](docs/benchmarking.md) – Measure sync/async, data, Files, Streams, Jobs and WebSocket throughput, CPU/RAM, latency and native-local scaling; export campaign tables offline.
 - Data & Files
     - [Data Files](docs/data-files.md) – Ingest, store, and serve temporary binary artifacts.
     - [Data Sets](docs/data-sets.md) – Store replicated, Redis-like key-value payloads with optional TTL.
@@ -197,6 +201,7 @@ Check out:
 
 - [Local three-node orchestrator](docs/local-orchestrator.md)
 - [Memory profiling](docs/memory-profiling.md)
+- [ZLinq JIT and Native AOT measurements on Apple M4 Pro](docs/performance-benchmarks-m4.md)
 - [Unified SlimData mutation batching](docs/slimdata-unified-batching.md)
 - [SlimData batch modes](docs/slimdata-batch-modes.md)
 - [Environment-variable breaking changes](docs/BREAKING_CHANGES_ENVIRONMENT_VARIABLES.md)
@@ -248,7 +253,7 @@ Add your logo via a pull request:
 
 ### Live operational dashboard
 
-The embedded [SlimFaas dashboard](docs/user-interface.md) pairs a compact infrastructure overview with a zoomable canvas traffic map for jobs, replicas and functions. Its Data tab streams keys, TTL and file sizes without reading stored contents. Traffic identifies the Raft leader and each visible replica destination; an opt-in log viewer follows managed functions, jobs and SlimFaas nodes with bounded, filterable output.
+The embedded [SlimFaas dashboard](docs/user-interface.md) opens on a full-window live traffic map. Select a function to inspect replicas and scaling, a queue to inspect backlog and dead letters, or a Stream to browse history and subscribers. Set and Files open their metadata inventories. Wake a sleeping workload directly on the map, or use **Wake all functions** in the header.
 
 
 ### External metrics autoscaling

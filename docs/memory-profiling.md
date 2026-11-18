@@ -29,6 +29,11 @@ operations. `slimdata-set` measures 4 KiB key/value writes. `slimdata-mixed`
 covers set, delete, increment, hashset, hash delete, and asynchronous calls
 that exercise queue push, pop, and callback.
 
+When using `SlimFaas.MemoryLab load` with another already-running local manifest,
+`--function <name>` selects the sync/async target (default `memory-function`).
+The [JIT/AOT comparison runner](benchmarking.md#compare-jit-and-native-aot-on-a-new-machine)
+uses this option to share its benchmark target with the data workloads.
+
 The script:
 
 1. Publishes SlimFaas in the selected mode.

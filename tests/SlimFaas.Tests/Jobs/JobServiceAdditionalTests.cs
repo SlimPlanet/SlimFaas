@@ -92,7 +92,7 @@ public class JobServiceAdditionalTests
         // Arrange – éléments en attente
         List<QueueData> queued = new() { FakeQueueItem("q‑1"), FakeQueueItem("q‑2") };
         _queue.Setup(q => q.CountElementAsync(
-                "Public",
+                "public",
                 It.IsAny<List<CountType>>(), It.IsAny<int>()))
             .ReturnsAsync(queued);
 
@@ -135,7 +135,7 @@ public class JobServiceAdditionalTests
         _kube.Setup(k => k.ListJobsAsync(Ns)).ReturnsAsync(new List<Job>());
         List<QueueData> queued = new() { FakeQueueItem("q‑1"), FakeQueueItem("q‑2") };
         _queue.Setup(q => q.CountElementAsync(
-                "Public",
+                "public",
                 It.IsAny<List<CountType>>(), It.IsAny<int>()))
             .ReturnsAsync(queued);
         await _svc.SyncJobsAsync();
@@ -156,7 +156,7 @@ public class JobServiceAdditionalTests
         _kube.Setup(k => k.ListJobsAsync(Ns)).ReturnsAsync([job]);
         List<QueueData> queued = new() { FakeQueueItem("q‑1"), FakeQueueItem("q‑2") };
         _queue.Setup(q => q.CountElementAsync(
-                "Public",
+                "public",
                 It.IsAny<List<CountType>>(), It.IsAny<int>()))
             .ReturnsAsync(queued);
 

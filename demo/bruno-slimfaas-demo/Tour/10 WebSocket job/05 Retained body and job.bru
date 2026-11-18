@@ -1,0 +1,23 @@
+meta {
+  name: ACK keeps history and the job remains running
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/data/streams/{{wsStream}}/messages/{{wsMessageId}}/body
+  body: none
+  auth: none
+}
+
+tests {
+  test("The original body is retained after ACK and the exact new job is still running", async function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().nonce).to.equal(bru.getVar("wsFunction") + "-stream");
+    expect(res.getBody().input).to.equal(10);
+    const response = await bru.sendRequest({ method: "GET", url: bru.getEnvVar("baseUrl") + "/status-jobs" });
+    expect(response.status).to.equal(200);
+    const configuration = response.data.find(item => item.Name === "fibonacci-ws");
+    expect(configuration.RunningJobs.some(item => item.ElementId === bru.getVar("wsJobId") && item.Status === "Running")).to.equal(true);
+  });
+}

@@ -7,6 +7,28 @@ SlimFaas lets you run **one‑off, batch, and scheduled (cron) jobs** either on�
 
 ## From a trigger to a completed job
 
+Native local nodes load the manifest's job configuration before accepting
+requests. They do not invent a `Default` executable: unknown job/schedule names
+are rejected unless a default command is explicitly declared. This closes the
+post-restart configuration-refresh window in which a valid job could previously
+be accepted into the wrong queue. It does not reconstruct a job already routed
+to `Default` by an older runtime; reconcile those entries with the original caller
+journal. See [native local Jobs](native-local-mode.md#jobs).
+
+Job creation uses a durable queue reservation with a 120-second timeout and
+bounded retry delays of 2, 4, 8, 16 and 32 seconds. A worker crash after reservation
+and before creating the orchestrator job expires that reservation as HTTP 504;
+504 is retryable, so a replacement worker can create the accepted job.
+The stable job name makes repeated creation requests idempotent in the local
+supervisor. Application jobs should still tolerate at-least-once execution.
+
+Earlier versions omitted 504 from this internal retry policy. A reservation
+timeout could therefore evict an accepted job before any process was created.
+The correction applies to newly enqueued jobs. Existing queued entries retain
+their persisted retry policy; review/drain them before a disruptive upgrade.
+An entry already evicted by the old policy cannot be recovered from a compacted
+queue solely by installing this correction; reconcile it with the caller's log.
+
 HTTP requests and schedules feed the same job execution path. A job configuration supplies the executable/image, dependencies, concurrency and retry limits; it is distinct from each execution created from that configuration.
 
 ```mermaid
@@ -25,7 +47,16 @@ flowchart TD
     Failed --> Retention
 ```
 
-In the dashboard, **Jobs Overview** shows configurations and running work. List executions with `GET /job/name` and create/delete your own schedules in the [job exercise](guided-tour.md#6-run-jobs-and-manage-schedules). CPU/memory resource limits depend on the orchestrator; native local processes do not enforce container limits.
+In the dashboard, **Jobs Overview** shows configurations, queued and running work, and the live traffic map shows executions entering and leaving each job queue. List executions with `GET /job/name` and create/delete your own schedules in the [job exercise](guided-tour.md#6-run-jobs-and-manage-schedules). CPU/memory resource limits depend on the orchestrator; native local processes do not enforce container limits.
+
+The map places only job queues left of SlimFaas: **job ← job:queue ← SlimFaas**,
+including known empty queues. The existing demo's independent `fibonacci-ws`
+configuration runs a persistent WebSocket worker with no dependencies. Each
+[WebSocket job tour](guided-tour.md#10-run-an-independent-websocket-job) creates
+a fresh execution/identity/Stream and verifies sync, async and Stream processing.
+The two-job limit includes these running workers; they require explicit deletion
+before further runs. `TtlSecondsAfterFinished` applies only after a job finishes,
+not as a running-worker lifetime.
 
 ### Recovery after a temporary SlimData interruption
 
@@ -275,15 +306,34 @@ You can also define **cron schedules** for jobs under the `"Schedules"` key. Eac
 }
 ```
 | **Field**     | **Description**                                                                                                                                                                            |
+In native local mode, a job with no additional arguments runs the manifest command as configured. A job that cannot start follows its retry policy and leaves the supervisor available for other jobs.
+
 | -------------- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Schedule**   | A standard 5‑field cron expression (`m h dom mon dow`). See the [Kubernetes CronJob documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) for full details. |
-| **Args**       | Arguments to pass to the job when it runs. Override default args defined in the job configuration.                                                                                         |
+| **Schedule**   | A standard 5‑field cron expression (`m h dom mon dow`). See [Cron expression syntax](#cron-expression-syntax) and the [Kubernetes CronJob documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/). |
+| **Args**       | Additional arguments passed to the job. Omit this field or use an empty array to pass no additional arguments.                                                                                         |
 | **DependsOn**  | Optional list of dependencies that must be ready before the scheduled job runs. Override default dependencies defined in the job configuration.                                            |
 | **Resources**   | Optional overrides for resource requests/limits, merging with the job configuration defaults.                                                                                              |
 | **Environments** | Optional environment variables to inject into the job container, merging with the job configuration defaults.                                                                              |
+| **TimeZone**     | Optional IANA time zone ID (e.g. `Europe/Paris`) in which the cron expression is evaluated. Defaults to `UTC`. See [Schedule time zones](#52-schedule-time-zones).                         |
 | **BackoffLimit** | Optional override for the number of retries allowed if the job fails. Defaults to the job configuration value.                                                                             |
 | **TtlSecondsAfterFinished** | Optional override for how long to keep job resources after completion. Defaults to the job configuration value.                                                                            |
 | **RestartPolicy** | Optional override for the restart policy of the job pods. Defaults to the job configuration value.                                                                                         |
+
+#### Cron expression syntax
+
+The five fields are `minute` (`0-59`), `hour` (`0-23`), `day of month` (`1-31`), `month` (`1-12`) and `day of week` (`0-6`, Sunday = `0`; `7` is also accepted for Sunday). Each field is `*` or a comma-separated list of:
+
+* a value: `5`;
+* a range: `9-17`;
+* a step over the whole field, a range or from a value to the end of the field: `*/15` (0, 15, 30, 45), `10-40/20` (10, 30) and `5/15` (5, 20, 35, 50). `0/n` is the same as `*/n` in every field.
+
+Names (`MON`, `JAN`), `?`, `L`, `W`, `#` and macros such as `@daily` are not supported. A malformed expression, a value outside its field, a reversed range or a step of `0` is rejected: `POST /job-schedules/<jobName>` returns `400 Bad Request` and `slimfaas local validate` reports the schedule as invalid.
+
+> **Upgrading:** earlier versions parsed some expressions differently. Audit existing schedules (dynamic schedules, `SlimFaas__JobsConfiguration` and `SlimFaas/Schedules` annotations) before upgrading:
+>
+> * An expression that earlier versions accepted but that is now invalid, such as the out-of-range hour in `0 0-24 * * *`, raises no error once it is already configured or stored: the schedule silently stops running and `GET /status-jobs` shows its `NextExecutionTimestamp` as `null`.
+> * `N/step` with `N` other than `0` now runs from `N` to the end of the field: `5/15 * * * *` runs four times per hour (minutes 5, 20, 35 and 50) instead of once at minute 5.
+> * `7` in the day-of-week field now means Sunday, so `1-7` includes Sunday.
 
 ### Default configuration values
 
@@ -404,6 +454,7 @@ Each entry is merged with the CronJob's own configuration, so fields you omit ar
 | **Resources**               | No           | CPU/memory requests and limits override.                                                         | Inherited from `containers[0].resources`    |
 | **Environments**            | No           | Environment variables to inject.                                                                 | Inherited from `containers[0].env`          |
 | **DependsOn**               | No           | Deployments/StatefulSets that must be ready before this schedule fires.                          | Inherited from `SlimFaas/DependsOn` annotation |
+| **TimeZone**                | No           | IANA time zone ID in which `Schedule` is evaluated. See [Schedule time zones](#52-schedule-time-zones). | `UTC`                                       |
 
 > **Tip:** Schedules declared via the `SlimFaas/Schedules` annotation are merged at synchronisation time with any schedules defined in `SlimFaas__JobsConfiguration`. This lets you keep recurring schedules close to the workload definition (in the CronJob manifest) while still being able to add dynamic schedules at runtime via the `/job-schedules` API.
 
@@ -535,7 +586,8 @@ Request body for **`POST`**
   "Environments": [],
   "BackoffLimit": 1,
   "TtlSecondsAfterFinished": 100,
-  "RestartPolicy": "Never"
+  "RestartPolicy": "Never",
+  "TimeZone": "Europe/Paris"           // optional — IANA time zone ID, defaults to UTC
 }
 ```
 
@@ -559,6 +611,11 @@ curl -i -X DELETE "$BASE_URL/job-schedules/fibonacci/$SCHEDULE_ID"
 ### 5.1 Backup & Restore of Dynamic Schedules
 
 Dynamic schedules (created at runtime via `POST /job-schedules`) are stored in the internal SlimData Raft database. Deleting Raft storage also deletes these schedules. Export the schedules before a planned storage reset; ordinary follower recovery should preserve storage.
+
+Dynamic schedule listing uses a Raft read barrier, including on followers. A read
+after a successful create/delete observes that committed change. If quorum is
+unavailable, listing reports an availability error instead of serving a stale
+local HashSet. This also applies to other internal HashSet consumers.
 
 To prevent data loss, SlimFaas can **automatically back up** all dynamic schedule data to a **separate volume** and **restore** it on cold start when the database is empty.
 
@@ -631,6 +688,37 @@ volumes:
   slimfaas_data:
   slimfaas_backup:
 ```
+
+### 5.2 Schedule time zones
+
+By default, the five cron fields are evaluated in **UTC**, whatever the time zone of the SlimFaas pod or Kubernetes node. Add an optional `TimeZone` to evaluate a schedule in another time zone. It is accepted by `POST /job-schedules/<jobName>`, by the `Schedules` entries of `SlimFaas__JobsConfiguration` and by the `SlimFaas/Schedules` annotation:
+
+```bash
+curl -fsS -X POST "$BASE_URL/job-schedules/fibonacci" \
+  -H 'Content-Type: application/json' \
+  --data '{"Schedule":"0 8 * * 1-5","Args":["10"],"TimeZone":"Europe/Paris"}'
+```
+
+This job runs at 08:00 in Paris on weekdays: 07:00 UTC in winter and 06:00 UTC in summer.
+
+* `TimeZone` is an [IANA time zone ID](https://nodatime.org/TimeZones) such as `Europe/Paris`, `America/New_York`, `Asia/Tokyo` or `UTC`. IDs are case-sensitive. Fixed offsets such as `+01:00` are not accepted because they ignore daylight-saving time.
+* The time zone database is embedded in SlimFaas (NodaTime TZDB), so the result does not depend on the `tzdata` installed in the container or on the node.
+* The time zone is stored with the schedule and returned by `GET /job-schedules/<jobName>`. Schedules created without `TimeZone` keep running in UTC.
+* Schedules without `TimeZone` are stored exactly as in earlier versions, so upgrading keeps their identifiers and execution tracking. Set a `TimeZone` only once every SlimFaas node runs a version that supports it, and remove every `TimeZone` (dynamic schedules, `SlimFaas__JobsConfiguration` and `SlimFaas/Schedules` annotations) before downgrading: earlier versions fail to read dynamic schedules that have one and evaluate the other schedules in UTC.
+* An unknown time zone is rejected with `400 Bad Request`:
+
+  ```json
+  {"error":"invalid_timezone","message":"The timezone 'Invalid/Timezone' is not a valid IANA timezone."}
+  ```
+
+  Native local manifest validation reports the same error for the `SlimFaas/Schedules` annotation. In Kubernetes, a schedule from `SlimFaas__JobsConfiguration` or the `SlimFaas/Schedules` annotation with an unknown time zone never runs, like a schedule with an invalid cron expression.
+
+**Daylight-saving time.** SlimFaas checks the local wall-clock time of every minute in the schedule time zone:
+
+* A local time skipped when clocks move forward does not run that day. In Paris, `30 2 * * *` does not run on the last Sunday of March because local time jumps from 02:00 to 03:00.
+* A local time repeated when clocks move back runs at each occurrence. In Paris, `30 2 * * *` runs twice on the last Sunday of October, at 00:30 and 01:30 UTC.
+
+Schedule fixed-time jobs outside the transition hour (usually between 01:00 and 03:00 local time) when they must run exactly once a day.
 
 ---
 

@@ -16,4 +16,8 @@ public record Job(
     IList<string> DependsOn,
     string ElementId,
     long InQueueTimestamp,
-    long StartTimestamp);
+    long StartTimestamp)
+{
+    public string? Lifecycle { get; init; }
+    public PodRequests? Requests { get; init; }
+}

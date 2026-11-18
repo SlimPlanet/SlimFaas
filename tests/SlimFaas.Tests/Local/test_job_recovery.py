@@ -4,7 +4,7 @@
 Requires Linux/macOS, Python 3, lsof and a built SlimFaas runtime. Runs an isolated
 three-node cluster with temporary state and loopback ports. Usage from the repo:
     python3 tests/SlimFaas.Tests/Local/test_job_recovery.py [path/to/SlimFaas]
-The default runtime is the Debug net10.0 DLL. The script also acts as its own job
+The default runtime is the Debug net11.0 DLL. The script also acts as its own job
 workload; no external function, Kubernetes cluster or container engine is needed.
 """
 import importlib.util
@@ -76,7 +76,7 @@ def leader(raft_ports, excluded=None):
             pass
     return None
 
-runtime = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / 'src/SlimFaas/bin/Debug/net10.0/SlimFaas.dll'
+runtime = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / 'src/SlimFaas/bin/Debug/net11.0/SlimFaas.dll'
 command = ['dotnet', str(runtime)] if runtime.suffix == '.dll' else [str(runtime)]
 with tempfile.TemporaryDirectory(prefix='slimfaas-job-recovery-') as temporary:
     root = Path(temporary)

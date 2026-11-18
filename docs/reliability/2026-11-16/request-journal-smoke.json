@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "finished": 1794866162.9039848,
+  "driver_sha256": "f597c090db32e0781440b4a01bf9a621c5c91997ea77d784ac3ea0f4a8a42b32",
+  "commands": [
+    "dotnet",
+    "/Users/a115vc/Desktop/github/SlimFaas-pr506/tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll",
+    "load",
+    "--scenario",
+    "sync",
+    "--duration",
+    "2",
+    "--concurrency",
+    "2",
+    "--payload-bytes",
+    "196608",
+    "--target-rps",
+    "8",
+    "--node-urls",
+    "http://127.0.0.1:50428",
+    "--key-prefix",
+    "journal-smoke",
+    "--journal-directory",
+    "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/validation/request-journal-tcp-02/requests",
+    "--json",
+    "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/validation/request-journal-tcp-02/operations.json"
+  ],
+  "completed": 17,
+  "successful_receipts": 17,
+  "missing": 0,
+  "duplicates": 0,
+  "unknown": 0,
+  "scope": "Real TCP sync measurement/journal/independent fsynced receipt smoke only, no SlimFaas runtime or performance comparison.",
+  "files": {
+    "driver.log": "305571bd8aa9a915b3cfc30f7a707364b5251dc8bc6fe274a074ea39e2fca672",
+    "operations.json": "ecc15bfada216cef81454bc3c68623549a571701332068c04f143fe5f5d36101",
+    "receipts/receipts-40594-271f4bd4b4af43d792229bf5b56e1c98.jsonl": "a6c6aaea84e091922430a7687b7cb96b2b917b63e264bd4e068a5ad7ce76fa63",
+    "requests/requests-40596-b52c7aa7933a4402b05ab2d52e8d6e38.jsonl": "23ce89eaaf624c6d7d08a1fb13595da2490d7d706f48d1e8ddade2f468180a09"
+  }
+}

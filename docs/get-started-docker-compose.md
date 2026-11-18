@@ -27,19 +27,17 @@ mounted Docker socket; this demo is intended for a local development engine.
 
 ## Build and start
 
-The tutorial overlay extends the repository's Compose example with the remaining Fibonacci functions and correct callback addresses. Build the job image first, then start only the core services. The first command builds **FibonacciBatch**, the program executed by jobs created through the SlimFaas API. These job containers are created on demand, so `docker compose up` does not build their image. The tag `slimfaas-tour-batch:local` must match `Configurations.fibonacci.Image` in the overlay. The final `.` supplies the repository root as the build context because FibonacciBatch also references the .NET client under `client/dotnet/SlimFaasClient`.
+The base Compose file includes all four Fibonacci functions, callback addresses, DLQ capture and both `orders` Stream subscriptions. Build the job image first, then start only the core services. The first command builds **FibonacciBatch**, the program executed by jobs created through the SlimFaas API. These job containers are created on demand, so `docker compose up` does not build their image. The tag `slimfaas-tour-batch:local` must match `Configurations.fibonacci.Image` in `docker-compose.yml`. The final `.` supplies the repository root as the build context because FibonacciBatch also references the .NET client under `client/dotnet/SlimFaasClient`.
 
 ```bash
 docker build -f samples/FibonacciBatch/Dockerfile -t slimfaas-tour-batch:local .
-docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
-docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml logs -f slimfaas
+docker compose up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
+docker compose logs -f slimfaas
 ```
 
-The explicit service list leaves Kafka, its connector and Jaeger for their own guides. The overlay enables the data APIs for the tour and configures the `fibonacci` job to use the image built above. Its `fibonacci1` dependency also provides a network for the job.
+The explicit service list leaves Kafka, its connector and Jaeger for their own guides. The base configuration enables the data APIs for the tour and configures the `fibonacci` job to use the image built above. Its `fibonacci1` dependency also provides a network for the job.
 
-The overlay replaces the complete jobs configuration, including the required
-default resource requests and limits (`400m` CPU and `400Mi` memory for this demo).
-Keep those defaults when adapting the job configuration.
+Keep the configured default job resource requests and limits when adapting the demo.
 
 The Fibonacci image declares its internal HTTP port with `EXPOSE 5000`, allowing
 SlimFaas to discover the port for every function and managed replica. This does
@@ -68,6 +66,15 @@ Expect `200 READY`, the function list and a greeting. Retry readiness while the 
 
 Continue to the [Guided Tour](guided-tour.md). Select **Compose** in Bruno.
 
+The [DLQ repair and durable Streams exercises](guided-tour.md#repair-and-replay-a-dead-letter)
+run by default, without additional Compose files or activation flags.
+The same built FibonacciBatch image also powers the dependency-free
+[persistent WebSocket job](guided-tour.md#10-run-an-independent-websocket-job).
+Every tour creates a new worker; manually delete a previous job before a third run.
+It uses Compose's internal network without an extra host WebSocket port.
+This trusted demo exposes Data, Streams and DLQ management publicly, including body
+inspection, replay and deletion. Do not expose it to untrusted users.
+
 ## Docker socket and Podman
 
 By default the example mounts `/var/run/docker.sock`. For a different socket, set `DOCKER_SOCKET_PATH` to the host socket path before starting Compose; SlimFaas connects to its mounted path through `DOCKER_HOST` inside the container.
@@ -79,7 +86,7 @@ and do not change socket permissions. On macOS:
 
 ```bash
 podman build -f samples/FibonacciBatch/Dockerfile -t slimfaas-tour-batch:local .
-./run-podman-compose.sh -f docker-compose.yml -f demo/docker-compose.get-started.yml up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
+./run-podman-compose.sh -f docker-compose.yml up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
 ```
 
 The batch image must be built on the same engine as the Compose services. The
@@ -99,7 +106,7 @@ cURL commands use Bash; Bruno provides the same requests on Windows.
 | Function stays unhealthy with a missing health-check executable | Rebuild the Fibonacci image and recreate services with the current Compose files. The bundled Bash probe checks for HTTP 200 from `/health` without installing extra packages. |
 | Callback never completes | Confirm `SlimFaas__BaseUrl` is `http://slimfaas:30021` inside the function container. |
 | Job cannot start | Build `slimfaas-tour-batch:local` on the same engine SlimFaas uses. |
-| Data API returns 404 | Start with both Compose files; the overlay enables public data access for this demo. |
+| Data API returns 404 | Use the current base Compose file, which enables public data access for this demo. |
 | A function disappears from Compose's list | SlimFaas creates its own replicas. Inspect the dashboard and `docker ps -a`. |
 
 For Kafka, use the [Kafka guide](kafka.md); for exported traces, see [OpenTelemetry](opentelemetry.md).
@@ -109,13 +116,13 @@ For Kafka, use the [Kafka guide](kafka.md); for exported traces, see [OpenTeleme
 Stop and remove the Compose services:
 
 ```bash
-docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml down
+docker compose down
 ```
 
 With Podman, use the same helper for cleanup:
 
 ```bash
-./run-podman-compose.sh -f docker-compose.yml -f demo/docker-compose.get-started.yml down
+./run-podman-compose.sh -f docker-compose.yml down
 ```
 
 SlimFaas-created replicas and templates can survive Compose cleanup. Before removing any remaining containers, inspect only the demonstrated function labels and names with `docker ps -a`; remove the specific demo containers you identify. Do not use a global container prune.

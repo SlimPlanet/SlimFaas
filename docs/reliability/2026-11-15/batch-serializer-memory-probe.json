@@ -1,0 +1,39 @@
+{
+  "rows": [
+    {
+      "label": "legacy-unbounded",
+      "mode": "legacy",
+      "heap_limit_bytes": null,
+      "exit_code": 0,
+      "output": "mode=legacy;heapLimit=51539607552\nbytes=134220372;sha256=93DAE168AB925248D7388BE2E92DC154F4451755A4F49E267CF2009FD3AD024A;heap=537224112\n",
+      "stderr": "",
+      "log": "logs/batch-response-memory-02-legacy-unbounded.log",
+      "started": 1794735548.2599459,
+      "finished": 1794735548.381252
+    },
+    {
+      "label": "legacy-320mib",
+      "mode": "legacy",
+      "heap_limit_bytes": 335544320,
+      "exit_code": 3,
+      "output": "mode=legacy;heapLimit=335544320\nOutOfMemoryException\n",
+      "stderr": "",
+      "log": "logs/batch-response-memory-02-legacy-320mib.log",
+      "started": 1794735548.3816519,
+      "finished": 1794735548.457391
+    },
+    {
+      "label": "exact-320mib",
+      "mode": "exact",
+      "heap_limit_bytes": 335544320,
+      "exit_code": 0,
+      "output": "mode=exact;heapLimit=335544320\nbytes=134220372;sha256=93DAE168AB925248D7388BE2E92DC154F4451755A4F49E267CF2009FD3AD024A;heap=272702968\n",
+      "stderr": "",
+      "log": "logs/batch-response-memory-02-exact-320mib.log",
+      "started": 1794735548.4578009,
+      "finished": 1794735548.5704992
+    }
+  ],
+  "complete": true,
+  "note": "Isolated managed serializer probe. Legacy mode calls the original API in the same probe, not an unmodified full runtime. Full Kubernetes failures remain separate."
+}

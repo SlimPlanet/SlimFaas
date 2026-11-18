@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -6,6 +6,8 @@ using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
 using SlimData.Commands;
+
+using ZLinq;
 
 namespace SlimData;
 
@@ -158,13 +160,33 @@ public static class SlimDataInterpreter
 
     internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
     {
+        if (!DeadLetterStateMachine.IsManaged(slimDataState, listRightPopCommand.Key))
+        {
+            DoListRightPopCore(listRightPopCommand, slimDataState);
+            return default;
+        }
+        var staged = DeadLetterStateMachine.StageQueue(slimDataState, listRightPopCommand.Key);
+        DoListRightPopCore(listRightPopCommand, staged);
+        slimDataState.Replace(staged.Capture());
+        return default;
+    }
+
+    private static void DoListRightPopCore(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
+    {
+        DeadLetterStateMachine.SweepQueue(slimDataState, listRightPopCommand.Key, listRightPopCommand.NowTicks);
         var queues = slimDataState.Queues;
         if (!queues.TryGetValue(listRightPopCommand.Key, out var queue))
-            return default;
+            return;
 
         var nowTicks = listRightPopCommand.NowTicks;
         var idTransaction = listRightPopCommand.IdTransaction;
         var maximum = listRightPopCommand.Count;
+        string? streamFunction = listRightPopCommand.Key.StartsWith("Queue:", StringComparison.Ordinal)
+            ? listRightPopCommand.Key["Queue:".Length..] : null;
+        var streamCapacity = streamFunction is null ? null :
+            DurableStreamStore.QueueCapacity(slimDataState.CapturePayload(), streamFunction, nowTicks);
+        if (streamCapacity is { } capacity)
+            maximum = Math.Min(maximum, capacity.Available);
 
         // Single pass over the queue: expire the tries that timed out, drop the finished
         // elements, detect an already applied transaction and pick the elements to
@@ -221,22 +243,39 @@ public static class SlimDataInterpreter
         if (!transactionAlreadyApplied)
         {
             var reservedIps = listRightPopCommand.ReservedIps;
+            int replicaIndex = 0;
             for (var i = 0; i < candidateCount; i++)
             {
                 var element = candidates![i];
+                string reservedIp = reservedIps is { Count: > 0 } && i < reservedIps.Count ? reservedIps[i] : string.Empty;
+                if (streamCapacity is { } shared && reservedIps is { Count: > 0 })
+                {
+                    bool available = false;
+                    while (replicaIndex < reservedIps.Count)
+                    {
+                        reservedIp = reservedIps[replicaIndex++];
+                        if (reservedIp.Length > 0 &&
+                            DurableStreamStore.Running(slimDataState.CapturePayload(), streamFunction!, reservedIp) +
+                            queue.Count(item => item.GetState(nowTicks) == QueueElementState.Running &&
+                                item.RetryQueueElements[^1].ReservedIp == reservedIp) >= shared.PerReplica)
+                            continue;
+                        available = true;
+                        break;
+                    }
+                    if (!available)
+                        break;
+                }
+                DeadLetterStateMachine.MarkDispatch(slimDataState, listRightPopCommand.Key, element.Id);
                 var attempt = new QueueHttpTryElement(
                     nowTicks,
                     idTransaction,
-                    reservedIp: reservedIps is { Count: > 0 } && i < reservedIps.Count
-                        ? reservedIps[i]
-                        : string.Empty);
+                    reservedIp: reservedIp);
                 var tries = element.RetryQueueElements;
                 element.RetryQueueElements = tries.IsDefault ? [attempt] : tries.Add(attempt);
             }
         }
 
         slimDataState.Queues = queues.SetItem(listRightPopCommand.Key, queue);
-        return default;
     }
 
     internal static ValueTask DoListLeftPushBatchAsync(ListLeftPushBatchCommand cmd, SlimDataState state)
@@ -288,6 +327,8 @@ public static class SlimDataInterpreter
 
     internal static ValueTask DoListCallbackAsync(ListCallbackCommand cmd, SlimDataState state)
     {
+        if (DeadLetterStateMachine.ApplyCallbacks(state, cmd.Key, cmd.CallbackElements, cmd.NowTicks))
+            return default;
         var queues = state.Queues;
         if (!queues.TryGetValue(cmd.Key, out var queue))
             return default;
@@ -304,6 +345,13 @@ public static class SlimDataInterpreter
 
         foreach (var item in batch.Items)
         {
+            state.Queues = queues;
+            if (item.CallbackElements is { Count: > 0 } &&
+                DeadLetterStateMachine.ApplyCallbacks(state, item.Key, item.CallbackElements, item.NowTicks))
+            {
+                queues = state.Queues;
+                continue;
+            }
             if (!queues.TryGetValue(item.Key, out var queue) || item.CallbackElements is null || item.CallbackElements.Count == 0)
                 continue;
 
@@ -715,30 +763,30 @@ public static class SlimDataInterpreter
         var sessionKey = SlimDataCommandBatchValidator.ProducerSessionKeyPrefix + request.ProducerId;
         if (state.KeyValues.TryGetValue(sessionKey, out var sessionBytes))
         {
-            SlimDataProducerSession? session;
+            SlimDataProducerSessionView? session;
             try
             {
-                session = MemoryPackSerializer.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
+                session = SlimDataProducerSessionCodec.Deserialize(sessionBytes);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
             {
                 throw new InvalidDataException("The persisted SlimData producer session is invalid.", ex);
             }
 
-            if (session is not null)
+            if (session is { } cachedSession)
             {
-                if (string.Equals(session.GenerationId, request.GenerationId, StringComparison.Ordinal))
+                if (string.Equals(cachedSession.GenerationId, request.GenerationId, StringComparison.Ordinal))
                 {
-                    if (session.Sequence == request.Sequence &&
-                        string.Equals(session.RequestId, request.RequestId, StringComparison.Ordinal))
+                    if (cachedSession.Sequence == request.Sequence &&
+                        string.Equals(cachedSession.RequestId, request.RequestId, StringComparison.Ordinal))
                     {
-                        var duplicate = DeserializeCachedResponse(session.Response);
+                        var duplicate = DeserializeCachedResponse(cachedSession.Response.Span);
                         duplicate.Duplicate = true;
                         return duplicate;
                     }
 
-                    if (request.Sequence != session.Sequence + 1)
-                        return CreateSequenceGapResponse(request, session.Sequence + 1);
+                    if (request.Sequence != cachedSession.Sequence + 1)
+                        return CreateSequenceGapResponse(request, cachedSession.Sequence + 1);
                 }
                 else if (request.Sequence != 1)
                 {
@@ -768,7 +816,7 @@ public static class SlimDataInterpreter
                 end++;
             }
 
-            var items = new List<ListLeftPushBatchCommand.BatchItem>(end - i);
+            List<ListLeftPushBatchCommand.BatchItem> items = [with(capacity: end - i)];
             for (var index = i; index < end; index++)
             {
                 SlimDataBatchOperation operation = request.Operations[index];
@@ -804,7 +852,7 @@ public static class SlimDataInterpreter
             Results = results
         };
 
-        var responseBytes = MemoryPackSerializer.Serialize(response);
+        var responseBytes = SlimDataCommandBatchResponseCodec.Serialize(response);
         var producerSession = new SlimDataProducerSession
         {
             GenerationId = request.GenerationId,
@@ -814,19 +862,19 @@ public static class SlimDataInterpreter
         };
         state.KeyValues = state.KeyValues.SetItem(
             sessionKey,
-            MemoryPackSerializer.Serialize(producerSession));
+            SlimDataProducerSessionCodec.Serialize(producerSession));
 
         return response;
     }
 
-    private static SlimDataCommandBatchResponse DeserializeCachedResponse(byte[] response)
+    private static SlimDataCommandBatchResponse DeserializeCachedResponse(ReadOnlySpan<byte> response)
     {
         try
         {
-            return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(response)
+            return MemoryPackPayload.Deserialize<SlimDataCommandBatchResponse>(response)
                 ?? throw new InvalidDataException("The cached SlimData producer response is null.");
         }
-        catch (Exception ex) when (ex is not InvalidDataException)
+        catch (Exception ex) when (ex is MemoryPackSerializationException || SlimDataCommandCodec.IsStructuralException(ex))
         {
             throw new InvalidDataException("The cached SlimData producer response is invalid.", ex);
         }
@@ -860,6 +908,30 @@ public static class SlimDataInterpreter
 
         switch (operation.Kind)
         {
+            case SlimDataBatchOperationKind.FileAdmission:
+                var admissionResult = FileAdmissionStore.Apply(
+                    MemoryPackPayload.Deserialize<FileAdmissionMutation>(operation.Value)!, state, operation.NowTicks);
+                result.KeyValueResult = new KeyValueCommandResult
+                {
+                    Status = admissionResult.Applied ? KeyValueCommandStatus.Applied : KeyValueCommandStatus.NotCommitted,
+                    Value = MemoryPackPayload.Serialize(admissionResult),
+                    ErrorMessage = admissionResult.Error
+                };
+                result.Applied = admissionResult.Applied;
+                result.ErrorMessage = admissionResult.Error;
+                break;
+            case SlimDataBatchOperationKind.WebSocketDirectory:
+                result.WebSocketDirectoryResult = WebSocketDirectoryStore.Apply(
+                    MemoryPackPayload.Deserialize<WebSocketDirectoryMutation>(operation.Value)!, state);
+                break;
+            case SlimDataBatchOperationKind.Stream:
+                result.StreamResult = DurableStreamStore.Apply(
+                    MemoryPackPayload.Deserialize<DurableStreamMutation>(operation.Value)!, state);
+                break;
+            case SlimDataBatchOperationKind.DeadLetter:
+                result.DeadLetterResult = DeadLetterStateMachine.Apply(
+                    MemoryPackPayload.Deserialize<DeadLetterMutation>(operation.Value)!, state);
+                break;
             case SlimDataBatchOperationKind.KeyValue:
             {
                 var keyValueResult = new KeyValueCommandResult();
@@ -958,7 +1030,7 @@ public static class SlimDataInterpreter
                     {
                         Key = operation.Key,
                         NowTicks = operation.NowTicks,
-                        CallbackElements = operation.CallbackItems
+                        CallbackElements = operation.CallbackItems.AsValueEnumerable()
                             .Select(static item => new CallbackElement(item.Id, item.HttpCode))
                             .ToList()
                     },
@@ -979,15 +1051,14 @@ public static class SlimDataInterpreter
         if (!state.Queues.TryGetValue(operation.Key, out var queue))
             return [];
 
-        return queue
-            .GetQueueRunningElement(operation.NowTicks)
+        return queue.AsValueEnumerable()
             .Where(item =>
-                !item.RetryQueueElements.IsDefaultOrEmpty &&
+                item.IsRunning(operation.NowTicks) &&
                 item.RetryQueueElements[^1].IdTransaction == operation.TransactionId)
             .Select(static item => new QueueData(
                 item.Id,
                 GetQueueValueBuffer(item.Value),
-                item.NumberOfTries(),
+                item.GetTryNumber(),
                 item.IsLastTry(),
                 item.GetLastRetryTimeTicks(),
                 item.GetHttpTimeoutTicks(),

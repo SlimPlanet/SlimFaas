@@ -1,0 +1,8 @@
+{
+  "file": "persisted-copy-application-index-02.json.gz",
+  "compressed_sha256": "fc6d491ad0e340e225d8c66f79893dca8c4a8c2f6e47e1e7e80502be9187927b",
+  "expanded_sha256": "e75691fe01a6f9731055d87946bd58c6b8d3fb9cc8ef89685d40eb1714908433",
+  "local_files": 1051,
+  "vm_roots": 20,
+  "scope": "Closed511 native/managed publications, four successful volume faults, failed-report fixture control34, no-remote refusal/cleanup36, complete original-state-copy replay41, default-inline42, and both complete durability-cost brackets40/43. Original volumes retained unchanged."
+}

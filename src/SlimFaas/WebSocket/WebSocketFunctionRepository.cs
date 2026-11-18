@@ -1,4 +1,6 @@
 using SlimFaas.Kubernetes;
+using System.Text.Json;
+using ZLinq;
 
 namespace SlimFaas.WebSocket;
 
@@ -19,16 +21,40 @@ public interface IWebSocketFunctionRepository
 public class WebSocketFunctionRepository : IWebSocketFunctionRepository
 {
     private readonly WebSocketConnectionRegistry _registry;
+    private readonly IWebSocketClusterDirectory? _directory;
+    private readonly object _cacheLock = new();
+    private IReadOnlyList<SlimData.WebSocketDirectoryConnection>? _connectionsSnapshot;
+    private IReadOnlyList<DeploymentInformation> _globalSnapshot = [];
 
-    public WebSocketFunctionRepository(WebSocketConnectionRegistry registry)
+    public WebSocketFunctionRepository(WebSocketConnectionRegistry registry, IWebSocketClusterDirectory? directory = null)
     {
         _registry = registry;
+        _directory = directory;
     }
 
     public IReadOnlyList<DeploymentInformation> GetVirtualDeployments()
     {
-        var result = new List<DeploymentInformation>();
+        if (_directory is not null)
+        {
+            var connections = _directory.Connections;
+            lock (_cacheLock)
+            {
+                if (ReferenceEquals(connections, _connectionsSnapshot)) return _globalSnapshot;
+                var result = new List<DeploymentInformation>();
+                foreach (var group in connections.GroupBy(connection => connection.Function, StringComparer.OrdinalIgnoreCase))
+                {
+                    var config = JsonSerializer.Deserialize(group.First().Configuration, AppJsonContext.Default.WebSocketFunctionConfiguration)
+                        ?? throw new InvalidDataException("Missing WebSocket directory configuration.");
+                    WebSocketConnectionRegistry.ParseConfiguration(group.Key, config);
+                    result.Add(CreateDeployment(group.Key, config, group.AsValueEnumerable().Select(static connection => connection.Id)));
+                }
+                _connectionsSnapshot = connections;
+                _globalSnapshot = result;
+                return result;
+            }
+        }
 
+        var localDeployments = new List<DeploymentInformation>();
         foreach (var functionName in _registry.GetRegisteredFunctionNames())
         {
             var config = _registry.GetConfiguration(functionName);
@@ -37,14 +63,24 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
             var connections = _registry.GetConnections(functionName);
             if (connections.Count == 0) continue;
 
-            // Chaque connexion WebSocket active = un "pod" virtuel
-            var pods = connections
-                .Where(c => c.IsAlive)
-                .Select(c => new PodInformation(
-                    Name: $"ws-{c.ConnectionId[..8]}",
+            localDeployments.Add(CreateDeployment(functionName, config,
+                connections.AsValueEnumerable().Select(static connection => connection.ConnectionId)));
+        }
+        return localDeployments;
+    }
+
+    internal static DeploymentInformation CreateDeployment(string functionName, WebSocketFunctionConfiguration config,
+        IEnumerable<string> connectionIds) => CreateDeployment(functionName, config, connectionIds.AsValueEnumerable());
+
+    private static DeploymentInformation CreateDeployment<TEnumerator>(string functionName, WebSocketFunctionConfiguration config,
+        ValueEnumerable<TEnumerator, string> connectionIds) where TEnumerator : struct, IValueEnumerator<string>, allows ref struct
+    {
+            var pods = connectionIds
+                .Select(id => new PodInformation(
+                    Name: $"ws-{id[..8]}",
                     Started: true,
                     Ready: true,
-                    Ip: c.ConnectionId,          // L'IP virtuelle = connectionId
+                    Ip: id,
                     DeploymentName: functionName,
                     Ports: null))
                 .ToList();
@@ -59,7 +95,7 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 ? FunctionTrust.Untrusted
                 : FunctionTrust.Trusted;
 
-            var subscribeEvents = config.SubscribeEvents
+            var subscribeEvents = config.SubscribeEvents.AsValueEnumerable()
                 .Select(e =>
                 {
                     FunctionVisibility evtVisibility = visibility; // hérite de DefaultVisibility par défaut
@@ -73,8 +109,8 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 })
                 .ToList();
 
-            var pathsVisibility = config.PathsStartWithVisibility
-                .Select(p => new PathVisibility(
+            var pathsVisibility = config.PathsStartWithVisibility.AsValueEnumerable()
+                .Select(static p => new PathVisibility(
                     p.Path,
                     p.Visibility.Equals("Private", StringComparison.OrdinalIgnoreCase)
                         ? FunctionVisibility.Private
@@ -85,7 +121,7 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 Deployment: functionName,
                 Namespace: "websocket-virtual",
                 Pods: pods,
-                Configuration: new SlimFaasConfiguration(),
+                Configuration: config.ParsedConfiguration,
                 Replicas: pods.Count,
                 ReplicasAtStart: pods.Count,
                 ReplicasMin: 0,
@@ -100,13 +136,12 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 ResourceVersion: "ws",
                 EndpointReady: true,
                 Trust: trust,
-                NumberParallelRequestPerPod: config.NumberParallelRequestPerPod
+                NumberParallelRequestPerPod: config.NumberParallelRequestPerPod,
+                SubscribeStreams: config.ParsedStreams,
+                StreamMaxAgeSeconds: config.StreamMaxAgeSeconds,
+                StreamMaxLength: config.StreamMaxLength
             );
 
-            result.Add(info);
-        }
-
-        return result;
+            return info;
     }
 }
-

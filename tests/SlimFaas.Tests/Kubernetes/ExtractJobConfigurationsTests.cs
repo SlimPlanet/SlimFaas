@@ -521,6 +521,22 @@ public class ExtractJobConfigurationsTests
         Assert.Equal("override:v2", s.Image);
     }
 
+    [Fact(DisplayName = "Schedules annotation keeps the schedule time zone")]
+    public async Task Extract_Schedules_KeepsTimeZone()
+    {
+        const string json = """[{"Schedule":"0 8 * * 1-5","Args":[],"TimeZone":"Europe/Paris"},{"Schedule":"0 8 * * *","Args":[]}]""";
+
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("tz-sched-job", schedulesAnnotation: json)));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result?.Schedules);
+        var schedules = result!.Schedules!["tz-sched-job"];
+        Assert.Equal("Europe/Paris", schedules[0].TimeZone);
+        Assert.Null(schedules[1].TimeZone);
+    }
+
     [Fact(DisplayName = "Multiple schedules in annotation are all extracted")]
     public async Task Extract_Schedules_MultipleEntries_AllExtracted()
     {

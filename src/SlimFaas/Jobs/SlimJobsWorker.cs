@@ -5,6 +5,9 @@ using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using SlimFaas.Kubernetes.Watch;
 using SlimFaas.Options;
+using NetworkActivityTracker = SlimFaas.Endpoints.NetworkActivityTracker;
+
+using ZLinq;
 
 namespace SlimFaas.Jobs;
 
@@ -20,7 +23,8 @@ public class SlimJobsWorker(
     IReplicasService replicasService,
     IOptions<WorkersOptions> workersOptions,
     IOptions<SlimFaasOptions> slimFaasOptions,
-    KubernetesWatchSignals watchSignals)
+    KubernetesWatchSignals watchSignals,
+    NetworkActivityTracker? activityTracker = null)
     : BackgroundService
 {
     private readonly int _delay = workersOptions.Value.JobsDelayMilliseconds;
@@ -87,15 +91,16 @@ public class SlimJobsWorker(
         {
             // Finished jobs remain listed until TTL cleanup, but no longer reserve
             // execution slots or keep their dependencies awake.
-            jobs = jobs.Where(j => j.Status is JobStatus.Pending or JobStatus.Running).ToList();
+            jobs = jobs.AsValueEnumerable().Where(static j => j.Status is JobStatus.Pending or JobStatus.Running).ToList();
             var jobsDictionary = new Dictionary<string, List<Job>>(StringComparer.OrdinalIgnoreCase);
             var configurations = jobConfiguration.Configuration.Configurations;
             foreach (var data in configurations)
             {
-                jobsDictionary.Add(data.Key.ToLowerInvariant(), new List<Job>());
+                jobsDictionary.Add(JobService.QueueName(data.Key), new List<Job>());
             }
 
-            foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey, StringComparison.Ordinal)))
+            foreach (Job job in jobs.AsValueEnumerable().Where(static j =>
+                         j.Name.Contains(KubernetesService.SlimfaasJobKey, StringComparison.Ordinal)))
             {
                 var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                 string jobConfigurationName = jobNameSplits[0];
@@ -144,6 +149,8 @@ public class SlimJobsWorker(
                 // des slots d'exécution ne dépasse jamais NumberParallelJob.
                 _jobsSyncCadence.ForceNextSync();
 
+                // The dashboard names the queue after the configuration, not the lower-case key.
+                string configurationName = JobConfiguration.ResolveName(configurations, jobName);
                 var listCallBack = new ListQueueItemStatus();
                 listCallBack.Items = new List<QueueItemStatus>();
                 foreach (QueueData element in elements)
@@ -159,6 +166,12 @@ public class SlimJobsWorker(
                     {
                         await jobService.CreateJobAsync(jobName, createJob, element.Id, jobInQueue.JobFullName, jobInQueue.InQueueTimestamp);
                         listCallBack.Items.Add(new QueueItemStatus(element.Id, 200));
+                        activityTracker?.Record(
+                            NetworkActivityTracker.EventTypes.Dequeue,
+                            NetworkActivityTracker.Actors.SlimFaas,
+                            configurationName,
+                            JobQueue.ActivityQueueName(configurationName),
+                            targetPod: jobInQueue.JobFullName);
                     }
                     catch (Exception e)
                     {
@@ -213,7 +226,7 @@ public class SlimJobsWorker(
             return DependencyReference.IsLocalProcessReady(deployments, dependency);
 
         DeploymentInformation? function =
-            deployments.Functions.FirstOrDefault(item => item.Deployment == dependency);
+            deployments.FindFunction(dependency);
         return function is not { Replicas: <= 0 };
     }
 }

@@ -1,0 +1,611 @@
+{
+  "created_utc": "2026-11-16T08:30:41.511222+00:00",
+  "scope": "Only the closed final-source Native AOT macOS quorum long role. Other Native/kind roles, formal matrices, SDK/demo checks and consolidated raw-state indices remain separate requirements. No final acceptance or LTS claim.",
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "report": {
+    "passed": true,
+    "error": null,
+    "results": [
+      {
+        "phase": "protocol-probe-with-silent-follower",
+        "passed": true,
+        "suspended_follower": 2,
+        "restarted_leader": 1,
+        "ready_and_write_seconds": 4.013699000002816,
+        "restart_to_listener_seconds": 2.0760489999956917
+      },
+      {
+        "phase": "payloads",
+        "bytes": 65536,
+        "chunked": true,
+        "id": "0a4f447553fe4b87b55fd7b90c443e74",
+        "seconds": 1.273214833025122,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 262144,
+        "chunked": true,
+        "id": "c4fcff9d36fa48688cc400397ab74f63",
+        "seconds": 1.2730027500074357,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 262144,
+        "chunked": false,
+        "id": "d4beffa601674656853a4845d359f109",
+        "seconds": 1.2859327920014039,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 65536,
+        "chunked": false,
+        "id": "8e6454f4956b4658966b3bc24dc6eeed",
+        "seconds": 1.2870072499790695,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 1048576,
+        "chunked": false,
+        "id": "8ef7fa45247745cc9c7fe0828a2a27a6",
+        "seconds": 0.28952904100879095,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 1048576,
+        "chunked": true,
+        "id": "8ae73a1a0db0498ca135151845e93a28",
+        "seconds": 0.3442560840048827,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2000000,
+        "chunked": false,
+        "id": "bb72c7ad74a94756941e9f43b9d50c46",
+        "seconds": 0.3424579169950448,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2000000,
+        "chunked": true,
+        "id": "4b0bdafe1dfc49e7a6b7de576aba31cc",
+        "seconds": 0.3431960000016261,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2097152,
+        "chunked": false,
+        "id": "00c1a6ad387841159515e24a0873ae97",
+        "seconds": 0.23980008301441558,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2097152,
+        "chunked": true,
+        "id": "62689e5a955d43afb5331799bbd9912c",
+        "seconds": 0.2506850409845356,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 4194304,
+        "chunked": false,
+        "id": "e87f151503a9426292cafa11ed81167f",
+        "seconds": 0.25326808300451376,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 4194304,
+        "chunked": true,
+        "id": "49dae7bf2b5b4bea9757c127dff478c2",
+        "seconds": 0.25552400000742637,
+        "passed": true
+      },
+      {
+        "phase": "api-smoke",
+        "passed": true
+      },
+      {
+        "phase": "file-boundaries",
+        "passed": true
+      },
+      {
+        "phase": "retries-dlq-jobs",
+        "passed": true,
+        "job_ids": [
+          "e046f9b5f05e464c94fe21182a8ca8c6",
+          "34c907236db94569a5a7064b230b05f0",
+          "47b56a06d02f4c44929a90cd83404368"
+        ],
+        "dlq_id": "dlq-7265160e-164d-4ac9-b998-9e0ac8ee1e0d"
+      },
+      {
+        "phase": "job-during-node-stop",
+        "passed": true,
+        "follower": 1,
+        "job_id": "625f046915da4c2e9c902cb99e7b56c3",
+        "seconds": 1.035270959022455
+      },
+      {
+        "phase": "absence-quorum-30s",
+        "fault": "process-suspension",
+        "nodes": [
+          1,
+          2
+        ],
+        "requested_absence_seconds": 30.0,
+        "actual_absence_seconds": 30.00820779200876,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 1.1587392080109566,
+        "full_recovery_seconds": 1.4115750830096658,
+        "accepted": 114,
+        "unknown": 64,
+        "passed": true
+      },
+      {
+        "phase": "absence-quorum-60s",
+        "fault": "process-suspension",
+        "nodes": [
+          0,
+          2
+        ],
+        "requested_absence_seconds": 60.0,
+        "actual_absence_seconds": 60.00188091699965,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 3.121047874999931,
+        "full_recovery_seconds": 3.4372744580032304,
+        "accepted": 115,
+        "unknown": 253,
+        "passed": true
+      },
+      {
+        "phase": "absence-quorum-300s",
+        "fault": "process-suspension",
+        "nodes": [
+          0,
+          2
+        ],
+        "requested_absence_seconds": 300.0,
+        "actual_absence_seconds": 300.0050510420115,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 2.6666096249828115,
+        "full_recovery_seconds": 3.49369062500773,
+        "accepted": 115,
+        "unknown": 1380,
+        "passed": true
+      },
+      {
+        "phase": "absence-quorum-900s",
+        "fault": "process-suspension",
+        "nodes": [
+          0,
+          1
+        ],
+        "requested_absence_seconds": 900.0,
+        "actual_absence_seconds": 900.0100244170171,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 1.056088749988703,
+        "full_recovery_seconds": 3.3963146669848356,
+        "accepted": 115,
+        "unknown": 4877,
+        "passed": true
+      },
+      {
+        "phase": "absence-quorum-1800s",
+        "fault": "process-suspension",
+        "nodes": [
+          1,
+          2
+        ],
+        "requested_absence_seconds": 1800.0,
+        "actual_absence_seconds": 1800.0001515409967,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 1.0372919170185924,
+        "full_recovery_seconds": 6.627655042015249,
+        "accepted": 116,
+        "unknown": 11925,
+        "passed": true
+      },
+      {
+        "phase": "absence-quorum-3600s",
+        "fault": "process-suspension",
+        "nodes": [
+          0,
+          1
+        ],
+        "requested_absence_seconds": 3600.0,
+        "actual_absence_seconds": 3600.004934083001,
+        "new_leader_observed_seconds": null,
+        "ready_after_resume_seconds": 2.256492292013718,
+        "full_recovery_seconds": 14.441404999990482,
+        "accepted": 117,
+        "unknown": 26092,
+        "passed": true
+      },
+      {
+        "phase": "full-persistent-restart",
+        "passed": true
+      }
+    ],
+    "accepted": 146,
+    "unknown": 26107,
+    "missing": [],
+    "finished_utc": 1794816677.0473878
+  },
+  "parameters": {
+    "started_utc": 1794809900.051527,
+    "platform": "macOS-26.7.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.4 (main, Apr  7 2026, 13:13:20) [Clang 21.0.0 (clang-2100.0.123.102)]",
+    "environment_overrides": {},
+    "commit": "189826231fe43fe3069e8a1f7724f83589432c6f",
+    "runtime_sha256": "6f1288a118a48f3eecd8c9e27e40a94b89a2c4645186f19696a59abc78121a17",
+    "slimdata_sha256": null,
+    "harness_sha256": "ebc3c3b2090fed78ba60edaaee81cf42b19d47aa03419499edfe8ff161014eb4",
+    "arguments": {
+      "runtime": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/candidate-osx-net11-70/SlimFaas",
+      "dotnet": "dotnet",
+      "backend_config": null,
+      "source_commit": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "output": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/macos/endurance-quorum-net11-189-priority100",
+      "state_directory": null,
+      "resume": false,
+      "port_base": 51220,
+      "node_log_level": "Warning",
+      "delivery_diagnostics": false,
+      "payload_sizes": [
+        65536,
+        262144,
+        1048576,
+        2000000,
+        2097152,
+        4194304
+      ],
+      "concurrency": 4,
+      "request_timeout": 15,
+      "recovery_timeout": 180.0,
+      "scenarios": "protocol-timeout,payloads,api,files,retries,job-during-node-stop,chaos,restarts",
+      "durations": [
+        30.0,
+        60.0,
+        300.0,
+        900.0,
+        1800.0,
+        3600.0
+      ],
+      "roles": "quorum",
+      "traffic_interval": 2.0
+    }
+  },
+  "independent_reconciliation": {
+    "confirmed": 146,
+    "unknown": 26107,
+    "intent_only_deliberately_interrupted_upload": {
+      "ea70fa9fea484f7c9f9906942516ce7a": {
+        "event": "intent",
+        "kind": "interrupted-upload",
+        "id": "ea70fa9fea484f7c9f9906942516ce7a",
+        "utc": 1794809916.018993,
+        "monotonic": 209989.4756585
+      }
+    },
+    "accepted_kinds": {
+      "set": 8,
+      "async": 19,
+      "hashset": 5,
+      "file": 10,
+      "sync": 8,
+      "stream": 5,
+      "counter-check": 67,
+      "ttl": 3,
+      "delete-fixture": 3,
+      "delete": 3,
+      "dlq": 1,
+      "replay": 1,
+      "job": 9,
+      "counter": 4
+    },
+    "unknown_outcomes": {
+      "executed": 4,
+      "unresolved": 16223,
+      "committed-on-all-nodes": 13,
+      "absent-at-final-observation": 9866,
+      "job-executed": 1
+    },
+    "completed_handler_attempts": 42,
+    "successful_handler_attempts": 37,
+    "failed_handler_attempts": 5,
+    "successful_repetitions": [],
+    "job_receipts": 10,
+    "confirmed_async_stream_jobs_missing": [],
+    "receipt_hash_or_length_failures": []
+  },
+  "full_supervisor_log_scan": [
+    {
+      "path": "supervisor-0.log",
+      "managed_oom_log_occurrences": 0,
+      "unhandled_exception_log_occurrences": 0,
+      "error_level_tags": 5433,
+      "critical_level_tags": 0,
+      "scope": "Full raw supervisor logs, including deliberate failures. Tag counts are not distinct exceptions or a healthy-window audit."
+    },
+    {
+      "path": "supervisor-1.log",
+      "managed_oom_log_occurrences": 0,
+      "unhandled_exception_log_occurrences": 0,
+      "error_level_tags": 10,
+      "critical_level_tags": 0,
+      "scope": "Full raw supervisor logs, including deliberate failures. Tag counts are not distinct exceptions or a healthy-window audit."
+    }
+  ],
+  "original_state": {
+    "root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/macos/endurance-quorum-net11-189-priority100/state",
+    "retained": true,
+    "full_tree_hashing": "Pending consolidated quiescent export; this archive contains closed top-level reports/logs/metrics and all per-ID journals, not the live/retained WAL tree."
+  },
+  "archive": {
+    "path": "native-quorum-189-raw.tar.gz",
+    "bytes": 4361501,
+    "sha256": "adaba6eebe77617e5fb7fa48044bae8e020e46901bc03ad1fa2b27ff30a7c911"
+  },
+  "files": [
+    {
+      "path": "absence-quorum-1800s-node-0.prom",
+      "bytes": 185272,
+      "sha256": "32a33d2ccc9a84555b44f83c0c70802db50ea4c88cf5eb357a8da069dc45cec5"
+    },
+    {
+      "path": "absence-quorum-1800s-node-1.prom",
+      "bytes": 189980,
+      "sha256": "6a89c995779695f57c739c66d286a1693608b0b07d8baa1fb8b0771810f85dc4"
+    },
+    {
+      "path": "absence-quorum-1800s-node-2.prom",
+      "bytes": 216233,
+      "sha256": "6c5cfde017776fac3ffdc17440632d0cd04da045502581fdb3d73a754abbf548"
+    },
+    {
+      "path": "absence-quorum-300s-node-0.prom",
+      "bytes": 212089,
+      "sha256": "98c96cf1cb26846a017e7783acd8050c305820c0a1b96ddd930affc73ba36e5f"
+    },
+    {
+      "path": "absence-quorum-300s-node-1.prom",
+      "bytes": 225093,
+      "sha256": "c3ff3d483960881317395664b53e43553736c499c8870122249e90494d897222"
+    },
+    {
+      "path": "absence-quorum-300s-node-2.prom",
+      "bytes": 206111,
+      "sha256": "e6e10406e0bf34d700b761a33722876c651d34bef3edf794bd13aee4160dc434"
+    },
+    {
+      "path": "absence-quorum-30s-node-0.prom",
+      "bytes": 221595,
+      "sha256": "f5ae36bcef1f76ad11ab449ce24e0271d21383138694c82c24d02382b1474951"
+    },
+    {
+      "path": "absence-quorum-30s-node-1.prom",
+      "bytes": 202006,
+      "sha256": "9c3f6b16df2c008a2b8775e3a19caab0d02549a24eb84c4d876eb9560f051094"
+    },
+    {
+      "path": "absence-quorum-30s-node-2.prom",
+      "bytes": 182156,
+      "sha256": "7b27f7dcd74661fb19da0fdf1a3c64e29e52b340a20b85f544dbdb72f944a771"
+    },
+    {
+      "path": "absence-quorum-3600s-node-0.prom",
+      "bytes": 210343,
+      "sha256": "a02343b0b3e343b959816869e3b95eb1fc9d83023635c85b5a26beb3340c9dd9"
+    },
+    {
+      "path": "absence-quorum-3600s-node-1.prom",
+      "bytes": 195229,
+      "sha256": "a62f90982994c4b6484d9c27670d1367a990bf9704f540df13b9796ffe8bab83"
+    },
+    {
+      "path": "absence-quorum-3600s-node-2.prom",
+      "bytes": 203301,
+      "sha256": "f68d97a86fbea5e749986675ae30bb5ad6e14ddd89e9094d83735658a1b2a5d8"
+    },
+    {
+      "path": "absence-quorum-60s-node-0.prom",
+      "bytes": 225418,
+      "sha256": "493b76d5c51dcd199e352b90e651bb5c3f3ea97601d2f7685d729bc71f777c09"
+    },
+    {
+      "path": "absence-quorum-60s-node-1.prom",
+      "bytes": 212105,
+      "sha256": "3edaa4b4891cc32e70ca18de03dd147377b0afe6ef15a989384cc2590ddbac75"
+    },
+    {
+      "path": "absence-quorum-60s-node-2.prom",
+      "bytes": 192301,
+      "sha256": "6122f330d3ca8ea7074b7b537b7426bf85971fe2e5e56de89ee102b2d5eae55a"
+    },
+    {
+      "path": "absence-quorum-900s-node-0.prom",
+      "bytes": 220648,
+      "sha256": "769e34056cf231053002a6857839dcaf93d4513baa2676d844a39f56d69e79fe"
+    },
+    {
+      "path": "absence-quorum-900s-node-1.prom",
+      "bytes": 190095,
+      "sha256": "359ad5e97797429c63bcb5895c7c5384db7f332efc2bedf085b9748dada5c4ea"
+    },
+    {
+      "path": "absence-quorum-900s-node-2.prom",
+      "bytes": 177394,
+      "sha256": "80f7ac85db2752db006afa74733d48b1d35d3bed1a8232305692ca1d2768110e"
+    },
+    {
+      "path": "accounting.json",
+      "bytes": 3147434,
+      "sha256": "ef1732866847ff532413c90c4caeaca1093472bdc71c83ce356ed343b2d00963"
+    },
+    {
+      "path": "campaign.py",
+      "bytes": 100218,
+      "sha256": "ebc3c3b2090fed78ba60edaaee81cf42b19d47aa03419499edfe8ff161014eb4"
+    },
+    {
+      "path": "chaos_function.py",
+      "bytes": 7174,
+      "sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48"
+    },
+    {
+      "path": "client.jsonl",
+      "bytes": 24693721,
+      "sha256": "e612ca4ed254ba1b7701df952f21dff30d04106d9706dab7dc7a665d67a8c541"
+    },
+    {
+      "path": "final-node-0.prom",
+      "bytes": 67950,
+      "sha256": "10989c2847c7841915fc40b6a9b692ce489466ee54ad2f9e73a7a8205a64b0d1"
+    },
+    {
+      "path": "final-node-1.prom",
+      "bytes": 64776,
+      "sha256": "72793e614511fb7050fe82f5cfe9110554e628026339bc8a2a6ec6cb2d4b0ce5"
+    },
+    {
+      "path": "final-node-2.prom",
+      "bytes": 73268,
+      "sha256": "a69ed8d579f6be2b018d7e0ecb33fb679098d6c93c3ac936568d9623c43c28f0"
+    },
+    {
+      "path": "initial-node-0.prom",
+      "bytes": 51100,
+      "sha256": "dac62630b463bf20743d641ecf32b0db31215c2fc3852478b9cc300ee705e500"
+    },
+    {
+      "path": "initial-node-1.prom",
+      "bytes": 54997,
+      "sha256": "061298d8181ff6214fdd97250b4ae471b4c4b4942b0401531481aebb25d6495c"
+    },
+    {
+      "path": "initial-node-2.prom",
+      "bytes": 47910,
+      "sha256": "74d7dd9aab1ecf1a6dec0fffafd18fdec530ca93746ca43ecdc24c9b4f0eb8f9"
+    },
+    {
+      "path": "manifest.yaml",
+      "bytes": 2991,
+      "sha256": "8c8ff0144929c21e2c783e76f764d6211e48456df9492ae59edc29d258cc3586"
+    },
+    {
+      "path": "parameters.json",
+      "bytes": 1441,
+      "sha256": "727a6b879800abf8b89892487bc530618bdb46b18d81ae5940c9a63e536b5fce"
+    },
+    {
+      "path": "payloads-node-0.prom",
+      "bytes": 165184,
+      "sha256": "4a573b9eb8a4d4214ba87bd8960973e3df12313348ea6a89c17b38083018e3d9"
+    },
+    {
+      "path": "payloads-node-1.prom",
+      "bytes": 66787,
+      "sha256": "3db07e472d171531d22e7ae6e21f7d0edb2f2e7628c744763f968131d47f69ae"
+    },
+    {
+      "path": "payloads-node-2.prom",
+      "bytes": 124060,
+      "sha256": "2aa9b4557f2bef0137704a15d9445addee0e2f97b9f70cf24f0d8906a0e5ed00"
+    },
+    {
+      "path": "receipts/receipts-18380-b9cf9509b9f44139bcc330975ff91c3a.jsonl",
+      "bytes": 11075,
+      "sha256": "88c2fc02d8cfac6831c4b79a99248b2cba8ce980dc6f2663847528517ce85785"
+    },
+    {
+      "path": "receipts/receipts-20646-93ea78e4af76447a916c020f42029b5e.jsonl",
+      "bytes": 214,
+      "sha256": "99afbf9bbe42ee79dd72c313d586cefb6e9b4e4a15198aecd9c3864476989f97"
+    },
+    {
+      "path": "receipts/receipts-20668-45592b420bb44d9e937f73e08877a251.jsonl",
+      "bytes": 213,
+      "sha256": "7f0f2cbe91e4625a87fd582b6d7cee8d36cffefb4f7122792a76edc45d09ab84"
+    },
+    {
+      "path": "receipts/receipts-20741-5de8676cac134465955f82e3f396d398.jsonl",
+      "bytes": 213,
+      "sha256": "98e6034db627acb695bbe9a6d2f81fcda70b1039bc43a6bee777e170106bc4d9"
+    },
+    {
+      "path": "receipts/receipts-20781-c2b907fc2bc641d1a9505c852368fdfd.jsonl",
+      "bytes": 213,
+      "sha256": "68d77514f69e837c3e2a9180e4487557c4b7457f22379ae4191bccffb5b18d50"
+    },
+    {
+      "path": "receipts/receipts-30100-a5c926c4b1084ace94685df9f4c333c8.jsonl",
+      "bytes": 27752,
+      "sha256": "473af7c1a4c2eddad281e242cacd6fb6e19282dbafbd8c005b86f3d2e13c2af9"
+    },
+    {
+      "path": "receipts/receipts-30460-ed279ab3b2dd44fc954055e13300f855.jsonl",
+      "bytes": 214,
+      "sha256": "6adc525cd665434a1fed35a6844a7bb724b9722b0eb9c1c13d15a68e134582d1"
+    },
+    {
+      "path": "receipts/receipts-30461-187465379dbb4a5c9fd537fd0e0507d9.jsonl",
+      "bytes": 212,
+      "sha256": "c99f1d400cc14d7419d6fdcf51920bc2f312f25cf72f864f30641a6f99d5a23c"
+    },
+    {
+      "path": "receipts/receipts-30469-be286bd723f24f8ea048f7c5eab9989d.jsonl",
+      "bytes": 213,
+      "sha256": "4a86a3e9614d8f19cf511fba8d8a7148da86a3113d3cd109546ab387186a6a0b"
+    },
+    {
+      "path": "receipts/receipts-30484-d2901ac2703948d8ac6114271db55e8f.jsonl",
+      "bytes": 213,
+      "sha256": "a018e6b4a40be7445abcbc50e34a0fa1ea95075034e53fb54bac839f3a8300e6"
+    },
+    {
+      "path": "receipts/receipts-30496-db740865139a43ad8ab9fd369d644f95.jsonl",
+      "bytes": 213,
+      "sha256": "6b900f51dc68bf427af1d248e0dc4a106d8a0afc3d812a391cd0a59ac1e71263"
+    },
+    {
+      "path": "receipts/receipts-35615-fdd3e8389f8c425cad81d567dac5b6d5.jsonl",
+      "bytes": 213,
+      "sha256": "504937042d2580cfa3ff8cf24c52815a2ed86a4051a1532e25e70278c3487004"
+    },
+    {
+      "path": "receipts/receipts-42133-e5666afef6b34dd28d8dd58f818ea0c5.jsonl",
+      "bytes": 3025,
+      "sha256": "de620c2c2b5b124a90252b852e9442adb522ab2fd18926abc6385b3b5330d091"
+    },
+    {
+      "path": "receipts/receipts-71325-9620186508674b9291a94eea98ca84b7.jsonl",
+      "bytes": 953,
+      "sha256": "6b331e8a88e1a296d151580abb61cf2736a634a7e598c3312c38837f1115faa7"
+    },
+    {
+      "path": "report.json",
+      "bytes": 6066,
+      "sha256": "9594c823248946fbb3f80f8759a9a5eb19a5b6140edde7fff0200b8a393e6e54"
+    },
+    {
+      "path": "supervisor-0.log",
+      "bytes": 20344184,
+      "sha256": "093694675551b9c331cd86704144c5c435bf4fe90999c59f864548efb9be8690"
+    },
+    {
+      "path": "supervisor-1.log",
+      "bytes": 25538,
+      "sha256": "c637aadf99bc3628ea6cd1945f48670675e70ce0d4b0283c970ddfa5a7e5fca2"
+    }
+  ]
+}

@@ -6,6 +6,8 @@ using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using NetworkActivityEvent = SlimFaas.Endpoints.NetworkActivityEvent;
+using NetworkActivityTracker = SlimFaas.Endpoints.NetworkActivityTracker;
 
 namespace SlimFaas.Tests.Jobs;
 
@@ -109,6 +111,37 @@ public sealed class SlimJobsWorkerConcurrencyTests
         kubernetes.Verify(service => service.DeleteJobAsync(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 
+    [Fact]
+    public async Task CreatedJob_IsRecordedAsDequeuedFromItsJobQueue()
+    {
+        using var fixture = new Fixture();
+
+        await fixture.Worker.DoJobOneCycle([]);
+
+        fixture.AssertDispatched("batch", 4);
+        NetworkActivityEvent dequeue = Assert.Single(fixture.Activity.GetRecent());
+        Assert.Equal(NetworkActivityTracker.EventTypes.Dequeue, dequeue.Type);
+        Assert.Equal(NetworkActivityTracker.Actors.SlimFaas, dequeue.Source);
+        Assert.Equal("batch", dequeue.Target);
+        Assert.Equal("job:batch", dequeue.QueueName);
+        Assert.Equal($"batch{KubernetesService.SlimfaasJobKey}fifth", dequeue.TargetPod);
+    }
+
+    [Fact]
+    public async Task FailedJobCreation_IsNotRecordedAsDequeued()
+    {
+        using var fixture = new Fixture();
+        fixture.Service.Setup(service => service.CreateJobAsync("batch", It.IsAny<CreateJob>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()))
+            .ThrowsAsync(new InvalidOperationException("Kubernetes API unavailable"));
+
+        await fixture.Worker.DoJobOneCycle([]);
+
+        fixture.Queue.Verify(queue => queue.ListCallbackAsync("batch", It.Is<ListQueueItemStatus>(callback =>
+            callback.Items != null && callback.Items.Single().HttpCode == 500)), Times.Once);
+        Assert.Empty(fixture.Activity.GetRecent());
+    }
+
     private static Job MakeJob(string name, string id, JobStatus status) =>
         new($"{name}{KubernetesService.SlimfaasJobKey}{id}", status, [], ["dependency"], id, 1, 2);
 
@@ -118,6 +151,7 @@ public sealed class SlimJobsWorkerConcurrencyTests
         public Mock<IJobService> Service { get; } = new(MockBehavior.Strict);
         public Mock<IJobConfiguration> Configuration { get; } = new(MockBehavior.Strict);
         public HistoryHttpMemoryService History { get; } = new();
+        public NetworkActivityTracker Activity { get; } = new();
         public SlimJobsWorker Worker { get; }
 
         public Fixture(params string[] names)
@@ -155,7 +189,8 @@ public sealed class SlimJobsWorkerConcurrencyTests
                 Mock.Of<IMasterService>(), replicas.Object,
                 Microsoft.Extensions.Options.Options.Create(new WorkersOptions()),
                 Microsoft.Extensions.Options.Options.Create(new SlimFaas.Options.SlimFaasOptions()),
-                new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals());
+                new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals(),
+                Activity);
         }
 
         public void AssertDispatched(string name, int capacity)

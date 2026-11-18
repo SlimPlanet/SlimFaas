@@ -1,0 +1,1218 @@
+{
+  "schema": 1,
+  "runtime_source": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+  "environment": "kind Kubernetes Linux ARM64 managed/trimmed on Podman",
+  "sdk": "11.0.100",
+  "integrity_verdict": "PASS",
+  "comparative_performance_verdict": "PENDING",
+  "confirmed_operations": 45443,
+  "roles": {
+    "follower": {
+      "passed": true,
+      "accepted": 22606,
+      "unknown": 45,
+      "missing": [],
+      "extra_successful_deliveries": 0,
+      "finished_utc": 1794571687.4125395,
+      "absence_results": [
+        {
+          "phase": "absence-follower-30s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 30.0,
+          "actual_absence_seconds": 30.00037268397864,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.05685276401345618,
+          "full_recovery_seconds": 0.4899023890029639,
+          "accepted": 183,
+          "unknown": 5,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-60s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 60.0,
+          "actual_absence_seconds": 60.00011195099796,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.09479396798997186,
+          "full_recovery_seconds": 0.8350149850011803,
+          "accepted": 333,
+          "unknown": 12,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-300s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 300.0,
+          "actual_absence_seconds": 300.0002421690151,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.23160311099491082,
+          "full_recovery_seconds": 4.221429780998733,
+          "accepted": 1308,
+          "unknown": 19,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-900s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 900.0,
+          "actual_absence_seconds": 900.0002537549881,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.7291523159947246,
+          "full_recovery_seconds": 11.714193908002926,
+          "accepted": 4182,
+          "unknown": 26,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-1800s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 1800.0,
+          "actual_absence_seconds": 1800.0001702599984,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.8444925149960909,
+          "full_recovery_seconds": 62.51534493800136,
+          "accepted": 10292,
+          "unknown": 32,
+          "passed": true
+        },
+        {
+          "phase": "absence-follower-3600s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 3600.0,
+          "actual_absence_seconds": 3600.0002463099954,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 0.7521096389973536,
+          "full_recovery_seconds": 57.21300801701727,
+          "accepted": 22562,
+          "unknown": 37,
+          "passed": true
+        }
+      ],
+      "full_persistent_restart": [
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "absence_availability_observations": {
+        "absence-follower-30s": {
+          "accepted_by_kind": {
+            "set": 7,
+            "async": 10,
+            "counter": 7,
+            "job": 7,
+            "stream": 15,
+            "sync": 15,
+            "hashset": 7,
+            "file": 3
+          },
+          "unknown_by_kind": {
+            "file": 1,
+            "hashset": 1,
+            "counter": 1,
+            "job": 1,
+            "set": 1
+          },
+          "suspended": 1794564612.5599084,
+          "resumed": 1794564642.557368,
+          "largest_accepted_write_spacing_seconds": {
+            "set": 19.013437271118164,
+            "async": 4.539949655532837,
+            "counter": 19.0288188457489,
+            "job": 19.033595323562622,
+            "stream": 2.684288263320923,
+            "hashset": 17.052472829818726,
+            "file": 19.528772354125977
+          }
+        },
+        "absence-follower-60s": {
+          "accepted_by_kind": {
+            "stream": 21,
+            "async": 13,
+            "set": 20,
+            "file": 13,
+            "hashset": 21,
+            "counter": 21,
+            "job": 20,
+            "sync": 21
+          },
+          "unknown_by_kind": {
+            "sync": 1,
+            "hashset": 1,
+            "job": 1,
+            "counter": 1,
+            "async": 1,
+            "set": 1,
+            "stream": 1
+          },
+          "suspended": 1794564643.0708342,
+          "resumed": 1794564703.072859,
+          "largest_accepted_write_spacing_seconds": {
+            "stream": 19.114758253097534,
+            "async": 19.27126932144165,
+            "set": 19.020227670669556,
+            "file": 4.8595664501190186,
+            "hashset": 17.02530288696289,
+            "counter": 17.03010392189026,
+            "job": 17.030160188674927
+          }
+        },
+        "absence-follower-300s": {
+          "accepted_by_kind": {
+            "stream": 138,
+            "async": 85,
+            "hashset": 138,
+            "job": 138,
+            "file": 65,
+            "set": 138,
+            "counter": 138,
+            "sync": 135
+          },
+          "unknown_by_kind": {
+            "sync": 1,
+            "set": 1,
+            "counter": 1,
+            "async": 1,
+            "hashset": 1,
+            "stream": 1,
+            "job": 1
+          },
+          "suspended": 1794564703.9213006,
+          "resumed": 1794565003.9422905,
+          "largest_accepted_write_spacing_seconds": {
+            "stream": 19.034337282180786,
+            "async": 19.15167236328125,
+            "hashset": 19.15441393852234,
+            "job": 19.0405535697937,
+            "file": 5.0840771198272705,
+            "set": 17.02622890472412,
+            "counter": 17.03329110145569
+          }
+        },
+        "absence-follower-900s": {
+          "accepted_by_kind": {
+            "hashset": 401,
+            "counter": 400,
+            "stream": 409,
+            "job": 406,
+            "sync": 412,
+            "set": 399,
+            "async": 254,
+            "file": 193
+          },
+          "unknown_by_kind": {
+            "async": 1,
+            "file": 1,
+            "set": 1,
+            "counter": 1,
+            "sync": 1,
+            "hashset": 1,
+            "stream": 1
+          },
+          "suspended": 1794565008.1687996,
+          "resumed": 1794565908.1747081,
+          "largest_accepted_write_spacing_seconds": {
+            "hashset": 19.053362369537354,
+            "counter": 19.04456353187561,
+            "stream": 9.992103815078735,
+            "job": 10.02906584739685,
+            "set": 17.11107635498047,
+            "async": 17.111132383346558,
+            "file": 19.559646368026733
+          }
+        },
+        "absence-follower-1800s": {
+          "accepted_by_kind": {
+            "stream": 853,
+            "hashset": 860,
+            "job": 858,
+            "async": 549,
+            "counter": 869,
+            "sync": 845,
+            "file": 418,
+            "set": 858
+          },
+          "unknown_by_kind": {
+            "set": 1,
+            "stream": 1,
+            "hashset": 1,
+            "job": 1,
+            "sync": 1,
+            "async": 1
+          },
+          "suspended": 1794565919.9041333,
+          "resumed": 1794567719.9059165,
+          "largest_accepted_write_spacing_seconds": {
+            "stream": 19.027234077453613,
+            "hashset": 19.03308868408203,
+            "job": 19.041720867156982,
+            "async": 21.55612540245056,
+            "counter": 2.9810078144073486,
+            "file": 5.070122718811035,
+            "set": 17.022159576416016
+          }
+        },
+        "absence-follower-3600s": {
+          "accepted_by_kind": {
+            "async": 1114,
+            "counter": 1730,
+            "job": 1714,
+            "file": 845,
+            "stream": 1718,
+            "hashset": 1725,
+            "set": 1725,
+            "sync": 1699
+          },
+          "unknown_by_kind": {
+            "sync": 1,
+            "stream": 1,
+            "hashset": 1,
+            "set": 1,
+            "job": 1
+          },
+          "suspended": 1794567782.4433565,
+          "resumed": 1794571382.446331,
+          "largest_accepted_write_spacing_seconds": {
+            "async": 5.456747531890869,
+            "counter": 3.3026106357574463,
+            "job": 19.032978057861328,
+            "file": 5.471613645553589,
+            "stream": 17.03116774559021,
+            "hashset": 17.041365146636963,
+            "set": 17.053955554962158
+          }
+        }
+      },
+      "compact_evidence_sha256": "8009ec035b912b4170120840cf149ffee64ca6c960b8688329279e32f484ef7b"
+    },
+    "leader": {
+      "passed": true,
+      "accepted": 22667,
+      "unknown": 30,
+      "missing": [],
+      "extra_successful_deliveries": 0,
+      "finished_utc": 1794571732.3933775,
+      "absence_results": [
+        {
+          "phase": "absence-leader-30s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 30.0,
+          "actual_absence_seconds": 30.00017235102132,
+          "new_leader_observed_seconds": 4.88230083801318,
+          "ready_after_resume_seconds": 1.0699351059738547,
+          "full_recovery_seconds": 1.459974468976725,
+          "accepted": 174,
+          "unknown": 4,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-60s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 60.0,
+          "actual_absence_seconds": 60.00029599200934,
+          "new_leader_observed_seconds": 4.07164542900864,
+          "ready_after_resume_seconds": 0.27264253300381824,
+          "full_recovery_seconds": 1.2041373240062967,
+          "accepted": 344,
+          "unknown": 8,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-300s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 300.0,
+          "actual_absence_seconds": 300.0001244599989,
+          "new_leader_observed_seconds": 5.077662165975198,
+          "ready_after_resume_seconds": 1.369917641975917,
+          "full_recovery_seconds": 5.868357093975646,
+          "accepted": 1327,
+          "unknown": 13,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-900s",
+          "fault": "process-suspension",
+          "nodes": [
+            1
+          ],
+          "requested_absence_seconds": 900.0,
+          "actual_absence_seconds": 900.0001498390047,
+          "new_leader_observed_seconds": 4.066423080017557,
+          "ready_after_resume_seconds": 1.0450186519883573,
+          "full_recovery_seconds": 11.178356746997451,
+          "accepted": 4224,
+          "unknown": 16,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-1800s",
+          "fault": "process-suspension",
+          "nodes": [
+            0
+          ],
+          "requested_absence_seconds": 1800.0,
+          "actual_absence_seconds": 1800.000143051002,
+          "new_leader_observed_seconds": 4.919218829018064,
+          "ready_after_resume_seconds": 1.335708575003082,
+          "full_recovery_seconds": 37.656063953996636,
+          "accepted": 10318,
+          "unknown": 18,
+          "passed": true
+        },
+        {
+          "phase": "absence-leader-3600s",
+          "fault": "process-suspension",
+          "nodes": [
+            2
+          ],
+          "requested_absence_seconds": 3600.0,
+          "actual_absence_seconds": 3600.0001173940254,
+          "new_leader_observed_seconds": 4.722626497008605,
+          "ready_after_resume_seconds": 1.0495306239754427,
+          "full_recovery_seconds": 61.00374713799101,
+          "accepted": 22575,
+          "unknown": 21,
+          "passed": true
+        }
+      ],
+      "full_persistent_restart": [
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "absence_availability_observations": {
+        "absence-leader-30s": {
+          "accepted_by_kind": {
+            "job": 11,
+            "file": 6,
+            "hashset": 11,
+            "counter": 10,
+            "sync": 7,
+            "set": 7,
+            "async": 4,
+            "stream": 6
+          },
+          "unknown_by_kind": {
+            "sync": 1,
+            "stream": 1,
+            "async": 1,
+            "set": 1
+          },
+          "suspended": 1794564680.8104744,
+          "resumed": 1794564710.8111684,
+          "largest_accepted_write_spacing_seconds": {
+            "job": 8.874940633773804,
+            "file": 8.88131332397461,
+            "hashset": 9.77254843711853,
+            "counter": 9.778192043304443,
+            "set": 17.901269674301147,
+            "async": 17.956200122833252,
+            "stream": 17.960038900375366
+          }
+        },
+        "absence-leader-60s": {
+          "accepted_by_kind": {
+            "sync": 21,
+            "hashset": 27,
+            "file": 13,
+            "job": 27,
+            "stream": 27,
+            "async": 13,
+            "set": 21,
+            "counter": 21
+          },
+          "unknown_by_kind": {
+            "async": 1,
+            "set": 1,
+            "counter": 1,
+            "sync": 1
+          },
+          "suspended": 1794564712.291663,
+          "resumed": 1794564772.2973723,
+          "largest_accepted_write_spacing_seconds": {
+            "hashset": 5.77608585357666,
+            "file": 5.7819249629974365,
+            "job": 5.782406568527222,
+            "stream": 5.877181529998779,
+            "async": 17.07872986793518,
+            "set": 17.085914373397827,
+            "counter": 17.08848786354065
+          }
+        },
+        "absence-leader-300s": {
+          "accepted_by_kind": {
+            "counter": 142,
+            "file": 63,
+            "set": 142,
+            "stream": 138,
+            "async": 85,
+            "hashset": 139,
+            "job": 139,
+            "sync": 135
+          },
+          "unknown_by_kind": {
+            "sync": 1,
+            "stream": 1,
+            "async": 1,
+            "hashset": 1,
+            "job": 1
+          },
+          "suspended": 1794564773.5146658,
+          "resumed": 1794565073.5230532,
+          "largest_accepted_write_spacing_seconds": {
+            "counter": 8.883604526519775,
+            "file": 8.888064622879028,
+            "set": 9.796581983566284,
+            "stream": 17.01434636116028,
+            "async": 17.085020542144775,
+            "hashset": 17.08506155014038,
+            "job": 17.09029507637024
+          }
+        },
+        "absence-leader-900s": {
+          "accepted_by_kind": {
+            "sync": 419,
+            "hashset": 407,
+            "job": 409,
+            "set": 408,
+            "async": 258,
+            "stream": 401,
+            "counter": 401,
+            "file": 194
+          },
+          "unknown_by_kind": {
+            "stream": 1,
+            "file": 1,
+            "counter": 1
+          },
+          "suspended": 1794565079.4067435,
+          "resumed": 1794565979.4112902,
+          "largest_accepted_write_spacing_seconds": {
+            "hashset": 9.328696012496948,
+            "job": 8.939321756362915,
+            "set": 9.606048345565796,
+            "async": 10.505047082901001,
+            "stream": 17.03756356239319,
+            "counter": 17.053414821624756,
+            "file": 19.927478551864624
+          }
+        },
+        "absence-leader-1800s": {
+          "accepted_by_kind": {
+            "async": 550,
+            "file": 421,
+            "hashset": 859,
+            "set": 857,
+            "counter": 858,
+            "stream": 856,
+            "job": 850,
+            "sync": 843
+          },
+          "unknown_by_kind": {
+            "sync": 1,
+            "job": 1
+          },
+          "suspended": 1794565990.6175294,
+          "resumed": 1794567790.6200423,
+          "largest_accepted_write_spacing_seconds": {
+            "async": 11.116624116897583,
+            "file": 10.741848945617676,
+            "hashset": 11.082948207855225,
+            "set": 11.10552167892456,
+            "counter": 11.08291506767273,
+            "stream": 8.210244417190552,
+            "job": 17.024203300476074
+          }
+        },
+        "absence-leader-3600s": {
+          "accepted_by_kind": {
+            "sync": 1699,
+            "hashset": 1726,
+            "job": 1717,
+            "file": 843,
+            "counter": 1727,
+            "set": 1725,
+            "async": 1105,
+            "stream": 1715
+          },
+          "unknown_by_kind": {
+            "async": 1,
+            "stream": 1,
+            "sync": 1
+          },
+          "suspended": 1794567828.3151402,
+          "resumed": 1794571428.3142476,
+          "largest_accepted_write_spacing_seconds": {
+            "hashset": 8.686152219772339,
+            "job": 8.693109512329102,
+            "file": 8.693275690078735,
+            "counter": 8.693565368652344,
+            "set": 8.693593978881836,
+            "async": 17.146636486053467,
+            "stream": 17.15726351737976
+          }
+        }
+      },
+      "compact_evidence_sha256": "0a4f662cee57a2a93a13a7eb9412a947122cc3c5052c6177e6688b41edfe1e81"
+    },
+    "quorum": {
+      "passed": true,
+      "accepted": 170,
+      "unknown": 8918,
+      "missing": [],
+      "extra_successful_deliveries": 0,
+      "finished_utc": 1794571544.691872,
+      "absence_results": [
+        {
+          "phase": "absence-quorum-30s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 30.0,
+          "actual_absence_seconds": 30.000115850998554,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 2.0479854199802503,
+          "full_recovery_seconds": 3.0212715939851478,
+          "accepted": 117,
+          "unknown": 28,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-60s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 60.0,
+          "actual_absence_seconds": 60.00016190900351,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 2.5096028030093294,
+          "full_recovery_seconds": 4.865537992009195,
+          "accepted": 123,
+          "unknown": 97,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-300s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 300.0,
+          "actual_absence_seconds": 300.00016900201445,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 3.9204801169980783,
+          "full_recovery_seconds": 6.906945725000696,
+          "accepted": 129,
+          "unknown": 487,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-900s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 900.0,
+          "actual_absence_seconds": 900.0002505469893,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 3.760550608014455,
+          "full_recovery_seconds": 7.578239398018923,
+          "accepted": 132,
+          "unknown": 1671,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-1800s",
+          "fault": "process-suspension",
+          "nodes": [
+            1,
+            2
+          ],
+          "requested_absence_seconds": 1800.0,
+          "actual_absence_seconds": 1800.0001274259994,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 2.104214848979609,
+          "full_recovery_seconds": 13.336721476982348,
+          "accepted": 136,
+          "unknown": 4073,
+          "passed": true
+        },
+        {
+          "phase": "absence-quorum-3600s",
+          "fault": "process-suspension",
+          "nodes": [
+            0,
+            1
+          ],
+          "requested_absence_seconds": 3600.0,
+          "actual_absence_seconds": 3600.000104560022,
+          "new_leader_observed_seconds": null,
+          "ready_after_resume_seconds": 2.964690956985578,
+          "full_recovery_seconds": 21.132117481989553,
+          "accepted": 141,
+          "unknown": 8903,
+          "passed": true
+        }
+      ],
+      "full_persistent_restart": [
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "absence_availability_observations": {
+        "absence-quorum-30s": {
+          "accepted_by_kind": {
+            "sync": 1,
+            "set": 1,
+            "async": 1,
+            "stream": 1,
+            "job": 1
+          },
+          "unknown_by_kind": {
+            "async": 2,
+            "file": 8,
+            "sync": 2,
+            "stream": 2,
+            "set": 2,
+            "hashset": 7,
+            "counter": 2,
+            "job": 2,
+            "minority-probe": 1
+          },
+          "suspended": 1794564745.4838355,
+          "resumed": 1794564775.4875383,
+          "largest_accepted_write_spacing_seconds": {
+            "set": 30.003702878952026,
+            "async": 30.003702878952026,
+            "stream": 30.003702878952026,
+            "job": 30.003702878952026
+          }
+        },
+        "absence-quorum-60s": {
+          "accepted_by_kind": {
+            "hashset": 1,
+            "job": 1,
+            "set": 1,
+            "stream": 1,
+            "async": 1,
+            "counter": 1
+          },
+          "unknown_by_kind": {
+            "async": 19,
+            "minority-probe": 1,
+            "sync": 15,
+            "stream": 4,
+            "hashset": 4,
+            "file": 8,
+            "counter": 10,
+            "set": 4,
+            "job": 4
+          },
+          "suspended": 1794564778.5328472,
+          "resumed": 1794564838.5509174,
+          "largest_accepted_write_spacing_seconds": {
+            "hashset": 60.018070220947266,
+            "job": 60.018070220947266,
+            "set": 60.018070220947266,
+            "stream": 60.018070220947266,
+            "async": 60.018070220947266,
+            "counter": 60.018070220947266
+          }
+        },
+        "absence-quorum-300s": {
+          "accepted_by_kind": {
+            "sync": 2,
+            "set": 1,
+            "stream": 1,
+            "hashset": 1,
+            "file": 1
+          },
+          "unknown_by_kind": {
+            "job": 77,
+            "async": 27,
+            "file": 60,
+            "stream": 25,
+            "hashset": 89,
+            "set": 55,
+            "counter": 38,
+            "minority-probe": 1,
+            "sync": 18
+          },
+          "suspended": 1794564843.4300807,
+          "resumed": 1794565143.4577923,
+          "largest_accepted_write_spacing_seconds": {
+            "set": 300.02771162986755,
+            "stream": 300.02771162986755,
+            "hashset": 300.02771162986755,
+            "file": 300.02771162986755
+          }
+        },
+        "absence-quorum-900s": {
+          "accepted_by_kind": {
+            "job": 1,
+            "file": 1,
+            "stream": 1
+          },
+          "unknown_by_kind": {
+            "async": 104,
+            "set": 124,
+            "stream": 191,
+            "file": 123,
+            "job": 192,
+            "sync": 162,
+            "hashset": 165,
+            "counter": 122,
+            "minority-probe": 1
+          },
+          "suspended": 1794565150.399149,
+          "resumed": 1794566050.4080424,
+          "largest_accepted_write_spacing_seconds": {
+            "job": 900.0088934898376,
+            "file": 900.0088934898376,
+            "stream": 900.0088934898376
+          }
+        },
+        "absence-quorum-1800s": {
+          "accepted_by_kind": {
+            "sync": 1,
+            "hashset": 1,
+            "async": 1,
+            "stream": 1
+          },
+          "unknown_by_kind": {
+            "counter": 370,
+            "async": 167,
+            "stream": 256,
+            "hashset": 299,
+            "file": 318,
+            "set": 369,
+            "sync": 396,
+            "job": 226,
+            "minority-probe": 1
+          },
+          "suspended": 1794566058.0060205,
+          "resumed": 1794567858.0167334,
+          "largest_accepted_write_spacing_seconds": {
+            "hashset": 1800.0107128620148,
+            "async": 1800.0107128620148,
+            "stream": 1800.0107128620148
+          }
+        },
+        "absence-quorum-3600s": {
+          "accepted_by_kind": {
+            "sync": 1,
+            "async": 1,
+            "counter": 1,
+            "job": 1,
+            "stream": 1
+          },
+          "unknown_by_kind": {
+            "async": 420,
+            "file": 695,
+            "hashset": 668,
+            "stream": 698,
+            "set": 577,
+            "counter": 461,
+            "job": 728,
+            "minority-probe": 1,
+            "sync": 582
+          },
+          "suspended": 1794567871.372076,
+          "resumed": 1794571471.3806953,
+          "largest_accepted_write_spacing_seconds": {
+            "async": 3600.0086193084717,
+            "counter": 3600.0086193084717,
+            "job": 3600.0086193084717,
+            "stream": 3600.0086193084717
+          }
+        }
+      },
+      "compact_evidence_sha256": "2968945f2831eaafee636d884bb8801be82e1ee07aba764e27a3e12d0ba0c252"
+    }
+  },
+  "kernel_resources": {
+    "sampled_pod_uid_groups": 18,
+    "hard_memory_limit_bytes": 1073741824,
+    "sampled_maximum_memory_bytes": 1012682752,
+    "memory_limit_hits": 1543,
+    "socket_throttled_events": 1989,
+    "oom_events": 0,
+    "oom_kills": 0,
+    "interpretation": "Periodic samples are not a strict peak bound. Memory-limit hits and socket throttling occurred; no observed OOM or OOM kill.",
+    "coverage": [
+      {
+        "role": "follower",
+        "finish_minus_last_sample_seconds": 16.270854473114014
+      },
+      {
+        "role": "leader",
+        "finish_minus_last_sample_seconds": 30.816161632537842
+      },
+      {
+        "role": "quorum",
+        "finish_minus_last_sample_seconds": 25.204514980316162
+      }
+    ],
+    "groups": [
+      {
+        "namespace": "slimfaas-pr506-endurance-follower-11",
+        "pod": "slimfaas-0",
+        "uid": "0acfeec3-10a9-44b6-a156-ce4229ba7e56",
+        "samples": 230,
+        "first_utc": 1794564588.607452,
+        "last_utc": 1794571610.4348102,
+        "maximum_memory_bytes": 382459904,
+        "maximum_socket_bytes": 1179648,
+        "maximum_anonymous_bytes": 272404480,
+        "maximum_file_bytes": 107581440,
+        "maximum_shared_memory_bytes": 84701184,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-follower-11",
+        "pod": "slimfaas-1",
+        "uid": "cc6bd2bf-8f36-4821-b07d-76d4ce58dd7d",
+        "samples": 230,
+        "first_utc": 1794564588.608633,
+        "last_utc": 1794571610.434842,
+        "maximum_memory_bytes": 544935936,
+        "maximum_socket_bytes": 2801664,
+        "maximum_anonymous_bytes": 402063360,
+        "maximum_file_bytes": 135168000,
+        "maximum_shared_memory_bytes": 77885440,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 3,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-follower-11",
+        "pod": "slimfaas-2",
+        "uid": "394f2ff1-c4a1-4a75-9dc0-c3e2217376c3",
+        "samples": 230,
+        "first_utc": 1794564588.609927,
+        "last_utc": 1794571610.434864,
+        "maximum_memory_bytes": 584650752,
+        "maximum_socket_bytes": 4194304,
+        "maximum_anonymous_bytes": 466300928,
+        "maximum_file_bytes": 120885248,
+        "maximum_shared_memory_bytes": 83234816,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 882,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-leader-11",
+        "pod": "slimfaas-0",
+        "uid": "50fd43c9-92ae-4fe9-b2f0-c0b5dae0915e",
+        "samples": 230,
+        "first_utc": 1794564649.32278,
+        "last_utc": 1794571671.269553,
+        "maximum_memory_bytes": 599965696,
+        "maximum_socket_bytes": 1695744,
+        "maximum_anonymous_bytes": 444448768,
+        "maximum_file_bytes": 142299136,
+        "maximum_shared_memory_bytes": 85770240,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-leader-11",
+        "pod": "slimfaas-1",
+        "uid": "01cc54f2-2b0e-43dc-89a2-d9da7ad31bac",
+        "samples": 229,
+        "first_utc": 1794564649.354964,
+        "last_utc": 1794571671.271253,
+        "maximum_memory_bytes": 1012682752,
+        "maximum_socket_bytes": 3928064,
+        "maximum_anonymous_bytes": 595341312,
+        "maximum_file_bytes": 553013248,
+        "maximum_shared_memory_bytes": 84717568,
+        "memory_limit_hits": 491,
+        "socket_throttled_events": 396,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-leader-11",
+        "pod": "slimfaas-2",
+        "uid": "e1bf8162-6184-45be-b050-de3ddb26a471",
+        "samples": 229,
+        "first_utc": 1794564649.360241,
+        "last_utc": 1794571671.2848132,
+        "maximum_memory_bytes": 973037568,
+        "maximum_socket_bytes": 2588672,
+        "maximum_anonymous_bytes": 685359104,
+        "maximum_file_bytes": 578076672,
+        "maximum_shared_memory_bytes": 84303872,
+        "memory_limit_hits": 1052,
+        "socket_throttled_events": 707,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-quorum-11",
+        "pod": "slimfaas-0",
+        "uid": "5487e6d0-de18-4978-803a-15f0ae8c3bce",
+        "samples": 221,
+        "first_utc": 1794564740.537815,
+        "last_utc": 1794571488.882335,
+        "maximum_memory_bytes": 184168448,
+        "maximum_socket_bytes": 258048,
+        "maximum_anonymous_bytes": 108048384,
+        "maximum_file_bytes": 82509824,
+        "maximum_shared_memory_bytes": 78045184,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 1,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-quorum-11",
+        "pod": "slimfaas-1",
+        "uid": "bfdade4c-6255-4d24-b268-af68a21694be",
+        "samples": 221,
+        "first_utc": 1794564740.5396779,
+        "last_utc": 1794571488.886719,
+        "maximum_memory_bytes": 183095296,
+        "maximum_socket_bytes": 331776,
+        "maximum_anonymous_bytes": 103038976,
+        "maximum_file_bytes": 76472320,
+        "maximum_shared_memory_bytes": 75300864,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-quorum-11",
+        "pod": "slimfaas-2",
+        "uid": "d7cfe6f8-bb03-4b0e-a5f4-2778a6bf0326",
+        "samples": 221,
+        "first_utc": 1794564740.548892,
+        "last_utc": 1794571488.906239,
+        "maximum_memory_bytes": 166666240,
+        "maximum_socket_bytes": 339968,
+        "maximum_anonymous_bytes": 93097984,
+        "maximum_file_bytes": 80166912,
+        "maximum_shared_memory_bytes": 76689408,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-quorum-11",
+        "pod": "slimfaas-0",
+        "uid": "0062fc57-eb3d-4bb0-9850-3283b42c28ce",
+        "samples": 1,
+        "first_utc": 1794571519.4345212,
+        "last_utc": 1794571519.4345212,
+        "maximum_memory_bytes": 105103360,
+        "maximum_socket_bytes": 8192,
+        "maximum_anonymous_bytes": 50307072,
+        "maximum_file_bytes": 52260864,
+        "maximum_shared_memory_bytes": 52248576,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-quorum-11",
+        "pod": "slimfaas-1",
+        "uid": "8ecdd275-84eb-4820-b198-94d101d803c6",
+        "samples": 1,
+        "first_utc": 1794571519.4448571,
+        "last_utc": 1794571519.4448571,
+        "maximum_memory_bytes": 103714816,
+        "maximum_socket_bytes": 0,
+        "maximum_anonymous_bytes": 51376128,
+        "maximum_file_bytes": 49065984,
+        "maximum_shared_memory_bytes": 49053696,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-quorum-11",
+        "pod": "slimfaas-2",
+        "uid": "3221d589-11ad-4cdd-923f-2dc25a117fbd",
+        "samples": 1,
+        "first_utc": 1794571519.487357,
+        "last_utc": 1794571519.487357,
+        "maximum_memory_bytes": 100544512,
+        "maximum_socket_bytes": 0,
+        "maximum_anonymous_bytes": 49512448,
+        "maximum_file_bytes": 48193536,
+        "maximum_shared_memory_bytes": 48181248,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-follower-11",
+        "pod": "slimfaas-0",
+        "uid": "b71946de-ef62-4790-b576-9c6e7cb07e4f",
+        "samples": 2,
+        "first_utc": 1794571640.796896,
+        "last_utc": 1794571671.1416152,
+        "maximum_memory_bytes": 267530240,
+        "maximum_socket_bytes": 16384,
+        "maximum_anonymous_bytes": 182308864,
+        "maximum_file_bytes": 81641472,
+        "maximum_shared_memory_bytes": 66035712,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-follower-11",
+        "pod": "slimfaas-1",
+        "uid": "38b4b48c-bc66-452e-94ca-6d1304397660",
+        "samples": 2,
+        "first_utc": 1794571640.7969458,
+        "last_utc": 1794571671.14166,
+        "maximum_memory_bytes": 263749632,
+        "maximum_socket_bytes": 32768,
+        "maximum_anonymous_bytes": 184311808,
+        "maximum_file_bytes": 76009472,
+        "maximum_shared_memory_bytes": 60403712,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-follower-11",
+        "pod": "slimfaas-2",
+        "uid": "56828657-cb2c-4fb4-a227-81780c48d14d",
+        "samples": 2,
+        "first_utc": 1794571640.797944,
+        "last_utc": 1794571671.141685,
+        "maximum_memory_bytes": 249655296,
+        "maximum_socket_bytes": 4096,
+        "maximum_anonymous_bytes": 170090496,
+        "maximum_file_bytes": 76361728,
+        "maximum_shared_memory_bytes": 60755968,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-leader-11",
+        "pod": "slimfaas-0",
+        "uid": "d962799e-5c4a-453c-810c-2c6d0523dc22",
+        "samples": 1,
+        "first_utc": 1794571701.577176,
+        "last_utc": 1794571701.577176,
+        "maximum_memory_bytes": 233279488,
+        "maximum_socket_bytes": 0,
+        "maximum_anonymous_bytes": 155226112,
+        "maximum_file_bytes": 74784768,
+        "maximum_shared_memory_bytes": 59150336,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-leader-11",
+        "pod": "slimfaas-1",
+        "uid": "1bfc8810-dc4e-47a7-89ea-87e912123cce",
+        "samples": 1,
+        "first_utc": 1794571701.577216,
+        "last_utc": 1794571701.577216,
+        "maximum_memory_bytes": 345231360,
+        "maximum_socket_bytes": 0,
+        "maximum_anonymous_bytes": 266756096,
+        "maximum_file_bytes": 74752000,
+        "maximum_shared_memory_bytes": 59117568,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      },
+      {
+        "namespace": "slimfaas-pr506-endurance-leader-11",
+        "pod": "slimfaas-2",
+        "uid": "ce601988-d78b-4ae3-9b21-c318ec6b29df",
+        "samples": 1,
+        "first_utc": 1794571701.577101,
+        "last_utc": 1794571701.577101,
+        "maximum_memory_bytes": 246214656,
+        "maximum_socket_bytes": 8192,
+        "maximum_anonymous_bytes": 162004992,
+        "maximum_file_bytes": 80556032,
+        "maximum_shared_memory_bytes": 64921600,
+        "memory_limit_hits": 0,
+        "socket_throttled_events": 0,
+        "oom_events": 0,
+        "oom_kills": 0,
+        "container_ooms": []
+      }
+    ]
+  }
+}

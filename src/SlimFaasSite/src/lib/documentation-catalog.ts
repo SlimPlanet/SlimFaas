@@ -39,7 +39,7 @@ export const DOCUMENTATION_CATALOG = {
     'guided-tour': {
         sourcePath: 'docs/guided-tour.md', route: '/guided-tour',
         label: 'Guided Tour', title: 'Discover SlimFaas Step by Step',
-        description: 'Follow requests from cURL or Bruno through the live SlimFaas dashboard.',
+        description: 'Follow requests, DLQ repair and durable Stream fan-out from cURL or Bruno through the live dashboard.',
     },
     'api-reference': {
         sourcePath: 'docs/api-reference.md', route: '/api-reference',
@@ -59,7 +59,14 @@ export const DOCUMENTATION_CATALOG = {
         route: '/functions',
         label: 'Functions',
         title: 'SlimFaas Functions',
-        description: 'Call SlimFaas functions synchronously and asynchronously.',
+        description: 'Call synchronous functions and configure shared visibility, dependencies and scaling.',
+    },
+    'async-functions': {
+        sourcePath: 'docs/async-functions.md',
+        route: '/async-functions',
+        label: 'Async Functions',
+        title: 'SlimFaas Asynchronous Functions',
+        description: 'Durable acceptance, retries, callbacks, and Dead Letter Queue inspection and replay.',
     },
     'user-interface': {
         sourcePath: 'docs/user-interface.md',
@@ -81,6 +88,10 @@ export const DOCUMENTATION_CATALOG = {
         label: 'Events',
         title: 'SlimFaas Events',
         description: 'Broadcast events to ready HTTP replicas and connected WebSocket clients.',
+    },
+    streams: {
+        sourcePath: 'docs/streams.md', route: '/streams', label: 'Streams',
+        title: 'SlimFaas Durable Streams', description: 'Retained events and independent HTTP or WebSocket function consumption.',
     },
     jobs: {
         sourcePath: 'docs/jobs.md',
@@ -155,14 +166,25 @@ export function getDocumentationEntry(id: DocumentationId): DocumentationEntry {
 }
 
 export function getPublicRouteForSource(sourcePath: string): string | undefined {
+    if (sourcePath === 'docs/dead-letter-queues.md') return '/async-functions';
     return Object.values(DOCUMENTATION_CATALOG).find(
         (entry) => entry.sourcePath === sourcePath,
     )?.route;
 }
 
+export function legacyDeadLetterTarget(hash: string): string {
+    const fragments = new Set([
+        'dead-letter-queues', 'enable-capture', 'visibility-and-dashboard-defaults',
+        'illustrated-example', 'management-api', 'replay-and-recovery-guarantees',
+        'websocket-clients', 'observability-and-upgrades', 'native-local-exercise',
+    ]);
+    const fragment = hash.replace(/^#/, '');
+    return `/async-functions#${fragments.has(fragment) ? fragment : 'dead-letter-queues'}`;
+}
+
 export const DOCUMENTATION_GROUPS: { label: string; ids: DocumentationId[] }[] = [
     { label: 'Start here', ids: ['get-started', 'get-started-kubernetes', 'get-started-local', 'get-started-docker-compose', 'guided-tour'] },
-    { label: 'Features', ids: ['functions', 'events', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
+    { label: 'Features', ids: ['functions', 'async-functions', 'events', 'streams', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
     { label: 'Operate', ids: ['user-interface', 'autoscaling', 'opentelemetry', 'benchmarking'] },
     { label: 'Reference', ids: ['api-reference', 'how-it-works', 'local-mode'] },
 ];

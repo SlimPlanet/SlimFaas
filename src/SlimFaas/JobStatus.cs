@@ -8,7 +8,11 @@ public record RunningJobStatus(
     string Status,
     string ElementId,
     long InQueueTimestamp,
-    long StartTimestamp);
+    long StartTimestamp)
+{
+    public string? Lifecycle { get; init; }
+    public PodRequests? Requests { get; init; }
+}
 
 public record ScheduledJobInfo(
     string Id,
@@ -16,7 +20,8 @@ public record ScheduledJobInfo(
     string Image,
     long? NextExecutionTimestamp,
     CreateJobResources? Resources,
-    List<string>? DependsOn);
+    List<string>? DependsOn,
+    string? TimeZone);
 
 public record JobConfigurationStatus(
     string Name,
@@ -27,7 +32,8 @@ public record JobConfigurationStatus(
     CreateJobResources? Resources,
     List<string>? DependsOn,
     IList<ScheduledJobInfo> Schedules,
-    IList<RunningJobStatus> RunningJobs);
+    IList<RunningJobStatus> RunningJobs,
+    long QueueLength);
 
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(List<JobConfigurationStatus>))]

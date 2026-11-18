@@ -1,0 +1,20 @@
+@baseUrl = http://127.0.0.1:30020
+@tourId = tour-example
+
+### Start the standard demo first. This accepted work fails with 422.
+POST {{baseUrl}}/async-function/fibonacci1/tour/dlq/{{tourId}}
+Content-Type: application/json
+
+{"orderId":"tour-order"}
+
+### Inspect this run's failure, then its body in the dashboard.
+GET {{baseUrl}}/data/dead-letters/fibonacci1/messages?httpStatus=422
+
+### Repair the simulated shared dependency before replaying the captured DLQ message ID.
+POST {{baseUrl}}/data/sets/{{tourId}}-dlq-ready?ttl=600000
+Content-Type: text/plain
+
+ready
+
+### Verify the completion marker matches the replay receipt's ElementId.
+GET {{baseUrl}}/data/sets/{{tourId}}-dlq-completed

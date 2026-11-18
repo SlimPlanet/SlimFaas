@@ -1,6 +1,9 @@
 import { appendActivity } from '../lib/live.ts';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import type { PodRequests, DataSummary, FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import { jobQueues } from '../lib/topology.ts';
+import { isDeadLetterSummary, type DeadLetterSummary } from '../lib/deadLetters.ts';
+import { isStreamSummary, isStreamFunction, type StreamSummary, type StreamFunction } from '../lib/streams.ts';
 
 const COOLDOWN_MS = 3000;
 const ACTIVITY_FLUSH_MS = 100;
@@ -42,8 +45,23 @@ function normalizeScaleDownTimeout(raw: unknown): { Time: string; Value: number 
   }));
 }
 
+function normalizeRequests(raw: unknown): PodRequests | undefined {
+  const read = (key: string) => pick<number>(raw, key, key[0].toLowerCase() + key.slice(1));
+  const cpu = read('CpuMillis'), memory = read('MemoryBytes'), known = read('KnownPods'), unknown = read('UnknownPods');
+  if (cpu == null || memory == null || known == null || unknown == null ||
+      ![cpu, memory, known, unknown].every(v => Number.isFinite(v) && v >= 0)) return undefined;
+  return { CpuMillis: cpu, MemoryBytes: memory, KnownPods: known, UnknownPods: unknown };
+}
+
+function observation(raw: unknown) {
+  const lifecycle = asString(pick(raw, 'Lifecycle', 'lifecycle'));
+  const requests = normalizeRequests(pick(raw, 'Requests', 'requests'));
+  return { ...(lifecycle && { Lifecycle: lifecycle }), ...(requests && { Requests: requests }) };
+}
+
 function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
   return asArray(raw).map((entry) => {
+    const pods = pick(entry, 'Pods', 'pods');
     const resources = pick<Record<string, unknown>>(entry, 'Resources', 'resources');
     const schedule = pick<Record<string, unknown>>(entry, 'Schedule', 'schedule');
     const scheduleDefault = (schedule?.Default ?? schedule?.default) as Record<string, unknown> | null | undefined;
@@ -101,12 +119,13 @@ function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
         Visibility: asString(pick(path, 'Visibility', 'visibility')),
       })),
       DependsOn: asArray<string>(pick(entry, 'DependsOn', 'dependsOn')),
-      Pods: asArray(pick(entry, 'Pods', 'pods')).map((pod) => ({
+      Pods: Array.isArray(pods) ? pods.map((pod) => ({
         Name: asString(pick(pod, 'Name', 'name')),
         Status: asString(pick(pod, 'Status', 'status')),
         Ready: Boolean(pick(pod, 'Ready', 'ready')),
+        ...observation(pod),
         Identity: asString(pick(pod, 'Identity', 'identity')),
-      })),
+      })) : null,
     };
   });
 }
@@ -131,10 +150,12 @@ function normalizeJobs(raw: unknown): JobConfigurationStatus[] {
     RunningJobs: asArray(pick(entry, 'RunningJobs', 'runningJobs')).map((rj) => ({
       Name: asString(pick(rj, 'Name', 'name')),
       Status: asString(pick(rj, 'Status', 'status')),
+      ...observation(rj),
       ElementId: asString(pick(rj, 'ElementId', 'elementId')),
       InQueueTimestamp: asNumber(pick(rj, 'InQueueTimestamp', 'inQueueTimestamp')),
       StartTimestamp: asNumber(pick(rj, 'StartTimestamp', 'startTimestamp')),
     })),
+    QueueLength: asNumber(pick(entry, 'QueueLength', 'queueLength')),
   }));
 }
 
@@ -157,6 +178,15 @@ function normalizeActivity(raw: unknown): NetworkActivityEvent[] {
     SourcePod: asString(pick(entry, 'SourcePod', 'sourcePod'), '') || null,
     TargetPod: asString(pick(entry, 'TargetPod', 'targetPod'), '') || null,
     CorrelationId: asString(pick(entry, 'CorrelationId', 'correlationId'), '') || null,
+    DeadLetterId: asString(pick(entry, 'DeadLetterId', 'deadLetterId'), '') || null,
+    ElementId: asString(pick(entry, 'ElementId', 'elementId'), '') || null,
+    OriginalElementId: asString(pick(entry, 'OriginalElementId', 'originalElementId'), '') || null,
+    DataKind: asString(pick(entry, 'DataKind', 'dataKind'), '') || null,
+    DataOperation: asString(pick(entry, 'DataOperation', 'dataOperation'), '') || null,
+    DataStatusCode: asNullableNumber(pick(entry, 'DataStatusCode', 'dataStatusCode')),
+    StreamName: asString(pick(entry, 'StreamName', 'streamName'), '') || null,
+    StreamFunction: asString(pick(entry, 'StreamFunction', 'streamFunction'), '') || null,
+    StreamMessageId: asString(pick(entry, 'StreamMessageId', 'streamMessageId'), '') || null,
   }));
 }
 
@@ -166,13 +196,24 @@ export function normalizeSlimFaasNodes(raw: unknown): SlimFaasNodeInfo[] {
     return {
       Name: asString(pick(entry, 'Name', 'name')),
       Status: asString(pick(entry, 'Status', 'status')),
+      ...observation(entry),
       Role: role === 'Leader' || role === 'Follower' ? role : 'Unknown',
     };
   });
 }
 
-function normalizePayload(raw: unknown): StatusStreamPayload {
+function normalizeDataSummary(raw: unknown): DataSummary | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const result = Object.fromEntries(['Sets', 'Files', 'SetBytes', 'FileBytes', 'UnknownFileSizes'].map(key =>
+    [key, pick(raw, key, key[0].toLowerCase() + key.slice(1))]));
+  return Object.values(result).every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    ? result as unknown as DataSummary : null;
+}
+
+export function normalizePayload(raw: unknown): StatusStreamPayload {
   return {
+    Requests: normalizeRequests(pick(raw, 'Requests', 'requests')),
+    DataSummary: normalizeDataSummary(pick(raw, 'DataSummary', 'dataSummary')),
     Functions: normalizeFunctions(pick(raw, 'Functions', 'functions')),
     Queues: normalizeQueues(pick(raw, 'Queues', 'queues')),
     Jobs: normalizeJobs(pick(raw, 'Jobs', 'jobs')),
@@ -183,6 +224,15 @@ function normalizePayload(raw: unknown): StatusStreamPayload {
     MaxLiveEventsPerSecond: asNumber(pick(raw, 'MaxLiveEventsPerSecond', 'maxLiveEventsPerSecond')),
     FrontEnabled: pick(raw, 'FrontEnabled', 'frontEnabled') as boolean | undefined,
     FrontMessage: pick(raw, 'FrontMessage', 'frontMessage') as string | null | undefined,
+    DeadLetters: asArray(pick(raw, 'DeadLetters', 'deadLetters')).filter(isDeadLetterSummary),
+    DeadLettersFrontEnabled: pick(raw, 'DeadLettersFrontEnabled', 'deadLettersFrontEnabled') === true,
+    DeadLettersAccessible: pick(raw, 'DeadLettersAccessible', 'deadLettersAccessible') === true,
+    Streams: asArray(pick(raw, 'Streams', 'streams')).filter(isStreamSummary),
+    StreamSubscriptions: asArray(pick(raw, 'StreamSubscriptions', 'streamSubscriptions')).filter(isStreamFunction),
+    StreamsAvailable: pick(raw, 'StreamsAvailable', 'streamsAvailable') === true,
+    StreamsFrontEnabled: (pick(raw, 'StreamsFrontEnabled', 'streamsFrontEnabled') ?? pick(raw, 'StreamsAvailable', 'streamsAvailable')) === true,
+    StreamsAccessible: (pick(raw, 'StreamsAccessible', 'streamsAccessible') ?? pick(raw, 'StreamsAvailable', 'streamsAvailable')) === true,
+    StreamsTruncated: pick(raw, 'StreamsTruncated', 'streamsTruncated') === true,
   };
 }
 
@@ -199,15 +249,28 @@ export function useStatusStream(includeActivity = true) {
   const [error, setError] = useState<string | null>(null);
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
-  const [functionsWithQueueActivity, setFunctionsWithQueueActivity] = useState<Set<string>>(new Set());
+  const pendingWake = useRef(new Set<string | null>());
+  const [queuesWithActivity, setQueuesWithActivity] = useState<Set<string>>(new Set());
   const [slimFaasReplicas, setSlimFaasReplicas] = useState(1);
   const [slimFaasNodes, setSlimFaasNodes] = useState<SlimFaasNodeInfo[]>([]);
   const [frontEnabled, setFrontEnabled] = useState(true);
   const [frontMessage, setFrontMessage] = useState<string | null>(null);
+  const [deadLetters, setDeadLetters] = useState<DeadLetterSummary[]>([]);
+  const [deadLettersFrontEnabled, setDeadLettersFrontEnabled] = useState(false);
+  const [deadLettersAccessible, setDeadLettersAccessible] = useState(false);
+  const [streams, setStreams] = useState<StreamSummary[]>([]);
+  const [streamSubscriptions, setStreamSubscriptions] = useState<StreamFunction[]>([]);
+  const [streamsAvailable, setStreamsAvailable] = useState(false);
+  const [streamsFrontEnabled, setStreamsFrontEnabled] = useState(false);
+  const [streamsAccessible, setStreamsAccessible] = useState(false);
+  const [requests, setRequests] = useState<PodRequests>();
+  const [dataSummary, setDataSummary] = useState<DataSummary | null>(null);
+  const [streamsTruncated, setStreamsTruncated] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectFailures = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataAvailableRef = useRef(false);
   const activityBufferRef = useRef<NetworkActivityEvent[]>([]);
   const activityFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -225,20 +288,20 @@ export function useStatusStream(includeActivity = true) {
       return appendActivity(prev, batch);
     });
 
-    const queueTargets = new Set<string>();
+    const usedQueues = new Set<string>();
     for (const evt of batch) {
       if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
-        queueTargets.add(evt.Target);
+        usedQueues.add(evt.QueueName ?? evt.Target);
       }
     }
 
-    if (queueTargets.size > 0) {
-      setFunctionsWithQueueActivity(prev => {
+    if (usedQueues.size > 0) {
+      setQueuesWithActivity(prev => {
         let changed = false;
         const next = new Set(prev);
-        queueTargets.forEach(target => {
-          if (!next.has(target)) {
-            next.add(target);
+        usedQueues.forEach(name => {
+          if (!next.has(name)) {
+            next.add(name);
             changed = true;
           }
         });
@@ -250,7 +313,9 @@ export function useStatusStream(includeActivity = true) {
   const enqueueActivityBatch = useCallback((events: NetworkActivityEvent[]) => {
     if (events.length === 0) return;
     const receivedAt = performance.now();
-    activityBufferRef.current.push(...events.map(event => ({ ...event, ReceivedAt: receivedAt })));
+    for (const event of events) if (!event.DataKind || dataAvailableRef.current)
+      activityBufferRef.current.push({ ...event, ReceivedAt: receivedAt });
+    if (activityBufferRef.current.length === 0) return;
 
     if (activityBufferRef.current.length >= ACTIVITY_IMMEDIATE_FLUSH_SIZE) {
       flushActivityBuffer();
@@ -271,6 +336,7 @@ export function useStatusStream(includeActivity = true) {
       activityFlushTimerRef.current = null;
     }
     activityBufferRef.current = [];
+    dataAvailableRef.current = false;
 
     const es = new EventSource(`/status-functions-stream${includeActivity ? '' : '?activity=false'}`);
     eventSourceRef.current = es;
@@ -293,21 +359,39 @@ export function useStatusStream(includeActivity = true) {
         setSamplingRatio(payload.LiveActivitySamplingRatio ?? 1);
         setMaxLiveEventsPerSecond(payload.MaxLiveEventsPerSecond ?? 0);
         setFrontMessage(payload.FrontMessage ?? null);
+        setDeadLetters(payload.DeadLetters ?? []);
+        setDeadLettersFrontEnabled(payload.DeadLettersFrontEnabled === true);
+        setDeadLettersAccessible(payload.DeadLettersAccessible === true);
+        const streamsVisible = payload.StreamsFrontEnabled === true && payload.StreamsAccessible === true;
+        setStreams(streamsVisible ? payload.Streams ?? [] : []);
+        setStreamSubscriptions(streamsVisible ? payload.StreamSubscriptions ?? [] : []);
+        setStreamsAvailable(streamsVisible);
+        setStreamsFrontEnabled(payload.StreamsFrontEnabled === true);
+        setStreamsAccessible(payload.StreamsAccessible === true);
+        setStreamsTruncated(payload.StreamsTruncated === true);
+        setRequests(payload.Requests ?? undefined);
+        setDataSummary(payload.DataSummary ?? null);
+        dataAvailableRef.current = !!payload.DataSummary;
+        if (!dataAvailableRef.current) {
+          activityBufferRef.current = activityBufferRef.current.filter(event => !event.DataKind);
+          setActivity(previous => previous.filter(event => !event.DataKind));
+        }
         setError(null);
         reconnectFailures.current = 0;
         setLoading(false);
 
         // Detect queue usage from current queue lengths only (live view).
-        const queueFns = new Set<string>();
-        for (const q of (payload.Queues ?? [])) {
+        const queues = [...(payload.Queues ?? []), ...jobQueues(payload.Jobs)];
+        const usedQueues = new Set<string>();
+        for (const q of queues) {
           if (q.Length > 0) {
-            queueFns.add(q.Name);
+            usedQueues.add(q.Name);
           }
         }
-        const knownFunctions = new Set(payload.Functions.map(fn => fn.Name));
-        setFunctionsWithQueueActivity(prev => {
-          const next = new Set([...prev].filter(name => knownFunctions.has(name)));
-          queueFns.forEach(name => next.add(name));
+        const knownQueues = new Set([...payload.Functions.map(fn => fn.Name), ...queues.map(q => q.Name)]);
+        setQueuesWithActivity(prev => {
+          const next = new Set([...prev].filter(name => knownQueues.has(name)));
+          usedQueues.forEach(name => next.add(name));
           return next.size === prev.size && [...next].every(name => prev.has(name)) ? prev : next;
         });
       } catch (err) {
@@ -355,44 +439,36 @@ export function useStatusStream(includeActivity = true) {
     };
   }, [connect]);
 
-  const startCooldown = useCallback((name: string) => {
-    setCoolingDown(prev => new Set(prev).add(name));
-    setTimeout(() => {
-      setCoolingDown(prev => {
-        const next = new Set(prev);
-        next.delete(name);
-        return next;
-      });
-    }, COOLDOWN_MS);
+  const wakeUp = useCallback(async (name: string | null) => {
+    if (pendingWake.current.has(name)) return;
+    pendingWake.current.add(name);
+    const started = performance.now();
+    if (name === null) setWakeAllCooling(true);
+    else setCoolingDown(current => new Set(current).add(name));
+    setActionError(null);
+    try {
+      const url = name === null ? '/wake-functions' : `/wake-function/${encodeURIComponent(name)}`;
+      const response = await fetch(url, { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      setActionError(`Unable to wake ${name ?? 'functions'}: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setTimeout(() => {
+        pendingWake.current.delete(name);
+        if (name === null) setWakeAllCooling(false);
+        else setCoolingDown(current => {
+          const next = new Set(current);
+          next.delete(name);
+          return next;
+        });
+      }, Math.max(0, COOLDOWN_MS - (performance.now() - started)));
+    }
   }, []);
 
-  const wakeUp = useCallback(async (functionName: string) => {
-    if (coolingDown.has(functionName)) return;
-    startCooldown(functionName);
-    try {
-      setActionError(null);
-      const response = await fetch(`/wake-function/${encodeURIComponent(functionName)}`, { method: 'POST' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    } catch (err) {
-      setActionError(`Unable to wake ${functionName}: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [coolingDown, startCooldown]);
-
-  const wakeUpAll = useCallback(async () => {
-    if (wakeAllCooling) return;
-    setWakeAllCooling(true);
-    setTimeout(() => setWakeAllCooling(false), COOLDOWN_MS);
-    try {
-      setActionError(null);
-      const response = await fetch('/wake-functions', { method: 'POST' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    } catch (err) {
-      setActionError(`Unable to wake functions: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [wakeAllCooling]);
+  const wakeUpAll = useCallback(() => wakeUp(null), [wakeUp]);
 
   return {
-    functions,
+    functions, requests, dataSummary,
     queues,
     jobs,
     activity, activitySession,
@@ -402,13 +478,12 @@ export function useStatusStream(includeActivity = true) {
     wakeUpAll,
     coolingDown,
     wakeAllCooling,
-    functionsWithQueueActivity,
+    queuesWithActivity,
     slimFaasReplicas,
     slimFaasNodes,
     frontEnabled,
+    deadLetters, deadLettersFrontEnabled, deadLettersAccessible,
+    streams, streamSubscriptions, streamsAvailable, streamsFrontEnabled, streamsAccessible, streamsTruncated,
     frontMessage, actionError, samplingRatio, maxLiveEventsPerSecond,
   };
 }
-
-
-

@@ -208,6 +208,9 @@ public sealed class StubJobQueue : IJobQueue
 
     public Task<IList<QueueData>> CountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) =>
         Task.FromResult<IList<QueueData>>(new List<QueueData>());
+
+    public Task<long> CountAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) =>
+        Task.FromResult(0L);
 }
 
 public sealed class StubJobConfiguration : IJobConfiguration

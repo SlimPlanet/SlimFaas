@@ -50,9 +50,10 @@ public class RequestLoggingMiddlewareTests
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) =>
-                    v.ToString()!.Contains("Incoming HTTP") &&
-                    v.ToString()!.Contains("/mcp") &&
-                    v.ToString()!.Contains(@"""hello"":""world""")),
+                    v != null &&
+                    (v.ToString() ?? string.Empty).Contains("Incoming HTTP") &&
+                    (v.ToString() ?? string.Empty).Contains("/mcp") &&
+                    (v.ToString() ?? string.Empty).Contains(@"""hello"":""world""")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -145,8 +146,9 @@ public class RequestLoggingMiddlewareTests
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) =>
-                    v.ToString()!.Contains("Incoming HTTP") &&
-                    v.ToString()!.Contains("truncated")),
+                    v != null &&
+                    (v.ToString() ?? string.Empty).Contains("Incoming HTTP") &&
+                    (v.ToString() ?? string.Empty).Contains("truncated")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

@@ -3,6 +3,8 @@ namespace SlimFaas.Endpoints
 {
     internal static partial class SyncFunctionEndpointsLog
     {
+        [LoggerMessage(Level = LogLevel.Warning, Message = "WebSocket relay failed for {FunctionName}.")]
+        internal static partial void LogWebSocketRelayFailed(this ILogger logger, Exception exception, string functionName);
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "{FunctionName} not found 404")]
         internal static partial void LogNotFound404(this global::Microsoft.Extensions.Logging.ILogger logger, string functionName);
 

@@ -3,3 +3,8 @@
   &__content { flex: 1; width: 100%; max-width: 1560px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
   @media (max-width: 760px) { &__content { padding: 1.5rem 1rem 2rem; } }
 }
+
+.layout--traffic {
+  height: 100dvh; min-height: 0;
+  .layout__content { display: flex; flex-direction: column; min-height: 0; max-width: none; padding: 0; }
+}

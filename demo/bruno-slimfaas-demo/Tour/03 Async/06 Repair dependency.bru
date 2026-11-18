@@ -1,0 +1,38 @@
+meta {
+  name: Repair shared dependency for ten minutes
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/data/sets/{{durableId}}-dlq-ready?ttl=600000
+  body: text
+  auth: none
+}
+
+body:text {
+  ready
+}
+
+headers {
+  Content-Type: text/plain
+}
+
+tests {
+  test("Repair is committed and visible before replay", async function () {
+    expect(res.getStatus()).to.equal(200);
+    const url = bru.getEnvVar("baseUrl") + "/data/sets/" + bru.getVar("durableId") + "-dlq-ready";
+    const deadline = Date.now() + 10000;
+    let response;
+    do {
+      response = await bru.sendRequest({ method: "GET", url }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+      expect([200, 404]).to.include(response.status);
+      if (response.status === 200 && response.data === "ready") break;
+      await bru.sleep(200);
+    } while (Date.now() < deadline);
+    expect(response.data).to.equal("ready");
+  });
+}

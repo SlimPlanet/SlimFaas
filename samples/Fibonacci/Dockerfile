@@ -1,5 +1,5 @@
 # Build context: the repository root, so the shared build settings (Directory.Build.*, Directory.Packages.props, .editorconfig, eng/) apply.
-FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100 AS build
 WORKDIR /repo
 COPY Directory.Build.props Directory.Build.targets Directory.Packages.props global.json .editorconfig ./
 COPY eng/ eng/
@@ -16,7 +16,7 @@ RUN dotnet publish samples/Fibonacci/Fibonacci.csproj -c Release -o /app/publish
 
 RUN mkdir -p /app/dependencies && find . -name packages.lock.json -exec cp --parents {} /app/dependencies/ \;
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.12 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:11.0.0 AS final
 COPY --from=build /app/dependencies /usr/share/slimfaas/dependencies
 WORKDIR /app
 COPY --from=build /app/publish .

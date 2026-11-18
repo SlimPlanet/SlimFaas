@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using BenchmarkDotNet.Attributes;
+using MemoryPack;
 using SlimData;
 using SlimData.Commands;
 using SlimFaas.Benchmarks.Support;
@@ -26,13 +27,16 @@ namespace SlimFaas.Benchmarks;
 public class SlimDataQueueBenchmarks
 {
     private const int Invocations = 16;
-    private const string Key = "queue";
+    private const string Key = "Queue:benchmark";
     private const int PopCount = 10;
     private const int CallbackCount = 50;
     private const int PushCount = 10;
 
     [Params(50, 500)]
     public int QueueDepth { get; set; }
+
+    [Params(false, true)]
+    public bool DeadLetterQueueEnabled { get; set; }
 
     private long _nowTicks;
     private readonly SlimDataState[] _states = new SlimDataState[Invocations];
@@ -118,8 +122,11 @@ public class SlimDataQueueBenchmarks
         _next = 0;
     }
 
-    private static SlimDataState CreateState(ImmutableArray<QueueElement> queue) => new(
+    private SlimDataState CreateState(ImmutableArray<QueueElement> queue) => new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
-        ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+        DeadLetterQueueEnabled
+            ? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(DeadLetterKeys.Policy("benchmark"),
+                MemoryPackSerializer.Serialize(new DeadLetterPolicy { Enabled = true }))
+            : ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
         ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty.Add(Key, queue));
 }

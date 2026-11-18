@@ -11,12 +11,34 @@ public sealed class ClusterFileOptionsTests
     public void Defaults_match_the_bounded_memory_profile()
     {
         var options = new ClusterFileOptions();
+        Assert.Equal(0, options.RequiredDurableCopies);
+        Assert.Equal(120, options.AdmissionTimeoutSeconds);
 
         Assert.Equal(256L * 1024L * 1024L, options.MaxInFlightBytes);
         Assert.Equal(256L * 1024L * 1024L, options.UnknownLengthReservationBytes);
         Assert.Equal(128, options.MaxPendingTransfers);
         Assert.Equal(30, options.QueueWaitTimeoutSeconds);
         Assert.True(options.DropPageCache);
+        Assert.False(options.DurableWrites);
+    }
+
+    [Theory]
+    [InlineData("RequiredDurableCopies", "-1")]
+    [InlineData("RequiredDurableCopies", "3")]
+    [InlineData("AdmissionTimeoutSeconds", "0")]
+    [InlineData("AdmissionTimeoutSeconds", "601")]
+    [InlineData("ReconcileBatchSize", "1025")]
+    [InlineData("ReconcileIntervalSeconds", "0")]
+    [InlineData("ReconcileMaxBytes", "0")]
+    public void Invalid_durable_admission_and_repair_limits_are_rejected(string setting, string value)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [$"SlimData:Files:{setting}"] = value
+        }).Build();
+        var services = new ServiceCollection(); services.AddClusterFileOptions(configuration);
+        using var provider = services.BuildServiceProvider();
+        Assert.Throws<OptionsValidationException>(() => provider.GetRequiredService<IOptions<ClusterFileOptions>>().Value);
     }
 
     [Fact]
@@ -90,5 +112,22 @@ public sealed class ClusterFileOptionsTests
         {
             Environment.SetEnvironmentVariable(variable, null);
         }
+    }
+
+    [Fact]
+    public void Durable_writes_bind_only_on_supported_directory_barrier_platforms()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["SlimData:Files:DurableWrites"] = "true"
+        }).Build();
+        var services = new ServiceCollection();
+        services.AddClusterFileOptions(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            Assert.True(provider.GetRequiredService<IOptions<ClusterFileOptions>>().Value.DurableWrites);
+        else
+            Assert.Throws<OptionsValidationException>(() => provider.GetRequiredService<IOptions<ClusterFileOptions>>().Value);
     }
 }

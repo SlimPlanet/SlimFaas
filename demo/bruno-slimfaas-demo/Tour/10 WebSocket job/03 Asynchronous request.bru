@@ -1,0 +1,48 @@
+meta {
+  name: Verify asynchronous processing over WebSocket
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/async-function/{{wsFunction}}/tour/ws/{{wsFunction}}/async
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":10,"nonce":"{{wsFunction}}-async"}
+}
+
+tests {
+  test("Acceptance is followed by the same execution's processing proof", async function () {
+    expect(res.getStatus()).to.equal(202);
+    const headers = res.getHeaders();
+    const element = headers[Object.keys(headers).find(key => key.toLowerCase() === "slimfaas-element-id")];
+    expect(element).to.be.a("string").and.not.empty;
+    const base = bru.getEnvVar("baseUrl"), name = bru.getVar("wsFunction");
+    const deadline = Date.now() + 180000;
+    let processed = false;
+    do {
+      const proof = await bru.sendRequest({ method: "GET", url: base + "/data/sets/" + name + "-async" }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+      if (proof.status === 200) {
+        const body = typeof proof.data === "string" ? JSON.parse(proof.data) : proof.data;
+        expect(body.function).to.equal(name);
+        expect(body.nonce).to.equal(name + "-async");
+        expect(body.mode).to.equal("async");
+        expect(body.elementId).to.equal(element);
+        expect(body.result).to.equal(55);
+        processed = true; break;
+      }
+      await bru.sleep(500);
+    } while (Date.now() < deadline);
+    expect(processed, "202 alone is not processing success").to.equal(true);
+  });
+}

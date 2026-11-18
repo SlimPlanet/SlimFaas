@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /repo
 # Le contexte de build est la racine du dépôt pour inclure samples/FibonacciBatch et client/dotnet/SlimFaasClient
@@ -14,7 +14,7 @@ RUN dotnet publish "samples/FibonacciBatch/FibonacciBatch.csproj" -c $BUILD_CONF
 
 RUN mkdir -p /app/dependencies && find . -name packages.lock.json -exec cp --parents {} /app/dependencies/ \;
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0.12 AS final
+FROM mcr.microsoft.com/dotnet/runtime:11.0.0 AS final
 COPY --from=build /app/dependencies /usr/share/slimfaas/dependencies
 WORKDIR /app
 

@@ -26,4 +26,10 @@ public class Parameter
 
     public string? Format { get; set; }
     public object? Schema { get; set; }
+
+    // OpenAPI `explode` keyword, used to serialize object header values.
+    public bool Explode { get; set; }
+
+    // True when the parameter is described with `content: application/json` instead of `schema`.
+    public bool IsJsonContent { get; set; }
 }

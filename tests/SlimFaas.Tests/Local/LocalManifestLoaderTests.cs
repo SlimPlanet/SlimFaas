@@ -461,6 +461,9 @@ public sealed class LocalManifestLoaderTests
     [InlineData("SlimFaas/NumberParallelJob: \"0\"", "SlimFaas/NumberParallelJob")]
     [InlineData("SlimFaas/Schedules: not-json", "SlimFaas/Schedules")]
     [InlineData("SlimFaas/Schedules: '[{\"Schedule\":\"invalid\",\"Args\":[]}]'", "SlimFaas/Schedules")]
+    [InlineData(
+        "SlimFaas/Schedules: '[{\"Schedule\":\"0 8 * * *\",\"Args\":[],\"TimeZone\":\"Invalid/Timezone\"}]'",
+        "SlimFaas/Schedules.TimeZone: The timezone 'Invalid/Timezone' is not a valid IANA timezone.")]
     public void Load_RejectsInvalidKubernetesJobAnnotations(string annotation, string expected)
     {
         using var directory = new TemporaryDirectory();

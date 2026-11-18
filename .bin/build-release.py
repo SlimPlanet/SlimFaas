@@ -45,6 +45,8 @@ def native(product, rid, version, source_sha, output):
     ui = ROOT / "src" / product / "ClientApp"
     run(node, "ci", cwd=ui)
     run(node, "run", "build", cwd=ui)
+    if product == "SlimFaasMcp":
+        shutil.copytree(ui / "dist", ui.parent / "wwwroot", dirs_exist_ok=True)
     publish = ROOT / "artifacts" / "native" / f"{product}-{rid}"
     run("dotnet", "publish", f"src/{product}/{product}.csproj", "-c", "Release", "-r", rid,
         "-o", publish, "-p:PublishAot=true", "-p:PublishTrimmed=true", "-p:SelfContained=true",

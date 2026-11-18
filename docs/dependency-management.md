@@ -8,10 +8,10 @@ This page describes how SlimFaas selects, updates, pins and retires third-party 
 | --- | --- | --- |
 | .NET / NuGet | every `*.csproj` under `src/`, `tests/`, `samples/`, `benchmarks/`, `tools/`, `client/dotnet/`; versions are declared once in `Directory.Packages.props` (Central Package Management) | `Directory.Packages.props` pins declared package versions; release builds capture the resolved transitive graph in generated `packages.lock.json` evidence |
 | npm / pnpm | `src/SlimFaasPlanetSaver`, `src/SlimFaasSite`, `samples/FibonacciReact` | `pnpm-lock.yaml` |
-| npm | `src/SlimFaas/ClientApp` (embedded dashboard) | `package-lock.json` |
+| npm | `src/SlimFaas/ClientApp` and `src/SlimFaasMcp/ClientApp` (embedded dashboards) | `package-lock.json` |
 | Python | `client/python/slimfaas-client` | `uv.lock` |
-| Container base images | every `Dockerfile` | image tags, updated by Dependabot |
-| GitHub Actions | `.github/workflows/*.yml` | full commit SHAs, updated by Dependabot |
+| Container base images | every `Dockerfile` | pinned image tags |
+| GitHub Actions | `.github/workflows/*.yml` | full commit SHAs |
 
 ## Selecting a dependency
 
@@ -22,7 +22,7 @@ This page describes how SlimFaas selects, updates, pins and retires third-party 
 
 ## Updating dependencies
 
-- [Dependabot](../.github/dependabot.yml) opens grouped pull requests every Monday for each ecosystem (minor and patch updates grouped, major updates separate).
+- [Dependabot](../.github/dependabot.yml) is configured for security updates. Each entry sets `open-pull-requests-limit: 0` to disable scheduled version updates. Maintainers submit routine upgrades separately.
 - Every update runs the full CI: unit tests, coverage, SonarCloud, FOSSA, Docker builds and the native AOT publish for the runtime projects.
 - Major updates and base-image changes are reviewed by a maintainer and tested with the local end-to-end demo (`dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml`) before merge.
 - After any change, regenerate every affected lockfile and commit it together with the manifest change.
@@ -33,12 +33,12 @@ This page describes how SlimFaas selects, updates, pins and retires third-party 
 - `global.json` pins the .NET SDK used by CI and contributors.
 - NuGet versions are pinned centrally in `Directory.Packages.props`; restore fails on drift (a `Version` attribute in a csproj, or a reference with no central `PackageVersion`), and transitive pinning is enabled so a vulnerable transitive package can be held from the same file.
 - When a newer version of a dependency is rejected (licence, AOT regression, security), pin the last accepted version with an explicit direct constraint and a comment explaining why, so a future lockfile refresh cannot silently reintroduce it. Record the hold and its reason in the pull request summary.
-- External GitHub Actions are pinned by full commit SHA and updated by Dependabot. Release tools are pinned by version and platform SHA-256 in `.bin/release-tools.json`; maintainers review upstream releases and update this file with the published checksums.
+- External GitHub Actions are pinned by full commit SHA. Release tools are pinned by version and platform SHA-256 in `.bin/release-tools.json`; maintainers review upstream releases and update this file with the published checksums.
 
 ## Vulnerabilities in dependencies
 
 - Dependabot security alerts are enabled on the repository. Maintainers triage new alerts within 7 days.
-- A vulnerability that affects SlimFaas at runtime is fixed by upgrading the dependency and publishing a patch release; a CVE in a base image is fixed by rebuilding on the updated image through the Dependabot Docker updates.
+- A vulnerability that affects SlimFaas at runtime is fixed by upgrading the dependency and publishing a patch release; a CVE in a base image is fixed by updating the base image and rebuilding.
 - If no fixed version exists, the maintainers evaluate a replacement or a mitigation and document the decision in the tracking issue.
 - Vulnerabilities in SlimFaas itself follow the [Security Policy](../SECURITY.md).
 

@@ -1,4 +1,9 @@
 <div align="center">
+
+Python 3.10 or later is supported. The client uses websockets 16.1.1 or a newer
+16.x release; websockets 17 requires Python 3.11. The development dependency
+Pygments remains at 2.19.2 pending FOSSA approval of a newer distribution.
+
   <a href="https://slimfaas.dev/">
     <img src="https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/src/SlimFaasSite/public/slimfaas.svg" alt="SlimFaas" width="96" />
   </a>
@@ -6,8 +11,34 @@
 
 # slimfaas-client
 
+The server's default retry statuses include `504` for delivery/owner timeouts.
+The runtime releases an Async ID cancelled before transmission. An interrupted
+active send closes its connection; reconnect allows safe at-least-once replay.
+A fully transmitted attempt remains reserved until its callback or disconnect.
+Explicit `HttpStatusRetries` lists override this policy. Existing queued messages
+retain their original statuses; enable DLQ retention for exhausted failures.
+
+Async request `try_number` starts at `0`. With two configured retries, only
+attempt `2` has `is_last_try == True`. Older runtimes exposed incorrect queue
+attempt metadata; the runtime correction does not change the client wire format.
+
+Durable Streams use `subscribe_streams=[SubscribeStreamConfig("orders")]` and
+`client.on_stream_message(handler)`. A `StreamMessage` includes `stream_name`,
+`message_id`, attempt `element_id` and the original request. Return final status
+or `202`, then complete through `send_callback`. Registration requires
+`streams-v1`; reconnect preserves progress.
+See [Streams examples](../../../docs/streams.md#websocket-functions).
+
 Python client to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
+
+The client retains active handler tasks until they finish, including while they
+await application work. Completed tasks are released automatically.
+
+One outbound connection to any SlimFaas node is sufficient: sync, async and event
+ingress on other nodes relays to its owner; Streams consume on the connected node.
+Configuration must match across clients sharing a name. SDK wire messages are
+unchanged. See [multi-node routing and failures](../../../docs/clients.md#multi-node-routing-and-failure-semantics).
 
 [![PyPI](https://img.shields.io/pypi/v/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
@@ -35,6 +66,28 @@ uv pip install -e .
 ```
 
 ## Quick start
+
+Opt into durable async failures using the existing configuration string:
+
+```python
+import json
+from slimfaas_client import SlimFaasClientConfig
+
+config = SlimFaasClientConfig(
+    function_name="billing",
+    configuration=json.dumps({"DefaultAsync": {
+        "HttpTimeout": 120,
+        "DeadLetterQueue": {"Enabled": True, "MaxAgeSeconds": 604800, "MaxLength": 10000},
+    }}),
+)
+```
+
+The runtime validates this JSON; all clients sharing the name must match.
+Return the actual final status from the async handler, or 202 followed by an
+explicit completion callback for deferred work. Replay gets a fresh execution
+ID and current retries; handlers must tolerate duplicate delivery. DLQ management
+is private independently of function visibility. See the
+[DLQ guide](../../../docs/dead-letter-queues.md).
 
 ```python
 import asyncio
@@ -121,6 +174,30 @@ config = SlimFaasClientConfig(
 
 ## Sync streaming (HTTP-over-WebSocket)
 
+### Incoming message limits
+
+The client defaults to a **32 MiB WebSocket envelope limit** and a four-frame
+incoming buffer with backpressure. `max_message_size` and `max_queue` are positive
+integer constructor options; the receive limit cannot be disabled. This bounds
+the transport buffer, not the memory used by active application handlers.
+
+Async, Events and Streams encode whole bodies as base64 inside JSON. Budget for
+base64 and JSON escaping, headers and metadata, rather than the original body
+size alone. A 2 MiB body can produce about a 3 MiB envelope; highly escaped
+base64 data can be substantially larger. For large bodies, prefer Data File
+references. An envelope beyond the configured limit still closes with code 1009.
+Server HTTP/body limits and persistent formats are unchanged.
+
+Earlier client versions inherited `websockets`' 1 MiB default and disconnected
+before dispatching valid larger Async bodies, including 2 MB and 2 MiB payloads.
+Upgrade the client to receive those envelopes. For a stricter application budget:
+
+```python
+client = SlimFaasClient(url, config, max_message_size=8 * 1024 * 1024, max_queue=2)
+```
+
+### Streaming handler
+
 ```python
 from slimfaas_client import SyncRequest
 
@@ -132,6 +209,11 @@ async def handle_sync(req: SyncRequest) -> None:
 
 client.on_sync_request(handle_sync)
 ```
+
+If the handler raises before the response starts, the client sends a `500`.
+If it raises after the status and headers are sent, the status can no longer
+change, so the client cancels the stream and the caller gets a truncated
+response. See [sync streaming](../../../docs/clients.md#7-synchronous-http-over-websocket).
 
 ## Long-running requests (status 202)
 

@@ -1,7 +1,9 @@
-# SlimFaas Functions (Sync & Async)
+# SlimFaas Functions
 
-SlimFaas offers **two main ways** to invoke functions: **synchronous** and **asynchronous** HTTP calls.
-Below is an overview of each.
+SlimFaas supports synchronous and asynchronous HTTP calls. This page covers
+synchronous invocation and shared function configuration. See
+[Asynchronous Functions](async-functions.md) for durable queues, retries,
+callbacks and Dead Letter Queues.
 
 ---
 
@@ -25,32 +27,10 @@ sequenceDiagram
     Gateway-->>Caller: Stream the response
 ```
 
-An asynchronous call separates durable acceptance from execution. A worker dispatches eligible work within the function's concurrency limits. Failed attempts can be retried; handlers must tolerate duplicate delivery.
-
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant Gateway as SlimFaas
-    participant Queue as Durable queue
-    participant Worker
-    participant Function
-    Caller->>Gateway: /async-function/name/path
-    Gateway->>Queue: Enqueue and commit
-    Queue-->>Gateway: Durable acceptance
-    Gateway-->>Caller: 202 Accepted
-    Worker->>Queue: Claim eligible work
-    Worker->>Function: Dispatch when ready and capacity is available
-    alt Handler completes during the HTTP call
-        Function-->>Worker: Completion status
-        Worker->>Queue: Complete or schedule a retry
-    else Handler returns 202 for deferred completion
-        Function-->>Worker: 202, work continues
-        Function->>Gateway: Callback with the real element ID
-        Gateway->>Queue: Complete or retry the outstanding item
-    end
-```
-
-Watch both paths in the [Guided Tour](guided-tour.md#4-queue-work-retry-and-complete-callbacks), then [scale out with an async burst](guided-tour.md#scale-from-n-to-m-with-an-async-backlog).
+An asynchronous call separates durable acceptance from execution. See the
+[async architecture](async-functions.md#architecture-and-lifecycle), follow the
+[Guided Tour](guided-tour.md#4-queue-work-retry-and-complete-callbacks), then
+[scale out with an async burst](guided-tour.md#scale-from-n-to-m-with-an-async-backlog).
 
 ## 1. Synchronous Functions
 
@@ -68,43 +48,40 @@ If your function has scaled to zero, SlimFaas automatically **wakes it up** and 
 
 ## 2. Asynchronous Functions
 
-Asynchronous calls return HTTP 202 after durable acceptance, while SlimFaas queues the request and processes it in the background.
-
-`202 Accepted` is returned only after the queue mutation is durably committed.
-FIFO order, retries, and callback behavior are unchanged. For request bodies
-larger than 1 MiB, SlimFaas durably commits and validates the offload metadata
-before it enqueues the message that refers to that body.
-
-- **Route**:
-  `GET/POST/PUT/... http://<slimfaas>/async-function/<functionName>/<path>`
-
-- **Example**:
-  GET http://localhost:30021/async-function/fibonacci1/hello/guillaume → 202 (Accepted), handled in background
-  Asynchronous mode also supports:
-
-- **Limiting parallel requests** via annotations (e.g., `SlimFaas/NumberParallelRequest`).
-- **Retry pattern** on timeouts or specific HTTP status codes.
-
-Queue mutations wake the HTTP and WebSocket dispatch workers immediately after
-their durable commit. `Workers:QueuesDelayMilliseconds` is therefore a maximum
-fallback interval for a lost signal, a leadership transition, or a retry that
-becomes eligible; it is no longer the normal queue polling latency. The local
-SlimData wait for queue-critical mutations is controlled by
-`SlimData:QueueLowLatencyEnabled` (default `true`) and
-`SlimData:QueueMutationMaxWaitMilliseconds` (default `5`, range 0–225).
-
-Bodies stored through the internal offload path are prepared concurrently with
-a bounded parallelism, then dispatched in their original FIFO order. After a
-non-retryable result has been durably committed to the queue, SlimFaas removes
-its local file through a dedicated cleanup mailbox. This cleanup never blocks
-dispatch of the next message and broadcasts a best-effort delete signal for
-remote copies. Older or temporarily unavailable replicas fall back to the
-existing convergent orphan cleaner. Raft metadata deletion stays outside the
-dispatch mailbox and is grouped by the cleaner, so cleanup mutations cannot
-delay every new queue write. A retryable status keeps every artifact available
-for the next attempt.
+Calls to `/async-function/{functionName}/{path}` return **202 Accepted after
+durable enqueueing**, not after execution. The dedicated
+[Asynchronous Functions](async-functions.md) page explains concurrency, retries,
+deferred callbacks, and [DLQ capture and replay](async-functions.md#dead-letter-queues).
 
 ---
+
+### Async body storage threshold
+
+`SlimFaas:AsyncBodyOffloadThresholdBytes` controls where an async body is stored.
+At the default of **1,048,576 bytes (1 MiB)**, bodies up to and including 1 MiB
+stay in the queue entry. Bodies of **1,048,577 bytes** or more use
+[Files](data-files.md). The same boundary applies with `Content-Length` and
+chunked requests, including the root function route. The threshold must be
+positive and smaller than `Array.MaxLength`. The HTTP request size limit is
+configured separately through `Kestrel:Limits:MaxRequestBodySize`.
+
+To set the recommended threshold explicitly, use this environment variable on
+each SlimFaas instance.
+
+```yaml
+env:
+  - name: SlimFaas__AsyncBodyOffloadThresholdBytes
+    value: "1048576"
+```
+
+Lowering the threshold moves more bodies out of Raft payloads and adds Files
+storage and transfer work. WAL geometry and the 64 KiB queue-decoder boundary
+are independent of this threshold. Existing queued entries keep their stored
+representation and follow their queue's retry policy. Both macOS campaigns
+found higher throughput for some large bodies at 512 KiB. The overall
+comparisons missed the guardrails. Keep 1 MiB for general workloads. See the
+[initial campaign](reliability/2026-11-18/supervisor-repair-benchmarks.md#comparisons)
+and [repeat](reliability/2026-11-18/benchmark-repetition.md#comparisons).
 
 ## 3. Wake Function
 
@@ -198,19 +175,37 @@ You can configure the synchronous HTTP timeout and the retry policies used by as
   "DefaultAsync": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
-    "HttpStatusRetries": [500,502,503]
+    "HttpStatusRetries": [500,502,503,504]
   },
   "DefaultPublish": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
-    "HttpStatusRetries": [500,502,503]
+    "HttpStatusRetries": [500,502,503,504]
   }
 }
 ```
 
 Synchronous calls make exactly one HTTP request and never retry. `DefaultSync` therefore supports only `HttpTimeout`.
+Connections from SlimFaas to function pods are recycled after five minutes when the current request finishes.
+This connection lifetime is independent of `HttpTimeout` and does not retry failed requests.
+Pod selection uses the latest published destination cache, including when the
+request captured its function configuration earlier. Connection recycling and
+destination-cache updates address separate parts of routing.
+With direct pod routing, observing a Kubernetes deletion timestamp removes that
+pod from new ready-target selections even if its readiness conditions still say
+true during graceful termination. Already active requests retain their configured
+timeouts. If Kubernetes discovery is unavailable, SlimFaas retains its last known
+snapshot until synchronization succeeds again.
 
 `TimeoutRetries` defines the delays in seconds between attempts for asynchronous and publish calls. `HttpStatusRetries` lists the HTTP statuses that trigger those retries.
+
+The default retry statuses include `504`. An expired worker reservation or a
+WebSocket delivery timeout can produce that status without the function having
+received the message. Explicit status lists remain authoritative: include `504`
+when those failures should use the bounded retry budget. Enable the
+[DLQ](dead-letter-queues.md) to retain terminal failures after that budget.
+Queue entries keep their acceptance-time policy; upgrading does not change old
+entries or reconstruct messages already evicted under a previous policy.
 
 Every section is optional. When a section or property is omitted, SlimFaas applies its defaults. For example, the following configuration customizes only publish calls; sync and async keep their default 120-second timeout, and async keeps its default retry policy:
 
@@ -331,152 +326,30 @@ metadata:
 
 ## 10. Asynchronous Function Execution: Control Callback Mode
 
-SlimFaas  supports **asynchronous function execution**, allowing a function pod to take control of when the final result is returned.
-This pattern is well suited for long-running tasks, external system calls, or workflows that cannot complete immediately.
+See [deferred completion callbacks](async-functions.md#deferred-completion-callbacks) for execution headers, timeout handling, and HTTP/WebSocket completion. A callback never sends a later response on the original caller connection.
 
-### How It Works
+Function HTTP connections have a maximum pooled age of five minutes. Expiry
+retires a connection after its active request/response finishes; it does not add
+an invocation retry. SlimData batch, file-transfer and cached cluster-peer pools
+use two minutes. Request deadlines and TLS opt-in settings keep their existing
+behavior. A pool lifetime bounds connection reuse, while Kubernetes readiness
+and destination-cache updates determine which pod address is selected. See the
+[connection audit](reliability/2026-11-16/http-client-audit.md) for policies and
+validation limits.
 
-1. The client (or another service) sends a request to SlimFaas:
-   ```http
-   POST /async-function/<function-name>/<path>
-   ```
+For Deployment and StatefulSet functions, cached destinations are invalidated by
+pod identity and resource-version changes as well as controller changes. A
+StatefulSet pod replacement or a single NotReady/terminating pod in a ready pool
+must not retain the previous destination list. During Kubernetes API outages the
+last successful snapshot remains available; successful LIST/watch recovery
+reconciles it with current pods. Connection expiry does not replace this refresh.
 
-2. SlimFaas forwards the request to the function pod and attaches multiple headers:
-   ```http
-   SlimFaas-Element-Id: <generated-id>
-   Slimfaas-Last-Try: true|false
-   SlimFaas-Try-Number: <attempt-number>
-   ```
-
-   These headers provide important context to the function:
-   - **`SlimFaas-Element-Id`**: Unique identifier for this execution instance
-   - **`Slimfaas-Last-Try`**: Boolean (lowercase string) indicating if this is the final retry attempt (`"true"` or `"false"`)
-   - **`SlimFaas-Try-Number`**: Zero-based attempt number (e.g., `"0"` for first attempt, `"1"` for first retry, etc.)
-
-3. If the function wants to run control the callback, it must explicitly:
-    - **Return `HTTP 202 Accepted`** instead of a final result.
-    - Take responsibility for sending a **callback** when the result is ready.
-
-   Returning **202** is the key trigger that enables callback mode.
-
-4. When the function completes its work:
-    - On success:
-      ```http
-      POST /async-function-callback/<function-name>/<SlimFaas-Element-Id>/success
-      ```
-
-    - On failure:
-      ```http
-      POST /async-function-callback/<function-name>/<SlimFaas-Element-Id>/error
-      ```
-
-5. If the timeout configured in SlimFaas expires before any callback is received, the execution is marked as **failed**.
-
-### Sequence Example
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant SlimFaas
-    participant Function as Function Pod (e.g., Fibonacci)
-
-    Client->>SlimFaas: POST /async-function/fibonacci
-    SlimFaas->>Function: POST /fibonacci (with SlimFaas-Element-Id)
-    Function-->>SlimFaas: HTTP 202 Accepted (async mode enabled)
-    Note over Function: Function is now responsible for callback
-
-    alt Success
-        Function->>SlimFaas: POST /async-function-callback/fibonacci/<id>/success
-        SlimFaas-->>Client: Final success response or notification
-    else Error
-        Function->>SlimFaas: POST /async-function-callback/fibonacci/<id>/error
-        SlimFaas-->>Client: Error response or notification
-    end
-
-    SlimFaas-->>Client: Timeout if no callback received
-```
-
-### Key Points
-
-| Element                          | Description |
-|----------------------------------|-------------|
-| **Returning HTTP 202**           | This explicitly activates asynchronous callback mode |
-| **SlimFaas-Element-Id header**   | Allows the function to reference the execution instance in its callback |
-| **Slimfaas-Last-Try header**     | Indicates if this is the final retry attempt (`"true"` or `"false"`) |
-| **SlimFaas-Try-Number header**   | Shows the current attempt number (starts at `"0"`) |
-| **Function controls completion** | The function decides when to send success/error notification |
-| **Timeout handling**             | If no callback is received within the configured timeout, SlimFaas marks the execution as failed |
-
-### HTTP Headers Sent to Functions
-
-SlimFaas automatically injects the following headers when forwarding requests to your function pods:
-
-#### SlimFaas-Element-Id
-- **Type**: String (UUID)
-- **Purpose**: Unique identifier for this specific execution instance
-- **Usage**: Required when sending callbacks to SlimFaas
-- **Example**: `SlimFaas-Element-Id: 550e8400-e29b-41d4-a716-446655440000`
-
-#### Slimfaas-Last-Try
-- **Type**: String (`"true"` or `"false"`)
-- **Purpose**: Indicates whether this is the final retry attempt
-- **Usage**: Helps functions adjust their behavior on the last attempt (e.g., send alerts, use fallback logic)
-- **Example**:
-  - First attempt: `Slimfaas-Last-Try: false`
-  - After all retries exhausted: `Slimfaas-Last-Try: true`
-
-#### SlimFaas-Try-Number
-- **Type**: String (numeric)
-- **Purpose**: Zero-based counter of the current attempt
-- **Usage**: Track how many times the request has been retried
-- **Examples**:
-  - First attempt: `SlimFaas-Try-Number: 0`
-  - First retry: `SlimFaas-Try-Number: 1`
-  - Second retry: `SlimFaas-Try-Number: 2`
-
-**Example in Function Code (C#)**:
-```csharp
-app.MapPost("/process", (HttpContext context) =>
-{
-    var elementId = context.Request.Headers["SlimFaas-Element-Id"].FirstOrDefault();
-    var isLastTry = context.Request.Headers["Slimfaas-Last-Try"].FirstOrDefault() == "true";
-    var tryNumber = int.Parse(context.Request.Headers["SlimFaas-Try-Number"].FirstOrDefault() ?? "0");
-
-    if (isLastTry)
-    {
-        // Last attempt - maybe send an alert or use fallback logic
-        logger.LogWarning("Final retry attempt {TryNumber} for {ElementId}", tryNumber, elementId);
-    }
-
-    // Process the request...
-
-    return Results.Accepted();  // Enable callback mode
-});
-```
-
-**Example in Function Code (Node.js)**:
-```javascript
-app.post('/process', (req, res) => {
-    const elementId = req.headers['slimfaas-element-id'];
-    const isLastTry = req.headers['slimfaas-last-try'] === 'true';
-    const tryNumber = parseInt(req.headers['slimfaas-try-number'] || '0');
-
-    if (isLastTry) {
-        // Last attempt - adjust behavior accordingly
-        console.warn(`Final retry attempt ${tryNumber} for ${elementId}`);
-    }
-
-    // Process the request...
-
-    res.status(202).send();  // Enable callback mode
-});
-```
-
-### When to Use
-
-Choose this mode when your function:
-- Performs long-running or deferred processing
-- Depends on external systems (queues, schedulers, batching, GPU workloads, etc.)
-- Should not block the client during execution
-
----
+The async worker also retains local ownership when a later dequeue returns a
+newer reservation for an ID whose HTTP exchange is still in flight. It waits for
+that exchange rather than starting a parallel delivery. A terminal response
+completes the ID once; a nonterminal response can use the already-reserved retry
+without consuming it through an older failure callback. That retry waits for a
+ready function and keeps its original deadline. Expired reservations remain
+subject to the existing retry/DLQ policy, and a follower does not start them.
+This does not provide exactly-once execution after an unknown network outcome or
+leader failure. Sync invocation remains one application-level send.

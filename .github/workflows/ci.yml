@@ -3,6 +3,9 @@ on:
   workflow_call:
 permissions:
   contents: read
+env:
+  NODE_VERSION: "26.13.0"
+  PNPM_VERSION: "12.18.0"
 jobs:
   release_tests:
     name: Release logic and workflow validation
@@ -11,7 +14,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.14.8'
       - run: python3 .bin/install-release-tools.py actionlint
@@ -26,22 +29,67 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '24.21.0'
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
-        with:
-          version: '10.14.0'
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      - run: dotnet test --collect "Code Coverage;Format=cobertura"
-      - working-directory: src/SlimFaasPlanetSaver
-        run: pnpm install --frozen-lockfile && pnpm run coverage
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
+
+      - name: Test native Raft recovery harness
+        run: python .bin/test-raft-recovery-harness.py
+
+      - name: Test Podman Compose helper
+        run: python .bin/test-podman-compose-helper.py
+
+      - name: Test Python coverage reporting
+        run: python .bin/test-python-client-coverage.py
+
+      - name: Test Fibonacci container health probe
+        run: python .bin/test-fibonacci-healthcheck.py
+
+      - name: Test memory report measurement boundaries
+        run: |
+          dotnet build tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj -c Release
+          python .bin/test-memory-lab-report.py
+
+      - name: Run unit tests
+        run: |
+          dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal
+
+      - name: ReportGenerator
+        uses: danielpalme/ReportGenerator-GitHub-Action@861674232075b2c6bd1405a04c4bb9b150653e81 # 5.5.12
+        with:
+          reports: './**/TestResults/**/*.cobertura.xml'
+          targetdir: 'coveragereport'
+          reporttypes: 'MarkdownSummaryGithub'
+
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        name: Install pnpm
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: pnpm ci
+        run: pnpm i --frozen-lockfile
+        working-directory: ./src/SlimFaasPlanetSaver
+
+      - name: pnpm run coverage
+        run: pnpm run coverage
+        working-directory: ./src/SlimFaasPlanetSaver
+
+      - name: Publish coverage in build summary
+        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+        shell: bash
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.14.8'
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: '0.9.0'
       - working-directory: client/python/slimfaas-client
@@ -53,5 +101,83 @@ jobs:
       - run: |
           python .bin/test-local-bundle-helpers.py
           python .bin/test-install-local-demo.py
+
+  native_local:
+    name: Native local smoke and persistent restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Publish native runtime
+        run: dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r linux-x64 -o artifacts/native-local/runtime
+      - name: Exercise source demo and persisted data
+        run: python .bin/test-native-local.py --runtime artifacts/native-local/runtime/SlimFaas
+      - name: Upload local diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-local-diagnostics
+          path: artifacts/native-local/*.log
+          if-no-files-found: warn
+
+  traffic-e2e:
+    name: Native traffic animations (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DASHBOARD_COVERAGE_DIR: ${{ github.workspace }}/artifacts/dashboard-coverage
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.0'
+          cache: npm
+          cache-dependency-path: src/SlimFaas/ClientApp/package-lock.json
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Install browser test dependencies
+        working-directory: src/SlimFaas/ClientApp
+        run: |
+          npm ci --ignore-scripts
+          ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Publish native runtime and real function
+        run: |
+          dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r linux-x64 -o artifacts/traffic-e2e/runtime
+          dotnet publish samples/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
+      - name: Test traffic animations on three nodes
+        working-directory: src/SlimFaas/ClientApp
+        run: npm run test:e2e
+      - name: Export dashboard browser and unit coverage
+        working-directory: src/SlimFaas/ClientApp
+        run: |
+          node scripts/report-coverage.mjs
+          cd ../../..
+          node --test --experimental-test-coverage --test-coverage-include='**/SlimFaas/ClientApp/src/**' --test-reporter=lcov src/SlimFaas/ClientApp/scripts/*.test.mts > "$DASHBOARD_COVERAGE_DIR/unit.info"
+          grep -q '^SF:src/SlimFaas/ClientApp/src/' "$DASHBOARD_COVERAGE_DIR/unit.info"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dashboard-coverage
+          path: artifacts/dashboard-coverage/*.info
+          if-no-files-found: error
+      - name: Upload browser and runtime diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: traffic-e2e
+          path: |
+            artifacts/traffic-e2e/results/
+            artifacts/traffic-e2e/report/
+          retention-days: 7
   dashboard:
     uses: ./.github/workflows/dashboard.yml

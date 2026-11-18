@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFramework>net11.0</TargetFramework>
     <RootNamespace>SlimFaasClient</RootNamespace>
     <AssemblyName>SlimFaasClient</AssemblyName>
 
     <!-- NuGet package metadata -->
     <PackageId>SlimFaasClient</PackageId>
-    <Version>0.84.16</Version>
+    <Version>0.89.0</Version>
     <Authors>SlimFaas Contributors</Authors>
     <Company>SlimPlanet</Company>
     <Product>SlimFaasClient</Product>
@@ -39,7 +39,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
   </ItemGroup>
 

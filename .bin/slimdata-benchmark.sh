@@ -12,7 +12,7 @@ reference_commit="${BEFORE_REF:-4d836f83c4e3c7df865cb2869c10a85108a6ed43}"
 before_publish="${BEFORE_PUBLISH_DIR:-$repo_root/artifacts/slimdata-benchmark/before/publish}"
 after_publish="${AFTER_PUBLISH_DIR:-$repo_root/artifacts/slimdata-benchmark/after/publish}"
 lab_project="$repo_root/tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj"
-lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.MemoryLab.dll"
+lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
 status_csv="$run_root/run-status.csv"
 
 case "$(uname -s)-$(uname -m)" in

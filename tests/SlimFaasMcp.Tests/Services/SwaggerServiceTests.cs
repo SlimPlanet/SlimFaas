@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
 using Xunit;
 
@@ -93,6 +94,98 @@ paths:
         Assert.Equal("GET",     ep.Verb);
     }
 
+    [Fact]
+    public void ParseEndpoints_Applies_Path_Item_Parameters_To_Each_Operation()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "components": { "parameters": {
+                "PetId": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+              } },
+              "paths": { "/pets/{id}": {
+                "summary": "One pet",
+                "description": "Operations on one pet",
+                "x-owner": "pets-team",
+                "servers": [ { "url": "https://pets.example" } ],
+                "parameters": [
+                  { "$ref": "#/components/parameters/PetId" },
+                  { "name": "X-Tenant", "in": "header", "description": "Shared tenant", "schema": { "type": "string" } }
+                ],
+                "get": { "summary": "Get a pet" },
+                "delete": {
+                  "summary": "Delete a pet",
+                  "parameters": [
+                    { "name": "x-tenant", "in": "header", "description": "Tenant that owns the pet", "schema": { "type": "string" } },
+                    { "name": "id", "in": "query", "schema": { "type": "string" } }
+                  ]
+                }
+              } }
+            }
+            """);
+
+        var endpoints = svc.ParseEndpoints(doc).ToList();
+
+        Assert.Equal(["GET", "DELETE"], endpoints.Select(e => e.Verb));
+        var get = endpoints[0].Parameters!;
+        Assert.Equal(["id:path", "X-Tenant:header"], get.Select(p => $"{p.Name}:{p.In}"));
+        Assert.True(get[0].Required);
+        Assert.Equal("integer", get[0].SchemaType);
+        var delete = endpoints[1].Parameters!;
+        Assert.Equal(["id:path", "x-tenant:header", "id:query"], delete.Select(p => $"{p.Name}:{p.In}"));
+        Assert.Equal("Tenant that owns the pet", delete[1].Description);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Resolves_Component_Parameter_References()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "components": { "parameters": {
+                "PetId": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } },
+                "Limit": { "name": "limit", "in": "query", "description": "Page size", "schema": { "type": "integer" } },
+                "PageSize": { "$ref": "#/components/parameters/Limit" }
+              } },
+              "paths": { "/pets/{id}/toys": { "get": { "parameters": [
+                { "$ref": "#/components/parameters/PetId" },
+                { "$ref": "#/components/parameters/PageSize" }
+              ] } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        Assert.Equal(["id:path", "limit:query"], parameters.Select(p => $"{p.Name}:{p.In}"));
+        Assert.True(parameters[0].Required);
+        Assert.Equal("integer", parameters[0].SchemaType);
+        Assert.Equal("Page size", parameters[1].Description);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Resolves_Swagger2_Path_Item_Parameter_References()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "swagger": "2.0",
+              "parameters": { "petId": { "name": "petId", "in": "path", "required": true, "type": "integer" } },
+              "paths": { "/pets/{petId}": {
+                "parameters": [ { "$ref": "#/parameters/petId" } ],
+                "get": { "summary": "Get a pet" }
+              } }
+            }
+            """);
+
+        var parameter = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.Equal("petId", parameter.Name);
+        Assert.Equal("path", parameter.In);
+        Assert.Equal("integer", parameter.SchemaType);
+    }
+
     // Nouveau : test du parsing YAML
     [Fact]
     public async Task GetSwagger_Yaml_Parses()
@@ -108,5 +201,70 @@ paths:
         // Vérifie que le cache marche aussi pour YAML
         _ = await svc.GetSwaggerAsync("https://api.example.com/openapi.yaml");
         Assert.Equal(1, stub.CallCount);
+    }
+
+    // Issue #171 : un corps JSON dont l'objet n'a qu'une propriété ne doit pas être aplati,
+    // car le corps est transmis tel quel à l'API.
+    [Theory]
+    [InlineData("""{ "$ref": "#/components/schemas/it" }""")]
+    [InlineData("""{ "type": "object", "title": "it", "required": ["question"], "properties": { "question": { "type": "string", "title": "Question", "description": "The user's question" } } }""")]
+    public void ParseEndpoints_Keeps_Single_Property_Json_Body_Object(string bodySchema)
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/ask": { "post": {
+                "summary": "Ask a question",
+                "requestBody": { "content": { "application/json": { "schema": {{bodySchema}} } } }
+              } } },
+              "components": { "schemas": { "it": {
+                "type": "object",
+                "title": "it",
+                "required": ["question"],
+                "properties": { "question": { "type": "string", "title": "Question", "description": "The user's question" } }
+              } } }
+            }
+            """);
+
+        var ep = svc.ParseEndpoints(doc).Single();
+        var inputSchema = McpTool.GenerateInputSchema(ep.Parameters!);
+
+        Assert.Equal("body", Assert.Single(inputSchema["required"]!.AsArray())!.GetValue<string>());
+        var body = inputSchema["properties"]!["body"]!;
+        Assert.Equal("object", body["type"]!.GetValue<string>());
+        Assert.Equal("question", Assert.Single(body["required"]!.AsArray())!.GetValue<string>());
+        var question = body["properties"]!["question"]!;
+        Assert.Equal("string", question["type"]!.GetValue<string>());
+        Assert.Equal("The user's question", question["description"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ParseEndpoints_Keeps_Header_Parameter_Serialization()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/pets": { "get": {
+                "parameters": [
+                  { "name": "X-Ids", "in": "header", "schema": { "type": "array", "items": { "type": "integer" } } },
+                  { "name": "X-Filter", "in": "header", "explode": true, "schema": { "type": "object" } },
+                  { "name": "X-Json", "in": "header", "content": { "application/json": { "schema": { "type": "object" } } } }
+                ]
+              } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        var ids = parameters.Single(p => p.Name == "X-Ids");
+        Assert.Equal("array", ids.SchemaType);
+        Assert.False(ids.Explode);
+        Assert.False(ids.IsJsonContent);
+        Assert.True(parameters.Single(p => p.Name == "X-Filter").Explode);
+        var json = parameters.Single(p => p.Name == "X-Json");
+        Assert.True(json.IsJsonContent);
+        Assert.Equal("object", json.SchemaType);
     }
 }

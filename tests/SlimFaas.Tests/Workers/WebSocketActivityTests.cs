@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SlimFaas.Endpoints;
@@ -10,6 +11,114 @@ namespace SlimFaas.Tests.Workers;
 
 public sealed class WebSocketActivityTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cancellation_during_an_active_frame_send_aborts_the_ambiguous_transport(bool binary)
+    {
+        var (client, connection, _) = Setup();
+        using (connection)
+        using (var cancellation = new CancellationTokenSource())
+        {
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock<System.Net.WebSockets.WebSocket> socket = Mock.Get(connection.Socket);
+            socket.Setup(value => value.SendAsync(It.IsAny<ArraySegment<byte>>(),
+                    It.IsAny<System.Net.WebSockets.WebSocketMessageType>(), true, It.IsAny<CancellationToken>()))
+                .Returns<ArraySegment<byte>, System.Net.WebSockets.WebSocketMessageType, bool, CancellationToken>(
+                    (_, _, _, token) => { entered.TrySetResult(); return Task.Delay(Timeout.Infinite, token); });
+            socket.Setup(value => value.Abort()).Callback(() =>
+                socket.SetupGet(value => value.State).Returns(WebSocketState.Aborted));
+            Task pending = binary
+                ? connection.SendBinaryAsync([1], cancellation.Token)
+                : client.SendAsync("ws-function", new CustomRequest([], [], "ws-function", "/", "POST", ""),
+                    "ambiguous", false, 0, cancellation.Token);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            await cancellation.CancelAsync();
+            if (binary)
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+            else
+                Assert.Equal(504, await (Task<int>)pending);
+
+            socket.Verify(value => value.Abort(), Times.Once);
+            Assert.Empty(connection.PendingCallbacks);
+        }
+    }
+
+    [Fact]
+    public async Task Async_cancellation_while_waiting_for_the_send_lock_does_not_fence_an_unsent_id()
+    {
+        var (client, connection, _) = Setup();
+        using (connection)
+        {
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock.Get(connection.Socket).Setup(socket => socket.SendAsync(It.IsAny<ArraySegment<byte>>(),
+                    System.Net.WebSockets.WebSocketMessageType.Binary, true, It.IsAny<CancellationToken>()))
+                .Returns(() => { entered.TrySetResult(); return release.Task; });
+            Task occupying = connection.SendBinaryAsync([1], CancellationToken.None);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            try
+            {
+                using var cancellation = new CancellationTokenSource();
+                Task<int> first = client.SendAsync("ws-function",
+                    new CustomRequest([], [], "ws-function", "/", "POST", ""), "unsent", false, 0, cancellation.Token);
+                await cancellation.CancelAsync();
+
+                Assert.Equal(504, await first);
+                Assert.Empty(connection.PendingCallbacks);
+                Mock.Get(connection.Socket).Verify(socket => socket.SendAsync(It.IsAny<ArraySegment<byte>>(),
+                    System.Net.WebSockets.WebSocketMessageType.Text, true, It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                release.TrySetResult();
+                await occupying;
+            }
+
+            Task<int> retry = client.SendAsync("ws-function",
+                new CustomRequest([], [], "ws-function", "/", "POST", ""), "unsent", false, 1);
+            Assert.Single(connection.PendingCallbacks).Value.TrySetResult(200);
+            Assert.Equal(200, await retry);
+        }
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(3600, true)]
+    public void Registration_validates_and_applies_async_dead_letter_configuration(int maxAge, bool expected)
+    {
+        var registry = new WebSocketConnectionRegistry(NullLogger<WebSocketConnectionRegistry>.Instance);
+        var replicas = new Mock<IReplicasService>();
+        replicas.SetupGet(value => value.Deployments).Returns(new DeploymentsInformations([], new SlimFaasDeploymentInformation(1, []), []));
+        var socket = new Mock<System.Net.WebSockets.WebSocket>();
+        socket.SetupGet(value => value.State).Returns(WebSocketState.Open);
+        using var connection = new WebSocketClientConnection
+        {
+            FunctionName = "billing", Socket = socket.Object, Configuration = new()
+            {
+                Configuration = JsonSerializer.Serialize(new SlimFaasConfiguration
+                {
+                    DefaultAsync = new()
+                    {
+                        HttpTimeout = 40,
+                        DeadLetterQueue = new() { Enabled = true, MaxAgeSeconds = maxAge }
+                    }
+                }, SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration)
+            }
+        };
+        var result = registry.TryRegister(connection, replicas.Object);
+        Assert.Equal(expected, result.Success);
+        if (expected)
+        {
+            var function = Assert.Single(new WebSocketFunctionRepository(registry).GetVirtualDeployments());
+            Assert.True(function.Configuration.DefaultAsync.DeadLetterQueue.Enabled);
+            Assert.Equal(40, function.Configuration.DefaultAsync.HttpTimeout);
+            Assert.Equal(maxAge, function.Configuration.DefaultAsync.DeadLetterQueue.MaxAgeSeconds);
+        }
+        else Assert.Contains("MaxAgeSeconds", result.Error, StringComparison.Ordinal);
+    }
+
     private static (WebSocketSendClient Client, WebSocketClientConnection Connection, NetworkActivityTracker Tracker) Setup(bool fail = false, int replicas = 1)
     {
         var tracker = new NetworkActivityTracker();

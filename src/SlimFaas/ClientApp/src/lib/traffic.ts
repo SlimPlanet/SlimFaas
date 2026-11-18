@@ -4,8 +4,10 @@ import { eventPath, selectedEvent, type Topology } from './topology.ts';
 export const ANIMATION_LIMIT = 200;
 export const SPEEDS = { Fast: 450, Normal: 800, Slow: 1400 } as const;
 export type Speed = keyof typeof SPEEDS;
-export type MessageKind = 'request' | 'publication' | 'queue' | 'reply';
+export type MessageKind = 'request' | 'publication' | 'queue' | 'reply' | 'data';
 export function messageKind(event: NetworkActivityEvent): MessageKind {
+  if (event.DataKind) return 'data';
+  if (event.Type === 'dead_lettered' || event.Type === 'dead_letter_requeued') return 'queue';
   if (event.Type === 'event_publish') return 'publication';
   if (event.Type === 'enqueue' || event.Type === 'dequeue' || (event.Type === 'request_out' && event.QueueName)) return 'queue';
   if (event.Type === 'response' || event.Type === 'request_end') return 'reply';
@@ -45,12 +47,25 @@ export class TrafficPlayback {
   private paused = false;
   private resumeAfter = -Infinity;
   private view = '';
+  private dataAvailable = true;
+  private dataResumeAfter = -Infinity;
 
   private descendants(id: string): Receipt[] {
     return [...(this.children.get(id) ?? [])].flatMap(child => {
       const receipt = this.records.get(child);
       return receipt ? [receipt] : [];
     });
+  }
+
+  private correlatedParent(event: NetworkActivityEvent): Receipt | undefined {
+    if (!event.StreamName) return this.records.get(event.CorrelationId ?? '');
+    if (event.Type !== 'stream_ack') return undefined;
+    // Stream correlation identifies the delivery attempt, not an HTTP activity event.
+    for (const id of this.children.get(event.CorrelationId ?? '') ?? []) {
+      const receipt = this.records.get(id);
+      if (receipt?.event.Type === 'stream_delivery' && receipt.event.StreamName === event.StreamName) return receipt;
+    }
+    return undefined;
   }
 
   private publication(receipt: Receipt): boolean {
@@ -67,6 +82,9 @@ export class TrafficPlayback {
 
   /** The same presentation rules apply to moving markers and their static links. */
   visualKind(event: NetworkActivityEvent): MessageKind | null {
+    if (event.StreamName) return event.Type === 'stream_append' ? 'publication' :
+      event.Type === 'stream_delivery' ? 'queue' : event.Type === 'stream_ack' ? 'reply' : null;
+    if (['dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted'].includes(event.Type)) return null;
     if (event.Type === 'request_waiting' || event.Type === 'request_started') return null;
     // The HTTP response is transport metadata. The queue worker records the
     // logical completion separately, including a deferred 202 callback.
@@ -82,11 +100,19 @@ export class TrafficPlayback {
   }
 
   update(events: readonly NetworkActivityEvent[], session: number, paused: boolean, now: number,
-    topology: Topology, speed: Speed, type: string, selected: string | null, isolate: boolean) {
+    topology: Topology, speed: Speed, type: string, selected: string | null, isolate: boolean, dataAvailable = true) {
     if (session !== this.session) {
       this.markers.clear(); this.arrivals.clear(); this.records.clear(); this.children.clear(); this.pending.clear();
-      this.dispatches.clear(); this.previous = null; this.omitted = 0; this.resumeAfter = -Infinity; this.session = session;
+      this.dispatches.clear(); this.previous = null; this.omitted = 0; this.resumeAfter = -Infinity; this.dataResumeAfter = -Infinity; this.session = session;
     }
+    if (!dataAvailable && this.dataAvailable) {
+      for (const [key, marker] of this.markers) if (marker.kind === 'data') this.markers.delete(key);
+      for (const id of this.pending) if (this.records.get(id)?.event.DataKind) {
+        this.records.get(id)!.end = now; this.pending.delete(id);
+      }
+    }
+    if (!dataAvailable) this.dataResumeAfter = Math.max(this.dataResumeAfter, now);
+    this.dataAvailable = dataAvailable;
     const view = `${speed}/${type}/${selected}/${isolate}`;
     if (view !== this.view || paused) {
       this.markers.clear(); this.arrivals.clear();
@@ -120,7 +146,7 @@ export class TrafficPlayback {
           if (!previous) this.dispatches.set(dispatch, { view, shown: paused });
           if (this.dispatches.size > HISTORY_LIMIT) this.dispatches.delete(this.dispatches.keys().next().value!);
         }
-        if (paused || duplicate || (event.ReceivedAt === undefined ? resumed : event.ReceivedAt <= this.resumeAfter)
+        if (paused || duplicate || !!event.DataKind && (!dataAvailable || receipt.received <= this.dataResumeAfter) || (event.ReceivedAt === undefined ? resumed : event.ReceivedAt <= this.resumeAfter)
           || now - receipt.received >= SPEEDS[speed] || !matchesTraffic(topology, event, type, selected, isolate)) receipt.end = duplicate && dispatch ? this.dispatches.get(dispatch)?.end ?? now : now;
         else this.pending.add(event.Id);
         if (this.records.size > HISTORY_LIMIT) {
@@ -145,11 +171,11 @@ export class TrafficPlayback {
       for (const id of this.pending) {
         const receipt = this.records.get(id)!;
         const event = receipt.event;
-        const parent = this.records.get(event.CorrelationId ?? '');
+        const parent = this.correlatedParent(event);
         const queued = !!dispatchIdentity(event);
         const finish = (end = now) => { receipt.end = end; this.pending.delete(id); changed = true; };
         if (now - receipt.received >= INCOMPLETE_MS) { finish(); this.omitted++; continue; }
-        if (event.CorrelationId && !queued) {
+        if (event.CorrelationId && !queued && (!event.StreamName || event.Type === 'stream_ack')) {
           if (!parent) {
             if (now - receipt.received >= MISSING_PARENT_MS) finish();
             continue;
@@ -185,6 +211,11 @@ export class TrafficPlayback {
           }
         }
         const path = displayPath(topology, event, selected);
+        // A newly registered WebSocket subscriber can deliver before the next Stream inventory snapshot.
+        if (event.StreamName && path.length < 2) {
+          if (now - receipt.received >= MISSING_PARENT_MS) { this.omitted++; finish(); }
+          continue;
+        }
         // An inventory snapshot can lag the dispatch. Keep its actual destination
         // rather than drawing to a sleeping function group or an invented replica.
         if (event.TargetPod && event.CorrelationId && ['request_out', 'event_publish'].includes(event.Type)
@@ -206,7 +237,7 @@ export class TrafficPlayback {
         } else { this.omitted++; finish(); }
         if (dispatch) this.dispatches.get(dispatch)!.end = receipt.end;
         if (parent) this.markers.delete(`waiting:${parent.event.Id}`);
-        if (['request_out', 'dequeue', 'event_publish'].includes(event.Type)) {
+        if (['request_out', 'dequeue', 'event_publish', 'stream_delivery'].includes(event.Type)) {
           this.arrivals.set(path[path.length - 1], receipt.end! + 1000);
           if (this.arrivals.size > ANIMATION_LIMIT) this.arrivals.delete(this.arrivals.keys().next().value!);
         }

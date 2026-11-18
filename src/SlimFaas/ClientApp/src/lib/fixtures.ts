@@ -15,8 +15,9 @@ export function makeFixtures(replicas = 6, executions = 4) {
     Name: 'daily-report', Image: 'ghcr.io/example/report:1.0', Visibility: 'Private', ImagesWhitelist: [], NumberParallelJob: 10000,
     Resources: null, DependsOn: ['fibonacci1'], Schedules: [],
     RunningJobs: Array.from({ length: executions }, (_, i) => ({ Name: `daily-report-slimfaas-job-${String(i).padStart(5, '0')}`, Status: 'Running', ElementId: `execution-${i}`, InQueueTimestamp: 1788868800000, StartTimestamp: 1788868801000 })),
+    QueueLength: 0,
   }];
-  return { functions, jobs, queues: [{ Name: 'fibonacci1', Length: 12 }], functionsWithQueueActivity: new Set(['fibonacci1']), slimFaasReplicas: 3,
+  return { functions, jobs, queues: [{ Name: 'fibonacci1', Length: 12 }], queuesWithActivity: new Set(['fibonacci1']), slimFaasReplicas: 3,
     slimFaasNodes: [0, 1, 2].map(i => ({ Name: `slimfaas-${i}`, Status: 'Running', Role: i === 1 ? 'Leader' as const : 'Follower' as const })) };
 }
 export function fixtureEvents(start: number, count: number, now = Date.now()): NetworkActivityEvent[] {
@@ -38,4 +39,46 @@ export function makeReactiveFixtures() {
     { ...base, Name: 'report-renderer', NumberReady: 1, NumberRequested: 3, Pods: [{ Name: 'report-renderer-0', Identity: fixtureIdentity(102), Ready: true, Status: 'Running' }] },
   );
   return fixture;
+}
+
+export const speechDeployments = ['smartguide-api-text-to-speech', 'smartguide-api-text-to-speech-gemini25flash', 'smartguide-api-text-to-speech-piper'];
+
+export function makeSpeechFunctions(): FunctionStatusDetailed[] {
+  const base = makeFixtures(0, 0).functions[0];
+  return speechDeployments.map((Name, index) => ({
+    ...base, Name, NumberReady: index + 1, NumberRequested: index + 1,
+    Pods: Array.from({ length: index + 1 }, (_, replica) => ({
+      Name: `${Name}-7c854fd7f6-${String(replica).padStart(5, '0')}`,
+      Identity: fixtureIdentity(100 * (index + 1) + replica), Status: 'Running', Ready: true,
+    })),
+  }));
+}
+
+/** A rolling deployment alongside a scheduled job, with observed pod requests. */
+export function makeObservationFixture(replicas = 4, executions = 5) {
+  const fixture = makeFixtures(replicas, executions);
+  const request = (CpuMillis: number, mib: number) => ({ CpuMillis, MemoryBytes: mib * 1048576, KnownPods: 1, UnknownPods: 0 });
+  const states = ['Starting', 'Ready', 'Terminating', 'Crash'];
+  const phases = ['Starting', 'Running', 'Finishing', 'Succeeded', 'Failed'];
+  const fn = fixture.functions[0];
+  (fn.Pods ?? []).forEach((pod, i) => Object.assign(pod, { Lifecycle: states[i % states.length],
+    Status: ['Pending', 'Running', 'Running', 'CrashLoopBackOff'][i % states.length],
+    Ready: i % states.length === 1, Requests: request(250, 128) }));
+  fn.NumberReady = (fn.Pods ?? []).filter(pod => pod.Ready).length;
+  const job = fixture.jobs[0];
+  const next = Math.floor(Date.now() / 1000) + 3600;
+  job.Schedules = [next + 7200, next].map((time, i) => ({ Id: 'schedule-' + i, Image: job.Image,
+    Schedule: '0 * * * *', NextExecutionTimestamp: time, Resources: null, DependsOn: null }));
+  let activeRuns = 0;
+  job.RunningJobs.forEach((run, i) => {
+    const phase = phases[i % phases.length];
+    run.Lifecycle = phase;
+    run.Status = phase === 'Starting' ? 'Pending' : phase === 'Finishing' ? 'Running' : phase;
+    if (phase !== 'Succeeded' && phase !== 'Failed') { run.Requests = request(500, 256); activeRuns++; }
+  });
+  const slimFaasNodes = fixture.slimFaasNodes.map(node => ({ ...node, Lifecycle: 'Ready', Requests: request(100, 64) }));
+  const requests = { CpuMillis: replicas * 250 + activeRuns * 500 + slimFaasNodes.length * 100,
+    MemoryBytes: (replicas * 128 + activeRuns * 256 + slimFaasNodes.length * 64) * 1048576,
+    KnownPods: replicas + activeRuns + slimFaasNodes.length, UnknownPods: 0 };
+  return { ...fixture, slimFaasNodes, requests };
 }

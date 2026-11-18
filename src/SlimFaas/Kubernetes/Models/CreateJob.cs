@@ -24,7 +24,8 @@ public partial record ScheduleCreateJob(
     string RestartPolicy = "Never",
     CreateJobResources? Resources = null,
     IList<EnvVarInput>? Environments = null,
-    List<string>? DependsOn = null);
+    List<string>? DependsOn = null,
+    string? TimeZone = null);
 
 [MemoryPackable]
 public partial record SlimFaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations, Dictionary<string, IList<ScheduleCreateJob>>? Schedules=null);

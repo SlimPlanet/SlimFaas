@@ -1,0 +1,7 @@
+{
+  "file": "persisted-copy-per-id-ledgers-02.json.gz",
+  "compressed_sha256": "7edf92d64e07de903b90fcbf5c24a358099738bb5d3350209d83667c36d2fc28",
+  "expanded_sha256": "c2863f5577657710c4399c4cb4b239d2949748c437fc7e3b3a7cffb3bb2959c0",
+  "rows": 11108,
+  "original_sources": 35
+}

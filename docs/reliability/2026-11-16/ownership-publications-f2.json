@@ -1,0 +1,439 @@
+{
+  "source": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+  "generated": 1794885153.553227,
+  "passed": true,
+  "scope": "Source-f2f80124 Native AOT macOS and source-built managed/trimmed Linux ARM64 publications with identical common drivers. Actual replacement, final-source performance and affected long endurance remain pending. Original image-import disk refusal is retained.",
+  "attempts": [
+    "ownership-publications-01.json",
+    "ownership-publications-02.json",
+    "ownership-flat-images-01.json",
+    "ownership-flat-images-02.json"
+  ],
+  "full_ui_build": {
+    "label": "full-ui-build",
+    "argv": [
+      "dotnet",
+      "build",
+      "-c",
+      "Release",
+      "-nr:false"
+    ],
+    "started": 1794882763.511795,
+    "log": "logs/ownership-publications-01-full-ui-build.log",
+    "exit_code": 0,
+    "finished": 1794882798.114658,
+    "log_sha256": "8f821cca459b3a592b3b9bee3ebb08d2a7ac5c031a4bcec90a915f2578a3b72d"
+  },
+  "phases": [
+    {
+      "label": "site-install",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "src/SlimFaasSite",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "started": 1794882886.7680042,
+      "log": "logs/ownership-publications-02-site-install.log",
+      "exit_code": 0,
+      "finished": 1794882948.071591,
+      "log_sha256": "7211b86d7df71c9fee5537c1c9d674d2004e9d876aeea4cac42766f2d97e94f3"
+    },
+    {
+      "label": "site-build",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "src/SlimFaasSite",
+        "build"
+      ],
+      "started": 1794882948.2911081,
+      "log": "logs/ownership-publications-02-site-build.log",
+      "exit_code": 0,
+      "finished": 1794882956.230589,
+      "log_sha256": "2903a09ef7064f9c422afef804ed9feb5634303d84ec256f65dd7736667c256b"
+    },
+    {
+      "label": "planet-install",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "src/SlimFaasPlanetSaver",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "started": 1794882956.481081,
+      "log": "logs/ownership-publications-02-planet-install.log",
+      "exit_code": 0,
+      "finished": 1794883029.867994,
+      "log_sha256": "d1a84973dfe8699bfd499be07bcd1bc6c21e5625c44cbae514e026363dab824e"
+    },
+    {
+      "label": "planet-coverage",
+      "argv": [
+        "pnpm",
+        "--dir",
+        "src/SlimFaasPlanetSaver",
+        "coverage"
+      ],
+      "started": 1794883030.087818,
+      "log": "logs/ownership-publications-02-planet-coverage.log",
+      "exit_code": 0,
+      "finished": 1794883040.218484,
+      "log_sha256": "21fc0bf3ea547005bc26e108f85eaa536439aba9ba73a0a1476e702cb72657e1"
+    },
+    {
+      "label": "native-slimfaas",
+      "argv": [
+        "dotnet",
+        "publish",
+        "src/SlimFaas/SlimFaas.csproj",
+        "-c",
+        "Release",
+        "-r",
+        "osx-arm64",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-slimfaas-osx-01",
+        "-p:SkipClientAppBuild=true",
+        "-p:IlcGenerateDgmlFile=false",
+        "-nr:false"
+      ],
+      "started": 1794883040.579682,
+      "log": "logs/ownership-publications-02-native-slimfaas.log",
+      "exit_code": 0,
+      "finished": 1794883109.060629,
+      "log_sha256": "5e22d3c5bed0bf6e972dd6033b0536d16e2aacda1ca988c1d80a9d10db7c9ee9"
+    },
+    {
+      "label": "native-slimdata",
+      "argv": [
+        "dotnet",
+        "publish",
+        "src/SlimData/SlimData.csproj",
+        "-c",
+        "Release",
+        "-r",
+        "osx-arm64",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-slimdata-osx-01",
+        "-p:SkipClientAppBuild=true",
+        "-p:IlcGenerateDgmlFile=false",
+        "-nr:false"
+      ],
+      "started": 1794883109.348566,
+      "log": "logs/ownership-publications-02-native-slimdata.log",
+      "exit_code": 0,
+      "finished": 1794883120.136838,
+      "log_sha256": "ff671ea87ae74a825a858740359e805bc2166e1009761a21d73ca029ac259c30"
+    },
+    {
+      "label": "native-slimfaasmcp",
+      "argv": [
+        "dotnet",
+        "publish",
+        "src/SlimFaasMcp/SlimFaasMcp.csproj",
+        "-c",
+        "Release",
+        "-r",
+        "osx-arm64",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-slimfaasmcp-osx-01",
+        "-p:SkipClientAppBuild=true",
+        "-p:IlcGenerateDgmlFile=false",
+        "-nr:false"
+      ],
+      "started": 1794883120.4143271,
+      "log": "logs/ownership-publications-02-native-slimfaasmcp.log",
+      "exit_code": 0,
+      "finished": 1794883136.1050508,
+      "log_sha256": "ca29971b730c0ec3d332b9276e0475a233e61a0f8d246c8334fdfe962ea7e5b9"
+    },
+    {
+      "label": "memorylab-linux-musl-arm64",
+      "argv": [
+        "dotnet",
+        "publish",
+        "tools/SlimFaas.MemoryLab",
+        "-c",
+        "Release",
+        "-r",
+        "linux-musl-arm64",
+        "--self-contained",
+        "true",
+        "-p:PublishAot=false",
+        "-p:PublishTrimmed=false",
+        "-p:SkipClientAppBuild=true",
+        "-nr:false",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-memorylab-linux-musl-arm64-01"
+      ],
+      "started": 1794883136.3824892,
+      "log": "logs/ownership-publications-02-memorylab-linux-musl-arm64.log",
+      "exit_code": 0,
+      "finished": 1794883146.3998778,
+      "log_sha256": "0acfd9095e7ad68f0bf2ec997e3a18cc5666979ee5fb9b224a5fc9bfe8f3a000"
+    },
+    {
+      "label": "memorylab-osx-arm64",
+      "argv": [
+        "dotnet",
+        "publish",
+        "tools/SlimFaas.MemoryLab",
+        "-c",
+        "Release",
+        "-r",
+        "osx-arm64",
+        "--self-contained",
+        "false",
+        "-p:PublishAot=false",
+        "-p:PublishTrimmed=false",
+        "-p:SkipClientAppBuild=true",
+        "-nr:false",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-memorylab-osx-arm64-01"
+      ],
+      "started": 1794883146.612923,
+      "log": "logs/ownership-publications-02-memorylab-osx-arm64.log",
+      "exit_code": 0,
+      "finished": 1794883154.038327,
+      "log_sha256": "08d1e7b321d1aa0943ecb6fbafed8497b72c499846bb8220f00c7af0a6f7095a"
+    },
+    {
+      "label": "benchmark-linux-musl-arm64",
+      "argv": [
+        "dotnet",
+        "publish",
+        "benchmarks/SlimFaas.Benchmarks",
+        "-c",
+        "Release",
+        "-r",
+        "linux-musl-arm64",
+        "--self-contained",
+        "true",
+        "-p:PublishAot=false",
+        "-p:PublishTrimmed=false",
+        "-p:SkipClientAppBuild=true",
+        "-nr:false",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-benchmark-linux-musl-arm64-01"
+      ],
+      "started": 1794883154.258079,
+      "log": "logs/ownership-publications-02-benchmark-linux-musl-arm64.log",
+      "exit_code": 0,
+      "finished": 1794883167.659616,
+      "log_sha256": "e78615b10e4f459f29bd183e28def47b4cc2b1c3f0625e18df38055591e20924"
+    },
+    {
+      "label": "benchmark-osx-arm64",
+      "argv": [
+        "dotnet",
+        "publish",
+        "benchmarks/SlimFaas.Benchmarks",
+        "-c",
+        "Release",
+        "-r",
+        "osx-arm64",
+        "--self-contained",
+        "false",
+        "-p:PublishAot=false",
+        "-p:PublishTrimmed=false",
+        "-p:SkipClientAppBuild=true",
+        "-nr:false",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-benchmark-osx-arm64-01"
+      ],
+      "started": 1794883167.9110012,
+      "log": "logs/ownership-publications-02-benchmark-osx-arm64.log",
+      "exit_code": 0,
+      "finished": 1794883180.704148,
+      "log_sha256": "9be0d72e6dff35f2ef81d0012564baeaaade82c493e0de8b205cff40980a6fba"
+    },
+    {
+      "label": "runtime-linux",
+      "argv": [
+        "dotnet",
+        "publish",
+        "src/SlimFaas/SlimFaas.csproj",
+        "-c",
+        "Release",
+        "-r",
+        "linux-musl-arm64",
+        "--self-contained",
+        "true",
+        "-p:PublishAot=false",
+        "-p:SkipClientAppBuild=true",
+        "-p:DebugType=none",
+        "-p:DebugSymbols=false",
+        "-nr:false",
+        "-o",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-runtime-linux-01"
+      ],
+      "started": 1794883180.9204822,
+      "log": "logs/ownership-publications-02-runtime-linux.log",
+      "exit_code": 0,
+      "finished": 1794883204.59418,
+      "log_sha256": "52940c4e893a89570627918ef3d2e3ed497aec3bf1ef4a21c3e6befa01237560"
+    },
+    {
+      "label": "tools-image",
+      "argv": [
+        "podman",
+        "build",
+        "-t",
+        "localhost/slimfaas-pr506:ownership-tools-01",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-tools-overlay-01"
+      ],
+      "started": 1794883205.490564,
+      "log": "logs/ownership-publications-02-tools-image.log",
+      "exit_code": 0,
+      "finished": 1794883208.374708,
+      "log_sha256": "02a66a9ea9d4a85a68efa1fe0b6edf89ab521aebfc089be6f2c21c814140f57e"
+    },
+    {
+      "label": "after-image",
+      "argv": [
+        "podman",
+        "build",
+        "-t",
+        "localhost/slimfaas-pr506:ownership-after-01",
+        "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/ownership-runtime-overlay-01"
+      ],
+      "started": 1794883208.722137,
+      "log": "logs/ownership-publications-02-after-image.log",
+      "exit_code": 0,
+      "finished": 1794883209.455148,
+      "log_sha256": "927fb90b1c4f13ea097b90e8d0373f1ee55acd12a2904431f706600fb2e163ba"
+    },
+    {
+      "label": "tools-archive",
+      "argv": [
+        "podman",
+        "machine",
+        "ssh",
+        "set -euo pipefail; test ! -e /var/home/core/slimfaas-pr506/images/ownership-tools-01.tar.gz; podman save --format docker-archive localhost/slimfaas-pr506:ownership-tools-01 | gzip -1 > /var/home/core/slimfaas-pr506/images/ownership-tools-01.tar.gz"
+      ],
+      "started": 1794883210.005884,
+      "log": "logs/ownership-publications-02-tools-archive.log",
+      "exit_code": 0,
+      "finished": 1794883227.7622678,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "tools-import-control-plane",
+      "argv": [
+        "podman",
+        "machine",
+        "ssh",
+        "set -euo pipefail; gzip -dc /var/home/core/slimfaas-pr506/images/ownership-tools-01.tar.gz | podman exec --privileged -i slimfaas-pr506-control-plane ctr --namespace=k8s.io images import --all-platforms --digests -"
+      ],
+      "started": 1794883228.076475,
+      "log": "logs/ownership-publications-02-tools-import-control-plane.log",
+      "exit_code": 0,
+      "finished": 1794883237.395091,
+      "log_sha256": "496176b4f8715d6af6e2367557e9b7b57226bc2bb8bed201ff10595eb1de385b"
+    },
+    {
+      "label": "tools-import-worker",
+      "argv": [
+        "podman",
+        "machine",
+        "ssh",
+        "set -euo pipefail; gzip -dc /var/home/core/slimfaas-pr506/images/ownership-tools-01.tar.gz | podman exec --privileged -i slimfaas-pr506-worker ctr --namespace=k8s.io images import --all-platforms --digests -"
+      ],
+      "started": 1794883237.695115,
+      "log": "logs/ownership-publications-02-tools-import-worker.log",
+      "exit_code": 0,
+      "finished": 1794883246.500857,
+      "log_sha256": "dd2c309870e73f32813fdf2045112b6b69c443c45bac7504395d281ecf7f654a"
+    }
+  ],
+  "publications": [
+    {
+      "path": "builds/ownership-slimfaas-osx-01/SlimFaas",
+      "source": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+      "mode": "Native AOT osx-arm64",
+      "sha256": "9de59d9be95371934548939b9fa2ded09a9b51ac407a5f18992deb4d4465b263",
+      "bytes": 57776280
+    },
+    {
+      "path": "builds/ownership-slimdata-osx-01/SlimData",
+      "source": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+      "mode": "Native AOT osx-arm64",
+      "sha256": "1153a588a97806e307153b46081612deb56cd03ff97115a5a5ae59a3e4668e45",
+      "bytes": 70594696
+    },
+    {
+      "path": "builds/ownership-slimfaasmcp-osx-01/SlimFaasMcp",
+      "source": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+      "mode": "Native AOT osx-arm64",
+      "sha256": "c25d41066169f598f634c29835e580f44a82373b227b8d04b4544a319234c3c1",
+      "bytes": 18185784
+    }
+  ],
+  "images": [
+    {
+      "variant": "tools",
+      "image": "localhost/slimfaas-pr506:ownership-flat-tools-01",
+      "id": "7737cbfac45de2ed86f9beeee7bfe75e087fbb868b17a430ffcacc7764010970",
+      "original_image": "localhost/slimfaas-pr506:ownership-tools-01",
+      "preserved_original_id": "70330c513167fb86282900825bfc72db7264ede856c6154bf0416fa90ae4f889",
+      "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "tools_source": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+      "hashes": {
+        "/app/SlimFaas.dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127",
+        "/app/SlimData.dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "13c228c7e4d358b05602217e98d8174f1de6d9b9eaafd3ab5564d0ab45623858",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "33573d98f70cf24cfc553332b07825de69dbdb48d9b7bdbf3bfbe1b090d0581f"
+      },
+      "layers": [
+        "sha256:bbe8a144766f60a3030dde1c531a2cbb802923f090016259e2908c18b61d7c49"
+      ],
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive": "/var/home/core/slimfaas-pr506/images/ownership-flat-tools-01.tar.gz",
+      "archive_sha256": "8c0261fac71d9027c1ab610052d9ca5ec272c5e66fda2c631b7f85f7655efd0e"
+    },
+    {
+      "variant": "after",
+      "image": "localhost/slimfaas-pr506:ownership-flat-after-01",
+      "id": "8660bf7d803333ad96e3121862416f50122c90348dbfbcc29291c3c0123fead8",
+      "original_image": "localhost/slimfaas-pr506:ownership-after-01",
+      "preserved_original_id": "158fde71f22d90831bd19a816d6ce0527dd5023d1173450e4ebb550f9b89048e",
+      "runtime_source": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+      "tools_source": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+      "hashes": {
+        "/app/SlimFaas.dll": "0d0c82dc18edafff898548fd25c582a36342d5ceba525d204bd9b2fc3d51592a",
+        "/app/SlimData.dll": "d1a6641225a51d5d2ac20cb6932b883b8c099254da1825f64410926af824c0b1",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "13c228c7e4d358b05602217e98d8174f1de6d9b9eaafd3ab5564d0ab45623858",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "33573d98f70cf24cfc553332b07825de69dbdb48d9b7bdbf3bfbe1b090d0581f"
+      },
+      "layers": [
+        "sha256:e681ea15ddd7b651577b5de2b9a17481a2e1daf9b222bd5813878df713fcc26b"
+      ],
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive": "/var/home/core/slimfaas-pr506/images/ownership-flat-after-01.tar.gz",
+      "archive_sha256": "b1bc6f2ce337bb407f149530cba7db012b8a3f2dfc8dc80a6d390827dba98b6b"
+    }
+  ],
+  "shared_driver_hashes": {
+    "/tools/memorylab/SlimFaas.MemoryLab.dll": "13c228c7e4d358b05602217e98d8174f1de6d9b9eaafd3ab5564d0ab45623858",
+    "/tools/benchmark/SlimFaas.Benchmarks.dll": "33573d98f70cf24cfc553332b07825de69dbdb48d9b7bdbf3bfbe1b090d0581f"
+  },
+  "full_file_index": {
+    "path": "ownership-publication-file-index.jsonl.gz",
+    "files": 1043,
+    "sha256": "dfb72f6d7f75c94f0ab84b698d58623820214ddadf18bb3dd478afac67291291"
+  },
+  "disk_hold": true,
+  "current_mac_free_gib": 23.035675048828125
+}

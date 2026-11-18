@@ -21,7 +21,8 @@ public static class DataSetRoutes
     public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/data/sets")
-            .AddEndpointFilter<DataVisibilityEndpointFilter>();
+            .AddEndpointFilter<DataVisibilityEndpointFilter>()
+            .AddEndpointFilter<DataActivityEndpointFilter>();
         group.MapPost("", Handlers.PostAsync);
         group.MapPost("/{id}", Handlers.PostAsync);
         group.MapPost("/{id}/incr", Handlers.IncrAsync);

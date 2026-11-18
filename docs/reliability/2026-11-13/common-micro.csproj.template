@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>SlimFaas.Benchmarks</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Optimize>true</Optimize>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <Compile Include="$(MicrobenchmarkSourceRoot)/benchmarks/SlimFaas.Benchmarks/**/*.cs"
+             Exclude="$(MicrobenchmarkSourceRoot)/benchmarks/SlimFaas.Benchmarks/obj/**/*.cs;$(MicrobenchmarkSourceRoot)/benchmarks/SlimFaas.Benchmarks/bin/**/*.cs" />
+    <ProjectReference Include="$(RuntimeSourceRoot)/src/SlimFaas/SlimFaas.csproj" />
+    <ProjectReference Include="$(RuntimeSourceRoot)/src/SlimData/SlimData.csproj" />
+  </ItemGroup>
+</Project>

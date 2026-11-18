@@ -486,3 +486,7 @@ slimfaas.local.secrets.yaml
 .slimfaas
 # Release builds capture platform-specific restore graphs as dependency evidence.
 **/packages.lock.json
+
+# Frontend validation outputs
+src/SlimFaas/ClientApp/storybook-static/
+src/SlimFaasPlanetSaver/coverage/

@@ -2,7 +2,10 @@
 using MemoryPack;
 using Microsoft.Extensions.Logging;
 using Moq;
+using NodaTime;
+using SlimData.Commands;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
@@ -17,6 +20,7 @@ public class SlimScheduleJobsWorkerTests
     private readonly Mock<ISlimDataStatus>          _status   = new();
     private readonly Mock<IDatabaseService>         _db       = new();
     private readonly Mock<IMasterService>           _master   = new();
+    private readonly NetworkActivityTracker         _activity = new();
 
     private readonly SlimScheduleJobsWorker         _sut;          // System-Under-Test
     private readonly SlimFaasJobConfiguration       _faasConfig;   // Configuration réelle
@@ -42,7 +46,7 @@ public class SlimScheduleJobsWorkerTests
         // delay=0 pour des tests instantanés
         _sut = new SlimScheduleJobsWorker(
             _jobSvc.Object, _config.Object, _logger.Object, _status.Object,
-            _db.Object, _master.Object, delay: 0);
+            _db.Object, _master.Object, delay: 0, activityTracker: _activity);
     }
 
     // -------------   helpers refléxion   -------------
@@ -117,6 +121,34 @@ public class SlimScheduleJobsWorkerTests
         // Assert
         _jobSvc.Verify(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true), Times.Once);
         _db.Verify(d => d.SetAsync("ScheduleJob:func:sid", It.IsAny<byte[]>(), It.IsAny<long?>()), Times.AtLeastOnce);
+        NetworkActivityEvent enqueue = Assert.Single(_activity.GetRecent());
+        Assert.Equal(NetworkActivityTracker.EventTypes.Enqueue, enqueue.Type);
+        Assert.Equal(NetworkActivityTracker.Actors.SlimFaas, enqueue.Source);
+        Assert.Equal("func", enqueue.Target);
+        Assert.Equal("job:func", enqueue.QueueName);
+        Assert.Null(enqueue.SourcePod);
+        Assert.Null(enqueue.CorrelationId);
+    }
+
+    [Fact(DisplayName = "Job en retard refusé : rien n'entre dans la file")]
+    public async Task DoOneCycle_LateJob_Rejected_Should_Not_Record_Enqueue()
+    {
+        // Arrange
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+
+        var scheduleJob = new ScheduleCreateJob("* * * * *", new() { "arg" }, "forbidden:latest");
+        var dict = new Dictionary<string, byte[]> { { "sid", Serialize(scheduleJob) } };
+        _db.Setup(d => d.HashGetAllAsync("ScheduleJob:func")).ReturnsAsync(dict);
+        _db.Setup(d => d.GetAsync("ScheduleJob:func:sid")).ReturnsAsync(Serialize(0L));
+        _jobSvc.Setup(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true))
+               .ReturnsAsync(new ResultWithError<EnqueueJobResult>(null, new ErrorResult("image_not_allowed")));
+
+        // Act
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        // Assert
+        _jobSvc.Verify(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true), Times.Once);
+        Assert.Empty(_activity.GetRecent());
     }
 
      // -------------------------------------------------------------------------
@@ -220,5 +252,93 @@ public class SlimScheduleJobsWorkerTests
 
         _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()),
                    Times.AtLeastOnce);   // mise à jour du nouveau timestamp
+    }
+
+    [Fact(DisplayName = "Config schedule – le cron est évalué dans le fuseau horaire de la planification")]
+    public async Task DoOneCycle_ConfigSchedule_Should_Use_Schedule_TimeZone()
+    {
+        // Arrange ----------------------------------------------------------------
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+
+        var jobsDict = new Dictionary<string, SlimfaasJob>
+        {
+            ["func"] = new SlimfaasJob(
+                Image: "allowed:latest",
+                ImagesWhitelist: new() { "allowed:latest" },
+                Visibility: nameof(FunctionVisibility.Public))
+        };
+        var schedule = new ScheduleCreateJob("0 8 * * *", new List<string> { "arg" }, TimeZone: "Europe/Paris");
+        var schedulesDict = new Dictionary<string, IList<ScheduleCreateJob>>
+        {
+            ["func"] = new List<ScheduleCreateJob> { schedule }
+        };
+        _config.SetupGet(c => c.Configuration).Returns(new SlimFaasJobConfiguration(jobsDict, schedulesDict));
+
+        _db.Setup(d => d.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync(MemoryPackSerializer.Serialize(0L));
+        _db.Setup(d => d.HashGetAllAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, byte[]>());
+        _jobSvc.Setup(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true))
+               .ReturnsAsync(new ResultWithError<EnqueueJobResult>(new EnqueueJobResult("job-id")));
+
+        var storedTimestamps = new List<long>();
+        _db.Setup(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()))
+            .Callback<string, byte[]?, long?, KeyValueOperation, long, decimal>((_, value, _, _, _, _) =>
+                storedTimestamps.Add(MemoryPackSerializer.Deserialize<long>(value)));
+
+        long before = LatestEightOClockInParis();
+
+        // Act -----------------------------------------------------------------
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        // Assert --------------------------------------------------------------
+        long after = LatestEightOClockInParis();
+        long stored = Assert.Single(storedTimestamps);
+        Assert.True(stored == before || stored == after, $"Stored {stored}, expected {before} or {after}");
+    }
+
+    [Fact(DisplayName = "Config schedule – sans fuseau horaire, réutilise le suivi d'exécution d'avant le fuseau horaire")]
+    public async Task DoOneCycle_ConfigSchedule_Without_TimeZone_Should_Reuse_Existing_Execution_Tracking()
+    {
+        // Arrange ----------------------------------------------------------------
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+
+        var jobsDict = new Dictionary<string, SlimfaasJob>
+        {
+            ["func"] = new SlimfaasJob(
+                Image: "allowed:latest",
+                ImagesWhitelist: new() { "allowed:latest" },
+                Visibility: nameof(FunctionVisibility.Public))
+        };
+        var schedulesDict = new Dictionary<string, IList<ScheduleCreateJob>>
+        {
+            ["func"] = new List<ScheduleCreateJob> { new("*/5 * * * *", new List<string> { "arg" }) }
+        };
+        _config.SetupGet(c => c.Configuration).Returns(new SlimFaasJobConfiguration(jobsDict, schedulesDict));
+
+        // Identifiant calculé avant l'ajout du fuseau horaire, avec une exécution déjà suivie
+        var legacyId = IdGenerator.GetId32Hex(Serialize(new UtcScheduleCreateJob("*/5 * * * *", new List<string> { "arg" })));
+        _db.Setup(d => d.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync((byte[]?)null);
+        _db.Setup(d => d.GetAsync($"ScheduleJob:func:{legacyId}"))
+            .ReturnsAsync(Serialize(long.MaxValue));
+        _db.Setup(d => d.HashGetAllAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, byte[]>());
+
+        // Act -----------------------------------------------------------------
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        // Assert --------------------------------------------------------------
+        _db.Verify(d => d.GetAsync($"ScheduleJob:func:{legacyId}"), Times.Once);
+        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()), Times.Never);
+        _jobSvc.Verify(s => s.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), true), Times.Never);
+    }
+
+    private static long LatestEightOClockInParis()
+    {
+        var paris = DateTimeZoneProviders.Tzdb["Europe/Paris"];
+        var now = SystemClock.Instance.GetCurrentInstant().InZone(paris).LocalDateTime;
+        var date = now.Hour >= 8 ? now.Date : now.Date.PlusDays(-1);
+        return date.At(new LocalTime(8, 0)).InZoneStrictly(paris).ToInstant().ToUnixTimeSeconds();
     }
 }

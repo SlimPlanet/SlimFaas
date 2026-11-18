@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MemoryPack;
+using SlimData.Commands;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas;
@@ -136,11 +138,24 @@ public class HistorySynchronizationWorkerShould
         var replicasService = new Mock<IReplicasService>();
         replicasService.SetupGet(service => service.Deployments).Returns(deployments);
         var database = new DatabaseMockService();
-        var databaseHistory = new HistoryHttpDatabaseService(database);
+        var persisted = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var observedDatabase = new Mock<IDatabaseService>();
+        observedDatabase.Setup(service => service.GetAsync(It.IsAny<string>()))
+            .Returns((string key) => database.GetAsync(key));
+        observedDatabase.Setup(service => service.SetAsync(It.IsAny<string>(), It.IsAny<byte[]?>(),
+                It.IsAny<long?>(), It.IsAny<KeyValueOperation>(), It.IsAny<long>(), It.IsAny<decimal>()))
+            .Returns(async (string key, byte[]? value, long? ttl, KeyValueOperation operation, long delta, decimal floatDelta) =>
+            {
+                var result = await database.SetAsync(key, value, ttl, operation, delta, floatDelta);
+                if (key == $"TicksLastCall:{functionName}")
+                    persisted.TrySetResult(MemoryPackSerializer.Deserialize<long>(value));
+                return result;
+            });
+        var databaseHistory = new HistoryHttpDatabaseService(observedDatabase.Object);
         var memoryHistory = new HistoryHttpMemoryService();
         var slimDataStatus = new Mock<ISlimDataStatus>();
         slimDataStatus.Setup(service => service.WaitForReadyAsync()).Returns(Task.CompletedTask);
-        var worker = new HistorySynchronizationWorker(
+        using var worker = new HistorySynchronizationWorker(
             replicasService.Object,
             memoryHistory,
             databaseHistory,
@@ -156,15 +171,20 @@ public class HistorySynchronizationWorkerShould
         using var cancellation = new CancellationTokenSource();
         Task running = worker.StartAsync(cancellation.Token);
 
-        await Task.Delay(120);
-        long persistedTicks = await databaseHistory.GetTicksLastCallAsync(functionName);
-
-        Assert.True(persistedTicks > startedTicks);
-        Assert.True(memoryHistory.HasActiveCalls(functionName));
-
-        memoryHistory.EndActiveCall(functionName);
-        await cancellation.CancelAsync();
-        await running;
+        try
+        {
+            long persistedTicks = await persisted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(persistedTicks > startedTicks);
+            Assert.True(await databaseHistory.GetTicksLastCallAsync(functionName) >= persistedTicks);
+            Assert.True(memoryHistory.HasActiveCalls(functionName));
+        }
+        finally
+        {
+            memoryHistory.EndActiveCall(functionName);
+            await cancellation.CancelAsync();
+            await worker.StopAsync(CancellationToken.None);
+            await running;
+        }
         Assert.False(memoryHistory.HasActiveCalls(functionName));
     }
 

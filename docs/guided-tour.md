@@ -2,7 +2,7 @@
 
 Keep the SlimFaas dashboard open while sending requests from a second terminal or Bruno. Follow a request from the caller to a function, through a queue, or into a job, then explore the data APIs.
 
-In **Live Stream → Traffic**, blue circles represent requests, purple diamonds publications and amber squares queue messages. Power icons show sleeping, starting and ready functions. Selecting an actor highlights its traffic; enable **Isolate selection** to hide other connections. Use **Animation speed** to slow the visual trip for inspection; it does not change request processing speed.
+In **Live Stream**, blue circles represent requests, purple diamonds publications and amber squares queue messages. Power icons show sleeping, starting and ready functions. Selecting an actor highlights its traffic; enable **Isolate selection** to hide other connections. Use **Filters → Animation speed** to slow the visual trip for inspection; it does not change request processing speed.
 
 ## Prepare your workspace
 
@@ -20,7 +20,7 @@ export BASE_URL=http://127.0.0.1:30020
 export TOUR_ID="tour-$(date +%s)-$$"
 ```
 
-Open `$BASE_URL/` in your browser. **Overview** contains the Functions and Jobs tables; **Live Stream → Traffic** opens the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
+Open `$BASE_URL/` in your browser. The live network map opens immediately. Select a function or job to see its details, or use **Views → Overview** for the tables. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
 
 ### Use Bruno
 
@@ -151,6 +151,88 @@ curl -i "$BASE_URL/function/fibonacci1/error"
 ```
 
 Expect `500` from the demo handler. Async errors and an empty `{}` callback payload deliberately trigger failure/retry behavior; those requests are manual so a normal tour run does not leave retrying work behind.
+
+### Repair and replay a dead letter
+
+This exercise uses a deliberately unavailable dependency in a **sample handler**,
+without changing the existing Fibonacci endpoints. A terminal `422` is retained
+in the Dead Letter Queue (DLQ). You repair shared state and replay the **same
+immutable request**, then verify that its fresh execution actually completed.
+
+> **Trusted demo only:** Public DLQ access exposes retained request bodies and
+> permits replay and deletion. Use an isolated local demo or disposable cluster,
+> never production. The base demo configurations enable DLQ capture for
+> `fibonacci1`, Public management access and both `orders` subscriptions.
+> Production DLQ visibility defaults are unchanged. Use runtime **and sample
+> images/bundles containing these features**, built from the same checkout;
+> older releases or an unrelated `latest` image may not contain the handler.
+
+Start the ordinary [local](get-started-local.md),
+[Compose](get-started-docker-compose.md) or
+[Kubernetes](get-started-kubernetes.md) demo. No additional feature manifests,
+environment switches or sample-handler activation are required. The Fibonacci
+application is a demonstration workload and always includes the repair handler.
+
+#### Run the repeatable demonstration
+
+Keep **Live Stream** open before running the demo. In a second terminal:
+
+```bash
+export BASE_URL=http://127.0.0.1:30020
+# Compose / Kubernetes port-forward: export BASE_URL=http://127.0.0.1:30021
+bash demo/smoke-tour.sh
+```
+
+The existing smoke tour includes DLQ repair, Stream fan-out and an independent
+persistent WebSocket job automatically.
+A missing handler, wrong image, inaccessible DLQ or missing consumer is a failure,
+not a successful skip.
+Run it again to verify repeatability; each invocation gets a fresh `TOUR_ID`
+and a new WebSocket worker. Two workers can remain running; explicitly delete
+one before a third run, as described in section 10.
+Only bounded **reads** are retried, never submissions, repairs, requeues or appends.
+The DLQ exercise is independent of Stream subscriptions; follow the separate
+[Streams chapter](#9-follow-durable-stream-fan-out) for durable fan-out.
+
+**Bruno:** run **Tour** in order; **03 Async** is included by default.
+Run just that folder, or run its requests individually to
+pause and inspect the UI between operations:
+
+```bash
+cd demo/bruno-slimfaas-demo
+bru run "Tour/03 Async" -r --env Local --bail
+cd ../..
+```
+
+Use `Compose` or `Kubernetes` for those deployments.
+Do not run dependent requests in parallel.
+
+#### Follow the DLQ lifecycle
+
+1. **Submit** one JSON order to
+   `POST /async-function/fibonacci1/tour/dlq/{TOUR_ID}`. The gateway returns
+   `202 Accepted`; that is not application success. With no
+   `{TOUR_ID}-dlq-ready` Data Set, the sample returns **422** without retrying it.
+2. **Inspect** **Dead Letters → fibonacci1**. Find the entry whose request path
+   ends with your run ID, not the first global entry. Open its metadata and body:
+   expect `NonRetryableResponse`, status `422`, and the original JSON `orderId`.
+   The automation follows bounded metadata pages to identify only that entry.
+3. **Repair** the dependency by writing plain text `ready` to
+   `POST /data/sets/{TOUR_ID}-dlq-ready?ttl=600000`. This flag is shared through
+   SlimData across replicas, not a process-local fail-once counter.
+4. **Replay once** with `POST /data/dead-letters/fibonacci1/messages/{Id}/requeue`,
+   or the selected entry's replay action. Its `202` receipt contains a fresh
+   `ElementId`. Replaying before repairing would create another failure.
+5. **Verify success**, not merely an empty DLQ: read
+   `GET /data/sets/{TOUR_ID}-dlq-completed` and require that its text equals the
+   replay receipt's **new** `ElementId`. The handler writes this marker before
+   returning success. The original retained failure must disappear.
+
+The script and Bruno assert the original body, new execution ID and successful
+marker. They remove only this run's ready/completion keys, both of which also
+expire after **ten minutes**. On a failed run, inspect its captured IDs and logs
+before cleanup; never purge an entire function's DLQ to reset a tutorial.
+See [DLQ semantics and access controls](async-functions.md#dead-letter-queues).
 
 ### Scale from N to M with an async backlog
 
@@ -365,7 +447,7 @@ curl -fsS "$BASE_URL/data/files" | jq .
 
 Files return a **plain text ID**, not a JSON string. Downloads preserve the stored media type and filename. Metadata is replicated through SlimData; file contents are stored on disk and pulled from peers when needed.
 
-**In the UI:** **Live Stream → Data** lists Sets and Files metadata, including keys, TTL and file sizes. Use the read, list and download responses to verify stored contents; use node status and metrics to investigate cluster behavior.
+**In the UI:** **Views → Data** lists Sets and Files metadata, including keys, TTL and file sizes. Use the read, list and download responses to verify stored contents; use node status and metrics to investigate cluster behavior.
 
 Cleanup:
 
@@ -401,19 +483,212 @@ curl -N --max-time 5 "$BASE_URL/status-functions-stream"
 
 Expect `text/event-stream` with `state` events and live `activity` or `activity_batch` events while requests run. The deliberate five-second cutoff makes cURL exit with code `28`; this is expected for this command, not a failed server response. The browser reconnects automatically.
 
+## 9. Follow durable Stream fan-out
+
+The base demo subscribes **fibonacci1** and **fibonacci2** to the Public
+`orders` Stream with identical retention. Use **Bruno: Tour / 09 Streams**, independently of the Async/DLQ exercise.
+The shell smoke tour includes the same checks. Run:
+
+```bash
+cd demo/bruno-slimfaas-demo
+bru run "Tour/09 Streams" -r --env Local --bail
+cd ../..
+```
+
+The steps demonstrate the following:
+
+1. **Wait for both active subscriptions** in
+   `GET /data/streams/orders/functions` before publishing. A new subscription
+   starts at the committed tail, so creating it afterwards cannot prove fan-out.
+2. **Publish once** to `POST /publish-stream/orders/compute` with a small JSON
+   order containing this run's ID. A `202` response and `MessageId` prove durable
+   append, **not consumer success**.
+3. **Observe both consumers independently**. For the returned message's sequence
+   (the numeric suffix after `_`), require **each** function's
+   `AcknowledgedThrough` to reach it. Inspect the two rows separately: a healthy
+   first consumer must not hide a second consumer's lag or failure.
+4. **Inspect retained history after ACK** at
+   `GET /data/streams/orders/messages/{MessageId}/body`. It must still contain
+   the original order. History/metadata reads are passive: they do not reserve
+   messages, ACK work or move consumption cursors.
+
+**In the UI:** open **Streams → orders** to compare independent progress and
+retained history. Select the message and preview its body. In the live Traffic
+map, watch **SlimFaas → orders → fibonacci1 / fibonacci2**, followed by ACK traffic.
+Select the Stream actor, isolate it if desired, slow animations and inspect the
+event journal **after deliveries and ACKs arrive**, not immediately after append.
+These are live best-effort visual events, not a durable audit log or measured
+latency; use per-function progress/API state as the completion evidence.
+
+![Durable Stream history and independent consumer progress](images/dashboard/streams-history.png)
+
+The existing [Stream dashboard gallery](streams.md#dashboard-gallery) shows the related
+screens. Cleanup deliberately preserves the shared `orders` Stream, its
+subscriptions, and other runs' messages. ACK does **not** delete retained history;
+the demo's 24-hour/100,000-message retention policy eventually removes it.
+The [Streams reference](streams.md) explains retention gaps, retries and callbacks.
+
+Publication and ACK observation are separate Bruno requests: the publication
+returns the receipt without waiting for either function. Continue with
+[the WebSocket job](#10-run-an-independent-websocket-job) to use the same
+Stream contract over an outbound consumer connection.
+
+## 10. Run an independent WebSocket job
+
+The base native, bundled, Compose and Kubernetes demos include **fibonacci-ws**,
+using the existing FibonacciBatch executable's `--ws-mode`. It has **no DependsOn**:
+it connects outbound to SlimFaas instead of exposing an HTTP server or waiting
+for a Fibonacci HTTP function. Callers use the normal function/async/Stream/event APIs.
+
+This **one job** opens **one WebSocket connection**. The native demo targets
+node `30022`; Kubernetes targets `slimfaas-1`, and Compose uses its single node.
+Requests may arrive at any node: a Raft-backed directory discovers the owner,
+and sync/async/event delivery relays directly to it. Streams remain consumed by
+the owning node. `SLIMFAAS_WS_URL` supplies the address; multiple URLs remain
+optional, not a correctness workaround. Registration proof is written after
+the configured client has successfully registered.
+
+The normal shell tour and Bruno **Tour / 10 WebSocket job** create a **new
+persistent job for every invocation**, with a unique virtual function name and
+dedicated Public Stream. They never reuse an older worker or automatically stop
+it after the assertions:
+
+```bash
+cd demo/bruno-slimfaas-demo
+bru run "Tour/10 WebSocket job" -r --env Local --bail
+cd ../..
+```
+
+Use `Compose` or `Kubernetes` for those deployments. The job uses internal
+service addresses; no additional host WebSocket port-forward is needed.
+Run only one producer/tour at a time.
+
+### Follow the worker in the UI
+
+Keep **Overview** and **Live Stream** open:
+
+1. Check **fibonacci-ws** capacity with `GET /status-jobs`. The base limit is
+   **two running jobs**. Automation refuses a full configuration before
+   submitting. A concurrent creator can still consume the last slot; bounded
+   registration observation reports the accepted job ID instead of resubmitting.
+2. Create the job once. A manual equivalent is:
+
+   ```bash
+   WS_FUNCTION="ws-tour-$(date +%s)-$$"
+   WS_STREAM="$WS_FUNCTION-events"
+   JOB_ID=$(curl -fsS -X POST "$BASE_URL/job/fibonacci-ws" \
+     -H 'Content-Type: application/json' \
+     --data "{\"Args\":[\"--ws-mode\",\"--function-name\",\"$WS_FUNCTION\",\"--subscribe-stream\",\"Public:$WS_STREAM\",\"--subscribe\",\"Public:$WS_STREAM\",\"--registration-key\",\"$WS_FUNCTION-ready\"],\"DependsOn\":[],\"BackoffLimit\":0}" | jq -er '.Id')
+   printf 'Retained job=%s function=%s stream=%s\n' "$JOB_ID" "$WS_FUNCTION" "$WS_STREAM"
+   ```
+
+   Wait for `GET /data/sets/$WS_FUNCTION-ready` to identify this function and
+   all registered connection IDs, for the exact new function to show a ready WebSocket replica, and for its
+   Stream subscription to be Active **before publishing**. The left-side
+   **fibonacci-ws ← job:fibonacci-ws ← SlimFaas** path shows job admission and
+   dequeue; its empty queue stays visible after startup. The virtual function
+   appears on the function side of the map.
+3. **Synchronous:** call the worker through SlimFaas:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/function/$WS_FUNCTION/tour/ws/$WS_FUNCTION/sync" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-sync\"}"
+   ```
+
+   Expect `200`, the exact worker name/nonce, result **55** and a correlation
+   identity. Request and response traverse the existing WebSocket connection.
+4. **Asynchronous:** submit once:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/async-function/$WS_FUNCTION/tour/ws/$WS_FUNCTION/async" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-async\"}"
+   curl -i "$BASE_URL/data/sets/$WS_FUNCTION-async"
+   ```
+
+   `202` is acceptance only. The proof must contain the exact
+   `Slimfaas-Element-Id` response header, worker name, nonce and result **55**.
+   The worker commits this shared proof before returning success; the terminal
+   tour also waits for the function queue to drain after the real SDK callback.
+5. **Stream:** publish only after the subscription is Active:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/publish-stream/$WS_STREAM/tour/ws/$WS_FUNCTION/stream" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-stream\"}"
+   curl -i "$BASE_URL/data/sets/$WS_FUNCTION-stream"
+   ```
+
+   Require a matching worker proof with the returned `MessageId`, Stream name,
+   nonce, computation and actual delivery ID. Then require this function's
+   `AcknowledgedThrough` to reach that message sequence. Open **Streams → your
+   Stream** and preview the retained body after ACK. Watch **SlimFaas → Stream →
+   virtual function**, followed by ACK traffic; live markers are best-effort
+   observations, not the completion assertion.
+
+6. **Event:** publish once and inspect the worker's computation proof:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/publish-event/$WS_STREAM/tour/ws/$WS_FUNCTION/event" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-event\"}"
+   curl -i "$BASE_URL/data/sets/$WS_FUNCTION-event"
+   ```
+
+   Require the exact function/nonce and result **55**. Event `204` is acceptance
+   only: unlike Streams, events are best effort and have no durable retries.
+
+In the native demo, repeat calls through `http://127.0.0.1:30021`,
+`http://127.0.0.1:30022` and `http://127.0.0.1:30023` to verify that ingress does
+not need its own WebSocket connection. See [routing and failure semantics](clients.md#multi-node-routing-and-failure-semantics).
+
+The following captures show the three-node native demo, including worker
+registration, sync/async calls and its dedicated Stream. Moving job admission/dequeue,
+Stream delivery and ACK markers are verified separately from the processing assertions.
+
+![Persistent WebSocket worker and left-side job queues in the live map](images/dashboard/traffic-websocket-job.png)
+
+![Dedicated Stream history and acknowledged WebSocket consumer](images/dashboard/streams-websocket-job.png)
+
+### Persistence, repeatability and manual cleanup
+
+After successful assertions, automation deletes **only the four proof keys**
+(`-ready`, `-async`, `-stream`, `-event`),
+which also expire after ten minutes. The job remains **Running**, its WebSocket
+function stays connected, and its Stream/history remain available. A second run
+creates a distinct worker and Stream; a third fails capacity until a previous
+job is explicitly deleted. IDs are printed even if a later check fails; inspect
+job logs and retained state before further mutations.
+
+When finished, use the IDs printed by that run:
+
+```bash
+curl -i -X DELETE "$BASE_URL/job/fibonacci-ws/$JOB_ID"
+# Wait for this worker's WebSocket connection to disappear, then remove its history.
+curl -i -X DELETE "$BASE_URL/data/streams/$WS_STREAM"
+```
+
+Never delete another run's job or the shared `orders` Stream. Finished-job TTL
+does not terminate a running worker. Stopping the native launcher shuts down its
+managed processes; restarting preserves durable state. The base demo continues
+to include the repair handler and Public DLQ/Stream dashboards without overlays.
+Use the Private/off production defaults in deployments outside this trusted demo;
+changing visibility does not purge retained records.
+
 ## Continue with your application
 
 Use the [API Reference](api-reference.md) to look up all routes, [How It Works](how-it-works.md) to understand their execution, and [UI reference](user-interface.md) for dashboard settings. Add [WebSocket clients](clients.md), [Kafka](kafka.md) or [Planet Saver](planet-saver.md) as needed. Stop the environment using the cleanup section of your installation guide.
 
 ## Follow the live dashboard
 
-Open **Live Stream → Traffic** while running the job-to-function exercises. Search for a job execution and select it to focus its path through SlimFaas, queues and functions. Zoom out to see workload groups, or pause and inspect the event journal.
+Open **Live Stream** while running the job-to-function exercises. Search for a job execution and select it to focus its path through SlimFaas, queues and functions. Zoom out to see workload groups, or pause and inspect the event journal.
 
-During the data exercises, switch to **Live Stream → Data** and search for your `TOUR_ID` prefix. The Sets and Files views show keys and TTL, with document sizes for Files. Watch the countdown, create another entry to see its highlight, and return to the first page if a new key sorts before the current cursor. Values and document contents remain accessible through the API exercises, not the dashboard.
+During the data exercises, select **Set** or **Files** on the map and search for your `TOUR_ID` prefix. The Sets and Files views show keys and TTL, with document sizes for Files. Watch the countdown, create another entry to see its highlight, and return to the first page if a new key sorts before the current cursor. Values and document contents remain accessible through the API exercises, not the dashboard.
 
 ## Explain replicas, the leader and background wake-ups
 
-In **Live Stream → Traffic**, select `fibonacci1` and choose **Show replicas**. Send synchronous or asynchronous requests from the earlier exercises: arrival rings identify the replica selected by SlimFaas. Queued messages start from the queue when dispatched; the technical dequeue and outbound records share one animation. Publications still fan out to their individual recipients. These animations illustrate routing, not measured request latency.
+In **Live Stream**, select `fibonacci1` and choose **Show replicas**. Send synchronous or asynchronous requests from the earlier exercises: arrival rings identify the replica selected by SlimFaas. Queued messages start from the queue when dispatched; the technical dequeue and outbound records share one animation. Publications still fan out to their individual recipients. These animations illustrate routing, not measured request latency.
 
 The green **Leader** badge identifies the Raft leader; another node receives it after a leader change is observed. Select a replica, retained job execution or SlimFaas node to see its details and live logs together. Filter text with **Find in logs** to highlight matching text in yellow, or pause scrolling to inspect output. Log access is enabled explicitly in the demo configurations. Native nodes default to `cluster.nodeLogLevel: Error`, so an empty node log is expected when no errors occur; use `Information` in an overlay for a more verbose exercise.
 

@@ -1,34 +1,44 @@
-using BenchmarkDotNet.Columns;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Diagnosers;
-using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Running;
-using BenchmarkDotNet.Toolchains.InProcess.Emit;
+using SlimFaasBenchmark;
 
 namespace SlimFaas.Benchmarks;
 
-// SlimFaas micro-benchmark harness.
-//
-// Usage:
-//   dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- --filter '*'
-//   dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- --filter '*DeploymentsSnapshot*'
-//
-// The configuration is deliberately fast (ShortRun + InProcess): the goal is to
-// compare a before/after on the same machine in the same session, not to produce
-// publishable absolute numbers. Results are recorded in
-// docs/performance-benchmarks.md for every performance commit.
 public static class Program
 {
-    public static void Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
-        var config = DefaultConfig.Instance
-            .AddJob(Job.ShortRun
-                .WithToolchain(InProcessEmitToolchain.Instance)
-                .WithId("ShortRunInProcess"))
-            .AddDiagnoser(MemoryDiagnoser.Default)
-            .AddColumn(RankColumn.Arabic)
-            .WithOptions(ConfigOptions.DisableOptimizationsValidator);
+        if (args.Length == 0)
+        {
+            BenchmarkCli.PrintUsage();
+            return 2;
+        }
 
-        BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, config);
+        try
+        {
+            return args[0].ToLowerInvariant() switch
+            {
+                "micro" => MicroBenchmarkRunner.Run(args[1..]),
+                "target" => await BenchmarkTarget.RunAsync(CommandArguments.Parse(args[1..])),
+                "features" => await FeatureRunner.RunAsync(CommandArguments.Parse(args[1..])),
+                "sdk-target" => await BenchmarkSdkTarget.RunAsync(CommandArguments.Parse(args[1..])),
+                "run" => await BenchmarkRunner.RunAsync(CommandArguments.Parse(args[1..])),
+                "report" => await BenchmarkRunner.ReportAsync(CommandArguments.Parse(args[1..])),
+                "compare" => await BenchmarkComparer.RunAsync(CommandArguments.Parse(args[1..])),
+                "help" or "--help" or "-h" => PrintHelp(),
+                // Preserve existing BenchmarkDotNet filter/list/extended invocations.
+                _ when args[0].StartsWith('-', StringComparison.Ordinal) => MicroBenchmarkRunner.Run(args),
+                _ => throw new ArgumentException($"Unknown command '{args[0]}'.")
+            };
+        }
+        catch (Exception exception)
+        {
+            await Console.Error.WriteLineAsync(exception.ToString());
+            return 1;
+        }
+    }
+
+    private static int PrintHelp()
+    {
+        BenchmarkCli.PrintUsage();
+        return 0;
     }
 }

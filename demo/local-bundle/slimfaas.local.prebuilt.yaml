@@ -14,6 +14,9 @@ functions:
     command: ["${SLIMFAAS_DEMO_ROOT}/functions/fibonacci/Fibonacci${SLIMFAAS_DEMO_EXE_SUFFIX}"]
     workingDirectory: functions/fibonacci
 jobs:
+  fibonacci-ws:
+    command: ["${SLIMFAAS_DEMO_ROOT}/jobs/fibonacci-batch/FibonacciBatch${SLIMFAAS_DEMO_EXE_SUFFIX}"]
+    workingDirectory: jobs/fibonacci-batch
   fibonacci:
     command: ["${SLIMFAAS_DEMO_ROOT}/jobs/fibonacci-batch/FibonacciBatch${SLIMFAAS_DEMO_EXE_SUFFIX}"]
     workingDirectory: jobs/fibonacci-batch

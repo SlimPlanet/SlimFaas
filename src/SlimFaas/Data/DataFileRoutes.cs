@@ -25,7 +25,8 @@ public static class DataFileRoutes
     public static IEndpointRouteBuilder MapDataFileRoutes(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/data/files")
-            .AddEndpointFilter<DataVisibilityEndpointFilter>();
+            .AddEndpointFilter<DataVisibilityEndpointFilter>()
+            .AddEndpointFilter<DataActivityEndpointFilter>();
 
         group.MapPost("", DataFileHandlers.PostAsync);
         group.MapGet("/{elementId}", DataFileHandlers.GetAsync);
@@ -122,6 +123,19 @@ public static class DataFileRoutes
             var finalContentType = contentType;
             var finalFileName = fileName ?? elementId;
 
+            var admissionService = context.RequestServices.GetService<IFileAdmissionService>();
+            if (admissionService?.Enabled == true)
+            {
+                if (ttl <= 0) return Results.BadRequest("Durable file uploads require a positive TTL when supplied.");
+                string physicalId = DataFileKeys.CreateInternalOffloadId();
+                PreparedFileAdmission admission = await admissionService.PrepareAsync(physicalId, contentStream, finalContentType,
+                    finalFileName, lengthForLimiter, tags: null, ct).ConfigureAwait(false);
+                await admissionService.CommitPublicAsync(admission, elementId, ttl, ct).ConfigureAwait(false);
+                return Results.Text(elementId);
+            }
+            if (fileOptions.Value.RequiredDurableCopies > 0)
+                throw new SlimDataUnavailableException("Durable file admission is unavailable.");
+
             // Persiste localement + calcule sha/len + announce-only cluster
             var put = await fileSync.BroadcastFilePutAsync(
                 id: elementId,
@@ -176,7 +190,15 @@ public static class DataFileRoutes
                 return Results.Problem("Corrupted metadata", statusCode: 500);
             }
 
-            var pulled = await fileSync.PullFileIfMissingAsync(elementId, meta?.Sha256Hex ?? "", null, ct);
+            string storageId = elementId;
+            if (FileAdmissionTags.IsManaged(meta?.Tags))
+            {
+                if (!meta!.Tags!.TryGetValue(DataFileKeys.StorageIdTag, out string? physicalId) ||
+                    !IdValidator.IsSafeId(physicalId) || !DataFileKeys.IsInternalElementId(physicalId))
+                    return Results.Problem("Corrupted file storage reference", statusCode: 500);
+                storageId = physicalId;
+            }
+            var pulled = await fileSync.PullFileIfMissingAsync(storageId, meta?.Sha256Hex ?? "", null, ct);
             if (pulled.Stream is null)
                 return Results.NotFound();
 

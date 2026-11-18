@@ -13,7 +13,10 @@ TOUR_TMP=$(mktemp -d)
 TOUR_ID="tour-$(date +%s)-$$"
 TOUR_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 set_id='' hash_id='' file_id='' job_id='' schedule_id=''
+ws_job_id='' ws_function="ws-$TOUR_ID" ws_stream="ws-$TOUR_ID-events"
+dependency_created=0
 cleanup() {
+  local result=$? status
   for id in "$set_id" "$TOUR_ID-value" "$TOUR_ID-count" "$TOUR_ID-decimal" "$TOUR_ID-ttl"; do
     [[ -z "$id" ]] || curl -s --max-time 10 -X DELETE "$BASE_URL/data/sets/$id" >/dev/null || true
   done
@@ -21,14 +24,36 @@ cleanup() {
   [[ -z "$file_id" ]] || curl -s --max-time 10 -X DELETE "$BASE_URL/data/files/$file_id" >/dev/null || true
   [[ -z "$schedule_id" ]] || curl -s --max-time 10 -X DELETE "$BASE_URL/job-schedules/fibonacci/$schedule_id" >/dev/null || true
   [[ -z "$job_id" ]] || curl -s --max-time 10 -X DELETE "$BASE_URL/job/fibonacci/$job_id" >/dev/null || true
+  if (( dependency_created )); then
+    for key in "$TOUR_ID-dlq-ready" "$TOUR_ID-dlq-completed"; do
+      status=$(curl -sS --max-time 10 -o "$TOUR_TMP/cleanup" -w '%{http_code}' -X DELETE "$BASE_URL/data/sets/$key") || status=000
+      if [[ "$status" != 204 && "$status" != 404 ]]; then
+        echo "FAIL cleanup $key ($status); its TTL is ten minutes." >&2
+        result=1
+      fi
+    done
+  fi
+  if [[ -n "$ws_job_id" ]]; then
+    for key in "$ws_function-ready" "$ws_function-async" "$ws_function-stream" "$ws_function-event"; do
+      status=$(curl -sS --max-time 10 -o "$TOUR_TMP/cleanup" -w '%{http_code}' -X DELETE "$BASE_URL/data/sets/$key") || status=000
+      if [[ "$status" != 204 && "$status" != 404 ]]; then
+        echo "FAIL cleanup $key ($status); its TTL is ten minutes." >&2
+        result=1
+      fi
+    done
+    echo "RETAINED WebSocket job=$ws_job_id function=$ws_function stream=$ws_stream"
+    echo "Manual cleanup: curl -X DELETE '$BASE_URL/job/fibonacci-ws/$ws_job_id'"
+    echo "After it disconnects, remove its history: curl -X DELETE '$BASE_URL/data/streams/$ws_stream'"
+  fi
   rm -rf "$TOUR_TMP"
+  exit "$result"
 }
 trap cleanup EXIT
 request() {
   local expected="$1" method="$2" route="$3"
   shift 3
   local status
-  status=$(curl -sS --connect-timeout 5 --max-time 180 -o "$TOUR_TMP/body" -w '%{http_code}' -X "$method" "$BASE_URL$route" "$@")
+  status=$(curl -sS --connect-timeout 5 --max-time 180 -D "$TOUR_TMP/headers" -o "$TOUR_TMP/body" -w '%{http_code}' -X "$method" "$BASE_URL$route" "$@")
   # The entrypoint can select a follower that has not applied a just-committed
   # write/delete yet. Poll reads only; never replay a mutation automatically.
   local deadline=$((SECONDS + 10))
@@ -36,6 +61,7 @@ request() {
     sleep 0.2
     status=$(curl -sS --max-time 10 -o "$TOUR_TMP/body" -w '%{http_code}' "$BASE_URL$route")
   done
+  HTTP_STATUS="$status"
   if [[ ",$expected," != *",$status,"* ]]; then
     echo "FAIL $method $route: expected $expected, got $status" >&2
     cat "$TOUR_TMP/body" >&2
@@ -83,6 +109,56 @@ wait_queue_nonempty() {
     }
   done
 }
+wait_subscribers() {
+  local deadline=$((SECONDS + 180))
+  while true; do
+    request 200,404 GET /data/streams/orders/functions
+    if jq -e '[.Items[]? | select(.Active and (.Function == "fibonacci1" or .Function == "fibonacci2"))] | length == 2' "$TOUR_TMP/body" >/dev/null; then return; fi
+    [[ $SECONDS -lt $deadline ]] || { echo 'Both orders subscribers must exist before publishing.' >&2; exit 1; }
+    sleep 0.5
+  done
+}
+find_failure() {
+  local deadline=$((SECONDS + 180)) cursor pages route
+  while true; do
+    cursor='' pages=0
+    while true; do
+      route='/data/dead-letters/fibonacci1/messages?httpStatus=422&limit=500'
+      [[ -z "$cursor" ]] || route="$route&after=$(jq -rn --arg value "$cursor" '$value|@uri')"
+      request 200 GET "$route"
+      DLQ_ID=$(jq -r --arg id "$TOUR_ID" '.Items[] | select((.Request.Path | ltrimstr("/")) == ("tour/dlq/" + $id)) | .Id' "$TOUR_TMP/body")
+      if [[ -n "$DLQ_ID" ]]; then
+        [[ "$DLQ_ID" != *$'\n'* ]] || { echo 'Multiple matching failures; do not replay automatically.' >&2; exit 1; }
+        jq -e --arg id "$DLQ_ID" '.Items[] | select(.Id == $id) | .LastHttpStatus == 422 and .FailureReason == "NonRetryableResponse"' "$TOUR_TMP/body" >/dev/null
+        return
+      fi
+      cursor=$(jq -r '.NextCursor // empty' "$TOUR_TMP/body")
+      [[ -n "$cursor" ]] || break
+      pages=$((pages + 1))
+      [[ $pages -lt 20 ]] || { echo 'DLQ inspection exceeded 20 pages; inspect this run manually.' >&2; exit 1; }
+    done
+    [[ $SECONDS -lt $deadline ]] || { echo "No controlled 422 captured for $TOUR_ID; check sample image, DLQ capture and logs." >&2; exit 1; }
+    sleep 0.5
+  done
+}
+wait_marker() {
+  local deadline=$((SECONDS + 180))
+  while true; do
+    request 200,404 GET "/data/sets/$TOUR_ID-dlq-completed"
+    [[ $(cat "$TOUR_TMP/body") != "$REPLAY_ID" ]] || return 0
+    [[ $SECONDS -lt $deadline ]] || { echo "Replay $REPLAY_ID did not complete; inspect DLQ and function logs." >&2; exit 1; }
+    sleep 0.5
+  done
+}
+wait_acknowledgements() {
+  local deadline=$((SECONDS + 180))
+  while true; do
+    request 200 GET /data/streams/orders/functions
+    if jq -e --argjson target "$SEQUENCE" '[.Items[] | select(.Function == "fibonacci1" or .Function == "fibonacci2")] | length == 2 and all(.Active and .AcknowledgedThrough >= $target)' "$TOUR_TMP/body" >/dev/null; then return; fi
+    [[ $SECONDS -lt $deadline ]] || { echo "Both subscribers did not ACK $MESSAGE_ID." >&2; cat "$TOUR_TMP/body" >&2; exit 1; }
+    sleep 0.5
+  done
+}
 wait_ready
 request 200 GET /health
 request 200 GET /ready
@@ -112,6 +188,35 @@ request 202 POST /async-function/fibonacci1/computeWithCallback -H 'Content-Type
 wait_queue_nonempty
 wait_queue_empty
 echo 'PASS Deferred callback released the queue'
+request 200 GET /data/dead-letters
+# Refuse reused IDs instead of accidentally succeeding with a previous ready flag.
+request 404 GET "/data/sets/$TOUR_ID-dlq-ready"
+request 404 GET "/data/sets/$TOUR_ID-dlq-completed"
+request 202 POST "/async-function/fibonacci1/tour/dlq/$TOUR_ID" -H 'Content-Type: application/json' --data "{\"orderId\":\"$TOUR_ID\"}"
+find_failure
+echo "PASS Captured controlled 422: $DLQ_ID ($TOUR_ID)"
+request 200 GET "/data/dead-letters/fibonacci1/messages/$DLQ_ID/body"
+jq -e --arg id "$TOUR_ID" '.orderId == $id' "$TOUR_TMP/body" >/dev/null
+dependency_created=1
+request 200 POST "/data/sets/$TOUR_ID-dlq-ready?ttl=600000" -H 'Content-Type: text/plain' --data-binary ready
+deadline=$((SECONDS + 10))
+while true; do
+  request 200,404 GET "/data/sets/$TOUR_ID-dlq-ready"
+  [[ $(cat "$TOUR_TMP/body") != ready ]] || break
+  [[ $SECONDS -lt $deadline ]] || { echo 'Repair visibility deadline exceeded' >&2; exit 1; }
+  sleep 0.2
+done
+request 202 POST "/data/dead-letters/fibonacci1/messages/$DLQ_ID/requeue"
+REPLAY_ID=$(jq -er --arg id "$DLQ_ID" 'select(.DeadLetterId == $id and .ElementId != .OriginalElementId) | .ElementId' "$TOUR_TMP/body")
+wait_marker
+deadline=$((SECONDS + 10))
+while true; do
+  request 200,404 GET "/data/dead-letters/fibonacci1/messages/$DLQ_ID"
+  [[ "$HTTP_STATUS" != 404 ]] || break
+  [[ $SECONDS -lt $deadline ]] || { echo 'Replayed entry still visible' >&2; exit 1; }
+  sleep 0.2
+done
+echo "PASS Replayed original body as fresh successful execution $REPLAY_ID"
 request 204 POST /wake-function/fibonacci3
 request 204 POST /wake-function/fibonacci4
 request 200 GET /function/fibonacci3/hello/subscriber
@@ -202,4 +307,105 @@ hash_id=''
 request 204 DELETE "/data/files/$file_id"
 request 404 GET "/data/files/$file_id"
 file_id=''
-echo 'PASS Core SlimFaas tour. Manual scenarios: WebSocket sessions, internal interfaces and access isolation.'
+wait_subscribers
+# Ordinary HTTP subscribers process the message, not a manual read/reserve/ack API.
+request 202 POST /publish-stream/orders/compute -H 'Content-Type: application/json' --data "{\"orderId\":\"$TOUR_ID\",\"amount\":42}"
+MESSAGE_ID=$(jq -er '.MessageId | select(test("^[a-f0-9]+_[0-9]{20}$"))' "$TOUR_TMP/body")
+SEQUENCE=$(jq -nr --arg id "$MESSAGE_ID" '$id|split("_")|last|tonumber')
+wait_acknowledgements
+echo "PASS fibonacci1 and fibonacci2 independently ACKed $MESSAGE_ID"
+request 200 GET "/data/streams/orders/messages/$MESSAGE_ID"
+jq -e --arg id "$MESSAGE_ID" '.Id == $id' "$TOUR_TMP/body" >/dev/null
+request 200 GET "/data/streams/orders/messages/$MESSAGE_ID/body"
+jq -e --arg id "$TOUR_ID" '.orderId == $id and .amount == 42' "$TOUR_TMP/body" >/dev/null
+echo "PASS ACK preserved this run's retained history; orders and its subscriptions were not deleted."
+request 200 GET /status-jobs
+jq -e '[.[] | select(.Name == "fibonacci-ws")] | length == 1 and all((.DependsOn // []) | length == 0)' "$TOUR_TMP/body" >/dev/null
+if ! jq -e '.[] | select(.Name == "fibonacci-ws") | ([.RunningJobs[] | select(.Status == "Running")] | length) + .QueueLength < .NumberParallelJob' "$TOUR_TMP/body" >/dev/null; then
+  echo 'FAIL fibonacci-ws capacity is full. Delete a previous persistent WebSocket job explicitly before running the tour again.' >&2
+  jq '.[] | select(.Name == "fibonacci-ws") | {NumberParallelJob, QueueLength, RunningJobs}' "$TOUR_TMP/body" >&2
+  exit 1
+fi
+request 404 GET "/status-function/$ws_function"
+request 404 GET "/data/streams/$ws_stream/metadata"
+ws_args=$(jq -nc --arg fn "$ws_function" --arg stream "$ws_stream" \
+  '{Args:["--ws-mode","--function-name",$fn,"--subscribe-stream",("Public:"+$stream),"--subscribe",("Public:"+$stream),"--registration-key",($fn+"-ready")],DependsOn:[],BackoffLimit:0}')
+request 202 POST /job/fibonacci-ws -H 'Content-Type: application/json' --data "$ws_args"
+ws_job_id=$(jq -er '.Id' "$TOUR_TMP/body")
+deadline=$((SECONDS + 180))
+while true; do
+  request 200,404 GET "/data/sets/$ws_function-ready"
+  if jq -e --arg fn "$ws_function" '.function == $fn and .connections > 0 and (.connectionIds | length) == .connections' "$TOUR_TMP/body" >/dev/null 2>&1; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "Job $ws_job_id did not register its WebSocket connection; inspect job logs and /status-jobs." >&2; exit 1; }
+  sleep 0.5
+done
+deadline=$((SECONDS + 180))
+while true; do
+  request 200 GET /status-functions
+  if jq -e --arg fn "$ws_function" 'any(.[]; .Name == $fn and .NumberReady > 0)' "$TOUR_TMP/body" >/dev/null; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "WebSocket registration deadline exceeded for job $ws_job_id; it may still be queued. Inspect /status-jobs and job logs." >&2; exit 1; }
+  sleep 0.5
+done
+deadline=$((SECONDS + 180))
+while true; do
+  request 200,404 GET "/data/streams/$ws_stream/functions"
+  if jq -e --arg fn "$ws_function" 'any(.Items[]?; .Function == $fn and .Active)' "$TOUR_TMP/body" >/dev/null; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "WebSocket subscription deadline exceeded for $ws_job_id/$ws_stream" >&2; exit 1; }
+  sleep 0.5
+done
+request 200 POST "/function/$ws_function/tour/ws/$ws_function/sync" -H 'Content-Type: application/json' \
+  --data "{\"input\":10,\"nonce\":\"$ws_function-sync\"}"
+jq -e --arg fn "$ws_function" '.function == $fn and .mode == "sync" and .nonce == ($fn+"-sync") and .input == 10 and .result == 55 and (.elementId | length > 0)' "$TOUR_TMP/body" >/dev/null
+request 202 POST "/async-function/$ws_function/tour/ws/$ws_function/async" -H 'Content-Type: application/json' \
+  --data "{\"input\":10,\"nonce\":\"$ws_function-async\"}"
+WS_ASYNC_ID=$(awk 'tolower($1) == "slimfaas-element-id:" {sub(/\r$/, "", $2); print $2}' "$TOUR_TMP/headers")
+[[ -n "$WS_ASYNC_ID" ]] || { echo 'Async acceptance did not include its execution identity.' >&2; exit 1; }
+deadline=$((SECONDS + 180))
+while true; do
+  request 200,404 GET "/data/sets/$ws_function-async"
+  if jq -e --arg fn "$ws_function" --arg element "$WS_ASYNC_ID" '.function == $fn and .mode == "async" and .nonce == ($fn+"-async") and .result == 55 and .elementId == $element' "$TOUR_TMP/body" >/dev/null 2>&1; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "No matching async processing proof from $ws_job_id" >&2; exit 1; }
+  sleep 0.5
+done
+WS_ASYNC_ELEMENT=$(jq -er '.elementId' "$TOUR_TMP/body")
+deadline=$((SECONDS + 180))
+while true; do
+  read_state
+  if jq -e --arg fn "$ws_function" 'any(.Queues[]; .Name == $fn and .Length == 0)' "$TOUR_TMP/state" >/dev/null; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "Async callback did not drain $ws_function after processing $WS_ASYNC_ELEMENT" >&2; exit 1; }
+done
+echo "PASS WebSocket async processing and callback completed: $WS_ASYNC_ELEMENT"
+request 202 POST "/publish-stream/$ws_stream/tour/ws/$ws_function/stream" -H 'Content-Type: application/json' \
+  --data "{\"input\":10,\"nonce\":\"$ws_function-stream\"}"
+WS_MESSAGE_ID=$(jq -er '.MessageId | select(test("^[a-f0-9]+_[0-9]{20}$"))' "$TOUR_TMP/body")
+WS_SEQUENCE=$(jq -nr --arg id "$WS_MESSAGE_ID" '$id|split("_")|last|tonumber')
+deadline=$((SECONDS + 180))
+while true; do
+  request 200,404 GET "/data/sets/$ws_function-stream"
+  if jq -e --arg fn "$ws_function" --arg stream "$ws_stream" --arg message "$WS_MESSAGE_ID" \
+    '.function == $fn and .mode == "stream" and .nonce == ($fn+"-stream") and .streamName == $stream and .messageId == $message and .result == 55 and (.elementId | length > 0)' "$TOUR_TMP/body" >/dev/null 2>&1; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "No matching Stream processing proof for $WS_MESSAGE_ID" >&2; exit 1; }
+  sleep 0.5
+done
+deadline=$((SECONDS + 180))
+while true; do
+  request 200 GET "/data/streams/$ws_stream/functions"
+  if jq -e --arg fn "$ws_function" --argjson target "$WS_SEQUENCE" 'any(.Items[]; .Function == $fn and .Active and .AcknowledgedThrough >= $target)' "$TOUR_TMP/body" >/dev/null; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "WebSocket worker did not ACK $WS_MESSAGE_ID" >&2; exit 1; }
+  sleep 0.5
+done
+request 200 GET "/data/streams/$ws_stream/messages/$WS_MESSAGE_ID/body"
+jq -e --arg fn "$ws_function" '.nonce == ($fn+"-stream") and .input == 10' "$TOUR_TMP/body" >/dev/null
+request 204 POST "/publish-event/$ws_stream/tour/ws/$ws_function/event" -H 'Content-Type: application/json' \
+  --data "{\"input\":10,\"nonce\":\"$ws_function-event\"}"
+deadline=$((SECONDS + 30))
+while true; do
+  request 200,404 GET "/data/sets/$ws_function-event"
+  if jq -e --arg fn "$ws_function" '.function == $fn and .mode == "event" and .nonce == ($fn+"-event") and .input == 10 and .result == 55' "$TOUR_TMP/body" >/dev/null 2>&1; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "No matching best-effort event processing proof from $ws_job_id" >&2; exit 1; }
+  sleep 0.2
+done
+request 200 GET /status-jobs
+jq -e --arg id "$ws_job_id" 'any(.[] | select(.Name == "fibonacci-ws") | .RunningJobs[]; .ElementId == $id and .Status == "Running")' "$TOUR_TMP/body" >/dev/null
+echo "PASS New independent persistent WebSocket job processed sync, async, events and Stream $WS_MESSAGE_ID; ACK preserved its body."
+echo 'PASS SlimFaas tour including DLQ repair, durable Streams and a WebSocket job. Manual scenarios: internal interfaces and access isolation.'
