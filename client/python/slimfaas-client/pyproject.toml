@@ -29,7 +29,7 @@ dev = [
     "anyio>=4.16.0",
     # Pygments 2.21.0 is rejected by the CNCF FOSSA policy (GPL findings).
     # Keep the last version validated by FOSSA until a newer release is approved.
-    "pygments==2.19.2",
+    "pygments==2.20.0",
 ]
 
 [tool.hatch.build.targets.wheel]
