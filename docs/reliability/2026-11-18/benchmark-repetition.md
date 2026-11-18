@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 03:37 CET. Campaign state: **in progress**.
+Updated 2026-11-18 03:39 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -14,6 +14,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
+| jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
 
@@ -21,6 +22,7 @@ An observation means that the measured run supplied the expected integrity and r
 
 | Profile | Requests | Expected receipts | Completions | Missing | Duplicates | Corrupt |
 |---|---:|---:|---:|---:|---:|---:|
+| jobs-rerun | 800 | 800 | 800 | 0 | 0 | 0 |
 
 ## Comparisons
 
@@ -32,6 +34,8 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 
 | Profile | Scenario | Bytes | C | Runs | Median rate | Unit | Completed/s incl. drain | CPU ms/op | Peak MiB |
 |---|---|---:|---:|---:|---:|---|---:|---:|---:|
+| jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 140.98 | accepted job/s | 13.15 | 5.29 | 338.91 |
+| jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1403.81 | accepted job/s | 13.16 | 1.00 | 341.44 |
 
 Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local campaign directory. The final report includes completed comparisons and identifies profiles that did not finish.
 
@@ -41,3 +45,4 @@ Status: **queued**.
 
 ## Run status
 
+- **jobs-rerun**: OBSERVED.
