@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 03:58 CET. Campaign state: **in progress**.
+Updated 2026-11-18 03:59 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -15,6 +15,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
 | data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
+| files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
@@ -57,6 +58,12 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 | data-rerun | set | 4096 | 16 | 2 | 140.08 | operation/s | n/a | 3.43 | 496.80 |
 | data-rerun | slimdata-set | 4096 | 1 | 2 | 12.88 | operation/s | n/a | 16.69 | 358.52 |
 | data-rerun | slimdata-set | 4096 | 16 | 2 | 112.42 | operation/s | n/a | 2.92 | 447.27 |
+| files-bounded-files-upload | files-upload | 262144 | 1 | 2 | 105.64 | operation/s | n/a | 16.03 | 345.84 |
+| files-bounded-files-upload | files-upload | 262144 | 4 | 2 | 39.95 | operation/s | n/a | 17.52 | 382.08 |
+| files-bounded-files-upload | files-upload | 1048576 | 1 | 2 | 89.70 | operation/s | n/a | 31.65 | 385.80 |
+| files-bounded-files-upload | files-upload | 1048576 | 4 | 2 | 43.08 | operation/s | n/a | 30.05 | 396.59 |
+| files-bounded-files-upload | files-upload | 4194304 | 1 | 2 | 41.77 | operation/s | n/a | 80.41 | 398.56 |
+| files-bounded-files-upload | files-upload | 4194304 | 4 | 2 | 94.89 | operation/s | n/a | 64.15 | 399.81 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 140.98 | accepted job/s | 13.15 | 5.29 | 338.91 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1403.81 | accepted job/s | 13.16 | 1.00 | 341.44 |
 | streams-rerun | streams/http/fanout-1 | 4096 | 1 | 2 | 122.96 | accepted message/s | 4.01 | 7.62 | 378.91 |
@@ -100,3 +107,4 @@ Status: **queued**.
 - **websocket-rerun**: OBSERVED.
 - **streams-rerun**: OBSERVED.
 - **data-rerun**: OBSERVED.
+- **files-bounded-files-upload**: OBSERVED.
