@@ -107,6 +107,13 @@ export const DOCUMENTATION_CATALOG = {
         title: 'SlimFaas OpenTelemetry',
         description: 'Configure distributed traces, metrics, and logs for SlimFaas.',
     },
+    'annotation-policy': {
+        sourcePath: 'docs/annotation-policy.md',
+        route: '/annotation-policy',
+        label: 'Annotation Policy',
+        title: 'Protect SlimFaas Annotations',
+        description: 'Let only chosen users and groups change SlimFaas/* annotations with a ValidatingAdmissionPolicy.',
+    },
     benchmarking: {
         sourcePath: 'docs/benchmarking.md',
         route: '/benchmarking',
@@ -185,7 +192,7 @@ export function legacyDeadLetterTarget(hash: string): string {
 export const DOCUMENTATION_GROUPS: { label: string; ids: DocumentationId[] }[] = [
     { label: 'Start here', ids: ['get-started', 'get-started-kubernetes', 'get-started-local', 'get-started-docker-compose', 'guided-tour'] },
     { label: 'Features', ids: ['functions', 'async-functions', 'events', 'streams', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
-    { label: 'Operate', ids: ['user-interface', 'autoscaling', 'opentelemetry', 'benchmarking'] },
+    { label: 'Operate', ids: ['user-interface', 'autoscaling', 'opentelemetry', 'annotation-policy', 'benchmarking'] },
     { label: 'Reference', ids: ['api-reference', 'how-it-works', 'local-mode'] },
 ];
 

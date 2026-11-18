@@ -1,0 +1,96 @@
+# Optional: only the users and groups listed in the slimfaas-annotation-editors
+# ConfigMap may add, change or remove SlimFaas/* annotations in slimfaas-demo.
+# Requires Kubernetes 1.30 or later. See docs/annotation-policy.md.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: slimfaas-annotations
+spec:
+  failurePolicy: Fail
+  paramKind:
+    apiVersion: v1
+    kind: ConfigMap
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["apps"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["deployments", "statefulsets"]
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs", "cronjobs"]
+  variables:
+    # SlimFaas reads functions from the pod template and jobs from the object
+    # metadata: both annotation maps are protected. A CronJob has no
+    # spec.template; dyn() lets one expression serve every matched kind.
+    - name: newMetadata
+      expression: "object.metadata.?annotations.orValue({})"
+    - name: newTemplate
+      expression: "dyn(object).spec.?template.?metadata.?annotations.orValue({})"
+    - name: oldMetadata
+      expression: "oldObject != null ? oldObject.metadata.?annotations.orValue({}) : {}"
+    - name: oldTemplate
+      expression: "oldObject != null ? dyn(oldObject).spec.?template.?metadata.?annotations.orValue({}) : {}"
+    - name: newEntries
+      expression: >-
+        variables.newMetadata.filter(k, k.startsWith('SlimFaas/')).map(k, 'metadata/' + k + '=' + variables.newMetadata[k])
+        + variables.newTemplate.filter(k, k.startsWith('SlimFaas/')).map(k, 'template/' + k + '=' + variables.newTemplate[k])
+    - name: oldEntries
+      expression: >-
+        variables.oldMetadata.filter(k, k.startsWith('SlimFaas/')).map(k, 'metadata/' + k + '=' + variables.oldMetadata[k])
+        + variables.oldTemplate.filter(k, k.startsWith('SlimFaas/')).map(k, 'template/' + k + '=' + variables.oldTemplate[k])
+    - name: changesSlimFaasAnnotations
+      expression: >-
+        !variables.newEntries.all(e, e in variables.oldEntries)
+        || !variables.oldEntries.all(e, e in variables.newEntries)
+    - name: editorUsers
+      expression: "params.data.?users.orValue('').split(',').map(u, u.trim()).filter(u, u != '')"
+    - name: editorGroups
+      expression: "params.data.?groups.orValue('').split(',').map(g, g.trim()).filter(g, g != '')"
+    - name: isEditor
+      expression: >-
+        request.userInfo.username in variables.editorUsers
+        || request.userInfo.groups.exists(g, g in variables.editorGroups)
+  validations:
+    - expression: "!variables.changesSlimFaasAnnotations || variables.isEditor"
+      reason: Forbidden
+      messageExpression: >-
+        'only the users and groups listed in ConfigMap ' + params.metadata.namespace + '/' + params.metadata.name
+        + ' may change SlimFaas/* annotations; ' + request.userInfo.username + ' is not one of them'
+---
+# The editor list lives outside slimfaas-demo: whoever may edit ConfigMaps in
+# a namespace (the built-in "edit" role can) could otherwise add themselves.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: slimfaas-admission
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slimfaas-annotation-editors
+  namespace: slimfaas-admission
+data:
+  # Comma-separated user names. SlimFaas creates Jobs that carry
+  # SlimFaas/DependsOn, so its service account must stay in the list.
+  users: "system:serviceaccount:slimfaas-demo:slimfaas"
+  # Comma-separated group names, for example the group of your deployment pipeline.
+  groups: "slimfaas-operators"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: slimfaas-annotations
+spec:
+  policyName: slimfaas-annotations
+  # Start with [Warn, Audit] to review denials before switching to [Deny].
+  validationActions: [Deny]
+  paramRef:
+    name: slimfaas-annotation-editors
+    namespace: slimfaas-admission
+    parameterNotFoundAction: Deny
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: slimfaas-demo
