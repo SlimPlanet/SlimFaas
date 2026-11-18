@@ -11,10 +11,10 @@ interface Props {
   onClear: () => void;
   fallbackFocus?: () => HTMLElement | null;
   logs?: ReactNode;
-  deadLetters?: ReactNode;
+  children?: ReactNode;
 }
 
-export default function TrafficDetails({ node, title, isolate, onIsolate, onClose, onClear, fallbackFocus, logs, deadLetters }: Props) {
+export default function TrafficDetails({ node, title, isolate, onIsolate, onClose, onClear, fallbackFocus, logs, children }: Props) {
   return <DetailPanel title={title} eyebrow={node ? node.parent ? node.kind === 'job' ? 'Job execution' : node.kind === 'slimfaas' ? 'SlimFaas node' : 'Function replica' : node.kind : 'Instance unavailable'}
     onClose={onClose} fallbackFocus={fallbackFocus} fill>
     <div className="traffic-details__controls">
@@ -23,12 +23,14 @@ export default function TrafficDetails({ node, title, isolate, onIsolate, onClos
     </div>
     <section className="traffic-details__content" aria-label="Details">
       <h3 className="traffic-details__heading">Details</h3>
-      {deadLetters}
       {node ? <>
         <p className="traffic-details__status">{node.status}{node.role ? ` · Raft role: ${node.role}` : ''}</p>
+        {node.requestLabel && <p>Requests · {node.requestLabel}</p>}
+        {node.scheduleLabel && <p>{node.scheduleLabel}</p>}
         <p className="traffic-details__description">{node.detail}</p>
       </> : <p className="traffic-details__status" role="status">The latest snapshot no longer contains this instance. Logs are unavailable.</p>}
     </section>
+    {children}
     {logs && <section className="traffic-details__logs" aria-label="Logs">
       <h3 className="traffic-details__heading">Logs</h3>
       {logs}

@@ -9,6 +9,14 @@ Bring an HTTP application, call it when you need it, and let idle workloads scal
 - [Get Started with **Docker Compose**](get-started-docker-compose.md)
   Explore a complete container-based demo on your computer.
 
+## Live Stream dashboard
+
+Watch the HTTP proxy wake a sleeping function and SlimFaas scale it to four pods using queue metrics it collects itself. Follow the requests, queue depth and replicas in Live Stream. The film also covers broadcasts, durable Streams, scheduled jobs, temporary caches and built-in OpenTelemetry export.
+
+[![Live dashboard preview showing autoscaling and message delivery](media/live-stream/preview.gif)](media/live-stream/dashboard.mp4)
+
+[Watch the 39-second overview (MP4)](media/live-stream/marketing.mp4) · [Watch the full narrated demo (3 min 11 s)](media/live-stream/dashboard.mp4) · [Read the demo transcript](media/live-stream/transcript.txt)
+
 ## CNCF & Community
 
 ![CNCF logo](https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg)

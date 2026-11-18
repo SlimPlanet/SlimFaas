@@ -40,3 +40,45 @@ export function makeReactiveFixtures() {
   );
   return fixture;
 }
+
+export const speechDeployments = ['smartguide-api-text-to-speech', 'smartguide-api-text-to-speech-gemini25flash', 'smartguide-api-text-to-speech-piper'];
+
+export function makeSpeechFunctions(): FunctionStatusDetailed[] {
+  const base = makeFixtures(0, 0).functions[0];
+  return speechDeployments.map((Name, index) => ({
+    ...base, Name, NumberReady: index + 1, NumberRequested: index + 1,
+    Pods: Array.from({ length: index + 1 }, (_, replica) => ({
+      Name: `${Name}-7c854fd7f6-${String(replica).padStart(5, '0')}`,
+      Identity: fixtureIdentity(100 * (index + 1) + replica), Status: 'Running', Ready: true,
+    })),
+  }));
+}
+
+/** A rolling deployment alongside a scheduled job, with observed pod requests. */
+export function makeObservationFixture(replicas = 4, executions = 5) {
+  const fixture = makeFixtures(replicas, executions);
+  const request = (CpuMillis: number, mib: number) => ({ CpuMillis, MemoryBytes: mib * 1048576, KnownPods: 1, UnknownPods: 0 });
+  const states = ['Starting', 'Ready', 'Terminating', 'Crash'];
+  const phases = ['Starting', 'Running', 'Finishing', 'Succeeded', 'Failed'];
+  const fn = fixture.functions[0];
+  (fn.Pods ?? []).forEach((pod, i) => Object.assign(pod, { Lifecycle: states[i % states.length],
+    Status: ['Pending', 'Running', 'Running', 'CrashLoopBackOff'][i % states.length],
+    Ready: i % states.length === 1, Requests: request(250, 128) }));
+  fn.NumberReady = (fn.Pods ?? []).filter(pod => pod.Ready).length;
+  const job = fixture.jobs[0];
+  const next = Math.floor(Date.now() / 1000) + 3600;
+  job.Schedules = [next + 7200, next].map((time, i) => ({ Id: 'schedule-' + i, Image: job.Image,
+    Schedule: '0 * * * *', NextExecutionTimestamp: time, Resources: null, DependsOn: null }));
+  let activeRuns = 0;
+  job.RunningJobs.forEach((run, i) => {
+    const phase = phases[i % phases.length];
+    run.Lifecycle = phase;
+    run.Status = phase === 'Starting' ? 'Pending' : phase === 'Finishing' ? 'Running' : phase;
+    if (phase !== 'Succeeded' && phase !== 'Failed') { run.Requests = request(500, 256); activeRuns++; }
+  });
+  const slimFaasNodes = fixture.slimFaasNodes.map(node => ({ ...node, Lifecycle: 'Ready', Requests: request(100, 64) }));
+  const requests = { CpuMillis: replicas * 250 + activeRuns * 500 + slimFaasNodes.length * 100,
+    MemoryBytes: (replicas * 128 + activeRuns * 256 + slimFaasNodes.length * 64) * 1048576,
+    KnownPods: replicas + activeRuns + slimFaasNodes.length, UnknownPods: 0 };
+  return { ...fixture, slimFaasNodes, requests };
+}

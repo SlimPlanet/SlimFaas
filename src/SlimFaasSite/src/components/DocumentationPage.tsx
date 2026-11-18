@@ -15,6 +15,20 @@ export default function DocumentationPage({ id, contentHtml, title, description,
     const canonical = `https://slimfaas.dev${DOCUMENTATION_CATALOG[id].route}`;
     useEffect(() => {
         const cleanups: (() => void)[] = [];
+        const preview = article.current?.querySelector<HTMLAnchorElement>('.dashboard-film__preview');
+        const player = article.current?.querySelector<HTMLVideoElement>('.dashboard-film__player');
+        if (preview && player) {
+            const play = (event: MouseEvent) => {
+                if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                preview.hidden = true;
+                player.hidden = false;
+                player.focus();
+                void player.play().catch(() => { /* Native controls support manual playback. */ });
+            };
+            preview.addEventListener('click', play);
+            cleanups.push(() => preview.removeEventListener('click', play));
+        }
         article.current?.querySelectorAll('pre').forEach(pre => {
             const code = pre.querySelector('code');
             if (!code) return;

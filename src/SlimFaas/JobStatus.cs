@@ -8,7 +8,11 @@ public record RunningJobStatus(
     string Status,
     string ElementId,
     long InQueueTimestamp,
-    long StartTimestamp);
+    long StartTimestamp)
+{
+    public string? Lifecycle { get; init; }
+    public PodRequests? Requests { get; init; }
+}
 
 public record ScheduledJobInfo(
     string Id,

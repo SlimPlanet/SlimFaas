@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, startCoverage, saveCoverage } from './coverage.mjs';
 import { writeFile } from 'node:fs/promises';
 import { buildTopology, isJobQueueName, jobQueues, observedFunctions, observedQueues } from '../src/lib/topology.ts';
 import { startNative } from './native.mjs';
@@ -20,12 +20,15 @@ const test = base.extend({
 
 async function viewer(browser, url) {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  await startCoverage(page);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(observeCanvas);
   await page.goto(`${url}/#/live/traffic`);
   await expect.poll(() => page.evaluate(() => window.__traffic.state?.Functions?.find(fn => fn.Name === 'fibonacci4')?.NumberReady)).toBe(2);
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
   await page.getByRole('combobox', { name: /^Animation speed/ }).selectOption('Slow');
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Event journal (0)', exact: true })).toBeVisible();
   return { page, errors };
 }
@@ -117,7 +120,7 @@ test('cold HTTP call waits at SlimFaas, then sends and returns in order on local
   } finally {
     cluster.release();
     if (pending) await pending.catch(() => {});
-    for (const { page } of viewers) await page.close();
+    for (const { page } of viewers) { await saveCoverage(page); await page.close(); }
   }
 });
 
@@ -160,7 +163,7 @@ test('publication draws one incoming trip followed by one delivery to each of tw
     }
     await page.screenshot({ path: info.outputPath('mobile.png'), fullPage: true });
     expect(errors).toEqual([]);
-  } finally { await page.close(); }
+  } finally { await saveCoverage(page); await page.close(); }
 });
 
 test.describe('recursive function calls', () => {
@@ -202,7 +205,7 @@ test.describe('recursive function calls', () => {
         }
         expect(errors).toEqual([]);
       }
-    } finally { for (const { page } of viewers) await page.close(); }
+    } finally { for (const { page } of viewers) { await saveCoverage(page); await page.close(); } }
   });
 });
 
@@ -257,6 +260,39 @@ for (const callback of [false, true]) test.describe(callback ? 'async callback' 
         expect(Math.hypot(queue.x - slim.x, queue.y - slim.y)).toBeGreaterThan(10);
         expect(errors).toEqual([]);
       }
-    } finally { for (const { page } of viewers) await page.close(); }
+    } finally { for (const { page } of viewers) { await saveCoverage(page); await page.close(); } }
   });
+});
+
+test('wake a sleeping deployment directly from the home map and observe readiness', async ({ page, cluster }, info) => {
+  await page.addInitScript(observeCanvas);
+  await page.goto(cluster.url);
+  const wake = page.getByRole('button', { name: 'Wake up fibonacci1', exact: true });
+  await expect(wake).toBeVisible();
+  await page.screenshot({ path: info.outputPath('traffic-home.png') });
+  const accepted = page.waitForResponse(r => r.url().endsWith('/wake-function/fibonacci1') && r.request().method() === 'POST');
+  await wake.click();
+  expect((await accepted).status()).toBe(204);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__traffic.state.Functions.find(fn => fn.Name === 'fibonacci1').NumberRequested)).toBeGreaterThan(0);
+  cluster.release();
+  await expect.poll(() => page.evaluate(() => window.__traffic.state.Functions.find(fn => fn.Name === 'fibonacci1').NumberReady)).toBeGreaterThan(0);
+  await expect(wake).toHaveCount(0);
+  await page.getByRole('button', { name: 'Actors', exact: true }).click();
+  await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'function', exact: true }) })
+    .getByRole('button', { name: 'fibonacci1', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Scale', exact: true }).click();
+  const diagnostics = dialog.getByRole('tab', { name: 'Diagnostics' });
+  await expect(diagnostics).toHaveAttribute('aria-selected', 'true');
+  await diagnostics.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(dialog.getByRole('tab', { name: 'Playground' })).toBeFocused();
+  await expect(dialog.getByRole('heading', { name: 'Playground', exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dialog.getByRole('button', { name: 'Info', exact: true }).click();
+  await expect(dialog.getByRole('heading', { name: 'Replicas', exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('traffic-home-mobile-info.png') });
+  await page.goBack();
+  await expect(dialog).toHaveCount(0);
 });

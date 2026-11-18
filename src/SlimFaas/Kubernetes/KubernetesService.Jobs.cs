@@ -200,6 +200,9 @@ public partial class KubernetesService
                 ? jobPods
                 : new List<V1Pod>();
 
+            var ownedPods = pods.Where(p => p.Metadata.OwnerReferences?.Any(owner => owner.Controller == true &&
+                    owner.Kind == "Job" && owner.Uid == v1Job.Metadata?.Uid && owner.Name == v1Job.Metadata?.Name) == true)
+                .DistinctBy(p => p.Metadata.Uid ?? p.Metadata.Name).ToArray();
             IList<string> ips = pods.Where(p => p.Status?.PodIP != null).Select(p => p.Status.PodIP).ToList();
 
             JobStatus status = ResolveJobStatus(v1Job.Status, pods);
@@ -223,7 +226,12 @@ public partial class KubernetesService
                 long.TryParse(jobInQueueTimestamp, out var inQueueTimestamp) ? inQueueTimestamp : 0,
                 v1Job.Labels().TryGetValue(SlimfaasJobStartTimestamp, out var jobStartTimestamp) &&
                 long.TryParse(jobStartTimestamp, out var startTimestamp) ? startTimestamp : 0
-            ));
+            )
+            {
+                Lifecycle = PodObservation.JobLifecycle(v1Job, status, ownedPods),
+                Requests = ownedPods.Where(p => !PodObservation.IsTerminal(p.Status?.Phase))
+                    .Aggregate(PodRequests.Empty, (total, p) => total.Add(PodObservation.Requests(p.Spec)))
+            });
         }
 
         return jobStatus;

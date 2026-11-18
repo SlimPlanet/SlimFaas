@@ -81,7 +81,7 @@ the first terminal to stop the demo.
 
 ### Understanding the Fibonacci scaling demo
 
-Enqueue work on `fibonacci1` and open **Live Stream → Scaling** at
+Enqueue work on `fibonacci1` and open **Views → Scaling** at
 <http://127.0.0.1:30020/#/live/scaling> to observe the decisions:
 
 ```bash
@@ -592,7 +592,7 @@ development-mode scope.
 
 ## Stream managed instance logs in the dashboard
 
-Select a managed instance in **Live Stream → Traffic** to see its details and live logs together in the drawer. When log exposure is enabled, the viewer connects automatically; closing the drawer stops it. **Find in logs** filters the retained output and highlights matching text in yellow.
+Select a managed instance in **Live Stream** to see its details and live logs together in the drawer. When log exposure is enabled, the viewer connects automatically; closing the drawer stops it. **Find in logs** filters the retained output and highlights matching text in yellow.
 
 The supervisor captures output from managed functions, jobs and SlimFaas nodes in its log directory. The dashboard reads an authorized instance through the authenticated supervisor channel; it does not receive a filesystem path. IDE `debugUrl` processes and external WebSocket clients have no captured log source.
 

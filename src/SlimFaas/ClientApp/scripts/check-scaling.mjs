@@ -75,9 +75,13 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   const first = fixture.functions[0].Name, second = fixture.functions[1].Name;
   await page.goto(`http://127.0.0.1:${server.address().port}/#/live/scaling?function=${first}`);
+  await page.getByRole('tab', { name: 'Playground' }).click();
   await page.getByRole('heading', { name: 'Playground', exact: true }).waitFor();
   assert.ok(requests.filter(r => r.startsWith('/status-functions-stream')).every(r => r.endsWith('activity=false')));
   await page.getByLabel('Threshold', { exact: true }).fill('20');
+  await page.getByRole('tab', { name: 'Diagnostics' }).click();
+  await page.getByRole('tab', { name: 'Playground' }).click();
+  assert.equal(await page.getByLabel('Threshold', { exact: true }).inputValue(), '20');
   await page.getByRole('button', { name: 'Simulate next decision' }).click();
   await page.getByRole('heading', { name: 'Simulated scenario' }).waitFor();
   assert.equal(simulations[0].Triggers[0].Threshold, 20);
@@ -90,6 +94,7 @@ try {
   session = 'leader-two';
   await page.getByText('The leader session changed. The recent history has restarted.').waitFor();
   await page.getByRole('combobox', { name: 'Function', exact: true }).selectOption(second);
+  await page.getByRole('tab', { name: 'Playground' }).click();
   await page.getByRole('heading', { name: 'Playground', exact: true }).waitFor();
   await page.waitForFunction(() => !document.querySelector('.scaling-playground__result'));
   await page.setViewportSize({ width: 390, height: 844 });
@@ -99,6 +104,7 @@ try {
   await page.screenshot({ path: resolve(out, 'scaling-mobile.png'), fullPage: true });
   fail = true; for (const response of streams) response.end();
   await page.getByText(/Showing the last received decision/).waitFor();
+  await page.getByRole('button', { name: 'Views' }).click();
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
   await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
   await page.waitForFunction(() => !document.querySelector('.scaling-explorer'));

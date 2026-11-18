@@ -11,3 +11,10 @@
     &__links { display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; list-style: none; padding: 0; }
     &__link { font-weight: 600; }
 }
+
+.dashboard-film {
+    &__preview { display: block; position: relative; }
+    &__preview[hidden], &__player[hidden] { display: none; }
+    &__preview img, &__player { display: block; width: 100%; height: auto; border-radius: .5rem; }
+    &__play { position: absolute; right: .75rem; top: .75rem; padding: .4rem .75rem; background: var(--color-primary); color: white; border-radius: .35rem; font-weight: 700; }
+}

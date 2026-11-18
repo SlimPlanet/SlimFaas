@@ -1,4 +1,7 @@
-export interface PodStatus {
+export interface PodRequests { CpuMillis: number; MemoryBytes: number; KnownPods: number; UnknownPods: number }
+interface PodObservation { Lifecycle?: string | null; Requests?: PodRequests | null }
+
+export interface PodStatus extends PodObservation {
   Name: string;
   Status: string;
   Ready: boolean;
@@ -135,7 +138,7 @@ export interface QueueInfo {
   Length: number;
 }
 
-export interface SlimFaasNodeInfo {
+export interface SlimFaasNodeInfo extends PodObservation {
   Role?: 'Leader' | 'Follower' | 'Unknown' | null;
   Name: string;
   Status: string;  // "Running", "Starting", "Pending"
@@ -146,6 +149,7 @@ export interface DataSummary {
 }
 
 export interface StatusStreamPayload {
+  Requests?: PodRequests | null;
   DataSummary?: DataSummary | null;
   Streams?: import('./lib/streams').StreamSummary[];
   StreamSubscriptions?: import('./lib/streams').StreamFunction[];
@@ -175,7 +179,7 @@ export interface CreateJobResources {
   Limits: Record<string, string> | null;
 }
 
-export interface RunningJobStatus {
+export interface RunningJobStatus extends PodObservation {
   Name: string;
   Status: string;
   ElementId: string;

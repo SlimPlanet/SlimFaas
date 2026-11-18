@@ -4,17 +4,20 @@ import type { NetworkActivityEvent } from '../types.ts';
 import { selectedEvent, type MapNode, type MapGroup, type Topology } from '../lib/topology.ts';
 
 import { TrafficPlayback, displayPath, markerProgress, type Speed } from '../lib/traffic.ts';
+import { lifecycleColor } from '../lib/podObservation';
+import { compactLabel } from '../lib/dashboard';
 import { drawSymbol } from '../lib/canvasSymbols.ts';
 
 interface Props {
   topology: Topology; events: NetworkActivityEvent[]; visibleEvents: NetworkActivityEvent[];
-  dataAvailable?: boolean;
+  dataAvailable?: boolean; wakeable: ReadonlySet<string>; onWake?: (name: string) => void; cooling?: ReadonlySet<string>;
   activitySession: number; speed: Speed; eventType: string; isolate: boolean; selected: string | null;
   onSelect: (id: string) => void; paused: boolean;
 }
 interface Camera { zoom: (factor: number) => void; fit: () => void; focus: (id: string) => void }
 
 export default function TrafficCanvas(props: Props) {
+  const [wakeButtons, setWakeButtons] = useState<{ name: string; x: number; y: number }[]>([]);
   const [hover, setHover] = useState('');
   const [activityStatus, setActivityStatus] = useState('Waiting for live activity');
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -52,6 +55,8 @@ export default function TrafficCanvas(props: Props) {
       success: css.getPropertyValue('--success').trim(), danger: css.getPropertyValue('--danger').trim(), soft: css.getPropertyValue('--soft').trim(),
       line: css.getPropertyValue('--line').trim(), background: css.getPropertyValue('--surface').trim(),
     };
+    const instanceColors = { starting: colors.queue, ready: colors.success, finishing: colors.job,
+      crash: colors.danger, succeeded: css.getPropertyValue('--completed').trim(), unknown: colors.external };
     const messageColor = (kind: string) => kind === 'data' ? colors.sets : kind === 'publication' ? colors.job : kind === 'queue' ? colors.queue : kind === 'reply' ? colors.external : colors.function;
     const stateColor = (state?: string) => state === 'Sleeping' ? colors.external : state === 'Starting' || state === 'Scaling' ? colors.queue : state === 'Error' ? colors.danger : colors.success;
     const zoom = d3.zoom<HTMLCanvasElement, unknown>().scaleExtent([0.001, 12])
@@ -87,7 +92,7 @@ export default function TrafficCanvas(props: Props) {
       if (event.defaultPrevented) return;
       const bounds = canvas.getBoundingClientRect();
       const [x, y] = transform.invert([event.clientX - bounds.left, event.clientY - bounds.top]);
-      const node = transform.k >= 0.48 ? index.find(x, y, 14 / transform.k) : undefined;
+      const node = transform.k >= 0.48 ? index.find(x, y, Math.max(8, 14 / transform.k)) : undefined;
       const group = current.current.topology.groups.find(g => x >= g.x && x <= g.x + g.width && y >= g.y && y <= g.y + g.height);
       if (node || group) canvas.focus({ preventScroll: true });
       if (node) current.current.onSelect(node.id);
@@ -97,8 +102,8 @@ export default function TrafficCanvas(props: Props) {
     const hoverNode = (event: MouseEvent) => {
       const bounds = canvas.getBoundingClientRect();
       const [x, y] = transform.invert([event.clientX - bounds.left, event.clientY - bounds.top]);
-      const node = transform.k >= 0.48 ? index.find(x, y, 14 / transform.k) : undefined;
-      setHover(node ? `${node.label} · ${node.status}` : '');
+      const node = transform.k >= 0.48 ? index.find(x, y, Math.max(8, 14 / transform.k)) : undefined;
+      setHover(node ? [node.label, node.status, node.requestLabel && 'Requests · ' + node.requestLabel].filter(Boolean).join(' · ') : '');
     };
     const clearHover = () => setHover('');
     canvas.addEventListener('mousemove', hoverNode);
@@ -124,6 +129,7 @@ export default function TrafficCanvas(props: Props) {
       const group = n as MapGroup;
       return { x: n.x + (n.parent ? 0 : group.width / 2), y: n.y + (n.parent ? 0 : group.height / 2) };
     };
+    let wakeLayout: { model: Topology; transform: typeof transform; names: ReadonlySet<string>; width: number; height: number } | null = null;
     const draw = (now: number) => {
       frame = requestAnimationFrame(draw);
       const { topology: model, events, visibleEvents, activitySession, speed, eventType, isolate, selected, paused, dataAvailable } = current.current;
@@ -136,6 +142,18 @@ export default function TrafficCanvas(props: Props) {
           fittedWorkloads = true;
         }
         previousModel = model; dirty.current = true;
+      }
+      if (current.current.onWake && (wakeLayout?.model !== model || wakeLayout.transform !== transform ||
+          wakeLayout.names !== current.current.wakeable || wakeLayout.width !== width || wakeLayout.height !== height)) {
+        wakeLayout = { model, transform, names: current.current.wakeable, width, height };
+        const buttons = [];
+        for (const group of model.groups) {
+          if (group.kind !== 'function' || !current.current.wakeable.has(group.label) ||
+              group.width * transform.k < 165 || group.height * transform.k < 82) continue;
+          const [x, y] = transform.apply([group.x + group.width, group.y]);
+          if (x > 65 && x <= width && y >= 0 && y < height - 32) buttons.push({ name: group.label, x: x - 68, y: y + 4 });
+        }
+        setWakeButtons(buttons);
       }
       const hadMarkers = playback.markers.size > 0 || playback.arrivals.size > 0;
       playback.update(events, activitySession, paused || document.hidden, now, model, speed, eventType, selected, isolate, dataAvailable);
@@ -199,8 +217,13 @@ export default function TrafficCanvas(props: Props) {
           context.fillStyle = colors.ink; context.font = `600 ${13 / k}px system-ui`;
           const maxChars = Math.max(10, Math.floor(boxWidth * k / 8) - 3);
           const groupLabel = group.kind === 'external' ? 'External callers' : group.label;
-          const label = groupLabel.length > maxChars ? `${groupLabel.slice(0, maxChars - 1)}…` : groupLabel;
-          context.fillText(label, boxX + 12 / k, boxY + (compact ? 30 : 38) / k);
+          const label = compactLabel(groupLabel, maxChars);
+          context.fillText(label, boxX + 12 / k, boxY + (compact ? 30 : 38) / k, boxWidth - 24 / k);
+          const annotation = group.scheduleLabel ?? (k >= 1.35 && group.requestLabel ? 'Requests · ' + group.requestLabel : undefined);
+          if (annotation && boxHeight * k > 95 && boxWidth * k > 155) {
+            context.font = `${11 / k}px system-ui`; context.fillStyle = colors.external;
+            context.fillText(annotation, boxX + 12 / k, boxY + 55 / k, boxWidth - 24 / k);
+          }
           if (boxHeight * k > (compact ? 48 : 65)) {
             context.font = `${11 / k}px system-ui`;
             const footerY = boxY + boxHeight - (compact ? 8 : 12) / k;
@@ -235,11 +258,10 @@ export default function TrafficCanvas(props: Props) {
         if (k < 0.48) continue;
         for (const child of group.children) {
           if (!visible(child.x - 10, child.y - 10, 20, 20)) continue;
-          context.fillStyle = child.role === 'Leader' ? colors.success : child.status === 'Failed' || child.status === 'Error' ? '#bd303e' : colors[group.kind];
-          context.globalAlpha = child.status === 'Pending' ? 0.45 : 1;
+          context.fillStyle = instanceColors[lifecycleColor(child.lifecycle ?? 'Unknown')];
           context.beginPath();
-          if (group.kind === 'job') context.roundRect(child.x - 5, child.y - 5, 10, 10, 2);
-          else context.arc(child.x, child.y, 5, 0, Math.PI * 2);
+          if (group.kind === 'job') context.roundRect(child.x - 7, child.y - 7, 14, 14, 3);
+          else context.arc(child.x, child.y, 7, 0, Math.PI * 2);
           context.fill(); context.globalAlpha = 1;
           if (child.role === 'Leader') {
             context.strokeStyle = colors.success; context.lineWidth = 1.5 / k;
@@ -255,9 +277,18 @@ export default function TrafficCanvas(props: Props) {
             context.strokeStyle = colors.success; context.lineWidth = 2 / k;
             context.beginPath(); context.arc(child.x, child.y, 10, 0, Math.PI * 2); context.stroke();
           }
-          if (k >= 3 && child.role !== 'Leader') {
-            context.fillStyle = colors.ink; context.font = `${10 / k}px system-ui`; context.textAlign = 'center';
-            context.fillText(child.label.length > 14 ? `…${child.label.slice(-13)}` : child.label, child.x, child.y + 14);
+          if (k >= 2.8) {
+            context.fillStyle = colors.ink; context.font = `${11 / k}px system-ui`; context.textAlign = 'center';
+            const baseline = child.y + 7 + 12 / k;
+            if (child.role !== 'Leader') {
+              context.fillText(compactLabel(child.label, 14), child.x, baseline, 32);
+            }
+            if (child.requestLabel) {
+              context.fillStyle = colors.external;
+              const [cpu, memory] = child.requestLabel.split(' · ');
+              context.fillText(cpu, child.x, baseline + 13 / k, 32);
+              if (memory) context.fillText(memory, child.x, baseline + 26 / k, 32);
+            }
             context.textAlign = 'left';
           }
           if (selected === child.id) {
@@ -317,18 +348,21 @@ export default function TrafficCanvas(props: Props) {
     };
   }, []);
 
-  useEffect(() => { if (props.selected) camera.current?.focus(props.selected); }, [props.selected]);
 
   return <div className="traffic-canvas">
-    <canvas ref={canvasRef} className="traffic-canvas__surface" tabIndex={0} aria-label="Live traffic map. Use arrow keys to pan, plus and minus to zoom, Home to fit. Select instances in the list below." />
+    <canvas ref={canvasRef} className="traffic-canvas__surface" tabIndex={0} aria-label="Live traffic map. Use arrow keys to pan, plus and minus to zoom, Home to fit. Open Actors to select an instance." />
+    {wakeButtons.filter(button => props.wakeable.has(button.name)).map(button =>
+      <button key={button.name} className="button traffic-canvas__wake" type="button" aria-label={`Wake up ${button.name}`}
+        disabled={props.cooling?.has(button.name)} style={{ left: button.x, top: button.y }}
+        onClick={() => props.onWake?.(button.name)}>{props.cooling?.has(button.name) ? 'Waking…' : 'Wake up'}</button>)}
     <div className="traffic-canvas__controls">
       <button type="button" className="button button--quiet" aria-label="Zoom in" onClick={() => camera.current?.zoom(1.4)}>+</button>
       <button type="button" className="button button--quiet" aria-label="Zoom out" onClick={() => camera.current?.zoom(1 / 1.4)}>−</button>
       <button type="button" className="button button--quiet" onClick={() => camera.current?.fit()}>Fit map</button>
-      {props.selected && props.topology.byId.get(props.selected)?.kind === 'function' && <button type="button" className="button button--quiet" onClick={() => camera.current?.focus(props.selected!)}>Show replicas</button>}
+      {props.selected && <button type="button" className="button button--quiet" onClick={() => camera.current?.focus(props.selected!)}>{props.topology.byId.get(props.selected)?.kind === 'function' ? 'Show replicas' : 'Locate actor'}</button>}
     </div>
     <output className="traffic-canvas__activity" aria-live="off">{activityStatus}</output>
     {hover && <output className="traffic-canvas__hover">{hover}</output>}
-    <p className="traffic-canvas__hint">Scroll to zoom · Drag to explore · Select an instance below</p>
+    <p className="traffic-canvas__hint">Scroll to zoom · Drag to explore · Select an actor to inspect</p>
   </div>;
 }

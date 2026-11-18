@@ -1,0 +1,30 @@
+{
+  "syncResponse": {
+    "result": 55
+  },
+  "asyncAccepted": 30,
+  "asyncCompletedWithResult4807526976": 30,
+  "peakQueueDepth": 30,
+  "peakReadyWorkers": 4,
+  "finalReadyWorkers": 0,
+  "invalidatedPods": [
+    "fibonacci3-d778f4d8f-9dt6j",
+    "fibonacci3-d778f4d8f-cw9jf",
+    "fibonacci4-6567ff49fd-754vz",
+    "fibonacci4-6567ff49fd-zgph8"
+  ],
+  "streamRecipients": [
+    "fibonacci3-d778f4d8f-9dt6j",
+    "fibonacci4-6567ff49fd-754vz"
+  ],
+  "subscriptionProgress": {
+    "fibonacci3": {
+      "acknowledgedThrough": 1,
+      "lag": 0
+    },
+    "fibonacci4": {
+      "acknowledgedThrough": 1,
+      "lag": 0
+    }
+  }
+}

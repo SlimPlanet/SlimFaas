@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './coverage.mjs';
 import { startNative } from './native.mjs';
 import { observeCanvas } from './canvas-observer.mjs';
 import { buildTopology, jobQueues } from '../src/lib/topology.ts';
@@ -21,7 +21,9 @@ test('native Data calls originate at the exact function and job, with ordered tu
     await page.goto(`${cluster.peerUrl}/#/live/traffic`);
     await expect.poll(() => page.evaluate(() => window.__traffic.state?.Functions?.find(fn => fn.Name === 'fibonacci1')?.NumberReady)).toBe(1);
     await expect(page.getByRole('button', { name: 'Event journal (0)', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
     await page.getByRole('combobox', { name: 'Animation speed', exact: true }).selectOption('Slow');
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
     const response = await request.post(`${cluster.url}/function/fibonacci1/call`, { data: { path: '/data/sets/function-kept', method: 'POST', body: 'function-data' } });
     expect(await response.json()).toEqual({ status: 200 });
     await expect.poll(() => page.evaluate(() => window.__traffic.events.filter(e => e.DataKind).length)).toBe(2);
@@ -81,6 +83,7 @@ test('native Data calls originate at the exact function and job, with ordered tu
     await page.getByRole('button', { name: 'Fit map', exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.__dataCounterTexts.includes('2 items · 21 B') && window.__dataCounterTexts.includes('2 items · 17 B'))).toBe(true);
     await page.screenshot({ path: info.outputPath('data-topology.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
     await page.getByRole('combobox', { name: 'Event type', exact: true }).selectOption('data_access');
     await page.getByRole('button', { name: /^Event journal/ }).click();
     await expect(page.getByRole('table')).toContainText('HTTP 404');
@@ -89,6 +92,7 @@ test('native Data calls originate at the exact function and job, with ordered tu
     await page.getByRole('searchbox', { name: 'Find an actor' }).fill('Files');
     await page.getByRole('button', { name: 'Files', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('2 items');
+    await expect(page.getByRole('dialog').getByRole('button', { name: 'Copy function-kept', exact: true })).toBeVisible();
     await page.getByRole('checkbox', { name: 'Isolate selection', exact: true }).check();
     await page.keyboard.press('Escape');
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -96,5 +100,5 @@ test('native Data calls originate at the exact function and job, with ordered tu
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     expect(errors).toEqual([]);
-  } finally { await page.close(); await cluster.close(); }
+  } finally { await cluster.close(); }
 });
