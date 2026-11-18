@@ -9,6 +9,12 @@ Bring an HTTP application, call it when you need it, and let idle workloads scal
 - [Get Started with **Docker Compose**](get-started-docker-compose.md)
   Explore a complete container-based demo on your computer.
 
+## Live Stream dashboard
+
+[![Live dashboard preview showing autoscaling and message delivery](media/live-stream/preview.gif)](media/live-stream/dashboard.mp4)
+
+[Watch the narrated demo (MP4)](media/live-stream/dashboard.mp4) · [Read the English transcript](media/live-stream/transcript.txt)
+
 ## CNCF & Community
 
 ![CNCF logo](https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg)

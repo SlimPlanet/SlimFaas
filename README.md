@@ -12,6 +12,10 @@
 
 <div align="center">
 
+[![Live Stream dashboard showing a cold start, queued work and two kinds of message delivery](docs/media/live-stream/preview.gif)](https://slimfaas.dev/#live-stream-dashboard)
+
+[Watch the narrated video (MP4)](docs/media/live-stream/dashboard.mp4) · [English transcript](docs/media/live-stream/transcript.txt) · [Reproduce the recording](demo/live-stream-video)
+
 ### Start exploring
 
 Choose [Kubernetes](docs/get-started-kubernetes.md), [native local processes](docs/get-started-local.md), or [Docker Compose](docs/get-started-docker-compose.md). Open the built-in dashboard and follow the [Guided Tour](docs/guided-tour.md) with cURL or the [Bruno collection](demo/bruno-slimfaas-demo). Find all runtime routes in the [API Reference](docs/api-reference.md).

@@ -1,0 +1,82 @@
+[
+  {
+    "key": "idle",
+    "chapter": "Synchronous HTTP",
+    "title": "Start with zero replicas",
+    "caption": "A sleeping function still has an HTTP address.",
+    "voice": "This is the SlimFaas Live Stream dashboard. Fibonacci has a route, a queue, and right now, zero running replicas.",
+    "voiceSamples": 173568
+  },
+  {
+    "key": "wake",
+    "chapter": "Synchronous HTTP",
+    "title": "One request wakes one replica",
+    "caption": "The caller waits for the pod to become ready.",
+    "voice": "One synchronous call asks for Fibonacci of ten. SlimFaas holds the request while Kubernetes starts a pod. The caller gets fifty-five.",
+    "voiceSamples": 209920
+  },
+  {
+    "key": "sleep",
+    "chapter": "Synchronous HTTP",
+    "title": "Idle again",
+    "caption": "After the idle timeout, the deployment returns to zero.",
+    "voice": "Watch the replica count. When the idle timeout expires, Kubernetes scales the deployment back down to zero.",
+    "voiceSamples": 158720
+  },
+  {
+    "key": "burst",
+    "chapter": "Asynchronous queue",
+    "title": "Thirty requests arrive together",
+    "caption": "Each asks for Fibonacci(48). HTTP 202 means queued.",
+    "voice": "Now thirty clients ask for Fibonacci of forty-eight. Each gets an accepted response while the actual computation waits in the queue.",
+    "voiceSamples": 194560
+  },
+  {
+    "key": "scale",
+    "chapter": "Asynchronous queue",
+    "title": "The backlog wakes more workers",
+    "caption": "A queue-depth trigger scales the deployment out.",
+    "voice": "As the backlog grows, the scaling rule requests more pods. Each ready worker takes one computation at a time.",
+    "voiceSamples": 164352
+  },
+  {
+    "key": "drain",
+    "chapter": "Asynchronous queue",
+    "title": "Buffer the spike, then scale down",
+    "caption": "Bounded concurrency gives the infrastructure time to catch up.",
+    "voice": "The queue absorbs the spike so all thirty computations do not compete for CPU at once. When the work drains and traffic stops, the workers go back to zero.",
+    "voiceSamples": 238080
+  },
+  {
+    "key": "subscribers",
+    "chapter": "Publish / subscribe",
+    "title": "Four replicas, four local caches",
+    "caption": "Two evaluator pods and two audit pods cache a tool catalog.",
+    "voice": "Consider an agent system. Two evaluator replicas and two audit replicas each cache a tool catalog. When a tool changes, every local copy needs invalidating.",
+    "voiceSamples": 255488
+  },
+  {
+    "key": "broadcast",
+    "chapter": "Publish / subscribe",
+    "title": "One event reaches all four replicas",
+    "caption": "Broadcast a tool-catalog change to every ready subscriber.",
+    "voice": "One publish event fans out to both deployments. All four running replicas discard their own cached copy.",
+    "voiceSamples": 157184
+  },
+  {
+    "key": "stream",
+    "chapter": "Durable Streams",
+    "title": "One result, two subscriptions",
+    "caption": "Each subscribed function tracks its own progress.",
+    "voice": "A completed agent result is different. Both the evaluator and the audit function need that result, but their replicas share the work within each function.",
+    "voiceSamples": 213504
+  },
+  {
+    "key": "ack",
+    "chapter": "Durable Streams",
+    "title": "One replica per function, per attempt",
+    "caption": "Independent acknowledgements let each function resume. Retries are possible.",
+    "voice": "One replica in each deployment handles this delivery. Each function acknowledges independently. Delivery is at least once, so handlers should tolerate seeing the same result again.",
+    "voiceSamples": 268288
+  }
+]

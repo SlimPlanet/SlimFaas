@@ -1,0 +1,80 @@
+WEBVTT
+
+00:00:00.450 --> 00:00:05.398
+This is the SlimFaas Live Stream
+dashboard. Fibonacci has a route, a queue,
+
+00:00:05.398 --> 00:00:07.682
+and right now, zero running replicas.
+
+00:00:09.500 --> 00:00:14.915
+One synchronous call asks for Fibonacci of
+ten. SlimFaas holds the request while
+
+00:00:14.915 --> 00:00:18.247
+Kubernetes starts a pod. The caller gets
+fifty-five.
+
+00:00:19.900 --> 00:00:24.568
+Watch the replica count. When the idle
+timeout expires, Kubernetes scales the
+
+00:00:24.568 --> 00:00:26.513
+deployment back down to zero.
+
+00:00:28.200 --> 00:00:32.832
+Now thirty clients ask for Fibonacci of
+forty-eight. Each gets an accepted
+
+00:00:32.832 --> 00:00:36.307
+response while the actual computation
+waits in the queue.
+
+00:00:38.000 --> 00:00:42.685
+As the backlog grows, the scaling rule
+requests more pods. Each ready worker
+
+00:00:42.685 --> 00:00:44.848
+takes one computation at a time.
+
+00:00:46.500 --> 00:00:51.631
+The queue absorbs the spike so all thirty
+computations do not compete for CPU at
+
+00:00:51.631 --> 00:00:56.420
+once. When the work drains and traffic
+stops, the workers go back to zero.
+
+00:00:58.100 --> 00:01:03.636
+Consider an agent system. Two evaluator
+replicas and two audit replicas each cache
+
+00:01:03.636 --> 00:01:08.745
+a tool catalog. When a tool changes, every
+local copy needs invalidating.
+
+00:01:10.400 --> 00:01:15.023
+One publish event fans out to both
+deployments. All four running replicas
+
+00:01:15.023 --> 00:01:16.949
+discard their own cached copy.
+
+00:01:19.200 --> 00:01:23.826
+A completed agent result is different.
+Both the evaluator and the audit function
+
+00:01:23.826 --> 00:01:28.096
+need that result, but their replicas share
+the work within each function.
+
+00:01:29.750 --> 00:01:34.479
+One replica in each deployment handles
+this delivery. Each function acknowledges
+
+00:01:34.479 --> 00:01:39.639
+independently. Delivery is at least once,
+so handlers should tolerate seeing the
+
+00:01:39.639 --> 00:01:40.929
+same result again.

@@ -1,0 +1,31 @@
+SlimFaas Live Stream dashboard
+
+00:00:00  Start with zero replicas
+This is the SlimFaas Live Stream dashboard. Fibonacci has a route, a queue, and right now, zero running replicas.
+
+00:00:09  One request wakes one replica
+One synchronous call asks for Fibonacci of ten. SlimFaas holds the request while Kubernetes starts a pod. The caller gets fifty-five.
+
+00:00:19  Idle again
+Watch the replica count. When the idle timeout expires, Kubernetes scales the deployment back down to zero.
+
+00:00:27  Thirty requests arrive together
+Now thirty clients ask for Fibonacci of forty-eight. Each gets an accepted response while the actual computation waits in the queue.
+
+00:00:37  The backlog wakes more workers
+As the backlog grows, the scaling rule requests more pods. Each ready worker takes one computation at a time.
+
+00:00:46  Buffer the spike, then scale down
+The queue absorbs the spike so all thirty computations do not compete for CPU at once. When the work drains and traffic stops, the workers go back to zero.
+
+00:00:57  Four replicas, four local caches
+Consider an agent system. Two evaluator replicas and two audit replicas each cache a tool catalog. When a tool changes, every local copy needs invalidating.
+
+00:01:09  One event reaches all four replicas
+One publish event fans out to both deployments. All four running replicas discard their own cached copy.
+
+00:01:18  One result, two subscriptions
+A completed agent result is different. Both the evaluator and the audit function need that result, but their replicas share the work within each function.
+
+00:01:29  One replica per function, per attempt
+One replica in each deployment handles this delivery. Each function acknowledges independently. Delivery is at least once, so handlers should tolerate seeing the same result again.

@@ -44,7 +44,7 @@ function rewriteRelativeUrl(
         return `${publicRoute}${suffix}`;
     }
 
-    if (target === 'asset') return `/documentation-assets/${resolvedPath}${suffix}`;
+    if (target === 'asset' || resolvedPath.startsWith('docs/media/live-stream/')) return `/documentation-assets/${resolvedPath}${suffix}`;
     return `${REPOSITORY_BLOB_URL}/${resolvedPath}${suffix}`;
 }
 
@@ -118,6 +118,21 @@ export async function renderMarkdownWithHighlight(
     });
 
     if (sourcePath === 'docs/home.md') {
+        const media = '/documentation-assets/docs/media/live-stream';
+        const preview = $(`a[href="${media}/dashboard.mp4"]`).has('img');
+        if (preview.length) {
+            preview.addClass('dashboard-film__preview').attr('aria-label', 'Play the narrated Live Stream dashboard demo');
+            const image = preview.find('img').attr({ width: '800', height: '450', alt: '' });
+            image.wrap('<picture></picture>').before($('<source>').attr({
+                media: '(prefers-reduced-motion: reduce)', srcset: `${media}/poster.webp`,
+            }));
+            preview.append('<span class="dashboard-film__play">▶ Play narrated demo</span>');
+            preview.parent().addClass('dashboard-film').append(
+                $('<video controls playsinline preload="none" hidden class="dashboard-film__player"></video>')
+                    .attr({ src: `${media}/dashboard.mp4`, poster: `${media}/poster.webp`, 'aria-label': 'Live Stream dashboard demo' })
+                    .append($('<track>').attr({ kind: 'captions', srclang: 'en', label: 'English', src: `${media}/captions.vtt` })),
+            );
+        }
         const heading = $('h2').filter((_, element) => $(element).text() === 'CNCF & Community');
         if (heading.length) {
             heading.nextUntil('h2').addBack().wrapAll($('<section></section>').addClass('community').attr('aria-labelledby', heading.attr('id')!));
