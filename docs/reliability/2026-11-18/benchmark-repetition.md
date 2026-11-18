@@ -23,6 +23,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | memory-abba-replay | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
+| threshold-512kib-retry | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
@@ -178,3 +179,4 @@ Status: **queued**.
 - **files-bounded-files-unique**: OBSERVED.
 - **http-bounded-abba-20**: FAIL (20 GiB disk reserve).
 - **memory-abba-replay**: INCONCLUSIVE (20 GiB disk reserve).
+- **threshold-512kib-retry**: INCONCLUSIVE (20 GiB disk reserve).
