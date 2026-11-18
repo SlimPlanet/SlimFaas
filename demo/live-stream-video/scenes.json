@@ -1,82 +1,201 @@
 [
   {
+    "key": "intro",
+    "chapter": "SlimFaas",
+    "title": "SlimFaas",
+    "caption": "A greener way to run agent tools on Kubernetes.",
+    "voice": "Meet SlimFaas! This CNCF Sandbox project lets idle agent tools scale to zero for greener Kubernetes workloads. Keep your existing HTTP app and call it directly, in any language. No special driver needed!",
+    "card": [
+      "CNCF Sandbox project",
+      "Your app, in any language",
+      "Plain HTTP · No driver"
+    ],
+    "art": "brand",
+    "voiceSamples": 354304
+  },
+  {
+    "key": "sync-title",
+    "chapter": "Synchronous HTTP functions",
+    "title": "Synchronous functions",
+    "caption": "Call a sleeping service and get the result in the same HTTP response.",
+    "voice": "First up: synchronous functions over HTTP. Let's wake one up!",
+    "card": [
+      "POST /function/fibonacci1/fibonacci",
+      "{\"input\": 10}",
+      "200 OK  ·  {\"result\": 55}"
+    ],
+    "voiceSamples": 97280
+  },
+  {
     "key": "idle",
-    "chapter": "Synchronous HTTP",
+    "chapter": "Synchronous HTTP functions",
     "title": "Start with zero replicas",
-    "caption": "A sleeping function still has an HTTP address.",
-    "voice": "This is the SlimFaas Live Stream dashboard. Fibonacci has a route, a queue, and right now, zero running replicas.",
-    "voiceSamples": 173568
+    "caption": "The HTTP route is available while the function sleeps.",
+    "voice": "Find Fibonacci on the right. Zero ready replicas. Its HTTP address is already available.",
+    "voiceSamples": 153600
   },
   {
     "key": "wake",
-    "chapter": "Synchronous HTTP",
-    "title": "One request wakes one replica",
-    "caption": "The caller waits for the pod to become ready.",
-    "voice": "One synchronous call asks for Fibonacci of ten. SlimFaas holds the request while Kubernetes starts a pod. The caller gets fifty-five.",
-    "voiceSamples": 209920
+    "chapter": "Synchronous HTTP functions",
+    "title": "One HTTP request wakes one pod",
+    "caption": "The caller waits for Kubernetes to make the replica ready.",
+    "voice": "Send the call. See that dot? Kubernetes starts a pod, SlimFaas forwards the request, and the caller gets fifty-five.",
+    "voiceSamples": 171520
   },
   {
     "key": "sleep",
-    "chapter": "Synchronous HTTP",
-    "title": "Idle again",
-    "caption": "After the idle timeout, the deployment returns to zero.",
-    "voice": "Watch the replica count. When the idle timeout expires, Kubernetes scales the deployment back down to zero.",
-    "voiceSamples": 158720
+    "chapter": "Synchronous HTTP functions",
+    "title": "Back to zero",
+    "caption": "The deployment releases its worker after the idle timeout.",
+    "voice": "Now watch the idle timer. The last pod goes to sleep, ready for the next call.",
+    "voiceSamples": 112128
+  },
+  {
+    "key": "queue-title",
+    "chapter": "Asynchronous HTTP queue",
+    "title": "Asynchronous queues",
+    "caption": "Accept the burst now. Process it as workers become ready.",
+    "voice": "Next up: asynchronous queues over HTTP. Here comes the burst!",
+    "card": [
+      "POST /async-function/fibonacci1/fibonacci",
+      "30 requests  ·  {\"input\": 48}",
+      "202 Accepted"
+    ],
+    "voiceSamples": 98304
   },
   {
     "key": "burst",
-    "chapter": "Asynchronous queue",
-    "title": "Thirty requests arrive together",
-    "caption": "Each asks for Fibonacci(48). HTTP 202 means queued.",
-    "voice": "Now thirty clients ask for Fibonacci of forty-eight. Each gets an accepted response while the actual computation waits in the queue.",
-    "voiceSamples": 194560
+    "chapter": "Asynchronous HTTP queue",
+    "title": "Thirty HTTP requests arrive together",
+    "caption": "HTTP 202 means the work has entered the queue.",
+    "voice": "Thirty HTTP requests ask for Fibonacci of forty-eight. All thirty get an accepted response while the work waits in the queue.",
+    "voiceSamples": 190976
   },
   {
     "key": "scale",
-    "chapter": "Asynchronous queue",
-    "title": "The backlog wakes more workers",
-    "caption": "A queue-depth trigger scales the deployment out.",
-    "voice": "As the backlog grows, the scaling rule requests more pods. Each ready worker takes one computation at a time.",
-    "voiceSamples": 164352
+    "chapter": "Asynchronous HTTP queue",
+    "title": "Four workers share the backlog",
+    "caption": "Each worker takes one calculation at a time.",
+    "voice": "The backlog wakes more pods. Four workers each take one calculation at a time, keeping CPU demand under control.",
+    "voiceSamples": 166400
   },
   {
     "key": "drain",
-    "chapter": "Asynchronous queue",
-    "title": "Buffer the spike, then scale down",
-    "caption": "Bounded concurrency gives the infrastructure time to catch up.",
-    "voice": "The queue absorbs the spike so all thirty computations do not compete for CPU at once. When the work drains and traffic stops, the workers go back to zero.",
-    "voiceSamples": 238080
+    "chapter": "Asynchronous HTTP queue",
+    "title": "Let the queue absorb the spike",
+    "caption": "30 completed calculations. The deployment returns to zero.",
+    "voice": "The queue gives Kubernetes time to scale. All thirty calculations finish. With the backlog empty, the workers return to zero.",
+    "voiceSamples": 189952
+  },
+  {
+    "key": "broadcast-title",
+    "chapter": "HTTP publish / subscribe",
+    "title": "Publish / subscribe",
+    "caption": "Tell every ready subscriber when a shared tool definition changes.",
+    "voice": "Publish and subscribe over HTTP: one event for every replica!",
+    "card": [
+      "POST /publish-event/tool-catalog/tour/tools/invalidate",
+      "One tool-catalog change",
+      "2 deployments  ·  4 ready recipients"
+    ],
+    "voiceSamples": 103424
   },
   {
     "key": "subscribers",
-    "chapter": "Publish / subscribe",
+    "chapter": "HTTP publish / subscribe",
     "title": "Four replicas, four local caches",
-    "caption": "Two evaluator pods and two audit pods cache a tool catalog.",
-    "voice": "Consider an agent system. Two evaluator replicas and two audit replicas each cache a tool catalog. When a tool changes, every local copy needs invalidating.",
-    "voiceSamples": 255488
+    "caption": "Each evaluator and audit pod caches the tool catalog.",
+    "voice": "Our agent system has two evaluators and two audit pods. Each keeps its own tool catalog. A tool has just changed.",
+    "voiceSamples": 172544
   },
   {
     "key": "broadcast",
-    "chapter": "Publish / subscribe",
-    "title": "One event reaches all four replicas",
-    "caption": "Broadcast a tool-catalog change to every ready subscriber.",
-    "voice": "One publish event fans out to both deployments. All four running replicas discard their own cached copy.",
-    "voiceSamples": 157184
+    "chapter": "HTTP publish / subscribe",
+    "title": "One HTTP event reaches all four pods",
+    "caption": "Each replica invalidates its own cached copy.",
+    "voice": "Publish once. Follow those paths! All four pods receive the HTTP event and discard their stale copy.",
+    "voiceSamples": 164352
+  },
+  {
+    "key": "stream-title",
+    "chapter": "Durable HTTP Streams",
+    "title": "Durable Streams",
+    "caption": "Let each subscribed function track its own progress.",
+    "voice": "Now let's pass an agent result through a durable Stream over HTTP.",
+    "card": [
+      "POST /publish-stream/agent-output/tour/results/result-48",
+      "One retained agent result",
+      "Independent progress for each function"
+    ],
+    "voiceSamples": 107520
   },
   {
     "key": "stream",
-    "chapter": "Durable Streams",
+    "chapter": "Durable HTTP Streams",
     "title": "One result, two subscriptions",
-    "caption": "Each subscribed function tracks its own progress.",
-    "voice": "A completed agent result is different. Both the evaluator and the audit function need that result, but their replicas share the work within each function.",
-    "voiceSamples": 213504
+    "caption": "Workers within a function share its subscription.",
+    "voice": "One HTTP append gives the evaluator and the audit function their own copy to process. Each function tracks its own progress.",
+    "voiceSamples": 198656
   },
   {
     "key": "ack",
-    "chapter": "Durable Streams",
+    "chapter": "Durable HTTP Streams",
     "title": "One replica per function, per attempt",
-    "caption": "Independent acknowledgements let each function resume. Retries are possible.",
-    "voice": "One replica in each deployment handles this delivery. Each function acknowledges independently. Delivery is at least once, so handlers should tolerate seeing the same result again.",
-    "voiceSamples": 268288
+    "caption": "Both functions acknowledge sequence 1. Both show zero lag.",
+    "voice": "One replica per function handles this attempt. Both subscriptions acknowledge sequence one, with zero lag. Retries are possible, so make handlers safe to repeat.",
+    "voiceSamples": 245248
+  },
+  {
+    "key": "jobs",
+    "chapter": "Jobs & schedules",
+    "title": "Jobs & schedules",
+    "caption": "Queue batch work and schedule it for later.",
+    "voice": "There's more! Submit a job over HTTP or by cron. SlimFaas queues runs until a slot opens. You can also schedule a function to wake before the morning rush.",
+    "card": [
+      "POST /job/report",
+      "NumberParallelJob = 2",
+      "Extra runs wait for an available slot."
+    ],
+    "voiceSamples": 257024
+  },
+  {
+    "key": "sets",
+    "chapter": "Sets",
+    "title": "Sets",
+    "caption": "Cache small values by key over HTTP.",
+    "voice": "Cache a tool result with Sets. Post a value under a key over HTTP, set its expiry, then read it back on the next call.",
+    "card": [
+      "POST /data/sets/tool-result?ttl=60000",
+      "GET /data/sets/tool-result",
+      "This cache entry expires after one minute."
+    ],
+    "voiceSamples": 193536
+  },
+  {
+    "key": "files",
+    "chapter": "Files",
+    "title": "Files",
+    "caption": "Stream temporary artifacts by key over HTTP.",
+    "voice": "With Files, stream bytes in over HTTP and pass the key to the next agent. A few kilobytes or hundreds of megabytes? Same route! Stream the artifact back before it expires.",
+    "card": [
+      "POST /data/files?id=report&ttl=60000",
+      "GET /data/files/report",
+      "Pass the key between agents. Stream the bytes on demand."
+    ],
+    "voiceSamples": 274432
+  },
+  {
+    "key": "closing",
+    "chapter": "Try SlimFaas",
+    "title": "Try SlimFaas",
+    "caption": "Bring an HTTP tool. Watch its first pod wake up.",
+    "voice": "Give the local demo a spin and watch your own HTTP tool wake up!",
+    "card": [
+      "Run the local demo",
+      "slimfaas.dev/get-started/local",
+      "github.com/SlimPlanet/SlimFaas"
+    ],
+    "art": "recap",
+    "voiceSamples": 101376
   }
 ]

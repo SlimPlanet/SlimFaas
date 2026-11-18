@@ -43,7 +43,7 @@ kind delete cluster --name slimfaas-film --kubeconfig "$PWD/artifacts/live-strea
 
 ## Narrate and edit
 
-The film uses the English synthetic voice `af_heart` from [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M). The lossless voice master is included so you can reproduce the edit offline. The generator used the [int8 Kokoro ONNX model](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0) at speed 1.04.
+The film uses the English synthetic voice `af_heart` from [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M). The lossless voice master is included so you can reproduce the edit offline. The generator used the [int8 Kokoro ONNX model](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0) at speed 1.055.
 
 ```sh
 python3 demo/live-stream-video/narrate.py
@@ -54,4 +54,6 @@ To synthesize a revised script, pass your local Kokoro server to the first comma
 
 Set `FILM_FONT` and `FILM_FONT_BOLD` to local TrueType paths if Arial or DejaVu Sans is unavailable. Set `FFMPEG` to the encoder executable when using a custom installation. The editor renders H.264/AAC with fast start, and labels compressed waits with their elapsed-time multiplier. Durations follow the narration and the observed cluster timing. Review the framing when changing the capture viewport, dashboard layout or workload names.
 
-See the [Hacker News submission notes](hacker-news.md) for the project link and measured facts.
+The title cards introduce each HTTP route. The closing examples cover queued and scheduled jobs, scheduled function wake-ups, expiring Sets and streamed Files. The MP4 includes chapter markers and an English subtitle track. Chromium renders the title cards offline using the dashboard’s existing Playwright installation.
+
+The opening describes scale-to-zero as a way to reduce idle resource use. The [CNCF directory](https://www.cncf.io/projects/slimfaas/) lists SlimFaas as a Sandbox project.

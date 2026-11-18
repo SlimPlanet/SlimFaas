@@ -50,7 +50,7 @@ def install(stage):
             container.update(image="localhost/fibonacci-film:record", imagePullPolicy="Never")
             container["resources"] = {"requests": {"cpu": "150m", "memory": "64Mi"}}
             # Suppress debug detail during the CPU-bound burst.
-            container["env"] = [{"name": "ASPNETCORE_URLS", "value": "http://+:5000"}]
+            container["env"] = [entry for entry in container["env"] if entry["name"] == "ASPNETCORE_URLS"]
             if stage == "start":
                 del annotations["SlimFaas/SubscribeStream"]
                 annotations["SlimFaas/NumberParallelRequest"] = "4"

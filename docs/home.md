@@ -11,6 +11,8 @@ Bring an HTTP application, call it when you need it, and let idle workloads scal
 
 ## Live Stream dashboard
 
+Watch an HTTP request wake a pod, a queue absorb a burst, and two agent functions handle broadcasts and durable Stream deliveries. The film also covers scheduled jobs and temporary caches for tool results and files.
+
 [![Live dashboard preview showing autoscaling and message delivery](media/live-stream/preview.gif)](media/live-stream/dashboard.mp4)
 
 [Watch the narrated demo (MP4)](media/live-stream/dashboard.mp4) · [Read the English transcript](media/live-stream/transcript.txt)

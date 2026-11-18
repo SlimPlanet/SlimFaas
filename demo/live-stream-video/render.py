@@ -15,7 +15,7 @@ OUT = ROOT / "docs/media/live-stream"
 FPS = 20
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 scenes = json.loads((HERE / "scenes.json").read_text())
-chapters = list(dict.fromkeys(s["chapter"] for s in scenes))
+live_chapters = list(dict.fromkeys(s["chapter"] for s in scenes if "card" not in s))
 
 
 def stamp(seconds):
@@ -85,7 +85,7 @@ def encode_clip(scene, take, begin, end, speed, count):
                    f"[map]crop=840:348:492:{top},scale=1440:596:flags=lanczos[m];[h][m]vstack,")
     filters = ["scale=1824:892:flags=lanczos", "setsar=1", "pad=1920:896:48:0:0xe3e8ef",
                "pad=1920:1080:0:0:0x121f38"]
-    for i, chapter in enumerate(chapters):
+    for i, chapter in enumerate(live_chapters):
         color = "0x586dff" if scene["chapter"] == chapter else "0x384967"
         filters.append(f"drawbox=x={480*i}:y=896:w=476:h=6:color={color}:t=fill")
     filters.extend([text_filter("chapter", scene["chapter"].upper(), 54, 918, 23, "0xadbaff", "bold"),
@@ -99,6 +99,14 @@ def encode_clip(scene, take, begin, end, speed, count):
     if key == "scale":
         ffmpeg("-ss", str((count - 4) / FPS), "-i", f"{key}.mp4", "-frames:v", "1",
                "-vf", "scale=960:540:flags=lanczos", "-c:v", "libwebp", "-quality", "87", str(OUT / "poster.webp"))
+
+
+def encode_card(scene, count):
+    # Title sequences use 10 fps. The opening inset plays recorded dashboard frames.
+    ffmpeg("-stream_loop", "-1", "-framerate", "10", "-i", f"cards/{scene['key']}-%02d.png",
+           "-vf", f"fps={FPS},fade=t=in:d=0.18", "-frames:v", str(count),
+           "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p",
+           scene["key"] + ".mp4")
 
 
 def preview(takes):
@@ -116,7 +124,7 @@ def preview(takes):
             take.at(take.marks[key] + frame * 125 * speed) for frame in range(48)
         ), 8)
         x, y, w, h = box
-        chapter = "SLIMFAAS  /  " + chapters[i].upper() + ("   ·   1.8×" if speed != 1 else "")
+        chapter = "SLIMFAAS  /  " + live_chapters[i].upper() + ("   ·   1.8×" if speed != 1 else "")
         filters = [f"crop={w}:{h}:{x}:{y}", "scale=800:374:flags=lanczos", "setsar=1",
                    "pad=800:450:0:0:0x121f38", "drawbox=x=0:y=374:w=800:h=5:color=0x556bff:t=fill",
                    text_filter("gif-chapter", chapter, 17, 388, 14, "0xb5c1ff", "bold"),
@@ -156,24 +164,34 @@ def main():
     clips = []
     elapsed = 0
     rate = 24000
-    for i, scene in enumerate(scenes):
+    # Capture boundaries are independent of where editorial cards are inserted in the film.
+    recorded = {}
+    for take in takes.values():
+        marks = sorted(take.marks.items(), key=lambda mark: mark[1])
+        for (key, begin), (_, end) in zip(marks, marks[1:]):
+            recorded[key] = (take, begin, end)
+    chapter_times = []
+    for scene in scenes:
         key = scene["key"]
-        stage = ("sync", "async", "subscriptions", "subscriptions")[chapters.index(scene["chapter"])]
-        take = takes[stage]
-        begin = take.marks[key]
-        end = take.marks.get(scenes[i+1]["key"], take.marks["end"]) if i+1 < len(scenes) else take.marks["end"]
         with wave.open(str(WORK / "voice" / (key + ".wav")), "rb") as wav:
             assert wav.getframerate() == rate and wav.getnchannels() == 1 and wav.getsampwidth() == 2
             length = wav.getnframes()
             voice = wav.readframes(length)
         # Allow viewers to read the card and see the resolved state after narration.
-        count = math.ceil((length / rate + 1.65) * FPS)
-        if key not in ("sleep", "scale", "drain"):
-            count = max(count, math.ceil((end - begin) / 1000 * FPS))
+        count = math.ceil((length / rate + 0.9) * FPS)
+        if "card" in scene:
+            clips.append((scene, count))
+        else:
+            take, begin, end = recorded[key]
+            if key in ("wake", "burst", "broadcast", "ack"):
+                # Keep the full real-time request and its visible outcome, including the ACK table.
+                count = max(count, math.ceil((end - begin) / 1000 * FPS))
+            speed = max(1, (end - begin) / 1000 / (count / FPS)) if key in ("sleep", "scale", "drain") else 1
+            clips.append((scene, take, begin, end, speed, count))
         duration = count / FPS
-        speed = max(1, (end - begin) / 1000 / duration)
-        clips.append((scene, take, begin, end, speed, count))
-        lead = int(0.45 * rate)
+        if not chapter_times or scene["chapter"] != chapter_times[-1][0]:
+            chapter_times.append((scene["chapter"], elapsed))
+        lead = int(0.3 * rate)
         audio.extend(bytes(lead * 2) + voice + bytes(2 * (count * rate // FPS - length - lead)))
         # Wrap speech at word boundaries into short, readable subtitle cues.
         words = scene["voice"].split()
@@ -186,9 +204,9 @@ def main():
         offset = 0
         for j in range(0, len(lines), 2):
             cue = lines[j:j+2]
-            start = elapsed + .45 + offset / len(words) * length / rate
+            start = elapsed + lead / rate + offset / len(words) * length / rate
             offset += sum(len(line.split()) for line in cue)
-            stop = elapsed + .45 + offset / len(words) * length / rate
+            stop = elapsed + lead / rate + offset / len(words) * length / rate
             vtt.extend([f"{stamp(start)} --> {stamp(stop)}", *cue, ""])
         transcript.extend([f"{stamp(elapsed)[:8]}  {scene['title']}", scene["voice"], ""])
         elapsed += duration
@@ -198,12 +216,22 @@ def main():
     (OUT / "captions.vtt").write_text("\n".join(vtt))
     (OUT / "transcript.txt").write_text("\n".join(transcript))
     prepare_fonts()
+    subprocess.run(["node", str(HERE / "cards.mjs")], check=True)
     for clip in clips:
-        encode_clip(*clip)
+        if "card" in clip[0]:
+            encode_card(*clip)
+        else:
+            encode_clip(*clip)
         print(clip[0]["key"], round(clip[-1] / FPS, 2), flush=True)
     inputs = timeline("edit.ffconcat", [scene["key"] + ".mp4" for scene in scenes])
-    ffmpeg(*inputs, "-i", "narration.wav", "-i", str(OUT / "captions.vtt"),
+    metadata = [";FFMETADATA1"]
+    for (name, start), (_, stop) in zip(chapter_times, chapter_times[1:] + [("", elapsed)]):
+        metadata.extend(["[CHAPTER]", "TIMEBASE=1/1000", f"START={round(start*1000)}",
+                         f"END={round(stop*1000)}", f"title={name}"])
+    (WORK / "chapters.ffmeta").write_text("\n".join(metadata) + "\n")
+    ffmpeg(*inputs, "-i", "narration.wav", "-i", str(OUT / "captions.vtt"), "-f", "ffmetadata", "-i", "chapters.ffmeta",
            "-map", "0:v", "-map", "1:a", "-map", "2:s", "-c:v", "copy", "-c:a", "aac", "-b:a", "112k",
+           "-map_chapters", "3", "-movie_timescale", "1000",
            "-c:s", "mov_text", "-metadata:s:s:0", "language=eng", "-metadata:s:a:0", "language=eng",
            "-metadata", "title=SlimFaas Live Stream dashboard", "-movflags", "+faststart", str(OUT / "dashboard.mp4"))
     preview(takes)

@@ -1,31 +1,58 @@
 SlimFaas Live Stream dashboard
 
-00:00:00  Start with zero replicas
-This is the SlimFaas Live Stream dashboard. Fibonacci has a route, a queue, and right now, zero running replicas.
+00:00:00  SlimFaas
+Meet SlimFaas! This CNCF Sandbox project lets idle agent tools scale to zero for greener Kubernetes workloads. Keep your existing HTTP app and call it directly, in any language. No special driver needed!
 
-00:00:09  One request wakes one replica
-One synchronous call asks for Fibonacci of ten. SlimFaas holds the request while Kubernetes starts a pod. The caller gets fifty-five.
+00:00:15  Synchronous functions
+First up: synchronous functions over HTTP. Let's wake one up!
 
-00:00:19  Idle again
-Watch the replica count. When the idle timeout expires, Kubernetes scales the deployment back down to zero.
+00:00:20  Start with zero replicas
+Find Fibonacci on the right. Zero ready replicas. Its HTTP address is already available.
 
-00:00:27  Thirty requests arrive together
-Now thirty clients ask for Fibonacci of forty-eight. Each gets an accepted response while the actual computation waits in the queue.
+00:00:28  One HTTP request wakes one pod
+Send the call. See that dot? Kubernetes starts a pod, SlimFaas forwards the request, and the caller gets fifty-five.
 
-00:00:37  The backlog wakes more workers
-As the backlog grows, the scaling rule requests more pods. Each ready worker takes one computation at a time.
+00:00:36  Back to zero
+Now watch the idle timer. The last pod goes to sleep, ready for the next call.
 
-00:00:46  Buffer the spike, then scale down
-The queue absorbs the spike so all thirty computations do not compete for CPU at once. When the work drains and traffic stops, the workers go back to zero.
+00:00:41  Asynchronous queues
+Next up: asynchronous queues over HTTP. Here comes the burst!
 
-00:00:57  Four replicas, four local caches
-Consider an agent system. Two evaluator replicas and two audit replicas each cache a tool catalog. When a tool changes, every local copy needs invalidating.
+00:00:46  Thirty HTTP requests arrive together
+Thirty HTTP requests ask for Fibonacci of forty-eight. All thirty get an accepted response while the work waits in the queue.
 
-00:01:09  One event reaches all four replicas
-One publish event fans out to both deployments. All four running replicas discard their own cached copy.
+00:00:55  Four workers share the backlog
+The backlog wakes more pods. Four workers each take one calculation at a time, keeping CPU demand under control.
 
-00:01:18  One result, two subscriptions
-A completed agent result is different. Both the evaluator and the audit function need that result, but their replicas share the work within each function.
+00:01:03  Let the queue absorb the spike
+The queue gives Kubernetes time to scale. All thirty calculations finish. With the backlog empty, the workers return to zero.
 
-00:01:29  One replica per function, per attempt
-One replica in each deployment handles this delivery. Each function acknowledges independently. Delivery is at least once, so handlers should tolerate seeing the same result again.
+00:01:12  Publish / subscribe
+Publish and subscribe over HTTP: one event for every replica!
+
+00:01:17  Four replicas, four local caches
+Our agent system has two evaluators and two audit pods. Each keeps its own tool catalog. A tool has just changed.
+
+00:01:25  One HTTP event reaches all four pods
+Publish once. Follow those paths! All four pods receive the HTTP event and discard their stale copy.
+
+00:01:34  Durable Streams
+Now let's pass an agent result through a durable Stream over HTTP.
+
+00:01:39  One result, two subscriptions
+One HTTP append gives the evaluator and the audit function their own copy to process. Each function tracks its own progress.
+
+00:01:49  One replica per function, per attempt
+One replica per function handles this attempt. Both subscriptions acknowledge sequence one, with zero lag. Retries are possible, so make handlers safe to repeat.
+
+00:02:00  Jobs & schedules
+There's more! Submit a job over HTTP or by cron. SlimFaas queues runs until a slot opens. You can also schedule a function to wake before the morning rush.
+
+00:02:12  Sets
+Cache a tool result with Sets. Post a value under a key over HTTP, set its expiry, then read it back on the next call.
+
+00:02:21  Files
+With Files, stream bytes in over HTTP and pass the key to the next agent. A few kilobytes or hundreds of megabytes? Same route! Stream the artifact back before it expires.
+
+00:02:33  Try SlimFaas
+Give the local demo a spin and watch your own HTTP tool wake up!
