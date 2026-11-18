@@ -4,14 +4,14 @@
     "chapter": "SlimFaas",
     "title": "SlimFaas",
     "caption": "A greener way to run agent tools on Kubernetes.",
-    "voice": "Meet SlimFaas! This CNCF Sandbox project lets idle agent tools scale to zero for greener Kubernetes workloads. Keep your existing HTTP app and call it directly, in any language. No special driver needed!",
+    "voice": "Meet SlimFaas! This CNCF Sandbox project lets idle agent tools scale to zero for greener Kubernetes workloads. Already have an HTTP app on Kubernetes? You can integrate it in minutes. Route calls through SlimFaas. Your application code stays independent, in any language, with no driver to install.",
     "card": [
       "CNCF Sandbox project",
-      "Your app, in any language",
-      "Plain HTTP · No driver"
+      "Connect an existing HTTP app in minutes.",
+      "Keep your code and language. No driver required."
     ],
-    "art": "brand",
-    "voiceSamples": 354304
+    "art": "dashboard",
+    "voiceSamples": 477184
   },
   {
     "key": "sync-title",
@@ -37,10 +37,10 @@
   {
     "key": "wake",
     "chapter": "Synchronous HTTP functions",
-    "title": "One HTTP request wakes one pod",
-    "caption": "The caller waits for Kubernetes to make the replica ready.",
-    "voice": "Send the call. See that dot? Kubernetes starts a pod, SlimFaas forwards the request, and the caller gets fifty-five.",
-    "voiceSamples": 171520
+    "title": "0 → N with the HTTP proxy",
+    "caption": "The first HTTP call wakes the configured number of replicas. Here, N is one.",
+    "voice": "The HTTP proxy receives the call and wakes the deployment from zero to its configured starting count. Here, that's one pod. As soon as it's ready, the proxy forwards the call and the caller gets fifty-five.",
+    "voiceSamples": 307200
   },
   {
     "key": "sleep",
@@ -74,10 +74,10 @@
   {
     "key": "scale",
     "chapter": "Asynchronous HTTP queue",
-    "title": "Four workers share the backlog",
-    "caption": "Each worker takes one calculation at a time.",
-    "voice": "The backlog wakes more pods. Four workers each take one calculation at a time, keeping CPU demand under control.",
-    "voiceSamples": 166400
+    "title": "N → M with Prometheus-format metrics",
+    "caption": "SlimFaas scrapes metrics and evaluates the rule locally. No Prometheus server required.",
+    "voice": "Once a pod is running, SlimFaas scrapes Prometheus-format metrics itself and evaluates the scaling rule locally. Here, queue depth takes us from one worker to four, without a separate Prometheus server.",
+    "voiceSamples": 293376
   },
   {
     "key": "drain",
@@ -183,6 +183,20 @@
       "Pass the key between agents. Stream the bytes on demand."
     ],
     "voiceSamples": 274432
+  },
+  {
+    "key": "observability",
+    "chapter": "Observability",
+    "title": "Watch the queue drain",
+    "caption": "See requests, queue depth and ready replicas in the Live Stream dashboard.",
+    "voice": "Watch the queue drain as the workers come online. That's what the Live Stream dashboard lets you see at a glance! SlimFaas also has OpenTelemetry built in. Enable OTLP export to send traces, metrics, and logs to your own collector.",
+    "card": [
+      "Observability",
+      "Built-in OpenTelemetry",
+      "Export traces, metrics and logs over OTLP."
+    ],
+    "art": "dashboard",
+    "voiceSamples": 357888
   },
   {
     "key": "closing",

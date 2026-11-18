@@ -112,8 +112,8 @@ def encode_card(scene, count):
 def preview(takes):
     # Six seconds per chapter. The crop includes each recipient and its status.
     specs = [
-        ("sync", "wake", (505,177,768,359), "One HTTP call wakes a sleeping pod"),
-        ("async", "scale", (570,227,740,347), "30 queued requests scale out to four pods"),
+        ("sync", "wake", (505,177,768,359), "The HTTP proxy wakes the first pod"),
+        ("async", "scale", (570,227,740,347), "SlimFaas scrapes metrics and scales to four"),
         ("subscriptions", "broadcast", (337,198,912,427), "One broadcast reaches four local caches"),
         ("subscriptions", "ack", (219,190,1100,514), "One replica per function, per attempt"),
     ]

@@ -47,7 +47,7 @@ function diagram(key) {
 function content(scene) {
   const brand = Boolean(scene.art);
   const [first, second, third] = scene.card.map(escape);
-  const section = brand ? (scene.key === 'intro' ? first : 'Local quick start')
+  const section = brand ? first
     : (['jobs', 'sets', 'files'].includes(scene.key) ? 'More over HTTP' : 'Over HTTP');
   const recap = `<aside class="film-card__panel"><div class="film-card__panel-head">More over HTTP</div>
     <dl class="film-card__summary"><dt>Jobs</dt><dd>Queue and schedule batch runs</dd>
@@ -56,12 +56,12 @@ function content(scene) {
   const panel = scene.art === 'recap' ? recap : brand
     ? `<aside class="film-card__panel"><div class="film-card__panel-head"><span class="film-card__signal"></span>Live Stream dashboard</div>
        <div class="film-card__capture"></div>
-       <div class="film-card__panel-foot">${scene.key === 'intro' ? 'Fibonacci deployment · Recorded on Kubernetes' : third}</div></aside>`
+       <div class="film-card__panel-foot">Fibonacci deployment · Recorded on Kubernetes</div></aside>`
     : `<aside class="film-card__panel"><div class="film-card__panel-head">HTTP request</div>
        <code class="film-card__route">${first.replaceAll('/', '<wbr>/')}</code>
        <div class="film-card__body">${second}</div>${diagram(scene.key)}
        <div class="film-card__panel-foot">${third}</div></aside>`;
-  const leftFoot = brand ? `<div class="film-card__aside">${second}${scene.key === 'intro' ? '<br>' + third : ''}</div>` : '';
+  const leftFoot = brand ? `<div class="film-card__aside">${second}${scene.art === 'dashboard' ? '<br>' + third : ''}</div>` : '';
   return `<main class="film-card${brand ? ' film-card--brand' : ''}">
     <header class="film-card__header"><span class="film-card__wordmark">SlimFaas</span><span>Live Stream dashboard</span></header>
     <div class="film-card__columns"><section><div class="film-card__section">${section}</div>
@@ -75,12 +75,13 @@ try {
   const page = await browser.newPage({ viewport: {width: 1920, height: 1080} });
   for (const scene of scenes.filter(s => s.card)) {
     await page.setContent('<meta charset="utf-8"><style>' + css + '</style>' + content(scene));
-    const isOpening = scene.key === 'intro';
-    const count = isOpening ? Math.ceil((scene.voiceSamples / 24000 + 1) * 10) : scene.art ? 1 : 24;
+    const hasCapture = scene.art === 'dashboard';
+    const start = scene.key === 'observability' ? take.marks.scale : peak.ms;
+    const count = hasCapture ? Math.ceil((scene.voiceSamples / 24000 + 1) * 10) : scene.art ? 1 : 24;
     let lastImage;
     for (let i = 0; i < count; i++) {
-      if (isOpening) {
-        const [, imageFile] = take.frames.findLast(([time]) => time <= peak.ms + i * 100);
+      if (hasCapture) {
+        const [, imageFile] = take.frames.findLast(([time]) => time <= start + i * 100);
         if (imageFile !== lastImage) {
           const data = await readFile(new URL('async/' + imageFile, work));
           await page.evaluate(async base64 => {

@@ -11,7 +11,7 @@ Bring an HTTP application, call it when you need it, and let idle workloads scal
 
 ## Live Stream dashboard
 
-Watch an HTTP request wake a pod, a queue absorb a burst, and two agent functions handle broadcasts and durable Stream deliveries. The film also covers scheduled jobs and temporary caches for tool results and files.
+Watch the HTTP proxy wake a sleeping function and SlimFaas scale it to four pods using queue metrics it collects itself. Follow the requests, queue depth and replicas in Live Stream. The film also covers broadcasts, durable Streams, scheduled jobs, temporary caches and built-in OpenTelemetry export.
 
 [![Live dashboard preview showing autoscaling and message delivery](media/live-stream/preview.gif)](media/live-stream/dashboard.mp4)
 

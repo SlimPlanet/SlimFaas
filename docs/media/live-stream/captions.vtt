@@ -1,129 +1,155 @@
 WEBVTT
 
-00:00:00.300 --> 00:00:06.563
+00:00:00.300 --> 00:00:06.222
 Meet SlimFaas! This CNCF Sandbox project
 lets idle agent tools scale to zero for
 
-00:00:06.563 --> 00:00:12.379
-greener Kubernetes workloads. Keep your
-existing HTTP app and call it directly, in
+00:00:06.222 --> 00:00:11.299
+greener Kubernetes workloads. Already have
+an HTTP app on Kubernetes? You can
 
-00:00:12.379 --> 00:00:15.063
-any language. No special driver needed!
+00:00:11.299 --> 00:00:15.952
+integrate it in minutes. Route calls
+through SlimFaas. Your application code
 
-00:00:16.000 --> 00:00:20.053
+00:00:15.952 --> 00:00:20.183
+stays independent, in any language, with
+no driver to install.
+
+00:00:21.100 --> 00:00:25.153
 First up: synchronous functions over HTTP.
 Let's wake one up!
 
-00:00:21.000 --> 00:00:26.943
+00:00:26.100 --> 00:00:32.043
 Find Fibonacci on the right. Zero ready
 replicas. Its HTTP address is already
 
-00:00:26.943 --> 00:00:27.400
+00:00:32.043 --> 00:00:32.500
 available.
 
-00:00:28.300 --> 00:00:33.190
-Send the call. See that dot? Kubernetes
-starts a pod, SlimFaas forwards the
+00:00:33.400 --> 00:00:38.733
+The HTTP proxy receives the call and wakes
+the deployment from zero to its configured
 
-00:00:33.190 --> 00:00:35.447
-request, and the caller gets fifty-five.
+00:00:38.733 --> 00:00:44.067
+starting count. Here, that's one pod. As
+soon as it's ready, the proxy forwards the
 
-00:00:36.350 --> 00:00:41.022
+00:00:44.067 --> 00:00:46.200
+call and the caller gets fifty-five.
+
+00:00:47.100 --> 00:00:51.772
 Now watch the idle timer. The last pod
 goes to sleep, ready for the next call.
 
-00:00:41.950 --> 00:00:46.046
+00:00:52.700 --> 00:00:56.796
 Next up: asynchronous queues over HTTP.
 Here comes the burst!
 
-00:00:46.950 --> 00:00:51.876
+00:00:57.700 --> 00:01:02.626
 Thirty HTTP requests ask for Fibonacci of
 forty-eight. All thirty get an accepted
 
-00:00:51.876 --> 00:00:54.907
+00:01:02.626 --> 00:01:05.657
 response while the work waits in the
 queue.
 
-00:00:55.850 --> 00:01:00.959
-The backlog wakes more pods. Four workers
-each take one calculation at a time,
+00:01:06.600 --> 00:01:10.938
+Once a pod is running, SlimFaas scrapes
+Prometheus-format metrics itself and
 
-00:01:00.959 --> 00:01:02.783
-keeping CPU demand under control.
+00:01:10.938 --> 00:01:16.458
+evaluates the scaling rule locally. Here,
+queue depth takes us from one worker to
 
-00:01:03.700 --> 00:01:08.845
+00:01:16.458 --> 00:01:18.824
+four, without a separate Prometheus
+server.
+
+00:01:19.750 --> 00:01:24.895
 The queue gives Kubernetes time to scale.
 All thirty calculations finish. With the
 
-00:01:08.845 --> 00:01:11.615
+00:01:24.895 --> 00:01:27.665
 backlog empty, the workers return to zero.
 
-00:01:12.550 --> 00:01:16.859
+00:01:28.600 --> 00:01:32.909
 Publish and subscribe over HTTP: one event
 for every replica!
 
-00:01:17.800 --> 00:01:22.935
+00:01:33.850 --> 00:01:38.985
 Our agent system has two evaluators and
 two audit pods. Each keeps its own tool
 
-00:01:22.935 --> 00:01:24.989
+00:01:38.985 --> 00:01:41.039
 catalog. A tool has just changed.
 
-00:01:25.900 --> 00:01:31.540
+00:01:41.950 --> 00:01:47.590
 Publish once. Follow those paths! All four
 pods receive the HTTP event and discard
 
-00:01:31.540 --> 00:01:32.748
+00:01:47.590 --> 00:01:48.798
 their stale copy.
 
-00:01:34.700 --> 00:01:39.180
+00:01:50.750 --> 00:01:55.230
 Now let's pass an agent result through a
 durable Stream over HTTP.
 
-00:01:40.100 --> 00:01:45.618
+00:01:56.150 --> 00:02:01.668
 One HTTP append gives the evaluator and
 the audit function their own copy to
 
-00:01:45.618 --> 00:01:48.377
+00:02:01.668 --> 00:02:04.427
 process. Each function tracks its own
 progress.
 
-00:01:49.300 --> 00:01:53.558
+00:02:05.350 --> 00:02:09.608
 One replica per function handles this
 attempt. Both subscriptions acknowledge
 
-00:01:53.558 --> 00:01:59.519
+00:02:09.608 --> 00:02:15.569
 sequence one, with zero lag. Retries are
 possible, so make handlers safe to repeat.
 
-00:02:01.250 --> 00:02:07.159
+00:02:17.300 --> 00:02:23.209
 There's more! Submit a job over HTTP or by
 cron. SlimFaas queues runs until a slot
 
-00:02:07.159 --> 00:02:11.959
+00:02:23.209 --> 00:02:28.009
 opens. You can also schedule a function to
 wake before the morning rush.
 
-00:02:12.900 --> 00:02:18.061
+00:02:28.950 --> 00:02:34.111
 Cache a tool result with Sets. Post a
 value under a key over HTTP, set its
 
-00:02:18.061 --> 00:02:20.964
+00:02:34.111 --> 00:02:37.014
 expiry, then read it back on the next
 call.
 
-00:02:21.900 --> 00:02:28.171
+00:02:37.950 --> 00:02:44.221
 With Files, stream bytes in over HTTP and
 pass the key to the next agent. A few
 
-00:02:28.171 --> 00:02:32.966
+00:02:44.221 --> 00:02:49.016
 kilobytes or hundreds of megabytes? Same
 route! Stream the artifact back before it
 
-00:02:32.966 --> 00:02:33.335
+00:02:49.016 --> 00:02:49.385
 expires.
 
-00:02:34.250 --> 00:02:38.474
+00:02:50.300 --> 00:02:55.519
+Watch the queue drain as the workers come
+online. That's what the Live Stream
+
+00:02:55.519 --> 00:03:00.366
+dashboard lets you see at a glance!
+SlimFaas also has OpenTelemetry built in.
+
+00:03:00.366 --> 00:03:05.212
+Enable OTLP export to send traces,
+metrics, and logs to your own collector.
+
+00:03:06.150 --> 00:03:10.374
 Give the local demo a spin and watch your
 own HTTP tool wake up!

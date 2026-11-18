@@ -1,58 +1,61 @@
 SlimFaas Live Stream dashboard
 
 00:00:00  SlimFaas
-Meet SlimFaas! This CNCF Sandbox project lets idle agent tools scale to zero for greener Kubernetes workloads. Keep your existing HTTP app and call it directly, in any language. No special driver needed!
+Meet SlimFaas! This CNCF Sandbox project lets idle agent tools scale to zero for greener Kubernetes workloads. Already have an HTTP app on Kubernetes? You can integrate it in minutes. Route calls through SlimFaas. Your application code stays independent, in any language, with no driver to install.
 
-00:00:15  Synchronous functions
+00:00:20  Synchronous functions
 First up: synchronous functions over HTTP. Let's wake one up!
 
-00:00:20  Start with zero replicas
+00:00:25  Start with zero replicas
 Find Fibonacci on the right. Zero ready replicas. Its HTTP address is already available.
 
-00:00:28  One HTTP request wakes one pod
-Send the call. See that dot? Kubernetes starts a pod, SlimFaas forwards the request, and the caller gets fifty-five.
+00:00:33  0 → N with the HTTP proxy
+The HTTP proxy receives the call and wakes the deployment from zero to its configured starting count. Here, that's one pod. As soon as it's ready, the proxy forwards the call and the caller gets fifty-five.
 
-00:00:36  Back to zero
+00:00:46  Back to zero
 Now watch the idle timer. The last pod goes to sleep, ready for the next call.
 
-00:00:41  Asynchronous queues
+00:00:52  Asynchronous queues
 Next up: asynchronous queues over HTTP. Here comes the burst!
 
-00:00:46  Thirty HTTP requests arrive together
+00:00:57  Thirty HTTP requests arrive together
 Thirty HTTP requests ask for Fibonacci of forty-eight. All thirty get an accepted response while the work waits in the queue.
 
-00:00:55  Four workers share the backlog
-The backlog wakes more pods. Four workers each take one calculation at a time, keeping CPU demand under control.
+00:01:06  N → M with Prometheus-format metrics
+Once a pod is running, SlimFaas scrapes Prometheus-format metrics itself and evaluates the scaling rule locally. Here, queue depth takes us from one worker to four, without a separate Prometheus server.
 
-00:01:03  Let the queue absorb the spike
+00:01:19  Let the queue absorb the spike
 The queue gives Kubernetes time to scale. All thirty calculations finish. With the backlog empty, the workers return to zero.
 
-00:01:12  Publish / subscribe
+00:01:28  Publish / subscribe
 Publish and subscribe over HTTP: one event for every replica!
 
-00:01:17  Four replicas, four local caches
+00:01:33  Four replicas, four local caches
 Our agent system has two evaluators and two audit pods. Each keeps its own tool catalog. A tool has just changed.
 
-00:01:25  One HTTP event reaches all four pods
+00:01:41  One HTTP event reaches all four pods
 Publish once. Follow those paths! All four pods receive the HTTP event and discard their stale copy.
 
-00:01:34  Durable Streams
+00:01:50  Durable Streams
 Now let's pass an agent result through a durable Stream over HTTP.
 
-00:01:39  One result, two subscriptions
+00:01:55  One result, two subscriptions
 One HTTP append gives the evaluator and the audit function their own copy to process. Each function tracks its own progress.
 
-00:01:49  One replica per function, per attempt
+00:02:05  One replica per function, per attempt
 One replica per function handles this attempt. Both subscriptions acknowledge sequence one, with zero lag. Retries are possible, so make handlers safe to repeat.
 
-00:02:00  Jobs & schedules
+00:02:17  Jobs & schedules
 There's more! Submit a job over HTTP or by cron. SlimFaas queues runs until a slot opens. You can also schedule a function to wake before the morning rush.
 
-00:02:12  Sets
+00:02:28  Sets
 Cache a tool result with Sets. Post a value under a key over HTTP, set its expiry, then read it back on the next call.
 
-00:02:21  Files
+00:02:37  Files
 With Files, stream bytes in over HTTP and pass the key to the next agent. A few kilobytes or hundreds of megabytes? Same route! Stream the artifact back before it expires.
 
-00:02:33  Try SlimFaas
+00:02:50  Watch the queue drain
+Watch the queue drain as the workers come online. That's what the Live Stream dashboard lets you see at a glance! SlimFaas also has OpenTelemetry built in. Enable OTLP export to send traces, metrics, and logs to your own collector.
+
+00:03:05  Try SlimFaas
 Give the local demo a spin and watch your own HTTP tool wake up!
