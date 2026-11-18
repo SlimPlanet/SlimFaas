@@ -1,10 +1,26 @@
 <div align="center">
+
+Python 3.10 or later is supported. The client uses websockets 16.1.1 or a newer
+16.x release; websockets 17 requires Python 3.11. The development dependency
+Pygments remains at 2.19.2 pending FOSSA approval of a newer distribution.
+
   <a href="https://slimfaas.dev/">
     <img src="https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/src/SlimFaasSite/public/slimfaas.svg" alt="SlimFaas" width="96" />
   </a>
 </div>
 
 # slimfaas-client
+
+The server's default retry statuses include `504` for delivery/owner timeouts.
+The runtime releases an Async ID cancelled before transmission. An interrupted
+active send closes its connection; reconnect allows safe at-least-once replay.
+A fully transmitted attempt remains reserved until its callback or disconnect.
+Explicit `HttpStatusRetries` lists override this policy. Existing queued messages
+retain their original statuses; enable DLQ retention for exhausted failures.
+
+Async request `try_number` starts at `0`. With two configured retries, only
+attempt `2` has `is_last_try == True`. Older runtimes exposed incorrect queue
+attempt metadata; the runtime correction does not change the client wire format.
 
 Durable Streams use `subscribe_streams=[SubscribeStreamConfig("orders")]` and
 `client.on_stream_message(handler)`. A `StreamMessage` includes `stream_name`,
@@ -157,6 +173,30 @@ config = SlimFaasClientConfig(
 ```
 
 ## Sync streaming (HTTP-over-WebSocket)
+
+### Incoming message limits
+
+The client defaults to a **32 MiB WebSocket envelope limit** and a four-frame
+incoming buffer with backpressure. `max_message_size` and `max_queue` are positive
+integer constructor options; the receive limit cannot be disabled. This bounds
+the transport buffer, not the memory used by active application handlers.
+
+Async, Events and Streams encode whole bodies as base64 inside JSON. Budget for
+base64 and JSON escaping, headers and metadata, rather than the original body
+size alone. A 2 MiB body can produce about a 3 MiB envelope; highly escaped
+base64 data can be substantially larger. For large bodies, prefer Data File
+references. An envelope beyond the configured limit still closes with code 1009.
+Server HTTP/body limits and persistent formats are unchanged.
+
+Earlier client versions inherited `websockets`' 1 MiB default and disconnected
+before dispatching valid larger Async bodies, including 2 MB and 2 MiB payloads.
+Upgrade the client to receive those envelopes. For a stricter application budget:
+
+```python
+client = SlimFaasClient(url, config, max_message_size=8 * 1024 * 1024, max_queue=2)
+```
+
+### Streaming handler
 
 ```python
 from slimfaas_client import SyncRequest

@@ -16,7 +16,7 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 run_root="${BENCHMARK_RUN_ROOT:-$repo_root/artifacts/slimdata-benchmark/batch-modes-$timestamp}"
 publish_dir="${BENCHMARK_PUBLISH_DIR:-$run_root/publish}"
 lab_project="$repo_root/tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj"
-lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.MemoryLab.dll"
+lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net11.0/SlimFaas.MemoryLab.dll"
 status_csv="$run_root/run-status.csv"
 selection_file="$run_root/partition-selection.env"
 

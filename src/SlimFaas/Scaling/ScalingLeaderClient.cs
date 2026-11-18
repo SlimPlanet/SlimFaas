@@ -5,6 +5,7 @@ using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Workers;
+using ZLinq;
 
 namespace SlimFaas.Scaling;
 
@@ -32,7 +33,8 @@ public sealed class ScalingLeaderClient(IMasterService master, IReplicasService 
         {
             var endpoint = LeaderEndpoint();
             long now = Environment.TickCount64;
-            foreach (var old in _cache.Where(e => now - e.Value.Time > 10_000).Select(e => e.Key).ToArray()) _cache.Remove(old);
+            foreach (var old in _cache.AsValueEnumerable().Where(e => now - e.Value.Time > 10_000)
+                         .Select(static e => e.Key).ToArray()) _cache.Remove(old);
             if (_cache.TryGetValue(function, out var cache) && cache.Leader == endpoint.AbsoluteUri &&
                 now - cache.Time < options.Value.StatusStream.StateIntervalMilliseconds) return cache.State;
             using var message = new HttpRequestMessage(HttpMethod.Get,
@@ -51,7 +53,7 @@ public sealed class ScalingLeaderClient(IMasterService master, IReplicasService 
     public ScalingState LocalState(string function)
     {
         if (!master.IsMaster) throw new ScalingSimulationException(503, "This node is no longer the leader.");
-        var workload = replicas.Deployments.Functions.FirstOrDefault(f => f.Deployment == function)
+        var workload = replicas.Deployments.FindFunction(function)
             ?? throw new ScalingSimulationException(404, "Function not found.");
         diagnostics.SetLeadership(true);
         return diagnostics.GetState(function, workload.Pods.Count(p => p.Ready == true), workload.Replicas,

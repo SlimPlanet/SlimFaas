@@ -1,0 +1,311 @@
+{
+  "recorded": 1794762520.8374422,
+  "persistence_component_commit": "f36f7c5afaf1efc3a9437521f1a00244911f7774",
+  "admission_tested_source": {
+    "recorded": 1794762388.170666,
+    "base": "f36f7c5afaf1efc3a9437521f1a00244911f7774",
+    "files": [
+      {
+        "path": "docs/data-sets.md",
+        "sha256": "56c6e264c8fef7af7d843059af3289ef3dd5f506a4ca89a37e906e6b56cb4ff9",
+        "bytes": 16915
+      },
+      {
+        "path": "docs/how-it-works.md",
+        "sha256": "e16dcae4022eba32ae5314aafb318cd1235bdd7b33ba8cabeb6753d7f79143da",
+        "bytes": 56791
+      },
+      {
+        "path": "src/SlimData/Commands/SlimDataCommandCodec.cs",
+        "sha256": "5d6eca9953734d9430f57f14091045f62d32e8ce72334350dea5ac3e41f4b492",
+        "bytes": 17248
+      },
+      {
+        "path": "src/SlimData/Endpoints.cs",
+        "sha256": "076650531cc7d5dcdb82bbe5cf8e4577b240e3f3f7a17e723fbb3005e8d8fc4c",
+        "bytes": 35911
+      },
+      {
+        "path": "src/SlimData/SlimDataCommandBatch.cs",
+        "sha256": "40fd1f14970b09ecb5168ca4f91059ea3c8fd0afd377079a8479e617b3e0c664",
+        "bytes": 16324
+      },
+      {
+        "path": "src/SlimData/SlimDataCommandBatchCoordinator.cs",
+        "sha256": "8bc49f28899beb3214428c534a42b6d8c0807c1412071457e68e9fa711de236a",
+        "bytes": 9258
+      },
+      {
+        "path": "src/SlimData/SlimDataInterpreter.cs",
+        "sha256": "bfa5113fe16da05a83c18479427729a207bd8aa4a731dc00165428adfb5eb666",
+        "bytes": 43667
+      },
+      {
+        "path": "src/SlimFaas/Database/IDatabaseService.cs",
+        "sha256": "ca009ab83ea8eeb5e64a6a7b3df4a3674ea758ea15c1c80ea9690a6f50bf784c",
+        "bytes": 3282
+      },
+      {
+        "path": "src/SlimFaas/Database/SlimDataService.cs",
+        "sha256": "f82617c4d2b3fb9b2ba009f82e466ad4aa97396bad4afc485665e59dc63d6932",
+        "bytes": 38498
+      },
+      {
+        "path": "src/SlimData/FileAdmissions.cs",
+        "sha256": "d5b03e75bd9b90126ebe07de0dc8f39f0ba1647a5f2306ceb9fb3cbc39d6a705",
+        "bytes": 15135
+      },
+      {
+        "path": "tests/SlimData.Tests/FileAdmissionTests.cs",
+        "sha256": "0685250656f749b275fcf05d331767537f160cd08f633beaef58d00d8b1a7f20",
+        "bytes": 15932
+      }
+    ]
+  },
+  "persistence_tests": {
+    "recorded": 1794761481.741837,
+    "base": "532dbe67b278ace7d0cead271a4d88abc25d2ca9",
+    "working_changes": "Optional local file/directory persistence, declared storage identity and explicit known-peer persisted-copy confirmation primitives. Existing upload/async acceptance does not invoke the new confirmation primitive.",
+    "passed": 2269,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "file": "reproductions/durable-file-writes-net11-11/full-solution-final/_a115vcCX1PXQ575D_2026-11-15_17_45_32_net11.0.trx",
+        "sha256": "d3063bdbc7f10972802cb52103895b1380c62df95624b2df58ff7d7c1d7055c5",
+        "counters": {
+          "total": "52",
+          "executed": "52",
+          "passed": "52",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/durable-file-writes-net11-11/full-solution-final/_a115vcCX1PXQ575D_2026-11-15_17_45_33_net11.0.trx",
+        "sha256": "cb2300f19a04ecca96ea898def5a714f0d06e5449ca138e9663edd08ea2bdc3e",
+        "counters": {
+          "total": "11",
+          "executed": "11",
+          "passed": "11",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/durable-file-writes-net11-11/full-solution-final/_a115vcCX1PXQ575D_2026-11-15_17_45_36_net11.0.trx",
+        "sha256": "6f28374bcbe502b6c789bf72e71d719ea49833659c9e444c679cc0873288c3ad",
+        "counters": {
+          "total": "409",
+          "executed": "409",
+          "passed": "409",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/durable-file-writes-net11-11/full-solution-final/_a115vcCX1PXQ575D_2026-11-15_17_45_38_net11.0.trx",
+        "sha256": "a5d0a5a0ed7a71ff87bc28262e7280978226cbeccff5ddc4dc4ca0c63c64a1a5",
+        "counters": {
+          "total": "1688",
+          "executed": "1688",
+          "passed": "1688",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/durable-file-writes-net11-11/full-solution-final/_a115vcCX1PXQ575D_2026-11-15_17_45_48_net11.0.trx",
+        "sha256": "bb865f5e2a497ae69911e7aa1958fcb23a5ff21020dee2a5878e6ef7f7b969d6",
+        "counters": {
+          "total": "109",
+          "executed": "109",
+          "passed": "109",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "default_durable_writes": false,
+    "storage_identity_scope": "Deployment-declared root marker. Sharing a declared root is rejected as another replica; distinct markers do not establish physical independence.",
+    "application_native_container_costs": "Pending. No final-source performance acceptance or two-copy202 guarantee."
+  },
+  "atomic_admission_tests": {
+    "recorded": 1794762469.65292,
+    "base": "f36f7c5afaf1efc3a9437521f1a00244911f7774",
+    "passed": 2292,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "file": "reproductions/file-admissions-net11-12/full-solution/_a115vcCX1PXQ575D_2026-11-15_18_05_19_net11.0.trx",
+        "sha256": "24e23c2a3ff1b55db0d1224447a72c8dfee6a78f534929bc5ff9f4f3de27efd7",
+        "counters": {
+          "total": "52",
+          "executed": "52",
+          "passed": "52",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-admissions-net11-12/full-solution/_a115vcCX1PXQ575D_2026-11-15_18_05_20_net11.0.trx",
+        "sha256": "e401d7e304510b30d7e07751d64ff35180874d9af38bfc40e066ba8278aee05d",
+        "counters": {
+          "total": "11",
+          "executed": "11",
+          "passed": "11",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-admissions-net11-12/full-solution/_a115vcCX1PXQ575D_2026-11-15_18_05_34_net11.0.trx",
+        "sha256": "95ccd29df3d9da0c0881060d6e9b9ece8e785f52452c2a82fd591a08c306a9e6",
+        "counters": {
+          "total": "432",
+          "executed": "432",
+          "passed": "432",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-admissions-net11-12/full-solution/_a115vcCX1PXQ575D_2026-11-15_18_05_35_net11.0.trx",
+        "sha256": "a1aacec634d7108d99ae15e10fb343131daac747d8cf281c6af05274fdc9e3ea",
+        "counters": {
+          "total": "1688",
+          "executed": "1688",
+          "passed": "1688",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-admissions-net11-12/full-solution/_a115vcCX1PXQ575D_2026-11-15_18_05_41_net11.0.trx",
+        "sha256": "f79ae0b2f530138ba0fc5a3b36ca16724797c83ae0a20bee0f177983d6ef9888",
+        "counters": {
+          "total": "109",
+          "executed": "109",
+          "passed": "109",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "scope": "Atomic file admission state-machine primitive; endpoints and reference reconciliation not wired yet. Full UI build, analyzers and audits active. No package/lockfile change."
+  },
+  "documentation": "23 pages, 1679 local links/assets, 403 search entries",
+  "native_publications_and_final_cost_comparison": "Pending for this source",
+  "two_copy_http_acceptance": "Not connected yet; no new 202/Files 200 guarantee claimed"
+}

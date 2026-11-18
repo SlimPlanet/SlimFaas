@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
@@ -43,7 +44,13 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
         var replicas = new Mock<IReplicasService>(MockBehavior.Strict);
         replicas.SetupGet(x => x.Deployments).Returns(() => new DeploymentsInformations([], topology, []));
         var elapsed = Stopwatch.StartNew();
+        var diagnostics = new ConcurrentQueue<string>();
         void Phase(string phase) => output.WriteLine($"{elapsed.Elapsed.TotalSeconds:F1}s: {phase}");
+        void DumpDiagnostics()
+        {
+            while (diagnostics.TryDequeue(out string? message))
+                output.WriteLine(message);
+        }
 
         try
         {
@@ -52,14 +59,18 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             {
                 hosts[index] = await StartAsync(index, coldStart: index == 0);
                 if (index > 0)
-                {
-                    IHost leader = await LeaderAsync();
-                    Assert.True(await Coordinator(leader).AddMemberAsync(Cluster(hosts[index]!).LocalMemberAddress, token));
-                }
+                    await JoinAsync(hosts[index]!);
             }
 
             await AllMembersAsync(3);
-            await WriteAsync("before-replacement");
+            // Only the idempotent setup seed can be retried before any replacement.
+            // Writes during recovery and after election remain single-attempt.
+            await RaftMembershipBootstrap.SeedAsync(() => WriteAsync("before-replacement"),
+                () =>
+                {
+                    Phase("bootstrap seed leadership changed; reselect leader");
+                    DumpDiagnostics();
+                }, token);
             await VerifyAsync("before-replacement");
 
             IHost originalLeader = await LeaderAsync();
@@ -71,14 +82,7 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
                 topology = topology with { Replicas = 2 };
 
             Phase(removeWhileOffline ? "scale down while member is offline" : "reconcile repeated missing-pod observations");
-            IHost leaderHost = await LeaderAsync();
-            using (SlimDataMembershipReconciliationWorker worker = Worker(leaderHost))
-            {
-                // Six explicit observations exceed the configured three-cycle removal threshold
-                // without relying on scheduler delays to reproduce the orchestration race.
-                for (int cycle = 0; cycle < 6; cycle++)
-                    await worker.ReconcileOnceAsync(token);
-            }
+            await ReconcileAsync(6, removeWhileOffline ? 2 : 3);
 
             await AllMembersAsync(removeWhileOffline ? 2 : 3);
             await WriteAsync("during-replacement");
@@ -88,9 +92,7 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             topology = topology with { Replicas = 3 };
             hosts[replacementIndex] = await StartAsync(replacementIndex, coldStart: false);
             pods.Add(replacementPod);
-            leaderHost = await LeaderAsync();
-            using (SlimDataMembershipReconciliationWorker worker = Worker(leaderHost))
-                await worker.ReconcileOnceAsync(token);
+            await ReconcileAsync(1, 3);
             await AllMembersAsync(3);
             await VerifyAsync("before-replacement", "during-replacement");
 
@@ -100,12 +102,7 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             PodInformation leaderPod = pods.Single(p => p.Name == $"slimfaas-{leaderIndex}");
             await StopAsync(leaderIndex);
             pods.Remove(leaderPod);
-            leaderHost = await LeaderAsync();
-            using (SlimDataMembershipReconciliationWorker worker = Worker(leaderHost))
-            {
-                for (int cycle = 0; cycle < 6; cycle++)
-                    await worker.ReconcileOnceAsync(token);
-            }
+            await ReconcileAsync(6, 3);
             await AllMembersAsync(3);
             await WriteAsync("after-election");
             hosts[leaderIndex] = await StartAsync(leaderIndex, coldStart: false);
@@ -113,6 +110,11 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             await AllMembersAsync(3);
             await VerifyAsync("before-replacement", "during-replacement", "after-election");
             Phase("all members agree and retain committed values");
+        }
+        catch
+        {
+            DumpDiagnostics();
+            throw;
         }
         finally
         {
@@ -137,7 +139,8 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             };
             IHost host = new HostBuilder()
                 .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(configuration))
-                .ConfigureLogging(builder => builder.ClearProviders())
+                .ConfigureLogging(builder => builder.ClearProviders().SetMinimumLevel(LogLevel.Warning)
+                    .AddProvider(new RaftMembershipDiagnostics(diagnostics, index)))
                 .ConfigureWebHost(builder => builder
                     .UseKestrel(options => options.Listen(IPAddress.Loopback, ports[index]))
                     .UseStartup<Startup>())
@@ -176,18 +179,69 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             return leader!;
         }
 
-        Task AllMembersAsync(int count)
+        async Task JoinAsync(IHost member)
+        {
+            while (true)
+            {
+                IHost leader = await LeaderAsync();
+                try
+                {
+                    Assert.True(await Coordinator(leader).AddMemberAsync(Cluster(member).LocalMemberAddress, token));
+                    return;
+                }
+                catch (NotLeaderException) when (!token.IsCancellationRequested)
+                {
+                    // Catch-up can change the term under coverage. Membership addition is
+                    // idempotent; reselect the leader within the fixture's existing deadline.
+                    // Post-bootstrap application writes and recovery assertions remain single-attempt.
+                    Phase("bootstrap leadership changed; reselect leader");
+                }
+            }
+        }
+
+        bool MembersConverged(int count)
         {
             HashSet<Uri> expected = count == 3
                 ? ports.Select(port => new Uri($"http://127.0.0.1:{port}/")).ToHashSet()
                 : hosts.OfType<IHost>().Select(host => Cluster(host).LocalMemberAddress).ToHashSet();
-            return UntilAsync(() => hosts.OfType<IHost>().All(host =>
+            return hosts.OfType<IHost>().All(host =>
                 expected.SetEquals(((IRaftCluster)Cluster(host)).Members
                     .Select(member => ((UriEndPoint)member.EndPoint).Uri)) &&
                 Cluster(host).Readiness.IsCompletedSuccessfully && Cluster(host).Leader is not null &&
                 !Cluster(host).ConsensusToken.IsCancellationRequested) &&
                 hosts.OfType<IHost>().Select(host => (Cluster(host).Leader?.EndPoint as UriEndPoint)?.Uri)
-                    .Distinct().Count() == 1);
+                    .Distinct().Count() == 1;
+        }
+
+        Task AllMembersAsync(int count) => UntilAsync(() => MembersConverged(count));
+
+        async Task ReconcileAsync(int observations, int expectedMembers)
+        {
+            // Keep each node's observation state, as the actual per-node workers do.
+            // A captured leader can lose its role during a membership commit.
+            var workers = new Dictionary<IHost, SlimDataMembershipReconciliationWorker>();
+            try
+            {
+                await RaftMembershipObservation.RunAsync(async () =>
+                {
+                    IHost leader = await LeaderAsync();
+                    if (!workers.TryGetValue(leader, out SlimDataMembershipReconciliationWorker? worker))
+                    {
+                        worker = Worker(leader);
+                        workers.Add(leader, worker);
+                    }
+                    await worker.ReconcileOnceAsync(token);
+                }, () => MembersConverged(expectedMembers), observations, () =>
+                {
+                    Phase("membership leadership changed; reselect leader for the same desired topology");
+                    DumpDiagnostics();
+                }, token);
+            }
+            finally
+            {
+                foreach (SlimDataMembershipReconciliationWorker worker in workers.Values)
+                    worker.Dispose();
+            }
         }
 
         async Task UntilAsync(Func<bool> predicate)

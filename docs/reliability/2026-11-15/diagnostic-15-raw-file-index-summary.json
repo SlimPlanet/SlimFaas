@@ -1,0 +1,10 @@
+{
+  "file": "diagnostic-15-raw-file-index.json.gz",
+  "compressed_bytes": 75824,
+  "compressed_sha256": "7d828f9e13746f5241331eedaa868098cc653ca8e9d36375368e3ffd368d1560",
+  "expanded_bytes": 282188,
+  "expanded_sha256": "2a1bda690584d05d89fe16fc292692007fa33703b0b62f595a040226e571b9ae",
+  "local_files": 235,
+  "vm_roots": 5,
+  "scope": "Closed fixed-WAL threshold screen 15 and its instrumentation readiness control. Five retained VM originals, exact driver/observer sources, log-generation coverage, resources and per-ID ledgers. Kernel I/O and pod traffic are not attributed exclusively to WAL/inter-node replication. CPU windows and sampled maxima retain their actual scope."
+}

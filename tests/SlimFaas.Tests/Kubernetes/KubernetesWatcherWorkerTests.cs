@@ -165,10 +165,12 @@ public sealed class KubernetesWatcherWorkerTests
         // Un événement ERROR du protocole doit passer par le chemin panne/récupération :
         // signal indisponible pendant le trou (cadence legacy), puis pulse de
         // rattrapage une fois le flux rétabli.
+        harness.PauseResponses();
         harness.WriteLine("{\"type\":\"ERROR\",\"object\":{\"code\":403}}");
-        await WatchHarness.WaitUntilAsync(() => !harness.Signal.IsHealthy, "signal down during the error gap");
-
         await harness.WaitForRequestAsync(2);
+        // Hold the transport response so polling cannot miss a brief down/up gap.
+        Assert.False(harness.Signal.IsHealthy);
+        harness.ResumeResponses();
         await WatchHarness.WaitUntilAsync(() => harness.Signal.IsHealthy, "signal healthy after reconnection");
         // 1 pulse à la coupure (transition down) + 1 pulse de rattrapage à la reconnexion.
         await WatchHarness.WaitUntilAsync(() => harness.Signal.Version >= 2, "catch-up pulse after reconnection");
@@ -254,6 +256,10 @@ public sealed class KubernetesWatcherWorkerTests
 
         public void CompleteStream() => _handler.CompleteCurrentStream();
 
+        public void PauseResponses() => _handler.PauseResponses();
+
+        public void ResumeResponses() => _handler.ResumeResponses();
+
         public async Task<string> WaitForRequestAsync(int count)
         {
             var deadline = DateTime.UtcNow.AddSeconds(10);
@@ -314,10 +320,16 @@ public sealed class KubernetesWatcherWorkerTests
         private int _remainingFailures = failureResponses;
         private int _remainingEmptyStreams = emptyStreamResponses;
         private WatchStreamContent? _currentContent;
+        private TaskCompletionSource? _responseGate;
 
         public List<string> Requests { get; } = new();
 
         public void WriteLine(string line) => _currentContent?.WriteLine(line);
+
+        public void PauseResponses() => Volatile.Write(ref _responseGate,
+            new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+
+        public void ResumeResponses() => Volatile.Read(ref _responseGate)?.TrySetResult();
 
         protected override void Dispose(bool disposing)
         {
@@ -331,7 +343,7 @@ public sealed class KubernetesWatcherWorkerTests
 
         public void CompleteCurrentStream() => _currentContent?.Complete();
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
@@ -340,10 +352,13 @@ public sealed class KubernetesWatcherWorkerTests
                 Requests.Add(request.RequestUri!.PathAndQuery);
             }
 
+            if (Volatile.Read(ref _responseGate) is { } responseGate)
+                await responseGate.Task.WaitAsync(cancellationToken);
+
             if (_failureStatus is { } failure && _remainingFailures > 0)
             {
                 _remainingFailures--;
-                return Task.FromResult(new HttpResponseMessage(failure) { RequestMessage = request });
+                return new HttpResponseMessage(failure) { RequestMessage = request };
             }
 
             if (_remainingEmptyStreams > 0)
@@ -353,20 +368,20 @@ public sealed class KubernetesWatcherWorkerTests
                 _remainingEmptyStreams--;
                 var emptyContent = new WatchStreamContent();
                 emptyContent.Complete();
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = emptyContent,
                     RequestMessage = request
-                });
+                };
             }
 
             var content = new WatchStreamContent();
             _currentContent = content;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = content,
                 RequestMessage = request
-            });
+            };
         }
     }
 

@@ -1,0 +1,491 @@
+{
+  "baseline_runtime_source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+  "reproduction": "StatefulSet replacement with unchanged controller spec, and one unavailable pod while another stays ready, each retain stale cached pod data before the correction.",
+  "fix": "Shared Deployment/StatefulSet cache revision includes controller identity/revision, aggregate readiness and each pod name/UID/revision.",
+  "fixture_failure_retained": "First watch-recovery tests exposed constant resourceVersion=1 in fake pod creation. The fake now assigns distinct mutation versions; four recovery tests then pass without changing watch/poll runtime behavior. The separate StatefulSet reproduction fails after that fixture correction.",
+  "scope": "Real Kubernetes API transport against typed mutable fake cluster; actual StatefulSet pod replacement and final-source AOT/performance validation remain required. Production incident and historical duplicates are not attributed by this reproduction.",
+  "full_dotnet": {
+    "passed": 2459,
+    "failed": 0,
+    "skipped": 0
+  },
+  "python": {
+    "routing": 9,
+    "platform": 47,
+    "chaos": 32,
+    "sonar_boundary": 7,
+    "failures": 0,
+    "skipped": 0
+  },
+  "validation": {
+    "pid": 66302,
+    "started": 1794874525.471582,
+    "phase": "closed",
+    "passed": true,
+    "source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+    "changed_file_sha256": {
+      "docs/reliability/2026-11-16/kubernetes-service-pool-lifetime.json": "8eff65ce09771b49c4d6697855f0d3d7e761a8d9ccff91b19413eb3892019edc",
+      "docs/reliability/2026-11-16/kubernetes-service-pool-lifetime.md": "4c6c170dff1925764efe94c69192e2f7dfafba884e521fe23d2a04910879697a",
+      "docs/reliability/2026-11-16/kubernetes-service-pool-raw-index.jsonl.gz": "8592c790dda486ea358be2ca64dd76765508bb42092efefdbbff431c3422c77f",
+      "docs/reliability/2026-11-16/sonar-completed-scope-bbf.json": "3fb92d7ed95345ec570c525dde1f1f78132c7c27370588db36aaf7be21710851",
+      "tests/SlimFaas.Tests/Integration/KubernetesDestinationRecoveryTests.cs": "4149cb7b8b4cc52a28b98b5702bba4d4fe6bf9a90b5b3d5e4699cd37f02629bf",
+      ".bin/run-journaled-load.py": "356d11a9df7996848283347e912d72a829a58b949f04d2b89ab0583905121198",
+      ".bin/run-kubernetes-routing.py": "3af3faca41d736852a33d1a58d5ea232aa597643b0d4c91af144932ad76b66d0",
+      ".bin/run-platform-workload.py": "c8b8cc040bbce3bad2af0f60d8acd67ed962ee408eb9a3f016812eef605ddfb9",
+      ".bin/slimdata_fault_agent.py": "3d668306ae2f1a87dbf683adaddca0c78e915450727ce0923b93a62c06c97d2a",
+      ".bin/test-kubernetes-routing.py": "96ea524ff67a40c077183a43e353ad4c97e166e48cae9f66c7126fd998e3d130",
+      ".bin/test-platform-validation.py": "c9ef873ac34ae47c32809e80b84c6c213d20c1a55e5d49cb4308ff4e6215bbc8",
+      "docs/benchmarking.md": "34201756a507e7648c1a2692922b67b3c6925342f5af4edb0ba0b17cfd7f963d",
+      "docs/functions.md": "519b18b9669ea8f7995bab953930d34e92a406f330856822d831a5a110c3157e",
+      "src/SlimFaas/Kubernetes/KubernetesService.Deployments.cs": "dc417e3d3f0c88558e11cc1cb14e193faf231b08730a6f584d6ddf3332c047aa",
+      "tests/SlimFaas.Tests/Benchmark/RequestJournalTests.cs": "66ac8d3accd701254c842b49d2003db0e0073316ebe04128741bf8ea78869c04",
+      "tests/SlimFaas.Tests/Integration/FakeKubernetesCluster.cs": "031be87ae36610bb1a2c9b864ee32e8050878b69ba8e8e637b5b2499b48bd31a",
+      "tests/SlimFaas.Tests/Local/chaos_function.py": "2dd23c2790784940ffac10c02ecc15ddd36902d4dc986548908cfd3e6e461d2b"
+    },
+    "commands": [
+      {
+        "name": "solution",
+        "argv": [
+          "dotnet",
+          "test",
+          "-c",
+          "Release",
+          "-p:SkipClientAppBuild=true",
+          "-nr:false",
+          "--logger",
+          "trx;LogFilePrefix=routing-validation-03",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/tests/routing-validation-03"
+        ],
+        "started": 1794874525.484423,
+        "exit_code": 0,
+        "finished": 1794874620.1545768
+      },
+      {
+        "name": "routing",
+        "argv": [
+          "python3",
+          ".bin/test-kubernetes-routing.py"
+        ],
+        "started": 1794874620.15586,
+        "exit_code": 0,
+        "finished": 1794874620.642758
+      },
+      {
+        "name": "platform",
+        "argv": [
+          "python3",
+          ".bin/test-platform-validation.py"
+        ],
+        "started": 1794874620.643737,
+        "exit_code": 0,
+        "finished": 1794874623.640977
+      },
+      {
+        "name": "chaos",
+        "argv": [
+          "python3",
+          ".bin/test-local-chaos-harness.py"
+        ],
+        "started": 1794874623.6419241,
+        "exit_code": 0,
+        "finished": 1794874624.925278
+      },
+      {
+        "name": "sonar-boundary",
+        "argv": [
+          "python3",
+          ".bin/test-sonar-benchmark-boundary.py"
+        ],
+        "started": 1794874624.92634,
+        "exit_code": 0,
+        "finished": 1794874625.406291
+      },
+      {
+        "name": "diff-check",
+        "argv": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "started": 1794874625.407423,
+        "exit_code": 0,
+        "finished": 1794874625.8308249
+      }
+    ],
+    "finished": 1794874625.834463
+  },
+  "test_phases": {
+    "routing-validation-02": [
+      {
+        "path": "artifacts/pr506/tests/routing-validation-02/routing-validation-02_net11.0_20261117010656.trx",
+        "sha256": "b801f163b14db0d5aa99b675b59887c0af89c463edc966d747a98cc42e2696a2",
+        "counters": {
+          "total": "11",
+          "executed": "11",
+          "passed": "11",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-02/routing-validation-02_net11.0_20261117010657.trx",
+        "sha256": "f01d3a21958d78ff499a75abc73757ce731b03fadee0ed0e45cd76c768eaf286",
+        "counters": {
+          "total": "52",
+          "executed": "52",
+          "passed": "52",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-02/routing-validation-02_net11.0_20261117010659.trx",
+        "sha256": "f6c54d91bc2c0fcd5496c42fdf34fe69c7b32415d6ed921d7fa55a49bd7b493a",
+        "counters": {
+          "total": "109",
+          "executed": "109",
+          "passed": "109",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-02/routing-validation-02_net11.0_20261117010748.trx",
+        "sha256": "fdaf7b30063b832a5c7dd671210e6ec0725b8b1e2b3e5f22fed7a06e8a868492",
+        "counters": {
+          "total": "467",
+          "executed": "467",
+          "passed": "467",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-02/routing-validation-02_net11.0_20261117010921.trx",
+        "sha256": "0a549b74a1f86936556aef538502ed367c33f638e0aa7301c9a0e5be4257d359",
+        "counters": {
+          "total": "1817",
+          "executed": "1817",
+          "passed": "1815",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimFaas.Tests.Integration.KubernetesDestinationRecoveryTests.Expired_watch_reconciles_a_pod_deleted_during_the_reconnect_gap",
+            "message": "System.TimeoutException : Convergence timeout: 410 recovery and current destinations"
+          },
+          {
+            "name": "SlimFaas.Tests.Integration.KubernetesDestinationRecoveryTests.Failed_watch_and_list_retain_the_snapshot_until_list_access_returns",
+            "message": "System.TimeoutException : Convergence timeout: fallback LIST removes the deleted destination"
+          }
+        ]
+      }
+    ],
+    "watch-expiry-diagnostic-01": [
+      {
+        "path": "artifacts/pr506/tests/watch-expiry-diagnostic-01/watch-expiry-diagnostic-01_net11.0_20261117011021.trx",
+        "sha256": "c1a229bcd1e80b4c9167edeb89853869d6fc7e7c3f71fdaf3f37540668844fca",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "0",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimFaas.Tests.Integration.KubernetesDestinationRecoveryTests.Expired_watch_reconciles_a_pod_deleted_during_the_reconnect_gap",
+            "message": "System.TimeoutException : 410 recovery: watch connections 6->8, functions healthy=True, destination=10.0.0.41.\n---- System.TimeoutException : Convergence timeout: 410 recovery and current destinations"
+          }
+        ]
+      }
+    ],
+    "destination-recovery-red-01": [
+      {
+        "path": "artifacts/pr506/tests/destination-recovery-red-01/destination-recovery-red-01_net11.0_20261117011123.trx",
+        "sha256": "30eeafd5fba5ab919ad3ac057b6f7b7d27020374374a4e15c866b28083b87c81",
+        "counters": {
+          "total": "5",
+          "executed": "5",
+          "passed": "4",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimFaas.Tests.Integration.KubernetesDestinationRecoveryTests.Stateful_function_replacement_updates_destinations_without_a_controller_spec_change",
+            "message": "Assert.NotEqual() Failure: Strings are equal\nExpected: Not \"a2b9977f-c2fc-46d5-93cc-d4ee43b4bfff\"\nActual:       \"a2b9977f-c2fc-46d5-93cc-d4ee43b4bfff\""
+          }
+        ]
+      }
+    ],
+    "stateful-ready-red-01": [
+      {
+        "path": "artifacts/pr506/tests/stateful-ready-red-01/stateful-ready-red-01_net11.0_20261117011227.trx",
+        "sha256": "aa9e1e28a32f9ab8cf8aec46752603d5c641a29ced6e8e02670506350c71abbd",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "0",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimFaas.Tests.Integration.KubernetesDestinationRecoveryTests.Stateful_function_drops_an_unavailable_pod_when_another_pod_stays_ready(terminating: True)",
+            "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+          },
+          {
+            "name": "SlimFaas.Tests.Integration.KubernetesDestinationRecoveryTests.Stateful_function_drops_an_unavailable_pod_when_another_pod_stays_ready(terminating: False)",
+            "message": "Assert.False() Failure\nExpected: False\nActual:   True"
+          }
+        ]
+      }
+    ],
+    "destination-recovery-green-01": [
+      {
+        "path": "artifacts/pr506/tests/destination-recovery-green-01/destination-recovery-green-01_net11.0_20261117011313.trx",
+        "sha256": "8b8659dc62da82cb2a6a7141e075cb99493307de3719b68d39a0093355669ec2",
+        "counters": {
+          "total": "13",
+          "executed": "13",
+          "passed": "13",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ],
+    "routing-validation-03": [
+      {
+        "path": "artifacts/pr506/tests/routing-validation-03/routing-validation-03_net11.0_20261117011529.trx",
+        "sha256": "85a8e3887ec31dcf825c5724768dbdfaf1b2781a9b9a3e2a0e7651c123cfde93",
+        "counters": {
+          "total": "11",
+          "executed": "11",
+          "passed": "11",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-03/routing-validation-03_net11.0_20261117011530.trx",
+        "sha256": "5826ce1bf8c7384446f1f6333b0e57a4da7f61bfc9db590ec757aca99562e852",
+        "counters": {
+          "total": "109",
+          "executed": "109",
+          "passed": "109",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-03/routing-validation-03_net11.0_20261117011531.trx",
+        "sha256": "8f02f23e47881ee1d1f3f089724194335226f0ab9819bc648e102335a621e465",
+        "counters": {
+          "total": "52",
+          "executed": "52",
+          "passed": "52",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-03/routing-validation-03_net11.0_20261117011559.trx",
+        "sha256": "2a2e95b66190e7d8e8037dcf17a4f7445195721c85879d946c3c9e0f59f65adc",
+        "counters": {
+          "total": "467",
+          "executed": "467",
+          "passed": "467",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-03/routing-validation-03_net11.0_20261117011700.trx",
+        "sha256": "3a43081e99ccae2195095028ac57d6e32b6439efea691b7875b4a3a4a2453e6d",
+        "counters": {
+          "total": "1820",
+          "executed": "1820",
+          "passed": "1820",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ]
+  },
+  "raw_logs": {
+    "artifacts/pr506/logs/routing-validation-03-platform.log": "248b07efee8844086631d9d8d392c2ed7b8c9df3ff3b95f47289b07ec1bc020f",
+    "artifacts/pr506/logs/routing-validation-03-routing.log": "08ec75331f7c5b84f6dce754141faf6d711da4744c50694925fc87893a6c0764",
+    "artifacts/pr506/logs/routing-validation-03-controller.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/pr506/logs/routing-validation-03-sonar-boundary.log": "cc2afcb7cfdfdc357ac4edd4c000d3e63477ea35df8300e846aa9b83cb48421e",
+    "artifacts/pr506/logs/routing-validation-03-diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts/pr506/logs/routing-validation-03-solution.log": "3bab3c4139d951a98577c098ad83f4bd3b982ea1b6452ea5cc4c755093429e76",
+    "artifacts/pr506/logs/routing-validation-03-chaos.log": "7156fb07d79a175bab5fe8a426ba613f04b6a63431a9f594916bf3c4d1e51b53"
+  }
+}

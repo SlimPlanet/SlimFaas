@@ -1,3 +1,4 @@
+using ZLinq;
 using System.Net;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Messaging;
@@ -7,7 +8,7 @@ using SlimData.Options;
 
 namespace SlimData.ClusterFiles;
 
-public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
+public sealed class ClusterFileSync : IDurableClusterFileSync, IAsyncDisposable
 {
     private readonly IMessageBus _bus;
     private readonly IFileRepository _repo;
@@ -30,7 +31,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             fileOptions.MaxPendingTransfers,
             TimeSpan.FromSeconds(fileOptions.QueueWaitTimeoutSeconds));
 
-        _channel = new ClusterFileSyncChannel(announceQueue);
+        _channel = new ClusterFileSyncChannel(announceQueue, ReceiveCopyAsync);
         _bus.AddListener(_channel);
     }
 
@@ -38,6 +39,82 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     {
         _bus.RemoveListener(_channel);
         return ValueTask.CompletedTask;
+    }
+
+    public async Task<FileCopyReceipt> ConfirmRemoteCopyAsync(string id, string sha256Hex, long length, CancellationToken ct)
+    {
+        if (_repo is not IDurableFileRepository durable)
+            throw new NotSupportedException("The file repository cannot confirm persistence.");
+        FilePersistenceReceipt local = await durable.PersistVersionAsync(id, sha256Hex, length, ct).ConfigureAwait(false);
+        FileMetadata? metadata = await _repo.TryGetVersionMetadataAsync(id, sha256Hex, ct).ConfigureAwait(false);
+        string? admissionToken = null;
+        long? admissionDeadline = null;
+        if (FileAdmissionTags.IsManaged(metadata?.Tags))
+        {
+            if (!FileAdmissionTags.TryRead(metadata!.Tags!, out string token, out long deadline))
+                throw new IOException("The local file admission marker is invalid.");
+            admissionToken = token;
+            admissionDeadline = deadline;
+        }
+        foreach (ISubscriber member in _bus.Members)
+        {
+            if (!member.IsRemote)
+                continue;
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                var request = FileCopyProtocol.Request(new FileCopyRequest(id, sha256Hex, length, local.StorageIdentity,
+                    admissionToken, admissionDeadline));
+                FileCopyReceipt receipt = await member.SendMessageAsync<FileCopyReceipt>(request,
+                    static async (message, token) => await FileCopyProtocol.ReadReceiptAsync(message, token).ConfigureAwait(false),
+                    deadline.Token).ConfigureAwait(false);
+                if (FileCopyProtocol.Matches(local, member.Id.ToString(), receipt, admissionToken) &&
+                    _bus.Members.AsValueEnumerable().Any(candidate => candidate.IsRemote && candidate.Id == member.Id))
+                    return receipt;
+                _logger.LogRemoteFilePersistenceReceiptRejected(SafeNode(member), id);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                _logger.LogRemoteFilePersistenceConfirmationFailed(ex, SafeNode(member), id);
+            }
+        }
+        throw new IOException("No distinct remote persisted file copy could be confirmed.");
+    }
+
+    private async Task<FileCopyReceipt> ReceiveCopyAsync(ISubscriber sender, FileCopyRequest request, CancellationToken ct)
+    {
+        if (_repo is not IDurableFileRepository durable || !sender.IsRemote ||
+            !_bus.Members.AsValueEnumerable().Any(member => member.IsRemote && member.Id == sender.Id))
+            return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, "", "", false, "Unsupported repository or unknown sender.");
+        string localNode = _bus.Members.AsValueEnumerable().First(member => !member.IsRemote).Id.ToString();
+        try
+        {
+            if (string.Equals(durable.StorageIdentity, request.SourceStorageIdentity, StringComparison.OrdinalIgnoreCase))
+                return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode, durable.StorageIdentity, false, "Shared storage identity.");
+            FilePullResult pulled = await PullFileIfMissingAsync(request.Id, request.Sha256Hex, SafeNode(sender), ct).ConfigureAwait(false);
+            if (pulled.Stream is null)
+                return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode, durable.StorageIdentity, false, "File copy unavailable.");
+            await pulled.Stream.DisposeAsync().ConfigureAwait(false);
+            if (request.AdmissionToken is not null)
+            {
+                var copiedMetadata = await _repo.TryGetVersionMetadataAsync(request.Id, request.Sha256Hex, ct).ConfigureAwait(false);
+                if (copiedMetadata?.Tags is null || !FileAdmissionTags.TryRead(copiedMetadata.Tags, out string token, out long deadline) ||
+                    token != request.AdmissionToken || deadline != request.AdmissionDeadlineUtcTicks)
+                    return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode,
+                        durable.StorageIdentity, false, "The copied admission marker is missing or mismatched.");
+            }
+            FilePersistenceReceipt stored = await durable.PersistVersionAsync(request.Id, request.Sha256Hex, request.Length, ct).ConfigureAwait(false);
+            return new FileCopyReceipt(stored.Id, stored.Sha256Hex, stored.Length, localNode, stored.StorageIdentity, true,
+                AdmissionToken: request.AdmissionToken);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogRemoteFilePersistenceConfirmationFailed(ex, SafeNode(sender), request.Id);
+            return new FileCopyReceipt(request.Id, request.Sha256Hex, request.Length, localNode, "", false, "File copy verification or persistence failed.");
+        }
     }
 
     public async Task<FilePutResult> BroadcastFilePutAsync(
@@ -88,15 +165,16 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
     private const int RangeChunkSizeBytes = 10 * 1024 * 1024;       // 10 MiB
     private static readonly TimeSpan PerChunkTimeout = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan HeadProbeTimeout = TimeSpan.FromSeconds(5);
 
     public async Task<FilePullResult> PullFileIfMissingAsync(string id, string sha256Hex, string? preferredNode, CancellationToken ct)
     {
         // Déjà présent localement
         if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
-            return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+            return new FilePullResult(await _repo.OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false));
 
         // Itérer sur tous les nœuds (remotes) pour trouver celui qui a le fichier
-        var candidates = _bus.Members.Where(m => m.IsRemote).ToList();
+        var candidates = _bus.Members.AsValueEnumerable().Where(static m => m.IsRemote).ToList();
         if (candidates.Count == 0)
             return new FilePullResult(null);
         
@@ -128,7 +206,23 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 #pragma warning disable CA2000 // using declaration; the analyzer does not see through SendWithRedirectAsync
                 using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
 #pragma warning restore CA2000
-                headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
+                // An unavailable first member must not hide a surviving copy.
+                // Bound the probe independently of the existing whole-transfer
+                // deadline so a silent listener also permits peer fallback.
+                using (var probe = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                {
+                    probe.CancelAfter(HeadProbeTimeout);
+                    try
+                    {
+                        headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, probe.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                    catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
+                    {
+                        _logger.LogFileHeadProbeFailed(ex, SafeNode(member), id);
+                        continue;
+                    }
+                }
                 _logger.LogGET2(fileUri, headResp.StatusCode);
                 if (headResp.StatusCode == HttpStatusCode.NotFound)
                 {
@@ -142,7 +236,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 }
 
                 var length = headResp.Content.Headers.ContentLength;
-                if (length is null || length <= 0)
+                if (length is null || length < 0)
                 {
                     _logger.LogHEADOkButNoContentLength(fileUri);
                     continue;
@@ -182,7 +276,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
                 // Re-check après lock
                 if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
-                    return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+                    return new FilePullResult(await _repo.OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false));
 
                 // Téléchargement range -> SaveAsync (streaming)
                 try
@@ -199,26 +293,16 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                         _logger.LogGETLengthContentTypeExpireAtUtcTicksTags(fileUri, headResp.StatusCode, length.Value, contentType, expireAtUtcTicks, tags == null ? "null" : string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
                     }
 
-                    var put = await _repo.SaveAsync(
+                    await _repo.SaveVerifiedAsync(
                         id: id,
                         content: rangeStream,
-                        contentType: contentType,
-                        overwrite: true,
+                        expected: new FilePutResult(sha256Hex, contentType, length.Value),
                         expireAtUtcTicks: expireAtUtcTicks,
                         tags: tags,
                         ct: ct).ConfigureAwait(false);
 
-                    // Vérif intégrité
-                    if (!put.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase) || put.Length != length.Value)
-                    {
-                        _logger.LogClusterPullIntegrityMismatchFromId(fileUri, id, sha256Hex, put.Sha256Hex, length.Value, put.Length);
-
-                        await _repo.DeleteAsync(id, ct).ConfigureAwait(false);
-                        continue; // essaie un autre nœud
-                    }
-
                     // OK
-                    return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+                    return new FilePullResult(await _repo.OpenReadVersionAsync(id, sha256Hex, ct).ConfigureAwait(false));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -300,7 +384,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         {
             return "";
         }
-        if (url.EndsWith('/'))
+        if (url.EndsWith('/', StringComparison.Ordinal))
         {
             url = url.Substring(0, url.Length - 1);
         }

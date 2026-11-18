@@ -1,0 +1,58 @@
+{
+  "wal-replay-net11-88": {
+    "after": {
+      "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-71",
+      "image_config_sha256": "0203a61d16dbba284fb9ad4d6321cd40adc0000a4b460b519b958f3670e389f0",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127",
+        "slimdata_dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6"
+      },
+      "fixture_sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48",
+      "common_benchmark_sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "common_memorylab_sha256": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    },
+    "before": {
+      "source": "511630668ffad507f14d6ce7d42c941bb224ad84",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-33",
+      "image_config_sha256": "c4e0eeadd6f829ef284afe1de7b6a150ff6721b2b00a1f5de488eec40d9b1519",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "93e94bb596d5db7dec864209389852b7a198db255749fe2af7d22cbcf4bafb04",
+        "slimdata_dll": "bcc65b7f81475181c47c51b85a48aba1ecb9e5152e92d79f28e12fd217e1c5a8"
+      },
+      "fixture_sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48",
+      "common_benchmark_sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "common_memorylab_sha256": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    }
+  },
+  "offload-screen-net11-82": {
+    "after": {
+      "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-71",
+      "image_config_sha256": "0203a61d16dbba284fb9ad4d6321cd40adc0000a4b460b519b958f3670e389f0",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127",
+        "slimdata_dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6"
+      },
+      "fixture_sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48",
+      "common_benchmark_sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "common_memorylab_sha256": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    },
+    "before": {
+      "source": "511630668ffad507f14d6ce7d42c941bb224ad84",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-33",
+      "image_config_sha256": "c4e0eeadd6f829ef284afe1de7b6a150ff6721b2b00a1f5de488eec40d9b1519",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "93e94bb596d5db7dec864209389852b7a198db255749fe2af7d22cbcf4bafb04",
+        "slimdata_dll": "bcc65b7f81475181c47c51b85a48aba1ecb9e5152e92d79f28e12fd217e1c5a8"
+      },
+      "fixture_sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48",
+      "common_benchmark_sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "common_memorylab_sha256": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    }
+  }
+}

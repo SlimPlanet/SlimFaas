@@ -1,0 +1,268 @@
+{
+  "created": 1794828244.11221,
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "namespace": "slimfaas-pr506-n189-p113-endurance-follower",
+  "rows": 717,
+  "observed_runtime_lifetimes": 9,
+  "observed_pod_uids": 6,
+  "max_observed_cgroup_peak_bytes": 724946944,
+  "max_events_per_lifetime_totals": {
+    "max": 0,
+    "sock_throttled": 0,
+    "low": 0,
+    "high": 0,
+    "oom_kill": 0,
+    "oom": 0,
+    "oom_group_kill": 0
+  },
+  "lifetimes": [
+    {
+      "pod": "slimfaas-0",
+      "uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+      "containerID": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+      "samples": 233,
+      "first_utc": 1794818250.827116,
+      "last_utc": 1794825251.8830578,
+      "max_observed_cgroup_peak_bytes": 724946944,
+      "max_observed_current_bytes": 593850368,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        1
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-1",
+      "uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+      "containerID": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+      "samples": 232,
+      "first_utc": 1794818250.827223,
+      "last_utc": 1794825221.637002,
+      "max_observed_cgroup_peak_bytes": 388308992,
+      "max_observed_current_bytes": 330788864,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-2",
+      "uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+      "containerID": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+      "samples": 235,
+      "first_utc": 1794818250.829448,
+      "last_utc": 1794825312.315039,
+      "max_observed_cgroup_peak_bytes": 716042240,
+      "max_observed_current_bytes": 524718080,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-1",
+      "uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+      "containerID": "containerd://aee2c0d253c5bd235dd9424602599b5ecf4a759be972b933deeec59b4e021024",
+      "samples": 5,
+      "first_utc": 1794825251.8849988,
+      "last_utc": 1794825372.703243,
+      "max_observed_cgroup_peak_bytes": 433647616,
+      "max_observed_current_bytes": 418406400,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        1
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-0",
+      "uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+      "containerID": "containerd://7afa980bd03f4e4f5a13164a3abd904e55be4e310bdc69e3c4d39b9670fd9b85",
+      "samples": 4,
+      "first_utc": 1794825282.0876741,
+      "last_utc": 1794825372.703118,
+      "max_observed_cgroup_peak_bytes": 324452352,
+      "max_observed_current_bytes": 296804352,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        2
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-2",
+      "uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+      "containerID": "containerd://2809dcb90ee4f568fd4d86bf627c644ccebe269797d69cd01b8526e911a3c111",
+      "samples": 2,
+      "first_utc": 1794825342.49538,
+      "last_utc": 1794825372.703221,
+      "max_observed_cgroup_peak_bytes": 365461504,
+      "max_observed_current_bytes": 266694656,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        1
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-0",
+      "uid": "cc6f3419-e244-46c1-88a2-543d4045242c",
+      "containerID": "containerd://b3784fff1c3bb7c5ce94412705dacf83a49ea99f9484c14edfb6f6af001fe715",
+      "samples": 2,
+      "first_utc": 1794825402.926581,
+      "last_utc": 1794825433.13781,
+      "max_observed_cgroup_peak_bytes": 339828736,
+      "max_observed_current_bytes": 327417856,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-1",
+      "uid": "fd06f0fa-9fdf-452e-a926-6e899ec3dd11",
+      "containerID": "containerd://72e6a9ddd0219d32b34b25c197aae54f1f9beda8478208c3c6cd7bdbd96dfaac",
+      "samples": 2,
+      "first_utc": 1794825402.926473,
+      "last_utc": 1794825433.137841,
+      "max_observed_cgroup_peak_bytes": 413048832,
+      "max_observed_current_bytes": 403685376,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-2",
+      "uid": "a2a8df7c-90d7-4803-9eb2-e98d92632d94",
+      "containerID": "containerd://d5fc99e32e513d202b4212aa2ba58033e4cd66478e1c1eb88f5a844d4c46c976",
+      "samples": 2,
+      "first_utc": 1794825402.926514,
+      "last_utc": 1794825433.139105,
+      "max_observed_cgroup_peak_bytes": 388018176,
+      "max_observed_current_bytes": 370151424,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    }
+  ],
+  "missing_cgroup_observations": [],
+  "archive": {
+    "path": "kind-follower-runtime-resources-189.jsonl.gz",
+    "bytes": 89491,
+    "sha256": "2bb0d354293e3bdc664d8876436a34a3f27262f9d1be99c4a70a4162b4d2365b",
+    "decompressed_sha256": "4ba1528986fb9eec062e0b2ce0c4aadc9c54855cb2108dfcae035e6899cb0ec8"
+  },
+  "capture": {
+    "original_path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/kubernetes/net11-117-priority-endurance-cgroups.jsonl",
+    "read_watermark_bytes": 4565380,
+    "observer": "observe-priority-endurance-net11-117.py",
+    "observer_sha256": "5fd477f5a187bbbf1563087ab17337e77ce4d32e959437a3cfb84e80c2c404da"
+  },
+  "scope": "Only observed runtime cgroups in the closed follower namespace, excluding function/job resources. memory.peak is a kernel cgroup counter observed during each lifetime, not process RSS or proof of its last value. Short lifetimes or intervals without counters are not certified. Sum max event counts within each distinct UID/containerID, never sum repeated cumulative samples. Healthy runtime log/lifetime completeness and final acceptance remain separate."
+}

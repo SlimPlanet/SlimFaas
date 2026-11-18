@@ -1,0 +1,7 @@
+{
+  "file": "file-admission-tests-index.json.gz",
+  "compressed_sha256": "a95b191f54211710ebb99d259f273257216be57c5a0f66852a39023dbe21f3b4",
+  "expanded_sha256": "f2caf958217d618929d9f6d4a790eff1ad73af729bc7aa38850ae760ee0438db",
+  "files": 39,
+  "scope": "Closed local-persistence/copy-protocol and atomic-admission component tests, including unsuccessful compile attempts. HTTP acceptance and background repair not yet wired."
+}

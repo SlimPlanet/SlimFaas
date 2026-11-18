@@ -30,7 +30,7 @@ internal static partial class LocalYamlConfiguration
 
         IReadOnlyDictionary<string, string> environmentFileValues =
             LoadEnvironmentFiles(environmentFilePaths);
-        var interpolatedValues = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> interpolatedValues = [with(StringComparer.Ordinal)];
         InterpolateValues(effective, environmentFileValues, interpolatedValues);
 
         using var writer = new StringWriter(CultureInfo.InvariantCulture);
@@ -98,7 +98,7 @@ internal static partial class LocalYamlConfiguration
             {
                 string line = lines[index];
                 string trimmed = line.Trim();
-                if (trimmed.Length == 0 || trimmed.StartsWith('#'))
+                if (trimmed.Length == 0 || trimmed.StartsWith('#', StringComparison.Ordinal))
                     continue;
 
                 if (trimmed.StartsWith("export ", StringComparison.Ordinal))
@@ -127,7 +127,7 @@ internal static partial class LocalYamlConfiguration
 
         if (value[0] == '\'')
         {
-            int closing = value.IndexOf('\'', 1);
+            int closing = value.IndexOf('\'', 1, StringComparison.Ordinal);
             if (closing < 0 || !IsEmptyOrComment(value[(closing + 1)..]))
                 throw InvalidEnvironmentLine(path, lineIndex);
             return value[1..closing];
@@ -193,7 +193,7 @@ internal static partial class LocalYamlConfiguration
     private static bool IsEmptyOrComment(string remainder)
     {
         string trimmed = remainder.TrimStart();
-        return trimmed.Length == 0 || trimmed.StartsWith('#');
+        return trimmed.Length == 0 || trimmed.StartsWith('#', StringComparison.Ordinal);
     }
 
     private static bool IsEnvironmentVariableName(string name)
@@ -218,7 +218,7 @@ internal static partial class LocalYamlConfiguration
             case YamlMappingNode mapping:
             {
                 StringComparer comparer = KeyComparer(path);
-                var keys = new HashSet<string>(comparer);
+                HashSet<string> keys = [with(comparer)];
                 foreach ((YamlNode keyNode, YamlNode valueNode) in mapping.Children)
                 {
                     if (keyNode is not YamlScalarNode { Value: not null } key)

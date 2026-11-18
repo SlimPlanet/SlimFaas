@@ -18,6 +18,7 @@ internal sealed record TrackedHttpRequest(
     string FunctionName,
     CustomRequest CustomRequest,
     string Id,
+    int TryNumber,
     string TargetIp,
     string ActivityId,
     Stream? OffloadedStream,
@@ -63,6 +64,7 @@ public class SlimQueuesWorker(
     private readonly SlimDataQueueSignal _queueSignal = queueSignal ?? new SlimDataQueueSignal();
     private readonly long _initialSignalVersion = queueSignal?.Version ?? 0;
     private readonly ConcurrentQueue<CompletedHttpRequest> _completedRequests = new();
+    private readonly Dictionary<string, Dictionary<string, QueueData>> _supersedingReservations = new(StringComparer.Ordinal);
     private readonly Channel<string> _terminalOffloadCleanup = Channel.CreateUnbounded<string>(
         new UnboundedChannelOptions
         {
@@ -118,13 +120,16 @@ public class SlimQueuesWorker(
     {
         try
         {
+            // These deliveries were already reserved through Raft. Preserve
+            // their completed responses before a role change clears tracking;
+            // a follower can forward the callback to the current leader.
+            await DrainCompletedRequestsAsync(processingRequests, awaiting202Requests, stoppingToken).ConfigureAwait(false);
             if (!masterService.IsMaster)
             {
                 ClearLocalTracking(processingRequests, awaiting202Requests);
                 return;
             }
 
-            await DrainCompletedRequestsAsync(processingRequests, awaiting202Requests).ConfigureAwait(false);
             DeploymentsInformations deployments = replicasService.Deployments;
             foreach (DeploymentInformation function in deployments.Functions)
             {
@@ -142,6 +147,23 @@ public class SlimQueuesWorker(
                 }
                 CompleteAwaiting202(functionName, awaiting202, queueState.RunningReservations);
 
+                int locallyReserved = 0;
+                for (var index = 0; index < queueState.RunningReservations.Count; index++)
+                {
+                    if (active.ContainsKey(queueState.RunningReservations[index].Id))
+                        locallyReserved++;
+                }
+                if (locallyReserved < active.Count)
+                {
+                    // A reservation can expire while its HTTP request or known
+                    // completion is still locally owned. A slow snapshot may
+                    // also have let completions arrive after the first drain.
+                    // Persist them before another dequeue can reserve these IDs;
+                    // otherwise a free slot can redispatch the same message.
+                    await DrainCompletedRequestsAsync(processingRequests, awaiting202Requests, stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 int readyPods = function.Pods?.Count(pod =>
                     pod.Ready == true && !string.IsNullOrEmpty(pod.Ip)) ?? 1;
                 int maximumParallelism = Math.Min(
@@ -155,6 +177,9 @@ public class SlimQueuesWorker(
                     functionName,
                     active.Count,
                     queueState.TotalPending);
+
+                if (_supersedingReservations.TryGetValue(functionName, out var held) && held.Count > 0)
+                    continue;
 
                 if (function.Replicas == 0 || queueState.Available <= 0 || availableSlots <= 0)
                     continue;
@@ -209,9 +234,29 @@ public class SlimQueuesWorker(
         if (messages is null || messages.Count == 0)
             return;
 
+        if (logger.IsEnabled(LogLevel.Trace))
+        {
+            foreach (QueueData message in messages)
+                logger.LogAsyncDeliveryStage("dequeue-result", functionName, message.Id, message.TryNumber,
+                    Volatile.Read(ref _trackingGeneration), message.ReservedIp, null);
+        }
+
+        await DispatchReservedMessagesAsync(active, messages, reservedIps, function, stoppingToken).ConfigureAwait(false);
+    }
+
+    private async Task DispatchReservedMessagesAsync(
+        Dictionary<string, TrackedHttpRequest> active,
+        IList<QueueData> messages,
+        IList<string> reservedIps,
+        DeploymentInformation function,
+        CancellationToken stoppingToken)
+    {
+        string functionName = function.Deployment;
+        var proxy = new Proxy(replicasService, functionName);
         PreparedHttpMessage?[] preparedMessages = await PrepareMessagesAsync(
             functionName,
             messages,
+            active,
             stoppingToken).ConfigureAwait(false);
         for (var index = 0; index < preparedMessages.Length; index++)
         {
@@ -249,6 +294,9 @@ public class SlimQueuesWorker(
                 NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas,
                 functionName, functionName, targetPod: reservedIp);
             Task<HttpResponseMessage> responseTask;
+            if (logger.IsEnabled(LogLevel.Trace))
+                logger.LogAsyncDeliveryStage("http-dispatch-starting", functionName, message.Id, message.TryNumber,
+                    Volatile.Read(ref _trackingGeneration), reservedIp, null);
             try
             {
                 responseTask = sendClient.SendHttpRequestAsync(
@@ -277,6 +325,7 @@ public class SlimQueuesWorker(
                 functionName,
                 customRequest,
                 message.Id,
+                message.TryNumber,
                 reservedIp,
                 activityId,
                 offloadedStream,
@@ -290,6 +339,7 @@ public class SlimQueuesWorker(
     private async Task<PreparedHttpMessage?[]> PrepareMessagesAsync(
         string functionName,
         IList<QueueData> messages,
+        Dictionary<string, TrackedHttpRequest> active,
         CancellationToken cancellationToken)
     {
         var prepared = new PreparedHttpMessage?[messages.Count];
@@ -297,10 +347,22 @@ public class SlimQueuesWorker(
         for (var index = 0; index < messages.Count; index++)
         {
             QueueData message = messages[index];
+            if (active.TryGetValue(message.Id, out TrackedHttpRequest? owned))
+            {
+                // A reservation can expire between the read snapshot and the
+                // next dequeue timestamp. Keep the HTTP exchange and its result
+                // instead of overwriting the owner or starting a parallel send.
+                if (message.TryNumber > owned.TryNumber)
+                    GetOrAdd(_supersedingReservations, functionName)[message.Id] = message;
+                logger.LogAsyncDeliveryStage("reservation-already-locally-owned", functionName, message.Id,
+                    message.TryNumber, owned.Generation, message.ReservedIp, null);
+                continue;
+            }
             CustomRequest request;
+            Stream? inlineBody;
             try
             {
-                request = MemoryPackSerializer.Deserialize<CustomRequest>(message.Data);
+                (request, inlineBody) = QueuedHttpRequestCodec.DeserializeForDispatch(message.Data);
             }
             catch (Exception exception)
             {
@@ -314,7 +376,7 @@ public class SlimQueuesWorker(
                 continue;
             }
 
-            prepared[index] = new PreparedHttpMessage(message, request, null);
+            prepared[index] = new PreparedHttpMessage(message, request, inlineBody);
             if (!string.IsNullOrEmpty(request.OffloadedFileId))
                 offloadedIndexes.Add(index);
         }
@@ -445,91 +507,213 @@ public class SlimQueuesWorker(
         }
 
         _completedRequests.Enqueue(new CompletedHttpRequest(request, statusCode, error));
+        logger.LogAsyncDeliveryStage(error is null ? "send-operation-result" : "delivery-failed",
+            request.FunctionName, request.Id, request.TryNumber, request.Generation, request.TargetIp, statusCode);
         _queueSignal.Pulse();
     }
 
     private async Task DrainCompletedRequestsAsync(
         Dictionary<string, Dictionary<string, TrackedHttpRequest>> processingRequests,
-        Dictionary<string, List<Awaiting202Request>> awaiting202Requests)
+        Dictionary<string, List<Awaiting202Request>> awaiting202Requests,
+        CancellationToken stoppingToken)
     {
         long generation = Volatile.Read(ref _trackingGeneration);
         var callbacks = new Dictionary<string, List<QueueItemStatus>>(StringComparer.Ordinal);
-        var completedActivities = new Dictionary<string, List<TrackedHttpRequest>>(StringComparer.Ordinal);
+        var completedBatches = new Dictionary<string, List<CompletedHttpRequest>>(StringComparer.Ordinal);
         var terminalOffloads = new List<string>();
-        while (_completedRequests.TryPeek(out CompletedHttpRequest completed))
+        List<CompletedHttpRequest>? unavailableRetries = null;
+        try
         {
-            TrackedHttpRequest request = completed.Request;
-            if (request.Generation == generation && deadLetters?.IsManaged(request.FunctionName) == true)
+            while (_completedRequests.TryPeek(out CompletedHttpRequest completed))
             {
-                var function = replicasService.Deployments.Functions.FirstOrDefault(item => item.Deployment == request.FunctionName);
-                if (function is not null)
-                    await deadLetters.ConfigureAsync(function).ConfigureAwait(false);
-                bool awaiting = completed.StatusCode == 202 && completed.Error is null;
-                await deadLetters.MutateAsync(new()
+                TrackedHttpRequest request = completed.Request;
+                if (request.Generation != generation)
                 {
-                    Action = awaiting ? DeadLetterAction.AwaitingCallback : DeadLetterAction.Complete,
-                    Function = request.FunctionName, ElementId = request.Id, HttpStatus = completed.StatusCode,
-                    Source = completed.Error is OperationCanceledException ? "DeliveryTimeout"
-                        : completed.Error is not null ? "Transport" : "Http"
-                }).ConfigureAwait(false);
-                _completedRequests.TryDequeue(out _);
-                if (processingRequests.TryGetValue(request.FunctionName, out var managedActive))
-                    managedActive.Remove(request.Id);
-                if (awaiting)
-                    GetOrAdd(awaiting202Requests, request.FunctionName).Add(new(request.Id, request.TargetIp, request.ActivityId));
+                    logger.LogAsyncDeliveryStage("stale-generation-completion", request.FunctionName, request.Id,
+                        request.TryNumber, request.Generation, request.TargetIp, completed.StatusCode);
+                    _completedRequests.TryDequeue(out _);
+                    continue;
+                }
+
+                if (_supersedingReservations.TryGetValue(request.FunctionName, out var held) &&
+                    held.TryGetValue(request.Id, out QueueData? retry))
+                {
+                    bool nonterminal = completed.Error is not null || completed.StatusCode == StatusCodes.Status202Accepted ||
+                                       request.HttpStatusRetries.Contains(completed.StatusCode);
+                    if (nonterminal && masterService.IsMaster)
+                    {
+                        if (retry.LastRetryTimeTicks > 0 && retry.HttpTimeoutTicks > 0 &&
+                            DateTime.UtcNow.Ticks - retry.LastRetryTimeTicks >= retry.HttpTimeoutTicks)
+                        {
+                            // Do not extend an expired queue reservation or apply
+                            // the older failure to it. Raft's normal retry/DLQ
+                            // policy decides whether another attempt is eligible.
+                            _completedRequests.TryDequeue(out _);
+                            held.Remove(request.Id);
+                            if (processingRequests.TryGetValue(request.FunctionName, out var expiredActive))
+                                expiredActive.Remove(request.Id);
+                            logger.LogAsyncDeliveryStage("reserved-retry-expired-before-transport", request.FunctionName,
+                                request.Id, retry.TryNumber, generation, retry.ReservedIp, completed.StatusCode);
+                            RecordCompletion(request.FunctionName, request.TargetIp, request.ActivityId);
+                            continue;
+                        }
+                        DeploymentInformation? function = replicasService.Deployments.FindFunction(request.FunctionName);
+                        if (function is null || function.Replicas == 0 || !function.EndpointReady ||
+                            function.Pods?.Any(pod => pod.Ready == true && !string.IsNullOrEmpty(pod.Ip)) != true)
+                        {
+                            _completedRequests.TryDequeue(out _);
+                            (unavailableRetries ??= []).Add(completed);
+                            continue;
+                        }
+                        Dictionary<string, TrackedHttpRequest> active = GetOrAdd(processingRequests, request.FunctionName);
+                        _completedRequests.TryDequeue(out _);
+                        held.Remove(request.Id);
+                        active.Remove(request.Id);
+                        try
+                        {
+                            // This retry is already reserved in Raft. A failure
+                            // from the old exchange must not consume it through
+                            // an ID-only callback aimed at the newer reservation.
+                            logger.LogAsyncDeliveryStage("resume-reserved-retry", request.FunctionName, request.Id,
+                                retry.TryNumber, generation, retry.ReservedIp, completed.StatusCode);
+                            await DispatchReservedMessagesAsync(active, [retry], [request.TargetIp], function,
+                                stoppingToken).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            if (!active.ContainsKey(request.Id))
+                            {
+                                active[request.Id] = request;
+                                held[request.Id] = retry;
+                                _completedRequests.Enqueue(completed);
+                            }
+                            throw;
+                        }
+                        continue;
+                    }
+                    held.Remove(request.Id);
+                    if (nonterminal)
+                    {
+                        // A follower can persist a known terminal response, but
+                        // must leave a newer reserved attempt to the leader.
+                        _completedRequests.TryDequeue(out _);
+                        if (processingRequests.TryGetValue(request.FunctionName, out var active))
+                            active.Remove(request.Id);
+                        logger.LogAsyncDeliveryStage("reserved-retry-owner-lost", request.FunctionName, request.Id,
+                            retry.TryNumber, generation, retry.ReservedIp, completed.StatusCode);
+                        RecordCompletion(request.FunctionName, request.TargetIp, request.ActivityId);
+                        continue;
+                    }
+                }
+
+                if (deadLetters?.IsManaged(request.FunctionName) == true)
+                {
+                    var function = replicasService.Deployments.FindFunction(request.FunctionName);
+                    if (function is not null)
+                        await deadLetters.ConfigureAsync(function).ConfigureAwait(false);
+                    bool awaiting = completed.StatusCode == 202 && completed.Error is null;
+                    logger.LogAsyncDeliveryStage("managed-ack-request", request.FunctionName, request.Id,
+                        request.TryNumber, request.Generation, request.TargetIp, completed.StatusCode);
+                    await deadLetters.MutateAsync(new()
+                    {
+                        Action = awaiting ? DeadLetterAction.AwaitingCallback : DeadLetterAction.Complete,
+                        Function = request.FunctionName, ElementId = request.Id, HttpStatus = completed.StatusCode,
+                        Source = completed.Error is OperationCanceledException ? "DeliveryTimeout"
+                            : completed.Error is not null ? "Transport" : "Http"
+                    }).ConfigureAwait(false);
+                    logger.LogAsyncDeliveryStage("managed-ack-command-confirmed", request.FunctionName, request.Id,
+                        request.TryNumber, request.Generation, request.TargetIp, completed.StatusCode);
+                    _completedRequests.TryDequeue(out _);
+                    if (processingRequests.TryGetValue(request.FunctionName, out var managedActive))
+                        managedActive.Remove(request.Id);
+                    if (awaiting)
+                        GetOrAdd(awaiting202Requests, request.FunctionName).Add(new(request.Id, request.TargetIp, request.ActivityId));
+                    else
+                        RecordCompletion(request.FunctionName, request.TargetIp, request.ActivityId);
+                    continue;
+                }
+
+                historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
+                if (completed.Error is not null)
+                {
+                    logger.LogAsyncRequestFailedFor(completed.Error, request.FunctionName, request.Id);
+                }
                 else
-                    RecordCompletion(request.FunctionName, request.TargetIp, request.ActivityId);
-                continue;
-            }
-            _completedRequests.TryDequeue(out _);
-            if (processingRequests.TryGetValue(request.FunctionName, out var active))
-                active.Remove(request.Id);
-            if (request.Generation != generation)
-                continue;
+                {
+                    logger.LogAsyncFunction(request.CustomRequest.Method, request.CustomRequest.Path, request.CustomRequest.Query, completed.StatusCode);
+                }
 
-            historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
-            if (completed.Error is not null)
-            {
-                logger.LogAsyncRequestFailedFor(completed.Error, request.FunctionName, request.Id);
-            }
-            else
-            {
-                logger.LogAsyncFunction(request.CustomRequest.Method, request.CustomRequest.Path, request.CustomRequest.Query, completed.StatusCode);
+                if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
+                {
+                    logger.LogAsyncDeliveryStage("awaiting-function-callback", request.FunctionName, request.Id,
+                        request.TryNumber, request.Generation, request.TargetIp, completed.StatusCode);
+                    _completedRequests.TryDequeue(out _);
+                    if (processingRequests.TryGetValue(request.FunctionName, out var awaitingActive))
+                        awaitingActive.Remove(request.Id);
+                    GetOrAdd(awaiting202Requests, request.FunctionName)
+                        .Add(new Awaiting202Request(request.Id, request.TargetIp, request.ActivityId));
+                    continue;
+                }
+
+                if (!callbacks.TryGetValue(request.FunctionName, out List<QueueItemStatus>? statuses))
+                {
+                    statuses = [];
+                    callbacks.Add(request.FunctionName, statuses);
+                    completedBatches.Add(request.FunctionName, []);
+                }
+                statuses.Add(new QueueItemStatus(request.Id, completed.StatusCode));
+                completedBatches[request.FunctionName].Add(completed);
+                _completedRequests.TryDequeue(out _);
             }
 
-            if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
+            foreach ((string functionName, List<QueueItemStatus> statuses) in callbacks)
             {
-                GetOrAdd(awaiting202Requests, request.FunctionName)
-                    .Add(new Awaiting202Request(request.Id, request.TargetIp, request.ActivityId));
-                continue;
-            }
-
-            if (!callbacks.TryGetValue(request.FunctionName, out List<QueueItemStatus>? statuses))
-            {
-                statuses = [];
-                callbacks.Add(request.FunctionName, statuses);
-                completedActivities.Add(request.FunctionName, []);
-            }
-            statuses.Add(new QueueItemStatus(request.Id, completed.StatusCode));
-            completedActivities[request.FunctionName].Add(request);
-            if (!string.IsNullOrEmpty(request.CustomRequest.OffloadedFileId) &&
-                !request.HttpStatusRetries.Contains(completed.StatusCode))
-            {
-                terminalOffloads.Add(request.CustomRequest.OffloadedFileId);
+                if (logger.IsEnabled(LogLevel.Trace))
+                {
+                    foreach (CompletedHttpRequest completed in completedBatches[functionName])
+                        logger.LogAsyncDeliveryStage("ack-request", functionName, completed.Request.Id,
+                            completed.Request.TryNumber, completed.Request.Generation, completed.Request.TargetIp, completed.StatusCode);
+                }
+                await slimFaasQueue.ListCallbackAsync(
+                    functionName,
+                    new ListQueueItemStatus { Items = statuses }).ConfigureAwait(false);
+                List<CompletedHttpRequest> committed = completedBatches[functionName];
+                completedBatches.Remove(functionName);
+                foreach (CompletedHttpRequest completed in committed)
+                {
+                    TrackedHttpRequest request = completed.Request;
+                    logger.LogAsyncDeliveryStage("ack-command-confirmed", functionName, request.Id, request.TryNumber,
+                        request.Generation, request.TargetIp, completed.StatusCode);
+                    if (processingRequests.TryGetValue(functionName, out var active))
+                        active.Remove(request.Id);
+                    RecordCompletion(functionName, request.TargetIp, request.ActivityId);
+                    if (!string.IsNullOrEmpty(request.CustomRequest.OffloadedFileId) &&
+                        !request.HttpStatusRetries.Contains(completed.StatusCode))
+                    {
+                        terminalOffloads.Add(request.CustomRequest.OffloadedFileId);
+                    }
+                }
             }
         }
-
-        foreach ((string functionName, List<QueueItemStatus> statuses) in callbacks)
+        finally
         {
-            await slimFaasQueue.ListCallbackAsync(
-                functionName,
-                new ListQueueItemStatus { Items = statuses }).ConfigureAwait(false);
-            foreach (TrackedHttpRequest request in completedActivities[functionName])
-                RecordCompletion(functionName, request.TargetIp, request.ActivityId);
-        }
-
-        if (terminalOffloads.Count > 0)
-        {
+            if (unavailableRetries is not null)
+            {
+                foreach (CompletedHttpRequest completed in unavailableRetries)
+                    _completedRequests.Enqueue(completed);
+            }
+            // A failed callback must keep its known application response and
+            // capacity reservation. Retry persistence without another delivery.
+            foreach (List<CompletedHttpRequest> pending in completedBatches.Values)
+            {
+                foreach (CompletedHttpRequest completed in pending)
+                {
+                    logger.LogAsyncDeliveryStage("ack-outcome-unknown", completed.Request.FunctionName,
+                        completed.Request.Id, completed.Request.TryNumber, completed.Request.Generation,
+                        completed.Request.TargetIp, completed.StatusCode);
+                    _completedRequests.Enqueue(completed);
+                }
+            }
             foreach (string fileId in terminalOffloads.Distinct(StringComparer.Ordinal))
                 _terminalOffloadCleanup.Writer.TryWrite(fileId);
         }
@@ -636,6 +820,7 @@ public class SlimQueuesWorker(
         Dictionary<string, Dictionary<string, TrackedHttpRequest>> processingRequests,
         Dictionary<string, List<Awaiting202Request>> awaiting202Requests)
     {
+        _supersedingReservations.Clear();
         if (processingRequests.Values.All(active => active.Count == 0) &&
             awaiting202Requests.Values.All(pending => pending.Count == 0))
         {
@@ -647,6 +832,8 @@ public class SlimQueuesWorker(
         {
             foreach (TrackedHttpRequest request in active.Values)
             {
+                logger.LogAsyncDeliveryStage("ownership-cancel-request", request.FunctionName, request.Id,
+                    request.TryNumber, request.Generation, request.TargetIp, null);
                 try
                 {
                     request.Cancellation.Cancel();

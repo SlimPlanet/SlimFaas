@@ -3,6 +3,8 @@ using System.Threading.Channels;
 using SlimFaas.Endpoints;
 // AppJsonContext est dans namespace SlimFaas - accessible via using implicite (même assembly)
 
+using ZLinq;
+
 namespace SlimFaas.WebSocket;
 
 /// <summary>
@@ -92,7 +94,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             _logger.LogNoWebSocketClientAvailableForFunction(functionName);
             return 503;
         }
-        bool dispatchStarted = false;
+        bool dispatched = false;
 
         try
         {
@@ -114,7 +116,8 @@ public class WebSocketSendClient : IWebSocketSendClient
                 Method = customRequest.Method,
                 Path = customRequest.Path,
                 Query = customRequest.Query,
-                Headers = customRequest.Headers.ToDictionary(h => h.Key, h => h.Values.Select(v => v ?? "").ToArray()),
+                Headers = customRequest.Headers.AsValueEnumerable().ToDictionary(static h => h.Key,
+                    static h => h.Values.AsValueEnumerable().Select(static v => v ?? "").ToArray()),
                 Body = customRequest.Body != null ? Convert.ToBase64String(customRequest.Body) : null,
                 IsLastTry = isLastTry,
                 TryNumber = tryNumber,
@@ -132,8 +135,8 @@ public class WebSocketSendClient : IWebSocketSendClient
             _activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut,
                 NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
                 targetPod: connection.ConnectionId, correlationId: dequeueId);
-            dispatchStarted = true;
             await connection.SendAsync(envelope, ct);
+            dispatched = true;
             _logger.LogAsyncRequestSentViaWebSocketToElementId(functionName, connection.ConnectionId, elementId);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -152,7 +155,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         }
         finally
         {
-            if (!dispatchStarted || tcs.Task.IsCompletedSuccessfully || !connection.IsAlive)
+            if (!dispatched || tcs.Task.IsCompletedSuccessfully || !connection.IsAlive)
                 connection.PendingCallbacks.TryRemove(new KeyValuePair<string, TaskCompletionSource<int>>(elementId, tcs));
             else
                 // Keep a timed-out ID occupied until its callback or disconnect; old SDK callbacks contain only the element ID.
@@ -174,7 +177,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         string functionName, CustomRequest customRequest, string eventName, IReadOnlySet<string>? targetIds,
         string? activitySourcePod, string? activityCorrelationId, CancellationToken ct)
     {
-        var connections = _registry.GetConnections(functionName)
+        var connections = _registry.GetConnections(functionName).AsValueEnumerable()
             .Where(connection => targetIds is null || targetIds.Contains(connection.ConnectionId)).ToArray();
         if (targetIds is not null && connections.Length < targetIds.Count)
             _logger.LogWebSocketEventTargetsUnavailable(functionName, targetIds.Count - connections.Length);
@@ -186,7 +189,8 @@ public class WebSocketSendClient : IWebSocketSendClient
             Method = customRequest.Method,
             Path = customRequest.Path,
             Query = customRequest.Query,
-            Headers = customRequest.Headers.ToDictionary(h => h.Key, h => h.Values.Select(v => v ?? "").ToArray()),
+            Headers = customRequest.Headers.AsValueEnumerable().ToDictionary(static h => h.Key,
+                static h => h.Values.AsValueEnumerable().Select(static v => v ?? "").ToArray()),
             Body = customRequest.Body != null ? Convert.ToBase64String(customRequest.Body) : null,
         };
 
@@ -197,7 +201,9 @@ public class WebSocketSendClient : IWebSocketSendClient
             Payload = JsonSerializer.SerializeToElement(payload, AppJsonContext.Default.PublishEventPayload),
         };
 
-        await Task.WhenAll(connections.Select(c => SafeSendPublishEventAsync(functionName, c, envelope, activitySourcePod, activityCorrelationId, ct)));
+        var sends = connections.AsValueEnumerable()
+            .Select(c => SafeSendPublishEventAsync(functionName, c, envelope, activitySourcePod, activityCorrelationId, ct)).ToArray();
+        await Task.WhenAll(sends);
     }
 
     public async Task<(int StatusCode, Dictionary<string, string[]> Headers, ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>
@@ -291,10 +297,10 @@ public class WebSocketSendClient : IWebSocketSendClient
                     int read;
                     while ((read = await requestBodyStream.ReadAsync(buffer, uploadCancellation.Token)) > 0)
                         await connection.SendBinaryAsync(BinaryFrame.Encode(WebSocketMessageType.SyncRequestChunk,
-                            correlationId, buffer.AsSpan(0, read)), uploadCancellation.Token);
+                            correlationId, buffer.AsSpan(0, read)), responseTimeoutCts.Token);
                 }
                 await connection.SendBinaryAsync(BinaryFrame.Encode(WebSocketMessageType.SyncRequestEnd, correlationId,
-                    BinaryFrame.FlagEndOfStream), uploadCancellation.Token);
+                    BinaryFrame.FlagEndOfStream), responseTimeoutCts.Token);
                 _logger.LogSyncRequestStreamSentToCorrelationId(functionName, connection.ConnectionId, correlationId);
             }
             catch (Exception exception)
@@ -311,12 +317,16 @@ public class WebSocketSendClient : IWebSocketSendClient
             if (Interlocked.Exchange(ref cleaned, 1) != 0) return;
             bool completed = pendingStream.ResponseEndTcs.Task.IsCompletedSuccessfully;
             await uploadCancellation.CancelAsync();
-            await pendingStream.CancelAsync();
+            // Finish an already dispatched frame before normal completion
+            // cancels its send token; canceling WebSocket.SendAsync aborts the
+            // shared transport and unrelated requests. Reads stop immediately.
+            if (!completed) await pendingStream.CancelAsync();
             pendingStream.ResponseChunks.Writer.TryComplete(completed ? null : new IOException("Synchronous WebSocket delivery ended."));
             try { await upload; }
             catch (OperationCanceledException) when (uploadCancellation.IsCancellationRequested) { }
             catch (Exception exception) when (exception is IOException or System.Net.WebSockets.WebSocketException)
             { _logger.LogWebSocketSyncCleanupFailed(exception, functionName); }
+            if (completed) await pendingStream.CancelAsync();
             if (!completed && connection.IsAlive)
             {
                 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3));

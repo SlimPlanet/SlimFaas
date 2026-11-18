@@ -6,6 +6,8 @@ using SlimFaas.Options;
 using SlimFaas.Scaling;
 using SlimFaas.Streams;
 
+using ZLinq;
+
 namespace SlimFaas;
 
 public interface IReplicasService
@@ -96,7 +98,8 @@ public class ReplicasService(
         }
         var streamWork = streamDemand?.Capture();
         var dependencyDemand = GetExternalDependencyDemand(currentDeployments, evaluations, streamWork);
-        diagnostics?.Retain(currentDeployments.Functions.Select(f => f.Deployment).ToHashSet(StringComparer.Ordinal));
+        diagnostics?.Retain(currentDeployments.Functions.AsValueEnumerable()
+            .Select(static f => f.Deployment).ToHashSet(StringComparer.Ordinal));
 
         List<Task<ReplicaRequest?>> tasks = new();
 
@@ -158,10 +161,10 @@ public class ReplicasService(
             finally
             {
                 // Preserve successful writes even if another function's write failed.
-                var requestsByDeployment = tasks.Where(t => t.IsCompletedSuccessfully)
-                    .Select(t => t.Result).Where(r => r is not null)
-                    .ToDictionary(r => r!.Deployment, r => r!, StringComparer.Ordinal);
-                var updatedFunctions = currentDeployments.Functions.Select(function =>
+                var requestsByDeployment = tasks.AsValueEnumerable().Where(static t => t.IsCompletedSuccessfully)
+                    .Select(static t => t.Result).Where(static r => r is not null)
+                    .ToDictionary(static r => r!.Deployment, static r => r!, StringComparer.Ordinal);
+                var updatedFunctions = currentDeployments.Functions.AsValueEnumerable().Select(function =>
                     requestsByDeployment.TryGetValue(function.Deployment, out var request)
                         ? function with { Replicas = request.Replicas } : function).ToList();
                 Interlocked.Exchange(ref _deployments, currentDeployments with { Functions = updatedFunctions });

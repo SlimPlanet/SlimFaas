@@ -16,6 +16,8 @@
 
 Choose [Kubernetes](docs/get-started-kubernetes.md), [native local processes](docs/get-started-local.md), or [Docker Compose](docs/get-started-docker-compose.md). Open the built-in dashboard and follow the [Guided Tour](docs/guided-tour.md) with cURL or the [Bruno collection](demo/bruno-slimfaas-demo). Find all runtime routes in the [API Reference](docs/api-reference.md).
 
+Source builds and the .NET client require **.NET SDK 11.0.100 or a newer stable .NET 11 SDK**. Frontend builds use **Node 26 LTS** and **pnpm 12.18.0** where applicable. The NuGet client now targets `net11.0` only; see [client compatibility](docs/clients.md#runtime-compatibility).
+
 The [precompiled local demo](docs/get-started-local.md) packages the dashboard, functions and jobs without requiring a .NET or Node installation. It requires a release containing the new `SlimFaas-Local-*` bundles; source-based development remains available in [Local Mode](docs/native-local-mode.md).
 
 ## 🌥️ Proud CNCF Landscape Project
@@ -189,7 +191,7 @@ Check out:
     - [Streams](docs/streams.md) - Durable events, retained history, and independent HTTP/WebSocket function consumption.
     - [Jobs](docs/jobs.md) – Define, schedule, and run one-off jobs.
     - [OpenTelemetry](docs/opentelemetry.md) – Enable distributed tracing, metrics, and logs.
-    - [Benchmarks](docs/benchmarking.md) – Measure sync overhead, async delivery latency, and native-local scaling speed.
+    - [Benchmarks](docs/benchmarking.md) – Measure sync/async, data, Files, Streams, Jobs and WebSocket throughput, CPU/RAM, latency and native-local scaling; export campaign tables offline.
 - Data & Files
     - [Data Files](docs/data-files.md) – Ingest, store, and serve temporary binary artifacts.
     - [Data Sets](docs/data-sets.md) – Store replicated, Redis-like key-value payloads with optional TTL.
@@ -199,6 +201,7 @@ Check out:
 
 - [Local three-node orchestrator](docs/local-orchestrator.md)
 - [Memory profiling](docs/memory-profiling.md)
+- [ZLinq JIT and Native AOT measurements on Apple M4 Pro](docs/performance-benchmarks-m4.md)
 - [Unified SlimData mutation batching](docs/slimdata-unified-batching.md)
 - [SlimData batch modes](docs/slimdata-batch-modes.md)
 - [Environment-variable breaking changes](docs/BREAKING_CHANGES_ENVIRONMENT_VARIABLES.md)

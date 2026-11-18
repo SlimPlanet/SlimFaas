@@ -1,0 +1,76 @@
+{
+  "archive": "file-verification-probes.tar.gz",
+  "archive_sha256": "e6020ce71a764c2598b4c2b08dae70d2d77f2808069d96dd46046ce0d025b2eb",
+  "files": [
+    {
+      "path": "probes/file-buffer-net11-45/Program.cs",
+      "bytes": 4259,
+      "sha256": "a13ab277debe34093dd6f5857e0c30f143831e29149c851e3c0651a9c3b14fb2"
+    },
+    {
+      "path": "probes/file-buffer-net11-45/Probe.csproj",
+      "bytes": 162,
+      "sha256": "f84dfc893f974a73cb7bd13c25f0657af67286b95830b7f438b80d8a420a2f10"
+    },
+    {
+      "path": "probes/file-buffer-net11-45/observations/results.json",
+      "bytes": 33196,
+      "sha256": "ee977ce4421213f80c33e2aa65729ed493cda287e4062a0bd11bf2bb4d277627"
+    },
+    {
+      "path": "queue-file-buffer-probe-net11-45.py",
+      "bytes": 1909,
+      "sha256": "7b0a635d76d2e650ccab6836996d93a9ccde7c2ac4f1cfa03760807e8d63fdc7"
+    },
+    {
+      "path": "preflight/net11-45-file-buffer-probe.json",
+      "bytes": 895,
+      "sha256": "85e283519de32129690acc46399b3eaf28478b8fb4867c78ca1c508241c5ac55"
+    },
+    {
+      "path": "logs/net11-45-file-buffer-build.log",
+      "bytes": 411,
+      "sha256": "dc790f3d14019eb52bd82689d44b5dc524dc020315bcadccd1e625af98fbe281"
+    },
+    {
+      "path": "logs/net11-45-file-buffer-probe.log",
+      "bytes": 31814,
+      "sha256": "bafb4018216f8f3a971a3442ace7b27e1580ca839aa05dce6c6b35272a2c9ef8"
+    },
+    {
+      "path": "probes/pooled-hash-net11-47/Program.cs",
+      "bytes": 5180,
+      "sha256": "bb8cd8385c6d96469de7da8d32de82474ea5f8a64cb89fb2b51e2f5339026933"
+    },
+    {
+      "path": "probes/pooled-hash-net11-47/Probe.csproj",
+      "bytes": 162,
+      "sha256": "f84dfc893f974a73cb7bd13c25f0657af67286b95830b7f438b80d8a420a2f10"
+    },
+    {
+      "path": "probes/pooled-hash-net11-47/observations/results.json",
+      "bytes": 28383,
+      "sha256": "72a196ff320c5d257f18aa18fd5361e1056004f2888f28bf2c523d4ae81fb5bd"
+    },
+    {
+      "path": "run-pooled-hash-probe-net11-47.py",
+      "bytes": 1909,
+      "sha256": "ddaf51e29497d9a24df0c1fb571a97e9d7c13fcc0140778ce98299e5ae7a8de8"
+    },
+    {
+      "path": "preflight/net11-47-pooled-hash-probe.json",
+      "bytes": 894,
+      "sha256": "d9ec6c3776e37a16e9c3857b0855106769cb0f2a7554c4bfd31cc5c039bb28c7"
+    },
+    {
+      "path": "logs/net11-47-file-buffer-build.log",
+      "bytes": 411,
+      "sha256": "16c49e7d2624ecefa99c455e3ea43855facce615d6eb97ce17377b796734006e"
+    },
+    {
+      "path": "logs/net11-47-file-buffer-probe.log",
+      "bytes": 27181,
+      "sha256": "36ecf85ecb6c099aec096a29a33cdbd9f0cfcc5d99a059063134d37cd9d1ab81"
+    }
+  ]
+}

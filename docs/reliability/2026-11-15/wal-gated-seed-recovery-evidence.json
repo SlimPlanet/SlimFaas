@@ -1,0 +1,1383 @@
+{
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "report": {
+    "started": 1794786588.9390044,
+    "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+    "passed": true,
+    "events": [
+      {
+        "event": "copied-set-and-files-seeds-verified-before-releasing-function",
+        "utc": 1794786595.1001804,
+        "pending_confirmed_async_id": "e34a491b71d34630b188f01f03dba650"
+      },
+      {
+        "event": "original-confirmed-seed-delivered-without-resubmission",
+        "utc": 1794786778.8276465,
+        "id": "e34a491b71d34630b188f01f03dba650",
+        "successful_deliveries": 1
+      }
+    ],
+    "scope": "Original failed WAL fixture state and complete accepted ledger replayed from a metadata-preserving SHA-verified copy in the same namespace. Original volumes are not mounted for writing. No accepted mutation is resubmitted; only the copied function gate is released.",
+    "runtime_identities": [
+      {
+        "binaries_sha256": {
+          "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+          "SlimData.dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6",
+          "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+          "SlimFaas.dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127"
+        },
+        "node": 0,
+        "pid": 34,
+        "pod_uid": "c09d5bdb-26fc-4404-9572-7259ec544e2d",
+        "started": "18656046"
+      },
+      {
+        "binaries_sha256": {
+          "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+          "SlimData.dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6",
+          "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+          "SlimFaas.dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127"
+        },
+        "node": 1,
+        "pid": 33,
+        "pod_uid": "9fc0bcfe-11f6-4434-963a-f8072e313fd0",
+        "started": "18656083"
+      },
+      {
+        "binaries_sha256": {
+          "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+          "SlimData.dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6",
+          "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+          "SlimFaas.dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127"
+        },
+        "node": 2,
+        "pid": 35,
+        "pod_uid": "2ea84d8f-6c61-4af3-adad-1982330a94ba",
+        "started": "18656083"
+      }
+    ],
+    "accounting": {
+      "accepted": 203,
+      "unknown": [],
+      "completed_deliveries": 201,
+      "distinct_delivered_ids": 201,
+      "repeated_deliveries": {},
+      "successful_delivery_attempts": 201,
+      "failed_delivery_attempts": 0,
+      "successful_id_functions": [
+        {
+          "id": "5f7ec66c7ac44d96aedb24630a4b8ea2",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "21dfb908c1224297b9f62e49d0a7bcb0",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "090367359628460eab0ed97f79ce4d4a",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ed4273a262ac4c10a47afc0ad1b847c3",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ec9f2fac614e43b4a7d81d213e801858",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "f407cdc2c4784640963acfaeb81c30f6",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "00f45857bf824548a75fd6de81292d6a",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e6c71dbdced24bc29b0afe438a5463fd",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "542c7c1780094675af07016abfbd4b93",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "c846c040bbef4dbf860998e3b953002c",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2ffbd2cc2366431bb4d748046f8c56d7",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "645c7ccc089e460198146ba8df344aca",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2ec3e7c49a6246efb1ea86d5f4c06496",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "37382b2a76704227b84b6e39ab697ec5",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2d263ad4663b455f99bdec671ddf0af4",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3c9318ee35d9497b84273c7d777c4485",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "8c9f847d82ac4d32843541cb7201e58e",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "53d748d8f0e247ef9fe05bb20e59ba5f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0c00d074e86c489196980b132f8516c6",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "aa37f95d15ff4d7ab0333191acbacd6c",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "399a199878584608a6cdf7ddd3c34b78",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "4dcb2670b6ed4d53a9a4d07e0e1721d6",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "c303528b9d7842368a3ae5f94301c2fe",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0c31339ad8dd4a6ab9793acdf052820e",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "f470aab4c2af4c21940400b5d13e9b0c",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "d78668d13f424124bca43a1b824c84ef",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "56e782c0145f433fbf677e9b8561d8d4",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "cebf96aae8ee4a219bcb9e5cc340ea8c",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "991f92110d4a495cb7fd55aa167ed023",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "eeef5e079ce84933a51db50508a7485b",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "565ee791c1314bccb7b56099253d44f9",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0ff816b407cb430fa08ba204a3607f14",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "4578acc865e24c8ea5bdb735e8b365b2",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "61ad18db47a4495da45ba1f9a0000848",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "dffffd9e51434301a8feb6bb5fd530a1",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "90b772f3518b424d990de43b2ef3cecd",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "036c75def79245ad988f129bb987f830",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "b5e01a1dff4d406795940e3cf915c632",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a45fc19767524ba2a754df8e77b21505",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "28ad77bc419b42d6893ade727dfb723f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ae2af08ebbfa4cbf9ac59fe625e70e80",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ec9413d6bb0f498baf4f2584cd1a5f29",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ca9abd93ed214677b10bdc21e8637b99",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "8b4dc90e826a4b839d2f2063ec211d63",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ef79d5cdefd34ba4853acc31cdcac7cb",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fededcff31a54b0a87cfb9f7b006d11c",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fb5b15fff3c84da395ff14382b19ca32",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "efd2c40fd8f143fdb5d1fc500ac421d8",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "9ccfd051a18840519558073be6dd3580",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "5304e2b84a5e4e0ca02caa61ce7e4515",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "c5e1836b393944128a11b77f137ea968",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "41ed636e0c3540b088d59d69be3cc3b5",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a7619242992946068e03ac90b3cbae68",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "5f49af31375d481b880abf679d961c44",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "f12634c7c6f34adc896596adea3bac40",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "4e4462b32d354a40ba865033383f6e89",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "dba66559955d496682ff5696613a56ca",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "8434fa7731bc4abcb2ce19b69db77e4f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "00de70a40354411f8b39bc824adbfc92",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "c70e4413001e4ff0b1672a5cf52c48b1",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "73f44307f7924378a739a1e725d8a0d2",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "9f2ae3d4a0e146c7beb4d5ee9dd1b837",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "c9b31319e3ea4fdf89962f85e967dfca",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "befab09ec37c49be969bbf634f5c3080",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e6b5dec33c144c2fa1ee74a034a95f05",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "39c11a664d7f427088c1bc0939e71d2a",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "296a29349acb4bacb20d1231ce3f4e3d",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "6885cc59e6f3448a94ba8782e8bc7273",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "15b4cd7ea44b4ebcbf11c19242601a61",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "889f546aaed14c56bc48502ae10a69d7",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "bf1436ac86044cb6b7f6067bb51c8bcd",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2445e42776234b9a86c1eba8c7440e1d",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0c127c2921ab41c9bc65f788f4c55ad7",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "20cfb219029a466f9322f8da9a898035",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "82377d41d6a04179825fd409641113e8",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e02803b440a04b41bc1a3015cf13b130",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3dc7aa6282664f1bbc12fc73686876ed",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2b8b58c8fea144a4b67ad679f7c54c94",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3ead2eaf10ff4175b8dc95407f5e2303",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fdb0ccaec1284ce398bde4de85f23fb3",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "028aace6ec43429383430fdf33dfffe7",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "1cc39a096236471983c0942cdb02ad67",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "89277041c16341e4b2f9a118a56a03cb",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "d2d09955b6e94c67b389fddbc5f947f3",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "17e05227b32244788a066ab06efd4058",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "acad00990c5149fbb41a022cf0a5c613",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fb95e0ac61134449879c9b5b515aa814",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a8ee95e2d76a47b9a58fda849d50102e",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "95ea04adfb3b4894997ca43742d9e694",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "09edfb6aac4f4b12b93d2b548625aca3",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "1b5f84f4e22544b9bbff24994dc89d7f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "b29a0543a66348889c38d9bb1dc222aa",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "41fbd8166d9b48efac17b89abf4a101a",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "059ea60a105842b7b4eb96a47e1219e5",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "333734efe35f4418954857ad90f8c21e",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "4908575b45ec4bb68d348ea7ea62d481",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e4aaf2a2dc1f4de3b41e9e36ad5bee95",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0d9ef4420a8e48e1a53f757995ea6392",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "d2db794b5d0b4e5199921a6535550715",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "760923e105564de3b8bfdc146ca91d2d",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a726bf118daa4954b86166df3fc03b81",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ade77eb2f9694098bd54dda1995aa8a1",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "52c3144b7d2944d7ad654b98ea7ed7be",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "7c43bbd16e6246d8a24adea4dbb2c326",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "207acb7a2973433488ecae396093bbc7",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "7cb7ba8f97a5424d8a1e6da2b90b8488",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e4b2aa34c17441b4b3bcdc469156e809",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "46c7702602974d3689279ceefb481018",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "294d203bb56b4cb5831b6b528d4ecfd6",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fae146009b2143408b4250f05add7b24",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "c77c2f1793234e9abbe4b4b2a12c52f4",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "929cbee706a74a86b47a0bcda3dc7fb8",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "1e9203bf5d11436bb009fca490f3778f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "059113cc6447419e99c97eca4b10b690",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "f625bf2d954943eaaebe7840bc4bafb8",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "45416ef498b14f08b5bda651a4508cb8",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "f1db9d1542f44ac885848bf64f0ff8ab",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "658874c460af4015a90a386af292a915",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "7614fd02e234447da622ca5630277eca",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0f09e37aa62741aeb259c8ebd0381afb",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fceb0856763f486ba65097992dc38e49",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e8f62d16b9654aca89e2e8ee572b7c56",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "14dec9afe6f843bfa3426f191c9b9997",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "37911e3b34f948d484ac8f3939a14584",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "230768a2a8ce441ab3e34a55c4a4e13f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "82733f67982b408bb51fa229623173c9",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "9d262fd9162d4674ba341031dfdda1b9",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ba3195e39be34ec795c79269e7a69260",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "22501ffb894c479bb577e4f6df848dfa",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2e0c3ddb67f24a7ab41700b1439915d8",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "38439086a90f4bfaaa174de65a0f2fc4",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0f4e9ea98b6849ae8145fcab08a30da5",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "865f2cec6d8346d6b57beb3caf443954",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "98ef5601644846d292050ecdc7c2b344",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e44168cb012147779fe2618d54c760dc",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "6454fd0ce3c549e88c380e77f51b8138",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "27f105887cbe4f478032b93b64a7b0fd",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "b37c3c97a76d4772a8754700e02e7827",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "cfdf06be30754024a2bcd0e9228bfbfb",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3779d225316a422883190154ac9128e1",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0d37f1e490c6454b9a19c7bf0c0bf5ac",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "c1b5e31fe249459586873a28dcaae5f0",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "085d16cd57fe46fe8ff25fb39322544c",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "db0314fd5910425a91234377cbc6eeee",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2e8a62f13b5941babec4006edc9f2b5d",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3f4f1044b3a0428e82e3cfa33a5d0f19",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "98f048a5555640aab9f6703390db6c62",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "546ea662cddb4efeab3ab2c5aefba803",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "8dff410ccde44ca6b6edeee71fa412e9",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3f618fb4f550482eaacbb98fdaa0cd52",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "91a0cd007c7c4c18885bedf9b8bd54b0",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "689731a6198b420eb430dc442529789b",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "7d922181e3ff4f57ad269582943a1960",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e8b1bd387ed040d6b2e3519d0aea1140",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a7a21ae5bef8427ea3b05cc7da1bac15",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "22232c3d3cfa4f5f9f0370581300001f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "630add142034421288ea954c1628b06d",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "80fd073d73b748db89826161c8130233",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "0b46cedca7034347a8e7e84a8d68d102",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fb121370221d41eb8e38160fd3039e70",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "706ef637aa8e4b1395e0590a0a54bdee",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "52141007d4f844fc9537b2c674533f87",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "aef7c8b3c7344cc38d94d7dfdeb525d1",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "32246869eaae4179a0d04d630f78a1db",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3dfafc18031a43a4968cb975a1f86eac",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "6c985facc32a4cf5b6dd7dfb88924731",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "62563d3c350247138e300b19c6de23af",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3c95f0caa12b483e9b9adf1bc24fc17f",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "bcd2bcc47d6541e3a16f56fe7de728b4",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fa49c7b3de914685a131bb5021530488",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "f388e001c2b34d92974f98826c124805",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "8f9efef5eff546b799325190454d08f2",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "40a88104325048bd82d390e9da73b6ba",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "d90c2f44406a4e7cb7e53af5dc49a79d",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "ee89a43c52394c67ab15c44217467517",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3246e174b02e487c98b99ad8788c60a9",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "74b8843b160d4e588f9ae228b0ad1cb0",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "969edca5faca4a00a141b1f562fc211a",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a78d192d89d2459c817a10901e2dadb2",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "d037c9679a3d46e480645c05775c9030",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "b54bc357174445dda84376775458fec6",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "56180ebd251c47c69da884bc58c45968",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "f98204a3702644d0a0445cb8571e77b2",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "3ddea0f72f8b4cf69d1c4a4d8364a422",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "bf27b9e63b03464baea443f73776ab38",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "4fbd607f43134e62b3bf5fd914597caf",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e2a6a85f867d4b64b3d7c1a32ece3f09",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "df55f68e0fb940af93feeba8b510a71b",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "d29cc723c2694b98aae8a90809ed82c9",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "5b35b491c70446e8b78de902a8936ff7",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "6edad2d65dc8426cb0c1ac7e39213ca3",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e21fb93a0414467cae3226f6f32e5d23",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "6f7986dad4ee4db297d572e2938f3063",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "2d80e8cb49b24bb3a63cd3d035211651",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "125dcea109574115b179c277c15b5acf",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a6f3a75fdb1f4fe2b691e39b7c4857a5",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "63e11d93ed1740ac9d272fdc23f26237",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a8b3297e8ab24f47af61da588f802fe2",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "a78f29d655eb45179613e41841586550",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "fe16a9623b65428eabfb29bc531d0618",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        },
+        {
+          "id": "e34a491b71d34630b188f01f03dba650",
+          "function": "chaos",
+          "successful_deliveries": 1,
+          "acceptance": "confirmed"
+        }
+      ],
+      "repeated_successful_id_functions": [],
+      "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+      "job_executions": {},
+      "repeated_job_executions": {}
+    },
+    "original_pending_id": "e34a491b71d34630b188f01f03dba650",
+    "original_confirmed_count": 203,
+    "pending_seed_successful_deliveries": 1,
+    "full_post_delivery_observation_seconds": 180.1987012909958,
+    "finished": 1794786779.0124893
+  },
+  "verified_copy": {
+    "original": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-wr80-wal4096-01",
+    "verified_replay_copy": "/var/home/core/slimfaas-pr506/recoveries/slimfaas-pr506-wr80-wal4096-01-gated-replay-89",
+    "files": 445,
+    "all_hashes_match": true,
+    "originals_will_not_be_mounted_for_writing": true
+  },
+  "original_preservation": {
+    "original_still_matches_closed_index": true,
+    "files": 445
+  },
+  "runtime_log_audit": {
+    "passed": false,
+    "runtime_log_coverage_complete": true,
+    "missing_instances": [],
+    "workload_window_utc": [
+      1794786588.9390044,
+      1794786779.0124893
+    ],
+    "instances": [
+      {
+        "pod": "slimfaas-0",
+        "pod_uid": "c09d5bdb-26fc-4404-9572-7259ec544e2d",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://8cd6e5c5a836981146d3aaabf9208fab074c6c3d1624a7b504deecd67500aa7c",
+        "captured_utc": 1794786783.2479239,
+        "path": "pod-logs/c09d5bdb-26fc-4404-9572-7259ec544e2d/runtime/0-current-1794786783174616000.log",
+        "bytes": 6911,
+        "sha256": "6e6230ebb6f527c2e623ccf42714108acc4734e50c033e584cf1ec6c92dad8a0",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": [
+          "2026-11-15T23:49:51.792313237Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:52.798113335Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:53.798935164Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:54.754047653Z fail: SlimFaas.Database.SlimDataService[870726782]"
+        ]
+      },
+      {
+        "pod": "slimfaas-1",
+        "pod_uid": "9fc0bcfe-11f6-4434-963a-f8072e313fd0",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://3c701ef603421cf7e63e1464e4cfaa84cd47f90c74e9c91cee1e1e98756cc74d",
+        "captured_utc": 1794786783.3651881,
+        "path": "pod-logs/9fc0bcfe-11f6-4434-963a-f8072e313fd0/runtime/0-current-1794786783293826000.log",
+        "bytes": 6971,
+        "sha256": "21b4e96f43839162c82d14243a6fbb466a570738d1248ad8361ef403d93fed7a",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": [
+          "2026-11-15T23:49:52.192138167Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:53.195392046Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:54.157605604Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:58.114652744Z fail: SlimFaas.SendClient[279236110]"
+        ]
+      },
+      {
+        "pod": "slimfaas-2",
+        "pod_uid": "2ea84d8f-6c61-4af3-adad-1982330a94ba",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://653191e70d6e89b4e4da0f1a6248bd04b3bd2a33ac7633807718a399aeaf071e",
+        "captured_utc": 1794786783.522748,
+        "path": "pod-logs/2ea84d8f-6c61-4af3-adad-1982330a94ba/runtime/0-current-1794786783449776000.log",
+        "bytes": 5240,
+        "sha256": "56d4488c791528d263fd17e8a1e33fa2debf12200a6361fec68cf5c20d3e04e1",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": [
+          "2026-11-15T23:49:52.231471816Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:53.232872313Z fail: SlimFaas.Database.SlimDataService[870726782]",
+          "2026-11-15T23:49:54.180219356Z fail: SlimFaas.Database.SlimDataService[870726782]"
+        ]
+      }
+    ],
+    "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+  },
+  "index": {
+    "file": "wal-gated-seed-recovery-index.json.gz",
+    "compressed_sha256": "085d73216a311f5bcc0ba94b2e7198d0d40a5248dac263015b085f6d48440cdc",
+    "expanded_sha256": "fa1f7435073b4db45276bbe94809bb8ba2aaee5b3eafb11e5479c08aad83ba93",
+    "local_files": 53,
+    "copied_vm_files": 427
+  },
+  "fixture_regressions": {
+    "before_failed": 2,
+    "after_passed": 2
+  },
+  "pending": "Fresh full five-geometry replay series, threshold checks, final formal comparisons and long endurance. No formal acceptance or LTS claim."
+}

@@ -8,6 +8,57 @@ namespace SlimFaas.Tests.Options;
 public class SlimFaasOptionsTests
 {
     [Fact]
+    public void Async_offload_defaults_to_one_megabyte()
+    {
+        Assert.Equal(1024 * 1024, new SlimFaasOptions().AsyncBodyOffloadThresholdBytes);
+    }
+
+    [Theory]
+    [InlineData(-1L)]
+    [InlineData(0L)]
+    [InlineData(2147483647L)]
+    [InlineData(long.MaxValue)]
+    public void Async_offload_rejects_thresholds_outside_the_bounded_probe(long threshold)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["SlimFaas:AsyncBodyOffloadThresholdBytes"] = threshold.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        }).Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSlimFaasOptions(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() => provider.GetRequiredService<IOptions<SlimFaasOptions>>().Value);
+    }
+
+    [Theory]
+    [InlineData(131072)]
+    [InlineData(262144)]
+    [InlineData(524288)]
+    [InlineData(1048576)]
+    public void Async_offload_binds_through_environment_configuration(int threshold)
+    {
+        string prefix = "SLIMFAAS_OFFLOAD_TEST_" + Guid.NewGuid().ToString("N") + "_";
+        string variable = prefix + "SlimFaas__AsyncBodyOffloadThresholdBytes";
+        Environment.SetEnvironmentVariable(variable, threshold.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddEnvironmentVariables(prefix).Build();
+            var services = new ServiceCollection();
+            services.AddSingleton<IConfiguration>(configuration);
+            services.AddSlimFaasOptions(configuration);
+            using var provider = services.BuildServiceProvider();
+
+            Assert.Equal(threshold, provider.GetRequiredService<IOptions<SlimFaasOptions>>().Value.AsyncBodyOffloadThresholdBytes);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, null);
+        }
+    }
+
+    [Fact]
     public void SlimFaasOptions_ShouldBindFromConfiguration()
     {
         // Arrange

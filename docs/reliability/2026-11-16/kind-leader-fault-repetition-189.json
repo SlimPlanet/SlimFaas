@@ -1,0 +1,174 @@
+{
+  "created": 1794833779.3954382,
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "role": "leader",
+  "id": "e68a3cd6b756471e9c83449761e4dc24",
+  "client_classification": "unknown",
+  "confirmed": false,
+  "client_intents": 1,
+  "successful_handler_attempts": 2,
+  "extra_successful_delivery_attempts": 1,
+  "completion_seconds_after_next_fault_suspension": [
+    0.09248661994934082,
+    9.830793380737305
+  ],
+  "records": [
+    {
+      "member": "campaign/client.jsonl",
+      "record": {
+        "id": "e68a3cd6b756471e9c83449761e4dc24",
+        "kind": "async",
+        "path": "/async-function/chaos/consume?delay=0.1",
+        "bytes": 65536,
+        "sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "phase": "absence-leader-60s",
+        "port": 35120,
+        "chunked": false,
+        "method": "POST",
+        "event": "intent",
+        "utc": 1794826576.2930865,
+        "monotonic": 226545.886539101
+      }
+    },
+    {
+      "member": "campaign/client.jsonl",
+      "record": {
+        "id": "e68a3cd6b756471e9c83449761e4dc24",
+        "kind": "async",
+        "path": "/async-function/chaos/consume?delay=0.1",
+        "bytes": 65536,
+        "sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "phase": "absence-leader-60s",
+        "port": 35120,
+        "chunked": false,
+        "method": "POST",
+        "event": "unknown",
+        "error": "TimeoutError('timed out')",
+        "seconds": 15.016633115010336,
+        "utc": 1794826591.3104846,
+        "monotonic": 226560.90393726
+      }
+    },
+    {
+      "member": "receipts/receipts-1-0ac6e8c474784b9d9679a56d93cbcacc.jsonl",
+      "record": {
+        "id": "e68a3cd6b756471e9c83449761e4dc24",
+        "bytes": 65536,
+        "sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "expected_sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "attempt": 0,
+        "last_try": "false",
+        "element_id": "ab423386-ed72-41f5-8a70-cd2718df2ad7",
+        "path": "/consume?delay=0.1",
+        "event": "started",
+        "utc": 1794826637.3479526,
+        "pid": 1,
+        "writer_id": "0ac6e8c474784b9d9679a56d93cbcacc",
+        "host": "chaos-875649787-x4k8f",
+        "pod_uid": "a16bcb9a-d769-4ec4-8c34-75500dff8bc6",
+        "function": "chaos"
+      }
+    },
+    {
+      "member": "receipts/receipts-1-0ac6e8c474784b9d9679a56d93cbcacc.jsonl",
+      "record": {
+        "id": "e68a3cd6b756471e9c83449761e4dc24",
+        "bytes": 65536,
+        "sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "expected_sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "attempt": 0,
+        "last_try": "false",
+        "element_id": "ab423386-ed72-41f5-8a70-cd2718df2ad7",
+        "path": "/consume?delay=0.1",
+        "event": "completed",
+        "status": 200,
+        "utc": 1794826637.4486585,
+        "pid": 1,
+        "writer_id": "0ac6e8c474784b9d9679a56d93cbcacc",
+        "host": "chaos-875649787-x4k8f",
+        "pod_uid": "a16bcb9a-d769-4ec4-8c34-75500dff8bc6",
+        "function": "chaos"
+      }
+    },
+    {
+      "member": "receipts/receipts-1-0ac6e8c474784b9d9679a56d93cbcacc.jsonl",
+      "record": {
+        "id": "e68a3cd6b756471e9c83449761e4dc24",
+        "bytes": 65536,
+        "sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "expected_sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "attempt": 1,
+        "last_try": "false",
+        "element_id": "ab423386-ed72-41f5-8a70-cd2718df2ad7",
+        "path": "/consume?delay=0.1",
+        "event": "started",
+        "utc": 1794826647.0859914,
+        "pid": 1,
+        "writer_id": "0ac6e8c474784b9d9679a56d93cbcacc",
+        "host": "chaos-875649787-x4k8f",
+        "pod_uid": "a16bcb9a-d769-4ec4-8c34-75500dff8bc6",
+        "function": "chaos"
+      }
+    },
+    {
+      "member": "receipts/receipts-1-0ac6e8c474784b9d9679a56d93cbcacc.jsonl",
+      "record": {
+        "id": "e68a3cd6b756471e9c83449761e4dc24",
+        "bytes": 65536,
+        "sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "expected_sha256": "c234d0ab93adb2ecef47c399105ddb3b1b9d951760e90bfe0562a58c2fb88206",
+        "attempt": 1,
+        "last_try": "false",
+        "element_id": "ab423386-ed72-41f5-8a70-cd2718df2ad7",
+        "path": "/consume?delay=0.1",
+        "event": "completed",
+        "status": 200,
+        "utc": 1794826647.1869652,
+        "pid": 1,
+        "writer_id": "0ac6e8c474784b9d9679a56d93cbcacc",
+        "host": "chaos-875649787-x4k8f",
+        "pod_uid": "a16bcb9a-d769-4ec4-8c34-75500dff8bc6",
+        "function": "chaos"
+      }
+    }
+  ],
+  "relevant_fault_events": [
+    {
+      "event": "suspended",
+      "phase": "absence-leader-60s",
+      "nodes": [
+        2
+      ],
+      "utc": 1794826576.297996,
+      "monotonic": 226545.891448744
+    },
+    {
+      "event": "resumed",
+      "phase": "absence-leader-60s",
+      "actual_absence_seconds": 60.00035304200719,
+      "utc": 1794826636.2978654,
+      "monotonic": 226605.891318243
+    },
+    {
+      "event": "suspended",
+      "phase": "absence-leader-300s",
+      "nodes": [
+        1
+      ],
+      "utc": 1794826637.3561718,
+      "monotonic": 226606.949624456
+    },
+    {
+      "event": "resumed",
+      "phase": "absence-leader-300s",
+      "actual_absence_seconds": 300.00006712201866,
+      "utc": 1794826937.358752,
+      "monotonic": 226906.952205462
+    }
+  ],
+  "raw_archive": {
+    "path": "kind-leader-189-raw.tar.gz",
+    "sha256": "5c62b68ae1f7a61a3c62c99c4d6ccc778b39b525987f84b8d866c83b6a59aebd"
+  },
+  "scope": "One unknown acceptance with two checksum-valid successful attempts; both completions occur during the following300s leader suspension. Fault-associated repetition is counted and remains unknown, not promoted to confirmed acceptance. This timeline does not by itself prove the internal callback/retry cause."
+}

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <PublishAot>true</PublishAot>
+    <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The baseline switch belongs to the probe; product compilation keeps its own constants. -->
+    <ProjectReference Include="../../src/SlimFaas/SlimFaas.csproj" GlobalPropertiesToRemove="DefineConstants" />
+  </ItemGroup>
+</Project>

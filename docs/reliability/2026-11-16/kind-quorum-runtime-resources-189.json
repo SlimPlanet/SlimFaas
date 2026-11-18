@@ -1,0 +1,242 @@
+{
+  "created": 1794840749.605263,
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "namespace": "slimfaas-pr506-n189-p113-endurance-quorum",
+  "rows": 696,
+  "observed_runtime_lifetimes": 8,
+  "observed_pod_uids": 6,
+  "max_observed_cgroup_peak_bytes": 210567168,
+  "max_events_per_lifetime_totals": {
+    "low": 0,
+    "sock_throttled": 0,
+    "max": 0,
+    "oom_group_kill": 0,
+    "oom": 0,
+    "high": 0,
+    "oom_kill": 0
+  },
+  "lifetimes": [
+    {
+      "pod": "slimfaas-0",
+      "uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+      "containerID": "containerd://1a6c9efa2275251e9130d7da2f6446dab8f621febf198302bf2040b22d190db6",
+      "samples": 1,
+      "first_utc": 1794833647.3865888,
+      "last_utc": 1794833647.3865888,
+      "max_observed_cgroup_peak_bytes": 91193344,
+      "max_observed_current_bytes": 89931776,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-1",
+      "uid": "5163c433-bd62-417b-804f-55198635143d",
+      "containerID": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+      "samples": 231,
+      "first_utc": 1794833647.3866339,
+      "last_utc": 1794840604.673422,
+      "max_observed_cgroup_peak_bytes": 189657088,
+      "max_observed_current_bytes": 187920384,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-2",
+      "uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+      "containerID": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+      "samples": 231,
+      "first_utc": 1794833647.386653,
+      "last_utc": 1794840604.6733902,
+      "max_observed_cgroup_peak_bytes": 190537728,
+      "max_observed_current_bytes": 178790400,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-0",
+      "uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+      "containerID": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+      "samples": 229,
+      "first_utc": 1794833677.623744,
+      "last_utc": 1794840574.421866,
+      "max_observed_cgroup_peak_bytes": 210567168,
+      "max_observed_current_bytes": 190795776,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        1
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-0",
+      "uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+      "containerID": "containerd://d63b9d94a3807312458b9c0770cba902ba5ab928137f7437a6859df6f41ee82c",
+      "samples": 1,
+      "first_utc": 1794840604.673307,
+      "last_utc": 1794840604.673307,
+      "max_observed_cgroup_peak_bytes": 51249152,
+      "max_observed_current_bytes": 50778112,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        2
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-0",
+      "uid": "fa76232b-e941-434f-a9aa-7a459f63ceb7",
+      "containerID": "containerd://0fc6b6b019f51f01809f8f5a5e3ce537e7e703b2d188e523cda88adc596c8d80",
+      "samples": 1,
+      "first_utc": 1794840634.927237,
+      "last_utc": 1794840634.927237,
+      "max_observed_cgroup_peak_bytes": 58732544,
+      "max_observed_current_bytes": 55988224,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-1",
+      "uid": "683fe4cb-fc58-475d-b107-ea543b2c6654",
+      "containerID": "containerd://db43c84b1197fee70b985de0d1b8899f364cf19a51c27542ab30d746499d0194",
+      "samples": 1,
+      "first_utc": 1794840634.927294,
+      "last_utc": 1794840634.927294,
+      "max_observed_cgroup_peak_bytes": 75902976,
+      "max_observed_current_bytes": 74706944,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    },
+    {
+      "pod": "slimfaas-2",
+      "uid": "d6290e72-b78f-4709-9d77-5795b3caabe7",
+      "containerID": "containerd://f4c2cdf6843219ed2a826e7fb088fb95d4dc5b8bcc5747fd2575748b1244ff88",
+      "samples": 1,
+      "first_utc": 1794840634.9273129,
+      "last_utc": 1794840634.9273129,
+      "max_observed_cgroup_peak_bytes": 73846784,
+      "max_observed_current_bytes": 72896512,
+      "max_events": {
+        "low": 0,
+        "high": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_kill": 0,
+        "oom_group_kill": 0,
+        "sock_throttled": 0
+      },
+      "memory_limits": [
+        "1073741824"
+      ],
+      "restart_counts": [
+        0
+      ],
+      "termination_observations": []
+    }
+  ],
+  "missing_cgroup_observations": [],
+  "archive": {
+    "path": "kind-quorum-runtime-resources-189.jsonl.gz",
+    "bytes": 64812,
+    "sha256": "f45d3857b98ff0a208e94a170c63f76dd1147039cbba23717519c26138091957",
+    "decompressed_sha256": "9dc9a9f5f46d653a84e859f3ac61536e8d64d9ffebbd872b28e0620bff6219c7"
+  },
+  "capture": {
+    "original_path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/kubernetes/net11-117-priority-endurance-cgroups.jsonl",
+    "read_watermark_bytes": 10651740,
+    "observer": "observe-priority-endurance-net11-117.py",
+    "observer_sha256": "5fd477f5a187bbbf1563087ab17337e77ce4d32e959437a3cfb84e80c2c404da"
+  },
+  "scope": "Only observed runtime cgroups in the closed quorum namespace, excluding function/job resources. memory.peak is a kernel cgroup counter observed during each lifetime, not process RSS or proof of its last value. Short lifetimes or intervals without counters are not certified. Sum max event counts within each distinct UID/containerID, never sum repeated cumulative samples. Healthy runtime log/lifetime completeness and final acceptance remain separate."
+}

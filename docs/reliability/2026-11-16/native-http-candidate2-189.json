@@ -1,0 +1,974 @@
+{
+  "observed_utc": "2026-11-16T17:45:08.914561+00:00",
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "environment": "macos Native AOT ARM64",
+  "variant": "after",
+  "ordinal": 2,
+  "execution": {
+    "exit_code": 0,
+    "raw": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/measurements/macos-net11-189-serial-01/http-attempt-1/2-after/workload",
+    "finished": 1794850847.867251
+  },
+  "status": {
+    "passed": true,
+    "error": null,
+    "statuses": [
+      {
+        "suite": "http",
+        "exit_code": 0
+      }
+    ],
+    "finished_utc": 1794850847.828205
+  },
+  "report_started": "2026-11-16T16:43:01.312086+00:00",
+  "report_finished": "2026-11-16T17:40:47.545784+00:00",
+  "latency_cases": 216,
+  "focused_cases": 6,
+  "client_failures": 0,
+  "latency_async_completed": 142570,
+  "latency_async_missing": 0,
+  "latency_async_duplicates": 0,
+  "focused_accepted": 3300,
+  "focused_missing": 0,
+  "focused_duplicates": 0,
+  "scaling": {
+    "Messages": 200,
+    "Concurrency": 32,
+    "TargetReplicas": 4,
+    "Accepted": 200,
+    "Failed": 0,
+    "FirstAcceptedMilliseconds": 16.5907,
+    "AllAcceptedMilliseconds": 116.9975,
+    "RequestedOneMilliseconds": 1036.2092,
+    "ReadyOneMilliseconds": 3100.4462,
+    "RequestedTargetMilliseconds": 5159.971,
+    "ReadyTargetMilliseconds": 6190.0931,
+    "QueueDrainedMilliseconds": 19076.217,
+    "PeakReadyQueue": 200,
+    "TimedOut": false
+  },
+  "resource_boundaries": [
+    {
+      "case": [
+        64,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 6.879224545454551,
+      "raft_entries_per_message": 1.0263636363636364,
+      "peak_rss_bytes": 326746112
+    },
+    {
+      "case": [
+        64,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 6.725950672645738,
+      "raft_entries_per_message": 1.0188340807174887,
+      "peak_rss_bytes": 340656128
+    },
+    {
+      "case": [
+        64,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 7.064453887884272,
+      "raft_entries_per_message": 1.0822784810126582,
+      "peak_rss_bytes": 317374464
+    },
+    {
+      "case": [
+        64,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 2.568747276688451,
+      "raft_entries_per_message": 0.35463568143306706,
+      "peak_rss_bytes": 376242176
+    },
+    {
+      "case": [
+        64,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 2.589143860498909,
+      "raft_entries_per_message": 0.32671348994914023,
+      "peak_rss_bytes": 388661248
+    },
+    {
+      "case": [
+        64,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 2.536793078928657,
+      "raft_entries_per_message": 0.3451054752310974,
+      "peak_rss_bytes": 397017088
+    },
+    {
+      "case": [
+        64,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 1.1049905803080278,
+      "raft_entries_per_message": 0.12486248624862487,
+      "peak_rss_bytes": 467288064
+    },
+    {
+      "case": [
+        64,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 1.0409846652125054,
+      "raft_entries_per_message": 0.12433075550267698,
+      "peak_rss_bytes": 484360192
+    },
+    {
+      "case": [
+        64,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 1.0459397252967062,
+      "raft_entries_per_message": 0.12454993999199894,
+      "peak_rss_bytes": 415383552
+    },
+    {
+      "case": [
+        4096,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 7.345591562799668,
+      "raft_entries_per_message": 1.0383509108341322,
+      "peak_rss_bytes": 397361152
+    },
+    {
+      "case": [
+        4096,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 7.1210153846154665,
+      "raft_entries_per_message": 1.0173076923076922,
+      "peak_rss_bytes": 381517824
+    },
+    {
+      "case": [
+        4096,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 7.1492893738140335,
+      "raft_entries_per_message": 1.0616698292220115,
+      "peak_rss_bytes": 365395968
+    },
+    {
+      "case": [
+        4096,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 3.467473712161435,
+      "raft_entries_per_message": 0.4620286776420605,
+      "peak_rss_bytes": 372932608
+    },
+    {
+      "case": [
+        4096,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 3.433137560451374,
+      "raft_entries_per_message": 0.43041375604513704,
+      "peak_rss_bytes": 384532480
+    },
+    {
+      "case": [
+        4096,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 3.6043436241610554,
+      "raft_entries_per_message": 0.4735570469798658,
+      "peak_rss_bytes": 374226944
+    },
+    {
+      "case": [
+        4096,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 1.9184201495398796,
+      "raft_entries_per_message": 0.12384969325153375,
+      "peak_rss_bytes": 435830784
+    },
+    {
+      "case": [
+        4096,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 1.9359444945396176,
+      "raft_entries_per_message": 0.12253281234345256,
+      "peak_rss_bytes": 426737664
+    },
+    {
+      "case": [
+        4096,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 1.967194644487286,
+      "raft_entries_per_message": 0.12415052236535146,
+      "peak_rss_bytes": 433242112
+    },
+    {
+      "case": [
+        65536,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 18.495135746606405,
+      "raft_entries_per_message": 1.0633484162895928,
+      "peak_rss_bytes": 427016192
+    },
+    {
+      "case": [
+        65536,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 19.088113808801054,
+      "raft_entries_per_message": 1.1532625189681336,
+      "peak_rss_bytes": 419790848
+    },
+    {
+      "case": [
+        65536,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 17.606820359281745,
+      "raft_entries_per_message": 1.0404191616766467,
+      "peak_rss_bytes": 425312256
+    },
+    {
+      "case": [
+        65536,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 14.58618571428573,
+      "raft_entries_per_message": 0.5,
+      "peak_rss_bytes": 513867776
+    },
+    {
+      "case": [
+        65536,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 15.261718299711902,
+      "raft_entries_per_message": 0.5014409221902018,
+      "peak_rss_bytes": 540360704
+    },
+    {
+      "case": [
+        65536,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 15.161524790236628,
+      "raft_entries_per_message": 0.43554538520213576,
+      "peak_rss_bytes": 534675456
+    },
+    {
+      "case": [
+        65536,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 11.879155797101507,
+      "raft_entries_per_message": 0.1388888888888889,
+      "peak_rss_bytes": 619249664
+    },
+    {
+      "case": [
+        65536,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 12.081918952618476,
+      "raft_entries_per_message": 0.13778054862842892,
+      "peak_rss_bytes": 611729408
+    },
+    {
+      "case": [
+        65536,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 11.896461891117537,
+      "raft_entries_per_message": 0.13753581661891118,
+      "peak_rss_bytes": 621576192
+    },
+    {
+      "case": [
+        262144,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 51.989789156625946,
+      "raft_entries_per_message": 1.0512048192771084,
+      "peak_rss_bytes": 604274688
+    },
+    {
+      "case": [
+        262144,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 52.48359633027498,
+      "raft_entries_per_message": 1.073394495412844,
+      "peak_rss_bytes": 538902528
+    },
+    {
+      "case": [
+        262144,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 58.30187017543866,
+      "raft_entries_per_message": 1.3508771929824561,
+      "peak_rss_bytes": 602750976
+    },
+    {
+      "case": [
+        262144,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 49.19146973365606,
+      "raft_entries_per_message": 0.5520581113801453,
+      "peak_rss_bytes": 683737088
+    },
+    {
+      "case": [
+        262144,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 49.91699248120356,
+      "raft_entries_per_message": 0.5087719298245614,
+      "peak_rss_bytes": 688013312
+    },
+    {
+      "case": [
+        262144,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 51.40851300236413,
+      "raft_entries_per_message": 0.5531914893617021,
+      "peak_rss_bytes": 648790016
+    },
+    {
+      "case": [
+        262144,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 41.451104308389546,
+      "raft_entries_per_message": 0.19047619047619047,
+      "peak_rss_bytes": 947798016
+    },
+    {
+      "case": [
+        262144,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 41.235842332613764,
+      "raft_entries_per_message": 0.19438444924406048,
+      "peak_rss_bytes": 932216832
+    },
+    {
+      "case": [
+        262144,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 42.25816985138074,
+      "raft_entries_per_message": 0.18259023354564755,
+      "peak_rss_bytes": 969129984
+    },
+    {
+      "case": [
+        1048576,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 183.64863809523786,
+      "raft_entries_per_message": 1.8095238095238095,
+      "peak_rss_bytes": 727433216
+    },
+    {
+      "case": [
+        1048576,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 183.35220000000325,
+      "raft_entries_per_message": 1.7809523809523808,
+      "peak_rss_bytes": 662257664
+    },
+    {
+      "case": [
+        1048576,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 167.23992452829887,
+      "raft_entries_per_message": 1.3113207547169812,
+      "peak_rss_bytes": 659603456
+    },
+    {
+      "case": [
+        1048576,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 156.0312159999994,
+      "raft_entries_per_message": 0.776,
+      "peak_rss_bytes": 903069696
+    },
+    {
+      "case": [
+        1048576,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 154.08426829268004,
+      "raft_entries_per_message": 0.7804878048780488,
+      "peak_rss_bytes": 909819904
+    },
+    {
+      "case": [
+        1048576,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 150.19860655737844,
+      "raft_entries_per_message": 0.7459016393442623,
+      "peak_rss_bytes": 960446464
+    },
+    {
+      "case": [
+        1048576,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 146.34195934959502,
+      "raft_entries_per_message": 0.3089430894308943,
+      "peak_rss_bytes": 1802518528
+    },
+    {
+      "case": [
+        1048576,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 142.96656249999984,
+      "raft_entries_per_message": 0.296875,
+      "peak_rss_bytes": 1784168448
+    },
+    {
+      "case": [
+        1048576,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 140.9101484374986,
+      "raft_entries_per_message": 0.296875,
+      "peak_rss_bytes": 1744683008
+    },
+    {
+      "case": [
+        2000000,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 65.49016094986847,
+      "raft_entries_per_message": 3.345646437994723,
+      "peak_rss_bytes": 1341915136
+    },
+    {
+      "case": [
+        2000000,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 62.1125690476187,
+      "raft_entries_per_message": 3.2595238095238095,
+      "peak_rss_bytes": 652869632
+    },
+    {
+      "case": [
+        2000000,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 61.90403553299512,
+      "raft_entries_per_message": 3.236040609137056,
+      "peak_rss_bytes": 483999744
+    },
+    {
+      "case": [
+        2000000,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 44.47315517241392,
+      "raft_entries_per_message": 1.0718390804597702,
+      "peak_rss_bytes": 490881024
+    },
+    {
+      "case": [
+        2000000,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 44.557524926686575,
+      "raft_entries_per_message": 1.098240469208211,
+      "peak_rss_bytes": 391004160
+    },
+    {
+      "case": [
+        2000000,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 44.612971391417254,
+      "raft_entries_per_message": 1.0975292587776333,
+      "peak_rss_bytes": 387055616
+    },
+    {
+      "case": [
+        2000000,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 31.608993305438933,
+      "raft_entries_per_message": 0.3916317991631799,
+      "peak_rss_bytes": 414400512
+    },
+    {
+      "case": [
+        2000000,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 30.945889700511387,
+      "raft_entries_per_message": 0.34550766983199416,
+      "peak_rss_bytes": 465616896
+    },
+    {
+      "case": [
+        2000000,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 33.9615683760688,
+      "raft_entries_per_message": 0.3942307692307692,
+      "peak_rss_bytes": 473546752
+    },
+    {
+      "case": [
+        2097152,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 61.47142334096064,
+      "raft_entries_per_message": 2.5102974828375286,
+      "peak_rss_bytes": 454524928
+    },
+    {
+      "case": [
+        2097152,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 60.354032679740016,
+      "raft_entries_per_message": 2.6710239651416123,
+      "peak_rss_bytes": 427671552
+    },
+    {
+      "case": [
+        2097152,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 64.14034741784073,
+      "raft_entries_per_message": 3.2065727699530515,
+      "peak_rss_bytes": 412237824
+    },
+    {
+      "case": [
+        2097152,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 45.9194958601659,
+      "raft_entries_per_message": 1.0478380864765409,
+      "peak_rss_bytes": 406388736
+    },
+    {
+      "case": [
+        2097152,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 46.382879888268874,
+      "raft_entries_per_message": 1.0279329608938548,
+      "peak_rss_bytes": 403390464
+    },
+    {
+      "case": [
+        2097152,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 43.07373593073626,
+      "raft_entries_per_message": 1.096103896103896,
+      "peak_rss_bytes": 411385856
+    },
+    {
+      "case": [
+        2097152,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 30.25735946573723,
+      "raft_entries_per_message": 0.3617886178861789,
+      "peak_rss_bytes": 436584448
+    },
+    {
+      "case": [
+        2097152,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 30.854970794392326,
+      "raft_entries_per_message": 0.3767523364485981,
+      "peak_rss_bytes": 450183168
+    },
+    {
+      "case": [
+        2097152,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 33.13508235294107,
+      "raft_entries_per_message": 0.36470588235294116,
+      "peak_rss_bytes": 490602496
+    },
+    {
+      "case": [
+        4194304,
+        1,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 96.94207917888417,
+      "raft_entries_per_message": 3.096774193548387,
+      "peak_rss_bytes": 546930688
+    },
+    {
+      "case": [
+        4194304,
+        1,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 95.10177049180099,
+      "raft_entries_per_message": 3.030054644808743,
+      "peak_rss_bytes": 500449280
+    },
+    {
+      "case": [
+        4194304,
+        1,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 98.84038016528797,
+      "raft_entries_per_message": 3.15702479338843,
+      "peak_rss_bytes": 470958080
+    },
+    {
+      "case": [
+        4194304,
+        4,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 80.20564041604818,
+      "raft_entries_per_message": 1.2466567607726597,
+      "peak_rss_bytes": 447905792
+    },
+    {
+      "case": [
+        4194304,
+        4,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 74.29182051281975,
+      "raft_entries_per_message": 1.2777777777777777,
+      "peak_rss_bytes": 440270848
+    },
+    {
+      "case": [
+        4194304,
+        4,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 74.23704526166982,
+      "raft_entries_per_message": 1.2616690240452617,
+      "peak_rss_bytes": 441532416
+    },
+    {
+      "case": [
+        4194304,
+        16,
+        1
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 56.141762448132944,
+      "raft_entries_per_message": 0.4699170124481328,
+      "peak_rss_bytes": 466386944
+    },
+    {
+      "case": [
+        4194304,
+        16,
+        2
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 53.33614672686187,
+      "raft_entries_per_message": 0.4469525959367946,
+      "peak_rss_bytes": 485523456
+    },
+    {
+      "case": [
+        4194304,
+        16,
+        3
+      ],
+      "three_node_snapshots": true,
+      "cpu_per_message": 275.7009847715741,
+      "raft_entries_per_message": 2.3401015228426396,
+      "peak_rss_bytes": 496975872
+    }
+  ],
+  "focused_resource_boundaries": [
+    {
+      "case": [
+        "paced",
+        1
+      ],
+      "three_node_snapshots": true
+    },
+    {
+      "case": [
+        "burst",
+        1
+      ],
+      "three_node_snapshots": true
+    },
+    {
+      "case": [
+        "paced",
+        2
+      ],
+      "three_node_snapshots": true
+    },
+    {
+      "case": [
+        "burst",
+        2
+      ],
+      "three_node_snapshots": true
+    },
+    {
+      "case": [
+        "paced",
+        3
+      ],
+      "three_node_snapshots": true
+    },
+    {
+      "case": [
+        "burst",
+        3
+      ],
+      "three_node_snapshots": true
+    }
+  ],
+  "maintenance_resource_windows": [
+    {
+      "payload": 1048576,
+      "concurrency": 1,
+      "repetition": 3,
+      "start": 1794849123.072299,
+      "end": 1794849138.021122,
+      "overlaps_cleanup": true,
+      "scope": "Whole initial-to-final resource observation; may include warmup/drain and does not by itself identify the exact10sload interval"
+    }
+  ],
+  "nearest_maintenance_windows": [
+    {
+      "payload": 1048576,
+      "concurrency": 1,
+      "repetition": 3,
+      "start": 1794849123.072299,
+      "end": 1794849138.021122,
+      "overlaps_cleanup": true,
+      "scope": "Whole initial-to-final resource observation; may include warmup/drain and does not by itself identify the exact10sload interval"
+    },
+    {
+      "payload": 1048576,
+      "concurrency": 4,
+      "repetition": 1,
+      "start": 1794849168.027244,
+      "end": 1794849183.031049,
+      "overlaps_cleanup": false,
+      "scope": "Whole initial-to-final resource observation; may include warmup/drain and does not by itself identify the exact10sload interval"
+    },
+    {
+      "payload": 1048576,
+      "concurrency": 1,
+      "repetition": 2,
+      "start": 1794849078.032616,
+      "end": 1794849092.981017,
+      "overlaps_cleanup": false,
+      "scope": "Whole initial-to-final resource observation; may include warmup/drain and does not by itself identify the exact10sload interval"
+    },
+    {
+      "payload": 1048576,
+      "concurrency": 4,
+      "repetition": 2,
+      "start": 1794849212.955939,
+      "end": 1794849228.113896,
+      "overlaps_cleanup": false,
+      "scope": "Whole initial-to-final resource observation; may include warmup/drain and does not by itself identify the exact10sload interval"
+    },
+    {
+      "payload": 1048576,
+      "concurrency": 1,
+      "repetition": 1,
+      "start": 1794849032.950883,
+      "end": 1794849047.932115,
+      "overlaps_cleanup": false,
+      "scope": "Whole initial-to-final resource observation; may include warmup/drain and does not by itself identify the exact10sload interval"
+    }
+  ],
+  "scope": "Closed candidate execution/integrity snapshot, not performance acceptance. First reference incomplete; secondcandidate and secondreference pending. Ordinal has a retained3.496s inactivecachecleanup; affected timing is qualified. Scaling/runtimelog audits and final fullmatrix verdict remain separate.",
+  "files": [
+    {
+      "path": "measurements/macos-net11-189-serial-01/http-attempt-1/2-after/execution.json",
+      "bytes": 197,
+      "sha256": "8a2ab374e14c4ea8694192eaa81e30166f61f2596239023f504ab3500c02f700"
+    },
+    {
+      "path": "measurements/macos-net11-189-serial-01/http-attempt-1/2-after/workload/status.json",
+      "bytes": 151,
+      "sha256": "4ed9f515066be0be4a38e88e2a6b4846cc78dfefda6a60437b994520cf158e76"
+    },
+    {
+      "path": "measurements/macos-net11-189-serial-01/http-attempt-1/2-after/workload/results.json",
+      "bytes": 580323,
+      "sha256": "36bcb459e27e3ea5763acf15a80312944de2717ffebadc183edcfc52198edf7f"
+    },
+    {
+      "path": "measurements/macos-net11-189-serial-01/http-attempt-1/2-after/workload/workload.log",
+      "bytes": 22949,
+      "sha256": "ef0031b6c2b7c3015581d795f51fd57f16800a45a8819b486f58f6c6771e7456"
+    },
+    {
+      "path": "measurements/macos-net11-189-serial-01/http-attempt-1/2-after/host-maintenance.json",
+      "bytes": 1530,
+      "sha256": "7799c9708bc8c581ff4c3463cd5da214cfdadfe104bf1e61d2a140c45f24f3f8"
+    }
+  ]
+}

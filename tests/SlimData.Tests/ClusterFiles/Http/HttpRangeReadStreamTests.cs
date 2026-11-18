@@ -6,6 +6,46 @@ namespace SlimData.Tests.ClusterFiles.Http;
 public sealed class HttpRangeReadStreamTests
 {
     [Fact]
+    public async Task Truncated_range_resumes_at_the_last_received_byte_without_replaying_the_prefix()
+    {
+        var offsets = new List<long>();
+        using var client = new HttpClient(new DelegateHandler(request =>
+        {
+            long offset = request.Headers.Range!.Ranges.Single().From!.Value;
+            offsets.Add(offset);
+            byte[] bytes = offset == 0 ? [1, 2] : [3, 4, 5];
+            return new HttpResponseMessage(HttpStatusCode.PartialContent) { Content = new ByteArrayContent(bytes) };
+        }));
+        await using var stream = new HttpRangeReadStream(client, new Uri("http://node/cluster/files/id"), 5, 5, TimeSpan.FromSeconds(1));
+        using var destination = new MemoryStream();
+        await stream.CopyToAsync(destination);
+        Assert.Equal(new byte[] { 1, 2, 3, 4, 5 }, destination.ToArray());
+        Assert.Equal(new long[] { 0, 2 }, offsets);
+    }
+
+    [Fact]
+    public async Task Persistently_truncated_range_has_a_bounded_retry_count()
+    {
+        int requests = 0;
+        using var client = new HttpClient(new DelegateHandler(_ =>
+        {
+            requests++;
+            return new HttpResponseMessage(HttpStatusCode.PartialContent) { Content = new ByteArrayContent([]) };
+        }));
+        await using var stream = new HttpRangeReadStream(client, new Uri("http://node/cluster/files/id"), 5, 5, TimeSpan.FromSeconds(1));
+        await Assert.ThrowsAsync<IOException>(async () => await stream.ReadAsync(new byte[5]));
+        Assert.Equal(3, requests);
+    }
+
+    [Fact]
+    public async Task Empty_read_does_not_start_a_transfer()
+    {
+        using var client = new HttpClient(new DelegateHandler(_ => throw new InvalidOperationException("unexpected request")));
+        await using var stream = new HttpRangeReadStream(client, new Uri("http://node/cluster/files/id"), 5, 5, TimeSpan.FromSeconds(1));
+        Assert.Equal(0, await stream.ReadAsync(Memory<byte>.Empty));
+    }
+
+    [Fact]
     public async Task Per_chunk_timeout_applies_while_reading_response_body()
     {
         var content = new TrackingContent(new BlockingReadStream());

@@ -1,6 +1,9 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Primitives;
 using Moq;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
@@ -12,6 +15,22 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class FunctionEndpointsHelpersTests
 {
+    [Fact]
+    public async Task Request_projection_preserves_multiple_and_null_header_values()
+    {
+        using var services = new ServiceCollection()
+            .AddSingleton<ILogger<FunctionEndpointsHelpersLog>>(NullLogger<FunctionEndpointsHelpersLog>.Instance)
+            .BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Request.Method = "GET";
+        context.Request.Headers["X-Multiple"] = new StringValues([null, "first", "second"]);
+        var request = await FunctionEndpointsHelpers.InitCustomRequest(context, context.Request, "echo", "hello");
+        var header = Assert.Single(request.Headers);
+        Assert.Equal("X-Multiple", header.Key);
+        Assert.Equal(new string?[] { null, "first", "second" }, header.Values);
+        Assert.Null(request.Body);
+    }
+
     [Theory]
     [InlineData("/v1/configuration/dataset_versions/dynamic", FunctionVisibility.Private, FunctionVisibility.Public)]
     [InlineData("/v1/events/callback", FunctionVisibility.Public, FunctionVisibility.Private)]

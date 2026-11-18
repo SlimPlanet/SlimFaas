@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using SlimFaas.Kubernetes;
+using ZLinq;
 
 namespace SlimFaas
 {
@@ -89,20 +90,18 @@ namespace SlimFaas
             => InFlightSyncByDeployment.GetOrAdd(deployment,
                 static _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
 
-        private static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
-        {
-            return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
-        }
-
         private DeploymentInformation? GetDeployment() =>
-            _deploymentSnapshot ?? SearchFunction(_replicasService, _functionName);
+            // A request can retain configuration while Kubernetes replaces its
+            // pods. Resolve destinations from the latest published cache so a
+            // captured snapshot cannot retain a deleted pod or an empty pool.
+            _replicasService.Deployments.FindFunction(_deploymentSnapshot?.Deployment ?? _functionName);
 
         public IList<int>? GetPorts()
         {
             var deploymentInformation = GetDeployment();
-            return deploymentInformation?.Pods
-                .Where(pod => pod.Ready == true)
-                .Select(pod => pod.Ports)
+            return deploymentInformation is null ? null : deploymentInformation.Pods.AsValueEnumerable()
+                .Where(static pod => pod.Ready == true)
+                .Select(static pod => pod.Ports)
                 .FirstOrDefault();
         }
 

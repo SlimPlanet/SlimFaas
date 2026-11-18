@@ -1,0 +1,208 @@
+{
+  "observed_utc": "2026-11-16T17:46:33.877922+00:00",
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "path": "measurements/macos-net11-189-serial-01/http-attempt-1/2-after/workload/supervisor.log",
+  "bytes": 4343880,
+  "sha256": "09b54235b06db4d50af3f4beb71e6a502417e9438ce1998fa52bbc458cc6cc0f",
+  "workload_start": 1794847381.312086,
+  "workload_end": 1794850847.545784,
+  "error_headers": [
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T16:43:00.4203410+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794847380.420341,
+      "inside_reported_workload": false
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T16:43:00.4525520+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794847380.452552,
+      "inside_reported_workload": false
+    },
+    {
+      "line": "[node/slimfaas-1] 2026-11-16T16:43:00.4549940+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794847380.454994,
+      "inside_reported_workload": false
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6730690+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673069,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6730690+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673069,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6730690+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673069,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6730870+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673087,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6731080+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673108,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6731500+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.67315,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6731700+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.67317,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6732100+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.67321,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6732110+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673211,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6733430+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673343,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6735020+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673502,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6735170+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673517,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6736430+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673643,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6736380+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673638,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6736450+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673645,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:30:07.6736510+00:00fail: SlimFaas.SendClient[1621852649]",
+      "utc": 1794850207.673651,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T17:36:54.7037990+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850614.703799,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:36:54.7870760+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850614.787076,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:36:54.7870760+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850614.787076,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-1] 2026-11-16T17:36:55.0413550+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850615.041355,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T17:36:55.7049390+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850615.704939,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:36:55.7881100+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850615.78811,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:36:55.7881100+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850615.78811,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-1] 2026-11-16T17:36:56.0411890+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850616.041189,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-1] 2026-11-16T17:36:56.6699730+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850616.669973,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T17:36:56.7065460+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850616.706546,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T17:36:56.7196920+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850616.719692,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:36:56.7880210+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850616.788021,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:36:56.7880210+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850616.788021,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T17:36:57.0260420+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850617.026042,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-1] 2026-11-16T17:36:57.0414010+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850617.041401,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-1] 2026-11-16T17:36:57.1691730+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850617.169173,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-0] 2026-11-16T17:36:57.1695850+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850617.169585,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-1] 2026-11-16T17:36:57.2917270+00:00fail: SlimFaas.Database.SlimDataService[870726782]",
+      "utc": 1794850617.291727,
+      "inside_reported_workload": true
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T17:40:47.5952200+00:00fail: DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster[0]",
+      "utc": 1794850847.59522,
+      "inside_reported_workload": false
+    },
+    {
+      "line": "[node/slimfaas-2] 2026-11-16T17:40:47.5952410+00:00fail: DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster[0]",
+      "utc": 1794850847.595241,
+      "inside_reported_workload": false
+    }
+  ],
+  "unparsed_error_headers": [],
+  "scope": "Scan of closed Native candidate2 supervisorlog only, error-level headers inside reported workload window; not independent process/kernel coverage, not global performance acceptance. Hostcleanup168qualification remains."
+}

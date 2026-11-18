@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using ZLinq;
 
 namespace SlimFaas.Workers;
 
@@ -46,7 +47,7 @@ public class NetworkActivitySyncWorker(
         if (pods == null || pods.Count <= 1) { _peers.Clear(); return; }
 
         _client ??= httpClientFactory.CreateClient("ActivitySync");
-        var peers = pods.Where(p => p.Ready == true && !string.IsNullOrEmpty(p.Ip)
+        var peers = pods.AsValueEnumerable().Where(p => p.Ready == true && !string.IsNullOrEmpty(p.Ip)
                 && !string.Equals(p.Name, tracker.NodeId, StringComparison.OrdinalIgnoreCase))
             .Select(p => {
                 var uri = ActivityEndpoint(p, slimFaasOptions.Value, namespaceProvider.CurrentNamespace);
@@ -55,8 +56,8 @@ public class NetworkActivitySyncWorker(
             .Select(p => (Key: string.IsNullOrEmpty(p.Key) ? p.Uri!.Authority : p.Key,
                 Url: $"{p.Uri!.Scheme}://{p.Uri.Authority}"))
             .DistinctBy(p => p.Key).ToArray();
-        var active = peers.Select(p => p.Key).ToHashSet(StringComparer.Ordinal);
-        foreach (string key in _peers.Keys.Where(k => !active.Contains(k))) _peers.TryRemove(key, out _);
+        var active = peers.AsValueEnumerable().Select(static p => p.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (string key in _peers.Keys.AsValueEnumerable().Where(k => !active.Contains(k))) _peers.TryRemove(key, out _);
 
         await Parallel.ForEachAsync(peers, new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct },
             async (peer, token) => {

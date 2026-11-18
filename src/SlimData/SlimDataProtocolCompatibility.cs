@@ -53,15 +53,27 @@ internal static class SlimDataProtocolClient
 {
     internal const string HttpClientName = "SlimDataProtocol";
     private const int MaxProtocolResponseLength = 128;
+    private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(2);
 
     internal static async Task<SlimDataProtocolProbeResult> ProbeAsync(
         IHttpClientFactory httpClientFactory,
         Uri endpoint,
         CancellationToken token)
     {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(ProbeTimeout);
         try
         {
-            return await ProbeCoreAsync(httpClientFactory, endpoint, token).ConfigureAwait(false);
+            return await ProbeCoreAsync(httpClientFactory, endpoint, deadline.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            return new SlimDataProtocolProbeResult(
+                false,
+                deadline.IsCancellationRequested
+                    ? "Protocol endpoint timed out."
+                    : "Protocol request was canceled by the transport.",
+                IsUnavailable: true);
         }
         catch (HttpRequestException ex)
         {

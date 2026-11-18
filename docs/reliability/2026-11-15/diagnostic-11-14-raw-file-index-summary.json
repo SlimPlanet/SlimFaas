@@ -1,0 +1,10 @@
+{
+  "file": "diagnostic-11-14-raw-file-index.json.gz",
+  "compressed_bytes": 127727,
+  "compressed_sha256": "44cca5949b5b15fcdd8dc44b0a22c5281fa34797a012d92cdfc592e11a70617c",
+  "expanded_bytes": 476459,
+  "expanded_sha256": "2c621f9c36392e2ad8429d68d17feccfe10f57fb1a297bc58860abf2b5c7692a",
+  "local_files": 625,
+  "vm_roots": 15,
+  "scope": "Closed diagnostics 11-14: fresh-WAL and target TCP backlog controls, per-case original VM indices, timestamped current/previous logs where collected, isolation, receipts and separately reverified post-stop allocation inventories. No final-source or formal performance acceptance. No original index is overwritten."
+}

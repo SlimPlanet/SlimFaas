@@ -28,6 +28,58 @@ public sealed class DataFileRoutesTests
         return result;
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Managed_public_name_resolves_only_a_valid_immutable_storage_reference(bool valid)
+    {
+        string physicalId = valid ? DataFileKeys.CreateInternalOffloadId() : "../invalid";
+        var metadata = new DataSetMetadata("sha", 3, "text/plain", "download.txt", new Dictionary<string, string>
+        {
+            [FileAdmissionTags.Token] = Guid.NewGuid().ToString("N"), [DataFileKeys.StorageIdTag] = physicalId
+        });
+        var db = new Mock<IDatabaseService>(); db.Setup(value => value.GetAsync(DataFileKeys.MetaKey("public")))
+            .ReturnsAsync(MemoryPackSerializer.Serialize(metadata));
+        var sync = new Mock<IClusterFileSync>(MockBehavior.Strict);
+        using var body = new MemoryStream(new byte[] { 1, 2, 3 });
+        sync.Setup(value => value.PullFileIfMissingAsync(physicalId, "sha", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FilePullResult(body));
+        IResult result = await DataFileRoutes.DataFileHandlers.GetAsync("public", sync.Object, db.Object, CancellationToken.None);
+        if (valid) Assert.IsType<FileStreamHttpResult>(result);
+        else
+        {
+            Assert.Equal(500, Assert.IsType<ProblemHttpResult>(result).StatusCode);
+            sync.VerifyNoOtherCalls();
+        }
+    }
+
+    [Fact]
+    public async Task Durable_public_upload_prepares_a_unique_physical_file_and_commits_the_requested_alias()
+    {
+        var admission = new Mock<IFileAdmissionService>(); admission.SetupGet(value => value.Enabled).Returns(true);
+        string? storedId = null;
+        admission.Setup(value => value.PrepareAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<long>(), It.IsAny<IDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string id, Stream _, string type, string name, long _, IDictionary<string, string>? _, CancellationToken _) =>
+            {
+                storedId = id;
+                return new(id, Guid.NewGuid().ToString("N"), DateTime.UtcNow.AddMinutes(2).Ticks,
+                    new DataSetMetadata("sha", 3, type, name), []);
+            });
+        admission.Setup(value => value.CommitPublicAsync(It.IsAny<PreparedFileAdmission>(), "public", 60000, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        using var services = new ServiceCollection().AddLogging().AddSingleton(admission.Object).BuildServiceProvider();
+        using var body = new MemoryStream(new byte[] { 1, 2, 3 });
+        var context = new DefaultHttpContext { RequestServices = services }; context.Request.Body = body; context.Request.ContentLength = 3;
+        var sync = new Mock<IClusterFileSync>(MockBehavior.Strict); var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var result = await DataFileRoutes.DataFileHandlers.PostAsync(context, "public", 60000, sync.Object, db.Object,
+            Microsoft.Extensions.Options.Options.Create(new ClusterFileOptions { RequiredDurableCopies = 2 }), CancellationToken.None);
+        Assert.Equal("public", Assert.IsType<ContentHttpResult>(result).ResponseContent);
+        Assert.True(DataFileKeys.IsInternalElementId(storedId)); Assert.NotEqual("public", storedId);
+        admission.Verify(value => value.CommitPublicAsync(It.IsAny<PreparedFileAdmission>(), "public", 60000, It.IsAny<CancellationToken>()), Times.Once);
+        sync.VerifyNoOtherCalls(); db.VerifyNoOtherCalls();
+    }
+
     // ------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------

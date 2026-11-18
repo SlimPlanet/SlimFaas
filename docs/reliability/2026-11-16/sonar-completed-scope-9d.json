@@ -1,0 +1,106 @@
+{
+  "commit": "9d1a610d3b28ac92d018f72f91935bed545065f0",
+  "run": 43962996459,
+  "job": 133635042008,
+  "completed_scan_verified": true,
+  "static_analysis_boundary_passed": true,
+  "external_quality_gate": "FAIL; distinct from successful submission/boundary verification",
+  "coverage": {
+    "src/SlimData/QueueElementExtensions.cs": {
+      "coverage": "99.3",
+      "lines_to_cover": "144",
+      "uncovered_lines": "1"
+    },
+    "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.cs": {
+      "scope": "Unchanged file omitted by the PR API; project submission checked separately"
+    },
+    "client/python/slimfaas-client/src/slimfaas_client/_client.py": {
+      "coverage": "69.3",
+      "lines_to_cover": "322",
+      "uncovered_lines": "99"
+    }
+  },
+  "submitted_projects": {
+    "src/SlimFaasMcp/SlimFaasMcp.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimData/SlimData.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaas.Tests/SlimFaas.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimFaasKafka/SlimFaasKafka.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaasKafka.Tests/SlimFaasKafka.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "client/dotnet/SlimFaasClient/tests/SlimFaasClient.Tests/SlimFaasClient.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaasMcp.Tests/SlimFaasMcp.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimFaas/SlimFaas.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimData.Tests/SlimData.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "true"
+    }
+  },
+  "analyzed_files": 349,
+  "main_files": 267,
+  "task": {
+    "id": "AaHmWp6MOC3kQQYL3OgH",
+    "type": "REPORT",
+    "componentId": "AaG7Vz5R2NabkLtq81dP",
+    "componentKey": "SlimPlanet_SlimFaas",
+    "componentName": "SlimFaas",
+    "componentQualifier": "TRK",
+    "analysisId": "e06f107c-4eb5-4d88-837d-76ee6d5c636d",
+    "status": "SUCCESS",
+    "submittedAt": "2026-11-16T21:54:21+0000",
+    "submitterLogin": "guillaume-chervet@github",
+    "startedAt": "2026-11-16T21:54:21+0000",
+    "executedAt": "2026-11-16T21:54:27+0000",
+    "executionTimeMs": 6476,
+    "logs": false,
+    "hasScannerContext": true,
+    "organization": "slimplanet",
+    "pullRequest": "506",
+    "warningCount": 2,
+    "warnings": []
+  },
+  "artifact_id": 14274084738,
+  "artifact_sha256": "88961dd68015b7a3919af5c2ae7b905bab6b9d0596eda652fba6e965761a3dc3",
+  "completed_scan_sha256": "36ae8208bb5af6baf88848b488ff04210be61afeecff9bf5c8e9e034681c4f4c"
+}

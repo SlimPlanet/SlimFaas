@@ -1,0 +1,9 @@
+{
+  "red_log_sha256": "b43cef938c271b75efb7cfa4b5161cff0d502cd4dcb3357ed8d9bcc293124360",
+  "green_log_sha256": "8a974537267eab7616852aebff83bb806146014098c985882ed0e5683c16900d",
+  "red": "One integration-boundary regression errors;five resource controls pass.",
+  "green": "Six Python controls pass.",
+  "reproduction": "smoke01 reaches3ready runtime pods then fails before creatingC#loadJob: used nonexistent collect_logs instead of collect_pod_logs(prefix,namespace,pods,output). The same failure prevented cleanup. Originalcase/logs/state retained,thenexistingownedhelpercollected/stoppedresources.",
+  "correction": "Use actualcollectorcontract; executeeachshutdownaction independently,keepprimaryerrorandcleanupfailures; suspendincompleteowneddriverjob; boundJobactiveDeadlineSeconds withoutaddingapplicationretries.",
+  "runtime_change": false
+}

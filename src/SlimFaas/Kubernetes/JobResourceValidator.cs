@@ -48,7 +48,7 @@ public static class JobResourceValidator
 
     private static double ParseResourceValue(string value)
     {
-        if (value.EndsWith('m'))
+        if (value.EndsWith('m', StringComparison.Ordinal))
         {
             return double.Parse(value.TrimEnd('m'), CultureInfo.InvariantCulture) / 1000.0; // Convert milliCPU to CPU
         }

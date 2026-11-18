@@ -484,3 +484,7 @@ wwwroot/
 slimfaas.local.debug.yaml
 slimfaas.local.secrets.yaml
 .slimfaas
+
+# Frontend validation outputs
+src/SlimFaas/ClientApp/storybook-static/
+src/SlimFaasPlanetSaver/coverage/

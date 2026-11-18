@@ -1,0 +1,10 @@
+{
+  "file": "file-admission-application-index-01.json.gz",
+  "compressed_bytes": 22636,
+  "compressed_sha256": "14c16e12798a64c1b0c3678d0480ca9c608a9e96bb67b7b091420db88e800025",
+  "expanded_bytes": 105827,
+  "expanded_sha256": "2b91f7aa091baed2871deccdb072d05ea775420de1ae5d951360bb8509e4cee5",
+  "local_files": 362,
+  "vm_roots": 3,
+  "scope": "Closed source49 native publication/local controls, managed image publication, two passing async logical-PV faults and the failed public-Files background catch-up. No durability cost or final-source performance acceptance."
+}

@@ -2,19 +2,37 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <IsPackable>false</IsPackable>
+        <SonarQubeExclude>true</SonarQubeExclude>
+        <!-- BenchmarkDotNet emits managed code; the measured runtime is built separately. -->
+        <PublishAot>false</PublishAot>
+        <PublishTrimmed>false</PublishTrimmed>
+        <SelfContained>false</SelfContained>
         <!-- BenchmarkDotNet requires an optimized build. -->
         <Optimize>true</Optimize>
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="..\Common\ClusterResourceMonitor.cs" Link="Common\ClusterResourceMonitor.cs" />
+        <Compile Include="..\Common\BenchmarkStatistics.cs" Link="Common\BenchmarkStatistics.cs" />
+        <Compile Include="..\Common\RequestJournal.cs" Link="Common\RequestJournal.cs" />
         <PackageReference Include="BenchmarkDotNet" />
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <InternalsVisibleTo Include="SlimFaas.Tests" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />
-        <ProjectReference Include="..\..\src\SlimData\SlimData.csproj" />
+        <ProjectReference Include="..\..\client\dotnet\SlimFaasClient\src\SlimFaasClient\SlimFaasClient.csproj" />
+        <!-- These assemblies supply benchmarked APIs, not standalone executables.
+             The SDK removes SelfContained during reference framework discovery;
+             PublishSelfContained also controls its publish-time inference. -->
+        <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj">
+            <AdditionalProperties Condition="'$(_IsPublishing)' == 'true'">PublishAot=false;PublishSelfContained=$(SelfContained)</AdditionalProperties>
+        </ProjectReference>
+        <ProjectReference Include="..\..\src\SlimData\SlimData.csproj">
+            <AdditionalProperties Condition="'$(_IsPublishing)' == 'true'">PublishAot=false;PublishSelfContained=$(SelfContained)</AdditionalProperties>
+        </ProjectReference>
     </ItemGroup>
 
 </Project>

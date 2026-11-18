@@ -68,7 +68,8 @@ public class ScheduleJobService(
 
         var configuration = jobConfiguration.Configuration.Configurations;
         name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
-        var conf = configuration[name];
+        if (!configuration.TryGetValue(name, out SlimfaasJob? conf))
+            return new ResultWithError<CreateScheduleJobResult>(null, new ErrorResult("configuration_not_found"));
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
             return new ResultWithError<CreateScheduleJobResult>(null , new ErrorResult("visibility_private"));
@@ -122,7 +123,8 @@ public class ScheduleJobService(
     {
         var configuration = jobConfiguration.Configuration.Configurations;
         name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
-        var conf = configuration[name];
+        if (!configuration.TryGetValue(name, out SlimfaasJob? conf))
+            return new ResultWithError<string>(null, new ErrorResult(NotFound));
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
             return new ResultWithError<string>(null , new ErrorResult("visibility_private"));

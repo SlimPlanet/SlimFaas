@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "upstream_repository_commit": "0c1a6621a397494d8a6f633d8a5176752b5ec9e5",
+  "source_revision_validated_by_fossa": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+  "fossa_license_compliance": "SUCCESS",
+  "resolved_graph_diff": {
+    "added": [
+      "DotNext.AspNetCore.Cluster/6.12.0",
+      "DotNext.IO/6.12.0",
+      "DotNext.Net.Cluster/6.12.0",
+      "DotNext.Threading/6.12.0",
+      "DotNext.Unsafe/6.12.0",
+      "DotNext/6.12.0",
+      "System.Configuration.ConfigurationManager/10.0.14",
+      "System.IO.Hashing/10.0.14",
+      "System.Runtime.Caching/10.0.14",
+      "System.Security.Cryptography.ProtectedData/10.0.14"
+    ],
+    "removed": [
+      "DotNext.AspNetCore.Cluster/6.11.1",
+      "DotNext.IO/6.11.1",
+      "DotNext.Net.Cluster/6.11.1",
+      "DotNext.Threading/6.11.1",
+      "DotNext.Unsafe/6.11.1",
+      "DotNext/6.11.1",
+      "System.Configuration.ConfigurationManager/10.0.13",
+      "System.IO.Hashing/10.0.13",
+      "System.Runtime.Caching/10.0.13",
+      "System.Security.Cryptography.ProtectedData/10.0.13"
+    ]
+  },
+  "nuget_vulnerability_audit": {
+    "version": 1,
+    "parameters": "--vulnerable --include-transitive",
+    "sources": [
+      "https://api.nuget.org/v3/index.json"
+    ],
+    "projects": [
+      {
+        "path": "C:/github/SlimFaas/src/SlimData/SlimData.csproj"
+      }
+    ]
+  },
+  "distributions": [
+    {
+      "package": "DotNext.AspNetCore.Cluster/6.12.0",
+      "declared_license": "MIT",
+      "distribution_sha256": "3b2280dd421215ac583c706fcc202e069fa1229379f6fd2c04fe070c42422398",
+      "distribution_files": [
+        "DotNext.AspNetCore.Cluster.nuspec",
+        "logo.png",
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "lib/net10.0/DotNext.AspNetCore.Cluster.dll",
+        "lib/net10.0/DotNext.AspNetCore.Cluster.xml",
+        "package/services/metadata/core-properties/nuget.psmdcp",
+        ".signature.p7s"
+      ]
+    },
+    {
+      "package": "DotNext.IO/6.12.0",
+      "declared_license": "MIT",
+      "distribution_sha256": "5f86cd886b26aadaf778a52f289e367f8839ef8acbb72179e63d2ae4fcf34d5c",
+      "distribution_files": [
+        "DotNext.IO.nuspec",
+        "logo.png",
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "lib/net10.0/DotNext.IO.dll",
+        "lib/net10.0/DotNext.IO.xml",
+        "package/services/metadata/core-properties/nuget.psmdcp",
+        ".signature.p7s"
+      ]
+    },
+    {
+      "package": "DotNext.Net.Cluster/6.12.0",
+      "declared_license": "MIT",
+      "distribution_sha256": "fb1c808ff69a4f09fc9bbf225270fdedc7a6952f5354d35b358db07af85e178c",
+      "distribution_files": [
+        "DotNext.Net.Cluster.nuspec",
+        "logo.png",
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "lib/net10.0/DotNext.Net.Cluster.dll",
+        "lib/net10.0/DotNext.Net.Cluster.xml",
+        "package/services/metadata/core-properties/nuget.psmdcp",
+        ".signature.p7s"
+      ]
+    },
+    {
+      "package": "DotNext.Threading/6.12.0",
+      "declared_license": "MIT",
+      "distribution_sha256": "9c40784b2d988974348426664fd1d666bef40caa394bf3e4a87016ae8fff0eac",
+      "distribution_files": [
+        "DotNext.Threading.nuspec",
+        "logo.png",
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "lib/net10.0/DotNext.Threading.dll",
+        "lib/net10.0/DotNext.Threading.xml",
+        "package/services/metadata/core-properties/nuget.psmdcp",
+        ".signature.p7s"
+      ]
+    },
+    {
+      "package": "DotNext.Unsafe/6.12.0",
+      "declared_license": "MIT",
+      "distribution_sha256": "99ae53942081403e18f7da97100e7e72af9dcef9096e11110c6b1f2b10279747",
+      "distribution_files": [
+        "DotNext.Unsafe.nuspec",
+        "logo.png",
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "lib/net10.0/DotNext.Unsafe.dll",
+        "lib/net10.0/DotNext.Unsafe.xml",
+        "package/services/metadata/core-properties/nuget.psmdcp",
+        ".signature.p7s"
+      ]
+    },
+    {
+      "package": "DotNext/6.12.0",
+      "declared_license": "MIT",
+      "distribution_sha256": "68bee06a656fa47369a31012fbe849ed219db3747a12a9e91634466e086ecfcc",
+      "distribution_files": [
+        "DotNext.nuspec",
+        "logo.png",
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "lib/net10.0/DotNext.dll",
+        "lib/net10.0/DotNext.xml",
+        "package/services/metadata/core-properties/nuget.psmdcp",
+        ".signature.p7s"
+      ]
+    },
+    {
+      "package": "System.Configuration.ConfigurationManager/10.0.14",
+      "declared_license": "MIT",
+      "distribution_sha256": "fe2538855e750ab15e8c83f81b79e86a555700736041b0d1f51c4090826c239b",
+      "distribution_files": [
+        "_rels/.rels",
+        "System.Configuration.ConfigurationManager.nuspec",
+        "lib/net10.0/System.Configuration.ConfigurationManager.dll",
+        "lib/net10.0/System.Configuration.ConfigurationManager.xml",
+        "lib/net462/System.Configuration.ConfigurationManager.dll",
+        "lib/net462/System.Configuration.ConfigurationManager.xml",
+        "lib/net8.0/System.Configuration.ConfigurationManager.dll",
+        "lib/net8.0/System.Configuration.ConfigurationManager.xml",
+        "lib/net9.0/System.Configuration.ConfigurationManager.dll",
+        "lib/net9.0/System.Configuration.ConfigurationManager.xml",
+        "lib/netstandard2.0/System.Configuration.ConfigurationManager.dll",
+        "lib/netstandard2.0/System.Configuration.ConfigurationManager.xml",
+        "Icon.png",
+        "useSharedDesignerContext.txt",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/netcoreapp2.0/System.Configuration.ConfigurationManager.targets",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net461/System.Configuration.ConfigurationManager.targets",
+        "[Content_Types].xml",
+        "package/services/metadata/core-properties/c88518d83fd441b590b1ad1b333015b9.psmdcp",
+        ".signature.p7s"
+      ],
+      "third_party_notices_sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+      "third_party_notices_byte_identical_to_10_0_13": true
+    },
+    {
+      "package": "System.IO.Hashing/10.0.14",
+      "declared_license": "MIT",
+      "distribution_sha256": "86917bafb634c4d06dd7f07c5f745141fea220f64e13e7657680e81dac68f941",
+      "distribution_files": [
+        "_rels/.rels",
+        "System.IO.Hashing.nuspec",
+        "lib/net10.0/System.IO.Hashing.dll",
+        "lib/net10.0/System.IO.Hashing.xml",
+        "lib/net462/System.IO.Hashing.dll",
+        "lib/net462/System.IO.Hashing.xml",
+        "lib/net8.0/System.IO.Hashing.dll",
+        "lib/net8.0/System.IO.Hashing.xml",
+        "lib/net9.0/System.IO.Hashing.dll",
+        "lib/net9.0/System.IO.Hashing.xml",
+        "lib/netstandard2.0/System.IO.Hashing.dll",
+        "lib/netstandard2.0/System.IO.Hashing.xml",
+        "Icon.png",
+        "useSharedDesignerContext.txt",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/netcoreapp2.0/System.IO.Hashing.targets",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net461/System.IO.Hashing.targets",
+        "[Content_Types].xml",
+        "package/services/metadata/core-properties/6aaa41dbdc9848ba815c8fec2b01afc0.psmdcp",
+        ".signature.p7s"
+      ],
+      "third_party_notices_sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+      "third_party_notices_byte_identical_to_10_0_13": true
+    },
+    {
+      "package": "System.Runtime.Caching/10.0.14",
+      "declared_license": "MIT",
+      "distribution_sha256": "bbf4ff2372f0038bb1ccc21f93e847bc3a2d0822e033abeba6714d706940bd4c",
+      "distribution_files": [
+        "_rels/.rels",
+        "System.Runtime.Caching.nuspec",
+        "lib/net10.0/System.Runtime.Caching.dll",
+        "lib/net10.0/System.Runtime.Caching.xml",
+        "lib/net8.0/System.Runtime.Caching.dll",
+        "lib/net8.0/System.Runtime.Caching.xml",
+        "lib/net9.0/System.Runtime.Caching.dll",
+        "lib/net9.0/System.Runtime.Caching.xml",
+        "lib/netstandard2.0/System.Runtime.Caching.dll",
+        "lib/netstandard2.0/System.Runtime.Caching.xml",
+        "runtimes/win/lib/net10.0/System.Runtime.Caching.dll",
+        "runtimes/win/lib/net10.0/System.Runtime.Caching.xml",
+        "runtimes/win/lib/net8.0/System.Runtime.Caching.dll",
+        "runtimes/win/lib/net8.0/System.Runtime.Caching.xml",
+        "runtimes/win/lib/net9.0/System.Runtime.Caching.dll",
+        "runtimes/win/lib/net9.0/System.Runtime.Caching.xml",
+        "Icon.png",
+        "useSharedDesignerContext.txt",
+        "PACKAGE.md",
+        "lib/net462/_._",
+        "lib/MonoAndroid10/_._",
+        "lib/MonoTouch10/_._",
+        "lib/xamarinios10/_._",
+        "lib/xamarinmac20/_._",
+        "lib/xamarintvos10/_._",
+        "lib/xamarinwatchos10/_._",
+        "buildTransitive/net8.0/_._",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/netcoreapp2.0/System.Runtime.Caching.targets",
+        "[Content_Types].xml",
+        "package/services/metadata/core-properties/ab342bce502642b5a8345c653d4be64c.psmdcp",
+        ".signature.p7s"
+      ],
+      "third_party_notices_sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+      "third_party_notices_byte_identical_to_10_0_13": true
+    },
+    {
+      "package": "System.Security.Cryptography.ProtectedData/10.0.14",
+      "declared_license": "MIT",
+      "distribution_sha256": "6ada18646ef345d3e43e25ea52973d5cba98cf9103df14df0a18feb685fa7f35",
+      "distribution_files": [
+        "_rels/.rels",
+        "System.Security.Cryptography.ProtectedData.nuspec",
+        "lib/net10.0/System.Security.Cryptography.ProtectedData.dll",
+        "lib/net10.0/System.Security.Cryptography.ProtectedData.xml",
+        "lib/net462/System.Security.Cryptography.ProtectedData.dll",
+        "lib/net462/System.Security.Cryptography.ProtectedData.xml",
+        "lib/net8.0/System.Security.Cryptography.ProtectedData.dll",
+        "lib/net8.0/System.Security.Cryptography.ProtectedData.xml",
+        "lib/net9.0/System.Security.Cryptography.ProtectedData.dll",
+        "lib/net9.0/System.Security.Cryptography.ProtectedData.xml",
+        "lib/netstandard2.0/System.Security.Cryptography.ProtectedData.dll",
+        "lib/netstandard2.0/System.Security.Cryptography.ProtectedData.xml",
+        "Icon.png",
+        "useSharedDesignerContext.txt",
+        "PACKAGE.md",
+        "lib/MonoAndroid10/_._",
+        "lib/MonoTouch10/_._",
+        "lib/xamarinios10/_._",
+        "lib/xamarinmac20/_._",
+        "lib/xamarintvos10/_._",
+        "lib/xamarinwatchos10/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/net462/_._",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/netcoreapp2.0/System.Security.Cryptography.ProtectedData.targets",
+        "buildTransitive/net461/System.Security.Cryptography.ProtectedData.targets",
+        "[Content_Types].xml",
+        "package/services/metadata/core-properties/1700d2faa506414cb36eb3b6cb8e3b0e.psmdcp",
+        ".signature.p7s"
+      ],
+      "third_party_notices_sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+      "third_party_notices_byte_identical_to_10_0_13": true
+    }
+  ],
+  "raw_audit_file_hashes": {
+    "before-assets.json": "4b5c46a92637467386146785b7f2132f43d4891fd5fc135c9f43352538e47992",
+    "distribution-audit.json": "2256a581020fa87c560f072f6e1c1933088d9a35b90269e691099ca418d59b24",
+    "resolved-distribution-audit.json": "bc68b0b3f315315c1d5bb5d6ad9ed1109380a747c6623ccedac89a7e828ac904",
+    "resolved-package-diff.json": "a9bdbabbc2db223984ff693818727e1acc18ff7562caccdc515a6616d0dfa1e1",
+    "vulnerability-audit.json": "74732ebe00013adf616bb9025aa810af556563505457da7d968c692fda7c7ba1"
+  }
+}

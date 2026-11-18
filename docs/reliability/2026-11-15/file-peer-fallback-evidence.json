@@ -1,0 +1,253 @@
+{
+  "recorded": 1794772130.990334,
+  "base": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+  "scope": "First-peer HEAD failures hide a surviving copy. Five of six new tests fail before correction; cancellation control already passes. All106 ClusterFile tests and2395 full tests pass after correction. Three reporting regressions fail before the added successful-ID/function metrics;28 campaign tests and41 platform tests pass after. No dependencies or lockfiles changed.",
+  "sources": [
+    {
+      "path": "src/SlimData/ClusterFiles/ClusterFileSync.cs",
+      "sha256": "f5163c0c522c5aa198b607666a18acba29a98ae5425398b9ae3f7fda2ea01869"
+    },
+    {
+      "path": "src/SlimData/ClusterFiles/ClusterFileSync.Log.cs",
+      "sha256": "ca75f5fc68ed0a9a0e018b15f14fd5bb25347b888cc9d4f69f47366cb80ac2dc"
+    },
+    {
+      "path": "tests/SlimData.Tests/ClusterFiles/ClusterFilePeerFallbackTests.cs",
+      "sha256": "5235085176fd50e2b401c472d9324da4c8a5e6511ecb9a92eaf136b734206433"
+    },
+    {
+      "path": ".bin/test-slimdata-local-chaos.py",
+      "sha256": "ebc3c3b2090fed78ba60edaaee81cf42b19d47aa03419499edfe8ff161014eb4"
+    },
+    {
+      "path": ".bin/test-local-chaos-harness.py",
+      "sha256": "edfc5c9e127e7c55dbc66e281628a9b0b71098ef76ab9cada9ea8ed91096826a"
+    }
+  ],
+  "results": [
+    {
+      "phase": "red",
+      "path": "reproductions/file-peer-fallback-net11-31/red/_a115vcCX1PXQ575D_2026-11-15_20_44_08_net11.0.trx",
+      "sha256": "c852ae2f717d6a8a4b871a80e0fe83f731a900df3f997f4425e102a1961cba4b",
+      "counters": {
+        "total": "6",
+        "executed": "6",
+        "passed": "1",
+        "failed": "5",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "green",
+      "path": "reproductions/file-peer-fallback-net11-31/green/_a115vcCX1PXQ575D_2026-11-15_20_45_17_net11.0.trx",
+      "sha256": "0068819e87180562b99cb32589e03e5774554139d2c46c22a7d825ee9a64e3ef",
+      "counters": {
+        "total": "106",
+        "executed": "106",
+        "passed": "106",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/file-peer-fallback-net11-31/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_46_30_net11.0.trx",
+      "sha256": "9241dd2b7dc9978e22e74a20645fdd5d66658d7fd5820695099a4e3f010bf8bf",
+      "counters": {
+        "total": "11",
+        "executed": "11",
+        "passed": "11",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/file-peer-fallback-net11-31/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_46_30_net11.0[1].trx",
+      "sha256": "b769040655e9665050193731846777e69ee6416cd92526961498abdcee746b82",
+      "counters": {
+        "total": "454",
+        "executed": "454",
+        "passed": "454",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/file-peer-fallback-net11-31/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_46_35_net11.0.trx",
+      "sha256": "a1228aadee7dd75fb5aeb9cf32828dbffa39dfada8a0b0f3ce3a928a6cb07b1b",
+      "counters": {
+        "total": "52",
+        "executed": "52",
+        "passed": "52",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/file-peer-fallback-net11-31/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_46_38_net11.0.trx",
+      "sha256": "3a6517040bf88b0f92d47b910623c4889de62b252f1f7a295fda71ca0faea1aa",
+      "counters": {
+        "total": "1769",
+        "executed": "1769",
+        "passed": "1769",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/file-peer-fallback-net11-31/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_46_51_net11.0.trx",
+      "sha256": "d8ee4c77be42e247abf9c2e9951b5f2feb60e235ef833422813dc5d2b671ec8a",
+      "counters": {
+        "total": "109",
+        "executed": "109",
+        "passed": "109",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ],
+  "validation": {
+    "started": 1794771984.605472,
+    "base": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+    "phases": [
+      {
+        "name": "full-solution",
+        "command": [
+          "dotnet",
+          "test",
+          "-nr:false",
+          "--logger",
+          "trx",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/reproductions/file-peer-fallback-net11-31/full-solution"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-31-full-solution.log",
+        "sha256": "14dd1f08523e77e9df65481c14edb6d52a1de2d107602cfd47f69b2e6e693861"
+      },
+      {
+        "name": "platform-harness",
+        "command": [
+          "python3",
+          ".bin/test-platform-validation.py"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-31-platform-harness.log",
+        "sha256": "baaacdf1aa9d2d1c14df50058e1429f191b1f2bbafaf086cb4dc79c3dfb93e22"
+      },
+      {
+        "name": "documentation-build",
+        "command": [
+          "pnpm",
+          "build"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-31-documentation-build.log",
+        "sha256": "a579b8f8121f3818fdad330f8eb12596fd3deae20c817a1c75fe6d34ee5f00aa"
+      }
+    ],
+    "phase": "closed",
+    "passed": true,
+    "finished": 1794772085.934082,
+    "generated_build_cache": {
+      "path": "reproductions/file-peer-fallback-net11-31/generated-tsconfig.tsbuildinfo",
+      "sha256": "0667e146254d9fd518d3949d80f0abc0fb67c84ace1ed29d85a3b4a5df90926b",
+      "restored_original_sha256": "dafedb3fdaf894d3e6ec377648ccfdc44c426de4c75dc130fb330b146797f7f5"
+    }
+  },
+  "reporting_tests": {
+    "red": {
+      "path": "logs/net11-31-receipt-accounting-red.log",
+      "sha256": "36fa93ff3aa7c4232dd2af3f6c2c7d58a5b08d9e2aa7f31a804f46b18a52de49",
+      "tests": 3,
+      "errors": 3
+    },
+    "green": {
+      "path": "logs/net11-31-receipt-accounting-green.log",
+      "sha256": "7a468c1cd9da206f3722935f69b5eeb19f1c263b67d967dd61bf6ed0dd7c9051",
+      "tests": 28,
+      "errors": 0
+    }
+  }
+}

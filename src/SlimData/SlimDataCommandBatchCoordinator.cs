@@ -3,6 +3,8 @@ using System.Threading.Channels;
 using DotNext.Net.Cluster.Consensus.Raft;
 using SlimData.Commands;
 
+using ZLinq;
+
 namespace SlimData;
 
 public readonly record struct SlimDataCommandBatchCoordinatorStatistics(
@@ -139,7 +141,7 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
     {
         var envelope = new SlimDataRaftBatchEnvelope
         {
-            Requests = batch.Select(static pending => pending.Request).ToArray()
+            Requests = batch.AsValueEnumerable().Select(static pending => pending.Request).ToArray()
         };
         var operationCount = envelope.Requests.Sum(static request => request.Operations.Length);
         var maxQueueWait = batch.Max(static pending =>
@@ -186,7 +188,9 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
         envelope.Requests.Any(static request => request.Operations.Any(static operation =>
             operation.Kind is SlimDataBatchOperationKind.ListLeftPush or
                 SlimDataBatchOperationKind.ListRightPop or
-                SlimDataBatchOperationKind.ListCallback));
+                SlimDataBatchOperationKind.ListCallback ||
+            (operation.Kind == SlimDataBatchOperationKind.FileAdmission &&
+             MemoryPackPayload.Deserialize<FileAdmissionMutation>(operation.Value)?.Action == FileAdmissionAction.CommitQueue)));
 
     private void RemoveFromQueueStatistics(List<PendingRequest> batch, int payloadBytes)
     {

@@ -1,0 +1,1488 @@
+{
+  "generated_utc": 1794881270.973152,
+  "scope": "Headless-DNS established-connection diagnostic ABBA:before189,pool46729,pool46729,before189;commonLinuxARM64 managedtrimmed runtime mode and identicalC#drivers1b.60s warmtraffic+420s after replacement,20rps/C1/4KiB. Descriptive latency/CPU and connection convergence, not throughput capacity or overallPRnonregression acceptance.",
+  "controller_source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+  "cases": [
+    {
+      "case": "hdls-c1-b1-01",
+      "namespace": "slimfaas-pr506-routing-hdls-c1-b1-01",
+      "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "driver_success": true,
+      "intents": 9600,
+      "operation_completed": 9600,
+      "no_response_unknown_ids": [],
+      "headers_without_operation_completion_ids": [],
+      "http_status_counts": {
+        "200": 9600
+      },
+      "successful_receipts": 9600,
+      "confirmed_missing": [],
+      "duplicate_successes": {},
+      "corrupt_receipts": [],
+      "protocol_versions": {
+        "1.1": 9600
+      },
+      "serving_pod_counts": {
+        "bf02eae3-68e3-4c4f-88e7-5fd9b8dac874": 9600
+      },
+      "old_pod": {
+        "uid": "bf02eae3-68e3-4c4f-88e7-5fd9b8dac874",
+        "ip": "10.244.3.191",
+        "name": "memory-function-588784846d-l496g"
+      },
+      "new_pod": {
+        "uid": "dadce8e2-a3d2-4a27-9cd8-321c18747845",
+        "ip": "10.244.5.250"
+      },
+      "deletion_requested_utc": 1794874826.346812,
+      "replacement_ready_after_seconds": 1.0439729690551758,
+      "first_new_success_after_seconds": null,
+      "last_old_success_after_seconds": 419.8682007789612,
+      "old_successes_after_15s": 8097,
+      "observed_connections": 3,
+      "clock_alignment_samples": {
+        "before": {
+          "host_start": 1794874754.6084511,
+          "host_end": 1794874754.8025038,
+          "vm_utc": 1794874754.830164,
+          "estimated_vm_minus_host_seconds": 0.12468647956848145,
+          "uncertainty_seconds": 0.09702634811401367
+        },
+        "after": {
+          "host_start": 1794875256.5156229,
+          "host_end": 1794875256.6878788,
+          "vm_utc": 1794875256.7179034,
+          "estimated_vm_minus_host_seconds": 0.11615252494812012,
+          "uncertainty_seconds": 0.08612799644470215
+        }
+      },
+      "raw_archive_sha256": "4e873dc44f70312db09202359df2e39974d190a12463d59d9da721bbea1c8291",
+      "csharp_latency_and_rate": {
+        "Operation": "All",
+        "Completed": 9600,
+        "Failed": 0,
+        "RatePerSecond": 19.999788431404752,
+        "P50Milliseconds": 2.56325,
+        "P95Milliseconds": 5.430849999999999,
+        "P99Milliseconds": 7.224492000000002,
+        "MaxMilliseconds": 72.2277
+      },
+      "connections": [
+        {
+          "pod_uid": "bf02eae3-68e3-4c4f-88e7-5fd9b8dac874",
+          "tuple": "('0.0.0.0', 5000)|('10.244.5.249', 39840)",
+          "first_utc": 1794874766.2794151,
+          "last_utc": 1794875246.1149065,
+          "observed_span_seconds": 479.8354914188385,
+          "successful_receipts": 3200
+        },
+        {
+          "pod_uid": "bf02eae3-68e3-4c4f-88e7-5fd9b8dac874",
+          "tuple": "('0.0.0.0', 5000)|('10.244.1.200', 60976)",
+          "first_utc": 1794874766.3067145,
+          "last_utc": 1794875246.1661444,
+          "observed_span_seconds": 479.8594298362732,
+          "successful_receipts": 3200
+        },
+        {
+          "pod_uid": "bf02eae3-68e3-4c4f-88e7-5fd9b8dac874",
+          "tuple": "('0.0.0.0', 5000)|('10.244.3.190', 35926)",
+          "first_utc": 1794874766.3569767,
+          "last_utc": 1794875246.2150128,
+          "observed_span_seconds": 479.85803604125977,
+          "successful_receipts": 3200
+        }
+      ],
+      "resource_samples": {
+        "first_utc": "2026-11-17T00:19:26.167495+00:00",
+        "last_utc": "2026-11-17T00:27:25.416880+00:00",
+        "count": 480,
+        "aggregate_runtime_cpu_seconds_delta": 95.14590599999998,
+        "cpu_ms_per_completed_message_approximate": 9.911031874999999,
+        "peak_aggregate_sampled_rss_bytes": 515534848.0
+      },
+      "runtime_health": {
+        "passed": true,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794874765.0,
+          1794875249.233671
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "d2b728ef-5923-4915-a082-1f7a618ea9b6",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://f308eae4f0e4ab1cb307ee270d67f39c2212548027a8a3eb4337d6c41fdd7d56",
+            "captured_utc": 1794875249.707832,
+            "path": "pod-logs/d2b728ef-5923-4915-a082-1f7a618ea9b6/runtime/0-current-1794875249580623000.log",
+            "bytes": 1365135,
+            "sha256": "d742a74acd487c24ee3c19a435f551dcb6dec308253c032d848136469db6d4fd",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "d89da112-ab5e-4067-bca7-e3fb84de57ea",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://5e43103907e7853dbea55f05fab24a9d392afa37e37d351992c150ec1aebf926",
+            "captured_utc": 1794875249.916959,
+            "path": "pod-logs/d89da112-ab5e-4067-bca7-e3fb84de57ea/runtime/0-current-1794875249782272000.log",
+            "bytes": 1366157,
+            "sha256": "140ef208d7ba86eb90b9638b2447e168961304083b81e9d06b909eead36a330c",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "f10945b5-678a-4753-8609-ae662fcba30f",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://6d02b966a78aa25714ef72ea8ec3d807251da372c09babf4ff4366fc88cd2bea",
+            "captured_utc": 1794875250.10198,
+            "path": "pod-logs/f10945b5-678a-4753-8609-ae662fcba30f/runtime/0-current-1794875249964192000.log",
+            "bytes": 1366974,
+            "sha256": "d335b0059a816aca2842e514f6d021080d1e24eb29cf9cd4dace43066f2e6fad",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      },
+      "control": {
+        "pid": 70834,
+        "started": 1794874754.6003861,
+        "phase": "closed-reconciliation-required",
+        "execution_closed": true,
+        "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+        "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+        "controller_source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+        "controller_sha256": "891980cae5be5f2b909b09afb53f9432ab86a788cf24739550b1a74d47ca283a",
+        "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+        "arguments": {
+          "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+          "case": "hdls-c1-b1-01",
+          "variant": "tools",
+          "route": "headless",
+          "concurrency": 1,
+          "rps": 20.0,
+          "before": 60,
+          "after": 420,
+          "retire": 600
+        },
+        "namespace": "slimfaas-pr506-routing-hdls-c1-b1-01",
+        "clock_before": {
+          "host_start": 1794874754.6084511,
+          "host_end": 1794874754.8025038,
+          "vm_utc": 1794874754.830164,
+          "estimated_vm_minus_host_seconds": 0.12468647956848145,
+          "uncertainty_seconds": 0.09702634811401367
+        },
+        "execution_exit_code": 0,
+        "quiescence_exit_code": 0,
+        "clock_after": {
+          "host_start": 1794875256.5156229,
+          "host_end": 1794875256.6878788,
+          "vm_utc": 1794875256.7179034,
+          "estimated_vm_minus_host_seconds": 0.11615252494812012,
+          "uncertainty_seconds": 0.08612799644470215
+        },
+        "driver_success": true,
+        "finished": 1794875256.687888
+      },
+      "additional_actual_csharp_traffic_audit": {
+        "case": "hdls-c1-b1-01",
+        "original_job_start_audit_preserved": {
+          "passed": true,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794874765.0,
+            1794875249.233671
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "d2b728ef-5923-4915-a082-1f7a618ea9b6",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://f308eae4f0e4ab1cb307ee270d67f39c2212548027a8a3eb4337d6c41fdd7d56",
+              "captured_utc": 1794875249.707832,
+              "path": "pod-logs/d2b728ef-5923-4915-a082-1f7a618ea9b6/runtime/0-current-1794875249580623000.log",
+              "bytes": 1365135,
+              "sha256": "d742a74acd487c24ee3c19a435f551dcb6dec308253c032d848136469db6d4fd",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "d89da112-ab5e-4067-bca7-e3fb84de57ea",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://5e43103907e7853dbea55f05fab24a9d392afa37e37d351992c150ec1aebf926",
+              "captured_utc": 1794875249.916959,
+              "path": "pod-logs/d89da112-ab5e-4067-bca7-e3fb84de57ea/runtime/0-current-1794875249782272000.log",
+              "bytes": 1366157,
+              "sha256": "140ef208d7ba86eb90b9638b2447e168961304083b81e9d06b909eead36a330c",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "f10945b5-678a-4753-8609-ae662fcba30f",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://6d02b966a78aa25714ef72ea8ec3d807251da372c09babf4ff4366fc88cd2bea",
+              "captured_utc": 1794875250.10198,
+              "path": "pod-logs/f10945b5-678a-4753-8609-ae662fcba30f/runtime/0-current-1794875249964192000.log",
+              "bytes": 1366974,
+              "sha256": "d335b0059a816aca2842e514f6d021080d1e24eb29cf9cd4dace43066f2e6fad",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "actual_csharp_traffic_window_audit": {
+          "passed": true,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794874766.218457,
+            1794875246.215819
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "d2b728ef-5923-4915-a082-1f7a618ea9b6",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://f308eae4f0e4ab1cb307ee270d67f39c2212548027a8a3eb4337d6c41fdd7d56",
+              "captured_utc": 1794875249.707832,
+              "path": "pod-logs/d2b728ef-5923-4915-a082-1f7a618ea9b6/runtime/0-current-1794875249580623000.log",
+              "bytes": 1365135,
+              "sha256": "d742a74acd487c24ee3c19a435f551dcb6dec308253c032d848136469db6d4fd",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "d89da112-ab5e-4067-bca7-e3fb84de57ea",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://5e43103907e7853dbea55f05fab24a9d392afa37e37d351992c150ec1aebf926",
+              "captured_utc": 1794875249.916959,
+              "path": "pod-logs/d89da112-ab5e-4067-bca7-e3fb84de57ea/runtime/0-current-1794875249782272000.log",
+              "bytes": 1366157,
+              "sha256": "140ef208d7ba86eb90b9638b2447e168961304083b81e9d06b909eead36a330c",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "f10945b5-678a-4753-8609-ae662fcba30f",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://6d02b966a78aa25714ef72ea8ec3d807251da372c09babf4ff4366fc88cd2bea",
+              "captured_utc": 1794875250.10198,
+              "path": "pod-logs/f10945b5-678a-4753-8609-ae662fcba30f/runtime/0-current-1794875249964192000.log",
+              "bytes": 1366974,
+              "sha256": "d335b0059a816aca2842e514f6d021080d1e24eb29cf9cd4dace43066f2e6fad",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "scope": "Additional post-hoc classification using first real C# intent through last operation completion, all from VM clock. Does not replace/relabel original JobStart health verdict or claim operational readiness before traffic."
+      }
+    },
+    {
+      "case": "hdls-c1-p2-01",
+      "namespace": "slimfaas-pr506-routing-hdls-c1-p2-01",
+      "runtime_source": "29daa097fd4562c39e4b362646c16ddd5f1cf7c0",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "driver_success": true,
+      "intents": 9600,
+      "operation_completed": 9600,
+      "no_response_unknown_ids": [],
+      "headers_without_operation_completion_ids": [],
+      "http_status_counts": {
+        "200": 9600
+      },
+      "successful_receipts": 9600,
+      "confirmed_missing": [],
+      "duplicate_successes": {},
+      "corrupt_receipts": [],
+      "protocol_versions": {
+        "1.1": 9600
+      },
+      "serving_pod_counts": {
+        "3de65e3c-7f5b-4f68-bfc9-8b9e7105bfe0": 3597,
+        "6876bfb0-8d27-4f50-b647-f34f18805432": 6003
+      },
+      "old_pod": {
+        "uid": "6876bfb0-8d27-4f50-b647-f34f18805432",
+        "ip": "10.244.5.252",
+        "name": "memory-function-78895b469b-dbxmh"
+      },
+      "new_pod": {
+        "uid": "3de65e3c-7f5b-4f68-bfc9-8b9e7105bfe0",
+        "ip": "10.244.5.253"
+      },
+      "deletion_requested_utc": 1794875329.5905979,
+      "replacement_ready_after_seconds": 1.0417320728302002,
+      "first_new_success_after_seconds": 240.06907200813293,
+      "last_old_success_after_seconds": 240.01731610298157,
+      "old_successes_after_15s": 4501,
+      "observed_connections": 6,
+      "clock_alignment_samples": {
+        "before": {
+          "host_start": 1794875257.993757,
+          "host_end": 1794875258.1797419,
+          "vm_utc": 1794875258.2085352,
+          "estimated_vm_minus_host_seconds": 0.12178564071655273,
+          "uncertainty_seconds": 0.09299242496490479
+        },
+        "after": {
+          "host_start": 1794875759.705388,
+          "host_end": 1794875759.915134,
+          "vm_utc": 1794875759.9529555,
+          "estimated_vm_minus_host_seconds": 0.14269447326660156,
+          "uncertainty_seconds": 0.1048729419708252
+        }
+      },
+      "raw_archive_sha256": "3a257d60adea30afc46ec8f1fc6bff46d37620accec1decd8854aa8ea4acd6f0",
+      "csharp_latency_and_rate": {
+        "Operation": "All",
+        "Completed": 9600,
+        "Failed": 0,
+        "RatePerSecond": 19.999629973512775,
+        "P50Milliseconds": 2.62645,
+        "P95Milliseconds": 5.872654999999997,
+        "P99Milliseconds": 7.359719,
+        "MaxMilliseconds": 61.952
+      },
+      "connections": [
+        {
+          "pod_uid": "3de65e3c-7f5b-4f68-bfc9-8b9e7105bfe0",
+          "tuple": "('0.0.0.0', 5000)|('10.244.5.251', 34290)",
+          "first_utc": 1794875569.6596699,
+          "last_utc": 1794875749.3597615,
+          "observed_span_seconds": 179.7000916004181,
+          "successful_receipts": 1199
+        },
+        {
+          "pod_uid": "3de65e3c-7f5b-4f68-bfc9-8b9e7105bfe0",
+          "tuple": "('0.0.0.0', 5000)|('10.244.1.201', 46738)",
+          "first_utc": 1794875569.7085118,
+          "last_utc": 1794875749.4084744,
+          "observed_span_seconds": 179.6999626159668,
+          "successful_receipts": 1199
+        },
+        {
+          "pod_uid": "3de65e3c-7f5b-4f68-bfc9-8b9e7105bfe0",
+          "tuple": "('0.0.0.0', 5000)|('10.244.3.192', 40108)",
+          "first_utc": 1794875569.7601132,
+          "last_utc": 1794875749.4578226,
+          "observed_span_seconds": 179.6977093219757,
+          "successful_receipts": 1199
+        },
+        {
+          "pod_uid": "6876bfb0-8d27-4f50-b647-f34f18805432",
+          "tuple": "('0.0.0.0', 5000)|('10.244.5.251', 43774)",
+          "first_utc": 1794875269.5508974,
+          "last_utc": 1794875569.5091975,
+          "observed_span_seconds": 299.958300113678,
+          "successful_receipts": 2001
+        },
+        {
+          "pod_uid": "6876bfb0-8d27-4f50-b647-f34f18805432",
+          "tuple": "('0.0.0.0', 5000)|('10.244.1.201', 50402)",
+          "first_utc": 1794875269.5754473,
+          "last_utc": 1794875569.558704,
+          "observed_span_seconds": 299.98325657844543,
+          "successful_receipts": 2001
+        },
+        {
+          "pod_uid": "6876bfb0-8d27-4f50-b647-f34f18805432",
+          "tuple": "('0.0.0.0', 5000)|('10.244.3.192', 45946)",
+          "first_utc": 1794875269.6270268,
+          "last_utc": 1794875569.607914,
+          "observed_span_seconds": 299.9808871746063,
+          "successful_receipts": 2001
+        }
+      ],
+      "resource_samples": {
+        "first_utc": "2026-11-17T00:27:49.458437+00:00",
+        "last_utc": "2026-11-17T00:35:48.682645+00:00",
+        "count": 480,
+        "aggregate_runtime_cpu_seconds_delta": 99.68275700000001,
+        "cpu_ms_per_completed_message_approximate": 10.383620520833334,
+        "peak_aggregate_sampled_rss_bytes": 527015936.0
+      },
+      "runtime_health": {
+        "passed": true,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794875268.0,
+          1794875752.446408
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "450dfcd2-8960-419b-8cc7-819f5b3c8b24",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://e4574c95985ca78c56c9c1e6fa42c68e9879bf47c2ff5b8b6232df14919ae562",
+            "captured_utc": 1794875752.930812,
+            "path": "pod-logs/450dfcd2-8960-419b-8cc7-819f5b3c8b24/runtime/0-current-1794875752798908000.log",
+            "bytes": 1364910,
+            "sha256": "edca9e6d749926f6c0a127bcb163e10006d74ac5954ae743ab1ea176dd1e88cb",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "9e4c5ae4-a8da-4098-81b7-34856f0eacce",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://2083a793f65414d44b75d8b7b2e0f929bf634d496bf8f57e2daa68355a81d0bb",
+            "captured_utc": 1794875753.1391208,
+            "path": "pod-logs/9e4c5ae4-a8da-4098-81b7-34856f0eacce/runtime/0-current-1794875753014646000.log",
+            "bytes": 1366157,
+            "sha256": "59d79e36a4e48993f870f0bbfe979d11bdb870de7d20de51abf25d5fa572dff1",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "f907159e-fcaf-40ee-adb0-72522d947ddf",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://b5e08d0e47ffd09c56d84535d0d4dc67d068d73c6e8d72da03f0d7ccc9807caf",
+            "captured_utc": 1794875753.315669,
+            "path": "pod-logs/f907159e-fcaf-40ee-adb0-72522d947ddf/runtime/0-current-1794875753186260000.log",
+            "bytes": 1367293,
+            "sha256": "6d8be67146ffe86cb119c4fff53b1a02614c7361e1b17bf65d37667d3208880a",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      },
+      "control": {
+        "pid": 80454,
+        "started": 1794875257.9848971,
+        "phase": "closed-reconciliation-required",
+        "execution_closed": true,
+        "runtime_source": "29daa097fd4562c39e4b362646c16ddd5f1cf7c0",
+        "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+        "controller_source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+        "controller_sha256": "891980cae5be5f2b909b09afb53f9432ab86a788cf24739550b1a74d47ca283a",
+        "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+        "arguments": {
+          "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+          "case": "hdls-c1-p2-01",
+          "variant": "pool467",
+          "route": "headless",
+          "concurrency": 1,
+          "rps": 20.0,
+          "before": 60,
+          "after": 420,
+          "retire": 600
+        },
+        "namespace": "slimfaas-pr506-routing-hdls-c1-p2-01",
+        "clock_before": {
+          "host_start": 1794875257.993757,
+          "host_end": 1794875258.1797419,
+          "vm_utc": 1794875258.2085352,
+          "estimated_vm_minus_host_seconds": 0.12178564071655273,
+          "uncertainty_seconds": 0.09299242496490479
+        },
+        "execution_exit_code": 0,
+        "quiescence_exit_code": 0,
+        "clock_after": {
+          "host_start": 1794875759.705388,
+          "host_end": 1794875759.915134,
+          "vm_utc": 1794875759.9529555,
+          "estimated_vm_minus_host_seconds": 0.14269447326660156,
+          "uncertainty_seconds": 0.1048729419708252
+        },
+        "driver_success": true,
+        "finished": 1794875759.915143
+      },
+      "additional_actual_csharp_traffic_audit": {
+        "case": "hdls-c1-p2-01",
+        "original_job_start_audit_preserved": {
+          "passed": true,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794875268.0,
+            1794875752.446408
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "450dfcd2-8960-419b-8cc7-819f5b3c8b24",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://e4574c95985ca78c56c9c1e6fa42c68e9879bf47c2ff5b8b6232df14919ae562",
+              "captured_utc": 1794875752.930812,
+              "path": "pod-logs/450dfcd2-8960-419b-8cc7-819f5b3c8b24/runtime/0-current-1794875752798908000.log",
+              "bytes": 1364910,
+              "sha256": "edca9e6d749926f6c0a127bcb163e10006d74ac5954ae743ab1ea176dd1e88cb",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "9e4c5ae4-a8da-4098-81b7-34856f0eacce",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://2083a793f65414d44b75d8b7b2e0f929bf634d496bf8f57e2daa68355a81d0bb",
+              "captured_utc": 1794875753.1391208,
+              "path": "pod-logs/9e4c5ae4-a8da-4098-81b7-34856f0eacce/runtime/0-current-1794875753014646000.log",
+              "bytes": 1366157,
+              "sha256": "59d79e36a4e48993f870f0bbfe979d11bdb870de7d20de51abf25d5fa572dff1",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "f907159e-fcaf-40ee-adb0-72522d947ddf",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://b5e08d0e47ffd09c56d84535d0d4dc67d068d73c6e8d72da03f0d7ccc9807caf",
+              "captured_utc": 1794875753.315669,
+              "path": "pod-logs/f907159e-fcaf-40ee-adb0-72522d947ddf/runtime/0-current-1794875753186260000.log",
+              "bytes": 1367293,
+              "sha256": "6d8be67146ffe86cb119c4fff53b1a02614c7361e1b17bf65d37667d3208880a",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "actual_csharp_traffic_window_audit": {
+          "passed": true,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794875269.498481,
+            1794875749.458937
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "450dfcd2-8960-419b-8cc7-819f5b3c8b24",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://e4574c95985ca78c56c9c1e6fa42c68e9879bf47c2ff5b8b6232df14919ae562",
+              "captured_utc": 1794875752.930812,
+              "path": "pod-logs/450dfcd2-8960-419b-8cc7-819f5b3c8b24/runtime/0-current-1794875752798908000.log",
+              "bytes": 1364910,
+              "sha256": "edca9e6d749926f6c0a127bcb163e10006d74ac5954ae743ab1ea176dd1e88cb",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "9e4c5ae4-a8da-4098-81b7-34856f0eacce",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://2083a793f65414d44b75d8b7b2e0f929bf634d496bf8f57e2daa68355a81d0bb",
+              "captured_utc": 1794875753.1391208,
+              "path": "pod-logs/9e4c5ae4-a8da-4098-81b7-34856f0eacce/runtime/0-current-1794875753014646000.log",
+              "bytes": 1366157,
+              "sha256": "59d79e36a4e48993f870f0bbfe979d11bdb870de7d20de51abf25d5fa572dff1",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "f907159e-fcaf-40ee-adb0-72522d947ddf",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://b5e08d0e47ffd09c56d84535d0d4dc67d068d73c6e8d72da03f0d7ccc9807caf",
+              "captured_utc": 1794875753.315669,
+              "path": "pod-logs/f907159e-fcaf-40ee-adb0-72522d947ddf/runtime/0-current-1794875753186260000.log",
+              "bytes": 1367293,
+              "sha256": "6d8be67146ffe86cb119c4fff53b1a02614c7361e1b17bf65d37667d3208880a",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "scope": "Additional post-hoc classification using first real C# intent through last operation completion, all from VM clock. Does not replace/relabel original JobStart health verdict or claim operational readiness before traffic."
+      }
+    },
+    {
+      "case": "hdls-c1-p3-01",
+      "namespace": "slimfaas-pr506-routing-hdls-c1-p3-01",
+      "runtime_source": "29daa097fd4562c39e4b362646c16ddd5f1cf7c0",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "driver_success": true,
+      "intents": 9600,
+      "operation_completed": 9600,
+      "no_response_unknown_ids": [],
+      "headers_without_operation_completion_ids": [],
+      "http_status_counts": {
+        "200": 9600
+      },
+      "successful_receipts": 9600,
+      "confirmed_missing": [],
+      "duplicate_successes": {},
+      "corrupt_receipts": [],
+      "protocol_versions": {
+        "1.1": 9600
+      },
+      "serving_pod_counts": {
+        "973c5278-dd80-458d-b56e-58906a7b2e02": 6001,
+        "35cfd2eb-f953-4422-ab19-97939a968ea6": 3599
+      },
+      "old_pod": {
+        "uid": "973c5278-dd80-458d-b56e-58906a7b2e02",
+        "ip": "10.244.3.194",
+        "name": "memory-function-579d749fdd-fl4gc"
+      },
+      "new_pod": {
+        "uid": "35cfd2eb-f953-4422-ab19-97939a968ea6",
+        "ip": "10.244.5.2"
+      },
+      "deletion_requested_utc": 1794875831.738711,
+      "replacement_ready_after_seconds": 2.2041499614715576,
+      "first_new_success_after_seconds": 239.91932845115662,
+      "last_old_success_after_seconds": 239.86877131462097,
+      "old_successes_after_15s": 4498,
+      "observed_connections": 6,
+      "clock_alignment_samples": {
+        "before": {
+          "host_start": 1794875761.2174878,
+          "host_end": 1794875761.395475,
+          "vm_utc": 1794875761.4330773,
+          "estimated_vm_minus_host_seconds": 0.12659597396850586,
+          "uncertainty_seconds": 0.08899354934692383
+        },
+        "after": {
+          "host_start": 1794876262.225559,
+          "host_end": 1794876262.417842,
+          "vm_utc": 1794876262.457503,
+          "estimated_vm_minus_host_seconds": 0.1358025074005127,
+          "uncertainty_seconds": 0.09614145755767822
+        }
+      },
+      "raw_archive_sha256": "6c95ffd55e63784cfbfeef6e9c73d3b8acdd32d327ab5bd7f21bd87769182063",
+      "csharp_latency_and_rate": {
+        "Operation": "All",
+        "Completed": 9600,
+        "Failed": 0,
+        "RatePerSecond": 19.999662676522785,
+        "P50Milliseconds": 2.6747,
+        "P95Milliseconds": 6.033574999999999,
+        "P99Milliseconds": 7.625506000000005,
+        "MaxMilliseconds": 63.7712
+      },
+      "connections": [
+        {
+          "pod_uid": "35cfd2eb-f953-4422-ab19-97939a968ea6",
+          "tuple": "('0.0.0.0', 5000)|('10.244.5.254', 38054)",
+          "first_utc": 1794876071.6580396,
+          "last_utc": 1794876251.506322,
+          "observed_span_seconds": 179.84828233718872,
+          "successful_receipts": 1200
+        },
+        {
+          "pod_uid": "35cfd2eb-f953-4422-ab19-97939a968ea6",
+          "tuple": "('0.0.0.0', 5000)|('10.244.3.193', 42074)",
+          "first_utc": 1794876071.7060552,
+          "last_utc": 1794876251.557965,
+          "observed_span_seconds": 179.85190987586975,
+          "successful_receipts": 1200
+        },
+        {
+          "pod_uid": "35cfd2eb-f953-4422-ab19-97939a968ea6",
+          "tuple": "('0.0.0.0', 5000)|('10.244.1.202', 34664)",
+          "first_utc": 1794876071.75789,
+          "last_utc": 1794876251.4568272,
+          "observed_span_seconds": 179.69893717765808,
+          "successful_receipts": 1199
+        },
+        {
+          "pod_uid": "973c5278-dd80-458d-b56e-58906a7b2e02",
+          "tuple": "('0.0.0.0', 5000)|('10.244.1.202', 37294)",
+          "first_utc": 1794875771.623339,
+          "last_utc": 1794876071.6074824,
+          "observed_span_seconds": 299.9841434955597,
+          "successful_receipts": 2001
+        },
+        {
+          "pod_uid": "973c5278-dd80-458d-b56e-58906a7b2e02",
+          "tuple": "('0.0.0.0', 5000)|('10.244.5.254', 38690)",
+          "first_utc": 1794875771.6504877,
+          "last_utc": 1794876071.5057864,
+          "observed_span_seconds": 299.8552987575531,
+          "successful_receipts": 2000
+        },
+        {
+          "pod_uid": "973c5278-dd80-458d-b56e-58906a7b2e02",
+          "tuple": "('0.0.0.0', 5000)|('10.244.3.193', 49874)",
+          "first_utc": 1794875771.7031522,
+          "last_utc": 1794876071.5565712,
+          "observed_span_seconds": 299.85341906547546,
+          "successful_receipts": 2000
+        }
+      ],
+      "resource_samples": {
+        "first_utc": "2026-11-17T00:36:11.533698+00:00",
+        "last_utc": "2026-11-17T00:44:10.753463+00:00",
+        "count": 480,
+        "aggregate_runtime_cpu_seconds_delta": 95.231086,
+        "cpu_ms_per_completed_message_approximate": 9.919904791666667,
+        "peak_aggregate_sampled_rss_bytes": 526319616.0
+      },
+      "runtime_health": {
+        "passed": false,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794875770.0,
+          1794876254.901023
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "0ce66005-bad7-41e3-a36c-6e3d6606d4ac",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://b3cecd9ff373060b518268141c5882da4d4407d50e0970ba42eb1b4827ba96dd",
+            "captured_utc": 1794876255.386529,
+            "path": "pod-logs/0ce66005-bad7-41e3-a36c-6e3d6606d4ac/runtime/0-current-1794876255263544000.log",
+            "bytes": 1364910,
+            "sha256": "6b06bfaad6d1b29779800e0c0aa496215b41db99d186dc69f113380bcf71475a",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "5e1a0d5a-2cc6-4cc7-8940-3e01194cb6f4",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://9a1cb16c911eff0b2fcbdf8e6b12cb0bb8f85944390132bda284af2a484f423d",
+            "captured_utc": 1794876255.593617,
+            "path": "pod-logs/5e1a0d5a-2cc6-4cc7-8940-3e01194cb6f4/runtime/0-current-1794876255462628000.log",
+            "bytes": 1366157,
+            "sha256": "84dc8b32672a4141353fcb103e620694d9a38022a277757db591d3848eb72953",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "f00837ab-eeab-42ce-a8dc-8db6817fd376",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://a01ae844c365fcb86341f5ecb0311f87119120b2185addcce7a06274d9aaf42b",
+            "captured_utc": 1794876255.8101919,
+            "path": "pod-logs/f00837ab-eeab-42ce-a8dc-8db6817fd376/runtime/0-current-1794876255674902000.log",
+            "bytes": 1366974,
+            "sha256": "e206c86c20dcfcf37c59fb83b62895a7dfaae7908197ffe5ff03cc3080c16712",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-17T00:36:10.035379071Z 2026-11-17T00:36:10.0351715+00:00fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      },
+      "control": {
+        "pid": 90204,
+        "started": 1794875761.208103,
+        "phase": "closed-reconciliation-required",
+        "execution_closed": true,
+        "runtime_source": "29daa097fd4562c39e4b362646c16ddd5f1cf7c0",
+        "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+        "controller_source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+        "controller_sha256": "891980cae5be5f2b909b09afb53f9432ab86a788cf24739550b1a74d47ca283a",
+        "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+        "arguments": {
+          "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+          "case": "hdls-c1-p3-01",
+          "variant": "pool467",
+          "route": "headless",
+          "concurrency": 1,
+          "rps": 20.0,
+          "before": 60,
+          "after": 420,
+          "retire": 600
+        },
+        "namespace": "slimfaas-pr506-routing-hdls-c1-p3-01",
+        "clock_before": {
+          "host_start": 1794875761.2174878,
+          "host_end": 1794875761.395475,
+          "vm_utc": 1794875761.4330773,
+          "estimated_vm_minus_host_seconds": 0.12659597396850586,
+          "uncertainty_seconds": 0.08899354934692383
+        },
+        "execution_exit_code": 0,
+        "quiescence_exit_code": 0,
+        "clock_after": {
+          "host_start": 1794876262.225559,
+          "host_end": 1794876262.417842,
+          "vm_utc": 1794876262.457503,
+          "estimated_vm_minus_host_seconds": 0.1358025074005127,
+          "uncertainty_seconds": 0.09614145755767822
+        },
+        "driver_success": true,
+        "finished": 1794876262.41785
+      },
+      "additional_actual_csharp_traffic_audit": {
+        "case": "hdls-c1-p3-01",
+        "original_job_start_audit_preserved": {
+          "passed": false,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794875770.0,
+            1794876254.901023
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "0ce66005-bad7-41e3-a36c-6e3d6606d4ac",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://b3cecd9ff373060b518268141c5882da4d4407d50e0970ba42eb1b4827ba96dd",
+              "captured_utc": 1794876255.386529,
+              "path": "pod-logs/0ce66005-bad7-41e3-a36c-6e3d6606d4ac/runtime/0-current-1794876255263544000.log",
+              "bytes": 1364910,
+              "sha256": "6b06bfaad6d1b29779800e0c0aa496215b41db99d186dc69f113380bcf71475a",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "5e1a0d5a-2cc6-4cc7-8940-3e01194cb6f4",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://9a1cb16c911eff0b2fcbdf8e6b12cb0bb8f85944390132bda284af2a484f423d",
+              "captured_utc": 1794876255.593617,
+              "path": "pod-logs/5e1a0d5a-2cc6-4cc7-8940-3e01194cb6f4/runtime/0-current-1794876255462628000.log",
+              "bytes": 1366157,
+              "sha256": "84dc8b32672a4141353fcb103e620694d9a38022a277757db591d3848eb72953",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "f00837ab-eeab-42ce-a8dc-8db6817fd376",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://a01ae844c365fcb86341f5ecb0311f87119120b2185addcce7a06274d9aaf42b",
+              "captured_utc": 1794876255.8101919,
+              "path": "pod-logs/f00837ab-eeab-42ce-a8dc-8db6817fd376/runtime/0-current-1794876255674902000.log",
+              "bytes": 1366974,
+              "sha256": "e206c86c20dcfcf37c59fb83b62895a7dfaae7908197ffe5ff03cc3080c16712",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": [
+                "2026-11-17T00:36:10.035379071Z 2026-11-17T00:36:10.0351715+00:00fail: SlimFaas.Database.SlimDataService[870726782]"
+              ]
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "actual_csharp_traffic_window_audit": {
+          "passed": true,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794875771.569661,
+            1794876251.560128
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "0ce66005-bad7-41e3-a36c-6e3d6606d4ac",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://b3cecd9ff373060b518268141c5882da4d4407d50e0970ba42eb1b4827ba96dd",
+              "captured_utc": 1794876255.386529,
+              "path": "pod-logs/0ce66005-bad7-41e3-a36c-6e3d6606d4ac/runtime/0-current-1794876255263544000.log",
+              "bytes": 1364910,
+              "sha256": "6b06bfaad6d1b29779800e0c0aa496215b41db99d186dc69f113380bcf71475a",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "5e1a0d5a-2cc6-4cc7-8940-3e01194cb6f4",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://9a1cb16c911eff0b2fcbdf8e6b12cb0bb8f85944390132bda284af2a484f423d",
+              "captured_utc": 1794876255.593617,
+              "path": "pod-logs/5e1a0d5a-2cc6-4cc7-8940-3e01194cb6f4/runtime/0-current-1794876255462628000.log",
+              "bytes": 1366157,
+              "sha256": "84dc8b32672a4141353fcb103e620694d9a38022a277757db591d3848eb72953",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "f00837ab-eeab-42ce-a8dc-8db6817fd376",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://a01ae844c365fcb86341f5ecb0311f87119120b2185addcce7a06274d9aaf42b",
+              "captured_utc": 1794876255.8101919,
+              "path": "pod-logs/f00837ab-eeab-42ce-a8dc-8db6817fd376/runtime/0-current-1794876255674902000.log",
+              "bytes": 1366974,
+              "sha256": "e206c86c20dcfcf37c59fb83b62895a7dfaae7908197ffe5ff03cc3080c16712",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "scope": "Additional post-hoc classification using first real C# intent through last operation completion, all from VM clock. Does not replace/relabel original JobStart health verdict or claim operational readiness before traffic."
+      }
+    },
+    {
+      "case": "hdls-c1-b4-01",
+      "namespace": "slimfaas-pr506-routing-hdls-c1-b4-01",
+      "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "driver_success": true,
+      "intents": 9600,
+      "operation_completed": 9600,
+      "no_response_unknown_ids": [],
+      "headers_without_operation_completion_ids": [],
+      "http_status_counts": {
+        "200": 9600
+      },
+      "successful_receipts": 9600,
+      "confirmed_missing": [],
+      "duplicate_successes": {},
+      "corrupt_receipts": [],
+      "protocol_versions": {
+        "1.1": 9600
+      },
+      "serving_pod_counts": {
+        "2dcca801-a79b-4e94-9252-87e7e1473eef": 9600
+      },
+      "old_pod": {
+        "uid": "2dcca801-a79b-4e94-9252-87e7e1473eef",
+        "ip": "10.244.1.203",
+        "name": "memory-function-86c858d74d-rnw29"
+      },
+      "new_pod": {
+        "uid": "c97cf9bc-a639-4086-9085-0b6284a69c27",
+        "ip": "10.244.5.4"
+      },
+      "deletion_requested_utc": 1794876497.252584,
+      "replacement_ready_after_seconds": 2.202913999557495,
+      "first_new_success_after_seconds": null,
+      "last_old_success_after_seconds": 419.97436809539795,
+      "old_successes_after_15s": 8100,
+      "observed_connections": 3,
+      "clock_alignment_samples": {
+        "before": {
+          "host_start": 1794876424.617386,
+          "host_end": 1794876424.7913249,
+          "vm_utc": 1794876424.8318555,
+          "estimated_vm_minus_host_seconds": 0.12750005722045898,
+          "uncertainty_seconds": 0.08696937561035156
+        },
+        "after": {
+          "host_start": 1794876927.913236,
+          "host_end": 1794876928.0977879,
+          "vm_utc": 1794876928.140211,
+          "estimated_vm_minus_host_seconds": 0.13469934463500977,
+          "uncertainty_seconds": 0.09227597713470459
+        }
+      },
+      "raw_archive_sha256": "be025f237cc4b941128439fe62e24fe3f3fbd1add37e1ee560754e4d49bb5464",
+      "csharp_latency_and_rate": {
+        "Operation": "All",
+        "Completed": 9600,
+        "Failed": 0,
+        "RatePerSecond": 19.99983027227372,
+        "P50Milliseconds": 2.5223,
+        "P95Milliseconds": 5.723549999999999,
+        "P99Milliseconds": 7.702440000000003,
+        "MaxMilliseconds": 61.3491
+      },
+      "connections": [
+        {
+          "pod_uid": "2dcca801-a79b-4e94-9252-87e7e1473eef",
+          "tuple": "('0.0.0.0', 5000)|('10.244.5.3', 55476)",
+          "first_utc": 1794876437.3195908,
+          "last_utc": 1794876917.126356,
+          "observed_span_seconds": 479.8067650794983,
+          "successful_receipts": 3200
+        },
+        {
+          "pod_uid": "2dcca801-a79b-4e94-9252-87e7e1473eef",
+          "tuple": "('0.0.0.0', 5000)|('10.244.3.195', 40818)",
+          "first_utc": 1794876437.344416,
+          "last_utc": 1794876917.1771774,
+          "observed_span_seconds": 479.8327615261078,
+          "successful_receipts": 3200
+        },
+        {
+          "pod_uid": "2dcca801-a79b-4e94-9252-87e7e1473eef",
+          "tuple": "('0.0.0.0', 5000)|('10.244.1.204', 44402)",
+          "first_utc": 1794876437.3964987,
+          "last_utc": 1794876917.226952,
+          "observed_span_seconds": 479.8304533958435,
+          "successful_receipts": 3200
+        }
+      ],
+      "resource_samples": {
+        "first_utc": "2026-11-17T00:47:17.228767+00:00",
+        "last_utc": "2026-11-17T00:55:16.476861+00:00",
+        "count": 480,
+        "aggregate_runtime_cpu_seconds_delta": 94.27380399999998,
+        "cpu_ms_per_completed_message_approximate": 9.820187916666665,
+        "peak_aggregate_sampled_rss_bytes": 524877824.0
+      },
+      "runtime_health": {
+        "passed": true,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794876436.0,
+          1794876920.584098
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "a1ee7469-ed99-4ea1-8afc-79a9ff61280b",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://6f3c6979ad63ccfbdc199906674cd13de32054dc9c3bcf8e9a5b8749a37e8ba8",
+            "captured_utc": 1794876921.055493,
+            "path": "pod-logs/a1ee7469-ed99-4ea1-8afc-79a9ff61280b/runtime/0-current-1794876920936206000.log",
+            "bytes": 1364910,
+            "sha256": "e0445aae8e82d9adc37aaa61d1510130b5085ce07e268799a2874e526c65e60f",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "d299c893-5870-4af5-bfcc-e66d86485d22",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://17613b96090a73a940b06c43123bdf9d8a2bb900fbd0bc3599f56f55b7e1e9a1",
+            "captured_utc": 1794876921.255234,
+            "path": "pod-logs/d299c893-5870-4af5-bfcc-e66d86485d22/runtime/0-current-1794876921129035000.log",
+            "bytes": 1366157,
+            "sha256": "7e33eb02b7a69ffc295c56909bcba87778a6b17a4860f4836c44fd0f8f3c6e5b",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "dd7fb6a2-5848-4f89-b0ff-2c69a7e1aae5",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://7d712929097bd5b827359aa2c0a3a5a03dd87dec3d67a260cfb3a683e1852cde",
+            "captured_utc": 1794876921.4722571,
+            "path": "pod-logs/dd7fb6a2-5848-4f89-b0ff-2c69a7e1aae5/runtime/0-current-1794876921339223000.log",
+            "bytes": 1366974,
+            "sha256": "2d5edd27a70c6c535867cf10d4868818bfafcbe15696295639a12beadd388a38",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      },
+      "control": {
+        "pid": 3563,
+        "started": 1794876424.604795,
+        "phase": "closed-reconciliation-required",
+        "execution_closed": true,
+        "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+        "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+        "controller_source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+        "controller_sha256": "891980cae5be5f2b909b09afb53f9432ab86a788cf24739550b1a74d47ca283a",
+        "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+        "arguments": {
+          "controller_root": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/worktrees/routing-control-bbf19",
+          "case": "hdls-c1-b4-01",
+          "variant": "tools",
+          "route": "headless",
+          "concurrency": 1,
+          "rps": 20.0,
+          "before": 60,
+          "after": 420,
+          "retire": 600
+        },
+        "namespace": "slimfaas-pr506-routing-hdls-c1-b4-01",
+        "clock_before": {
+          "host_start": 1794876424.617386,
+          "host_end": 1794876424.7913249,
+          "vm_utc": 1794876424.8318555,
+          "estimated_vm_minus_host_seconds": 0.12750005722045898,
+          "uncertainty_seconds": 0.08696937561035156
+        },
+        "execution_exit_code": 0,
+        "quiescence_exit_code": 0,
+        "clock_after": {
+          "host_start": 1794876927.913236,
+          "host_end": 1794876928.0977879,
+          "vm_utc": 1794876928.140211,
+          "estimated_vm_minus_host_seconds": 0.13469934463500977,
+          "uncertainty_seconds": 0.09227597713470459
+        },
+        "driver_success": true,
+        "finished": 1794876928.0977962
+      },
+      "additional_actual_csharp_traffic_audit": {
+        "case": "hdls-c1-b4-01",
+        "original_job_start_audit_preserved": {
+          "passed": true,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794876436.0,
+            1794876920.584098
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "a1ee7469-ed99-4ea1-8afc-79a9ff61280b",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://6f3c6979ad63ccfbdc199906674cd13de32054dc9c3bcf8e9a5b8749a37e8ba8",
+              "captured_utc": 1794876921.055493,
+              "path": "pod-logs/a1ee7469-ed99-4ea1-8afc-79a9ff61280b/runtime/0-current-1794876920936206000.log",
+              "bytes": 1364910,
+              "sha256": "e0445aae8e82d9adc37aaa61d1510130b5085ce07e268799a2874e526c65e60f",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "d299c893-5870-4af5-bfcc-e66d86485d22",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://17613b96090a73a940b06c43123bdf9d8a2bb900fbd0bc3599f56f55b7e1e9a1",
+              "captured_utc": 1794876921.255234,
+              "path": "pod-logs/d299c893-5870-4af5-bfcc-e66d86485d22/runtime/0-current-1794876921129035000.log",
+              "bytes": 1366157,
+              "sha256": "7e33eb02b7a69ffc295c56909bcba87778a6b17a4860f4836c44fd0f8f3c6e5b",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "dd7fb6a2-5848-4f89-b0ff-2c69a7e1aae5",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://7d712929097bd5b827359aa2c0a3a5a03dd87dec3d67a260cfb3a683e1852cde",
+              "captured_utc": 1794876921.4722571,
+              "path": "pod-logs/dd7fb6a2-5848-4f89-b0ff-2c69a7e1aae5/runtime/0-current-1794876921339223000.log",
+              "bytes": 1366974,
+              "sha256": "2d5edd27a70c6c535867cf10d4868818bfafcbe15696295639a12beadd388a38",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "actual_csharp_traffic_window_audit": {
+          "passed": true,
+          "runtime_log_coverage_complete": true,
+          "missing_instances": [],
+          "workload_window_utc": [
+            1794876437.267354,
+            1794876917.22779
+          ],
+          "instances": [
+            {
+              "pod": "slimfaas-0",
+              "pod_uid": "a1ee7469-ed99-4ea1-8afc-79a9ff61280b",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://6f3c6979ad63ccfbdc199906674cd13de32054dc9c3bcf8e9a5b8749a37e8ba8",
+              "captured_utc": 1794876921.055493,
+              "path": "pod-logs/a1ee7469-ed99-4ea1-8afc-79a9ff61280b/runtime/0-current-1794876920936206000.log",
+              "bytes": 1364910,
+              "sha256": "e0445aae8e82d9adc37aaa61d1510130b5085ce07e268799a2874e526c65e60f",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-1",
+              "pod_uid": "d299c893-5870-4af5-bfcc-e66d86485d22",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://17613b96090a73a940b06c43123bdf9d8a2bb900fbd0bc3599f56f55b7e1e9a1",
+              "captured_utc": 1794876921.255234,
+              "path": "pod-logs/d299c893-5870-4af5-bfcc-e66d86485d22/runtime/0-current-1794876921129035000.log",
+              "bytes": 1366157,
+              "sha256": "7e33eb02b7a69ffc295c56909bcba87778a6b17a4860f4836c44fd0f8f3c6e5b",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            },
+            {
+              "pod": "slimfaas-2",
+              "pod_uid": "dd7fb6a2-5848-4f89-b0ff-2c69a7e1aae5",
+              "container": "runtime",
+              "restart_index": 0,
+              "previous": false,
+              "exit_code": 0,
+              "container_id": "containerd://7d712929097bd5b827359aa2c0a3a5a03dd87dec3d67a260cfb3a683e1852cde",
+              "captured_utc": 1794876921.4722571,
+              "path": "pod-logs/dd7fb6a2-5848-4f89-b0ff-2c69a7e1aae5/runtime/0-current-1794876921339223000.log",
+              "bytes": 1366974,
+              "sha256": "2d5edd27a70c6c535867cf10d4868818bfafcbe15696295639a12beadd388a38",
+              "hash_matches_capture": true,
+              "managed_oom_log_occurrences": 0,
+              "runtime_errors_during_workload": []
+            }
+          ],
+          "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+        },
+        "scope": "Additional post-hoc classification using first real C# intent through last operation completion, all from VM clock. Does not replace/relabel original JobStart health verdict or claim operational readiness before traffic."
+      }
+    }
+  ],
+  "images": [
+    {
+      "variant": "tools",
+      "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "image": "localhost/slimfaas-pr506:routing-tools-01",
+      "id": "2556c12a89e16e668038b3b201b90a6baff5028010d58c71eb9aef710f6b2c57",
+      "hashes": {
+        "/app/SlimFaas.dll": "c218344c8e72f4ca1ac6371bc510fa59c2d34b71003e260fd98d29de89bd1127",
+        "/app/SlimData.dll": "69b8499b9f79ad5d13cb3a585efabd77800f98500145caa9e6149233943780c6",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "9de8e911b9aa5a2c00c797ea4552ab40188d4567c9683488eba6c58da31938a9",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "fc5e4e101d88f71728c0dee21019896ab06f025b1fc7ab1845c9cf7b77025d1a"
+      },
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive_sha256": "baff7532b1c0e97a36a5fb6ff35769d6706384735a0bffcfb87d3e1b3d80051b",
+      "archive_location": "Podman VM /var/home/core/slimfaas-pr506/images/routing-tools-01.tar.gz"
+    },
+    {
+      "variant": "pool467",
+      "runtime_source": "29daa097fd4562c39e4b362646c16ddd5f1cf7c0",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "image": "localhost/slimfaas-pr506:routing-pool467-01",
+      "id": "efda16a6040de89640c0b7e925c9660723de173599eb6e4a01e1201a233675bd",
+      "hashes": {
+        "/app/SlimFaas.dll": "b08a6ef955c6c1a84597a43886f3878d09959d38886f7bfc85919f2e085a11cd",
+        "/app/SlimData.dll": "4caf27be82cf9b9f16af21453bddf065b51da08c56c6ffcbcf927d690b234032",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "9de8e911b9aa5a2c00c797ea4552ab40188d4567c9683488eba6c58da31938a9",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "fc5e4e101d88f71728c0dee21019896ab06f025b1fc7ab1845c9cf7b77025d1a"
+      },
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive_sha256": "c5f68c6a40c8b55c92998ff101b678e2e0751fb5558d1c7612eb86453e76cb4d",
+      "archive_location": "Podman VM /var/home/core/slimfaas-pr506/images/routing-pool467-01.tar.gz"
+    },
+    {
+      "variant": "after",
+      "runtime_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+      "image": "localhost/slimfaas-pr506:routing-after-01",
+      "id": "82d386014267c373db6d1b530ea150d580e9cbd878dc129972a06b278ce927e6",
+      "hashes": {
+        "/app/SlimFaas.dll": "5e4d09e826ddac151a3750d6ad3fde3f461d3e8f92c21c1f087323b9a45f48e3",
+        "/app/SlimData.dll": "877e94f15dcc0b178c5d27d727d7e5589f617924f98e3983b3817d98ceb902a2",
+        "/tools/memorylab/SlimFaas.MemoryLab.dll": "9de8e911b9aa5a2c00c797ea4552ab40188d4567c9683488eba6c58da31938a9",
+        "/tools/benchmark/SlimFaas.Benchmarks.dll": "fc5e4e101d88f71728c0dee21019896ab06f025b1fc7ab1845c9cf7b77025d1a"
+      },
+      "kind_imports": [
+        "slimfaas-pr506-control-plane",
+        "slimfaas-pr506-worker",
+        "slimfaas-pr506-worker2",
+        "slimfaas-pr506-worker3"
+      ],
+      "archive_sha256": "097edf65891bf769b3c3127f18eace3f47a1d8ee9b9c3c396c1fabcb29722118",
+      "archive_location": "Podman VM /var/home/core/slimfaas-pr506/images/routing-after-01.tar.gz"
+    }
+  ],
+  "limitations": [
+    "Headless DNS publishes the replacement pod IP; actual served destinations are observed in independent receipts. No packet-level DNS capture is claimed.",
+    "The old function remains alive during preStop. This does not establish behavior after complete process/pod removal.",
+    "Paced 20rps connection diagnostics are not capacity or overall non-regression acceptance.",
+    "CPU includes background Raft and probe work. The sample interval is slightly shorter than the complete load interval; retain sample bounds.",
+    "No per-process FD/TIME_WAIT data was collected by this frozen controller; backend connection tuples are observed instead."
+  ],
+  "original_series_health_failure_retained": true,
+  "overall_non_regression_acceptance": "INCONCLUSIVE: connection diagnostic with a retained JobStart-window pretraffic protocol failure; not final-source capacity or general operational acceptance.",
+  "continuation": {
+    "pid": 3562,
+    "started": 1794876424.559704,
+    "phase": "closed-all-four-observations-with-original-health-failure-retained",
+    "passed": true,
+    "scope": "Finish only missing headless189reference without rebuilding or changing frozenbbfcontroller/commonC#tools1b. Original3case series remainsFAILED due a pretraffic error inside its JobStart audit window; retain that failure, never erase it. Afterwards add separate actual-C#traffic-window audits for all4 cases.",
+    "final_reference": {
+      "case": "hdls-c1-b4-01",
+      "intents": 9600,
+      "completed": 9600,
+      "first_new_success_after_seconds": null,
+      "last_old_success_after_seconds": 419.97436809539795,
+      "job_start_runtime_health_passed": true
+    },
+    "observations": [
+      {
+        "case": "hdls-c1-b1-01",
+        "original_passed": true,
+        "actual_traffic_passed": true,
+        "first_intent_utc": 1794874766.218457,
+        "last_completion_utc": 1794875246.215819
+      },
+      {
+        "case": "hdls-c1-p2-01",
+        "original_passed": true,
+        "actual_traffic_passed": true,
+        "first_intent_utc": 1794875269.498481,
+        "last_completion_utc": 1794875749.458937
+      },
+      {
+        "case": "hdls-c1-p3-01",
+        "original_passed": false,
+        "actual_traffic_passed": true,
+        "first_intent_utc": 1794875771.569661,
+        "last_completion_utc": 1794876251.560128
+      },
+      {
+        "case": "hdls-c1-b4-01",
+        "original_passed": true,
+        "actual_traffic_passed": true,
+        "first_intent_utc": 1794876437.267354,
+        "last_completion_utc": 1794876917.22779
+      }
+    ],
+    "finished": 1794876929.8500721
+  },
+  "reproducible_pool_effect": true,
+  "raw_index": {
+    "path": "kubernetes-headless-pool-raw-index.jsonl.gz",
+    "sha256": "7b53749e0d340696cce22da6a71721cee4114178036c29d5e4af087fb5697b1b",
+    "files": 270,
+    "logical_bytes": 405998216
+  }
+}
