@@ -120,12 +120,17 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     schemaEl = sch;
                 else if (param.TryGetProperty("content", out var cnt) && cnt.ValueKind == JsonValueKind.Object)
                 {
-                    // OpenAPI autorise content/application/json pour query params
-                    if (cnt.TryGetProperty("application/json", out var cj))
+                    // OpenAPI autorise content/application/json (ou un type en +json) pour query params
+                    foreach (var media in cnt.EnumerateObject())
                     {
+                        if (!IsJsonMediaType(media.Name))
+                            continue;
+
                         isJsonContent = true;
-                        if (cj.TryGetProperty("schema", out var sch2))
+                        if (media.Value.ValueKind == JsonValueKind.Object &&
+                            media.Value.TryGetProperty("schema", out var sch2))
                             schemaEl = sch2;
+                        break;
                     }
                 }
 
@@ -355,6 +360,16 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         }
 
         return false;
+    }
+
+    // application/json, or a structured syntax suffix such as application/geo+json. Media type parameters
+    // (charset) are ignored.
+    private static bool IsJsonMediaType(string mediaType)
+    {
+        int separator = mediaType.IndexOf(';', StringComparison.Ordinal);
+        string type = (separator >= 0 ? mediaType[..separator] : mediaType).Trim();
+        return type.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+               || type.EndsWith("+json", StringComparison.OrdinalIgnoreCase);
     }
 
     // OpenAPI 3 defaults to the form style with explode for query and cookie parameters, and to the simple style

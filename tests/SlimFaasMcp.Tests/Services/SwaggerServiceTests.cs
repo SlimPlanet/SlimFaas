@@ -268,6 +268,49 @@ paths:
         Assert.Equal("object", json.SchemaType);
     }
 
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/geo+json")]
+    [InlineData("application/vnd.api+json; charset=utf-8")]
+    public void ParseEndpoints_Detects_Json_Content_Query_Parameter(string mediaType)
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/places": { "get": {
+                "parameters": [
+                  { "name": "geometry", "in": "query", "required": true,
+                    "content": { "{{mediaType}}": { "schema": { "type": "object" } } } }
+                ]
+              } } }
+            }
+            """);
+
+        var geometry = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.True(geometry.IsJsonContent);
+        Assert.Equal("object", geometry.SchemaType);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Ignores_NonJson_Content_Query_Parameter()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/places": { "get": {
+                "parameters": [
+                  { "name": "q", "in": "query", "content": { "text/plain": { "schema": { "type": "string" } } } }
+                ]
+              } } }
+            }
+            """);
+
+        Assert.False(svc.ParseEndpoints(doc).Single().Parameters!.Single().IsJsonContent);
+    }
+
     [Fact]
     public void ParseEndpoints_Keeps_Query_Parameter_Serialization()
     {

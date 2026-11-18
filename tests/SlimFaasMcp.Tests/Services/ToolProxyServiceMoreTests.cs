@@ -517,6 +517,11 @@ public class ToolProxyServiceMoreTests
     [InlineData("form", false, "{\"role\":\"admin\",\"id\":5}", "ids=role,admin,id,5")]
     [InlineData("deepObject", true, "{\"role\":\"admin\",\"id\":5}", "ids%5Brole%5D=admin&ids%5Bid%5D=5")]
     [InlineData("form", true, "true", "ids=true")]
+    [InlineData("form", true, "[1,null,2]", "ids=1&ids=2")]
+    [InlineData("form", false, "[1,null,2]", "ids=1,2")]
+    [InlineData("form", true, "{\"role\":\"admin\",\"age\":null}", "role=admin")]
+    [InlineData("form", false, "{\"role\":\"admin\",\"age\":null}", "ids=role,admin")]
+    [InlineData("deepObject", true, "{\"role\":\"admin\",\"age\":null}", "ids%5Brole%5D=admin")]
     public async Task ExecuteToolAsync_SerializesQueryParametersWithTheirStyle(string style, bool explode, string value,
         string expectedQuery)
     {
@@ -614,7 +619,8 @@ public class ToolProxyServiceMoreTests
         };
         SetupSwaggerAndEndpoints(endpoints);
 
-        var input = JsonSerializer.Deserialize<JsonElement>("{\"type\":null,\"ids\":[],\"filter\":{},\"limit\":10}");
+        var input = JsonSerializer.Deserialize<JsonElement>(
+            "{\"type\":null,\"ids\":[null],\"filter\":{\"age\":null},\"limit\":10}");
 
         await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
 

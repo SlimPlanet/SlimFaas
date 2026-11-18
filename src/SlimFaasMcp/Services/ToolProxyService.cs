@@ -513,8 +513,8 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
     // "ids=1,2" without explode, and an object {"role":"admin","id":5} becomes "role=admin&id=5", or
     // "filter=role,admin,id,5" without explode. The spaceDelimited and pipeDelimited styles join array values with a
     // space or "|" instead of ",", and deepObject sends "filter[role]=admin&filter[id]=5". A parameter described with
-    // content application/json is sent as JSON, including null. Otherwise a null
-    // value, an empty array and an empty object send nothing.
+    // content application/json is sent as JSON, including null. Otherwise a null value, an empty array and an empty
+    // object send nothing, and null members of an array or an object are skipped.
     private static void AddQueryPairs(List<string> pairs, Parameter parameter, JsonElement value)
     {
         string name = Uri.EscapeDataString(parameter.Name!);
@@ -542,6 +542,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             case JsonValueKind.Array:
                 List<string> items = value.EnumerateArray()
+                    .Where(item => item.ValueKind != JsonValueKind.Null)
                     .Select(item => Uri.EscapeDataString(ToParameterValue(item)))
                     .ToList();
                 if (items.Count == 0)
@@ -561,6 +562,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                 break;
             case JsonValueKind.Object:
                 List<(string Key, string Value)> properties = value.EnumerateObject()
+                    .Where(property => property.Value.ValueKind != JsonValueKind.Null)
                     .Select(property => (Uri.EscapeDataString(property.Name),
                         Uri.EscapeDataString(ToParameterValue(property.Value))))
                     .ToList();
