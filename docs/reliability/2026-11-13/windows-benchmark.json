@@ -1,0 +1,4008 @@
+{
+  "schema": 1,
+  "base_commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+  "host": "Windows-10-10.0.26300-SP0",
+  "toolchain": {
+    "sdk": "11.0.100",
+    "framework": ".NET 11",
+    "final_python": "3.11.5",
+    "initial_diagnostic_python": "3.12.11",
+    "websockets": "16.1.1",
+    "documentation_node": "24.21.0",
+    "documentation_pnpm": "12.18.0"
+  },
+  "provenance": "Candidate binaries were built from the base commit plus the retained final-runtime.patch; the working tree was uncommitted during validation.",
+  "runtime_patch_sha256": "ce36ca7945f952d81daab1e3d30e42e4f9b6f1ec7fb1b7d1d93f84ac67fdfad0",
+  "source_sha256": {
+    "src/SlimData/Startup.cs": "77f976bb31578b42eb522f207e01e8b2757481e5cbe6ddffc99d867cb9823b55",
+    "src/SlimData/WalChunkSize.cs": "ebe67aafbc9856a02b2d1108f1b50b0ee3a2a37ce4fb729503f3e5e7cc9fcecb",
+    "tests/SlimData.Tests/WalChunkSizeTests.cs": "f89f4066e7ba7ef0b5cd4091386fa99a29648e84d1cbb7d5c454c124ee177614",
+    ".bin/test-slimdata-local-chaos.py": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+    "tests/SlimFaas.Tests/Local/chaos_function.py": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0",
+    ".bin/slimfaas-local-benchmark.sh": "1c0183387bdd82465576b05d8b42a40e4f5696ef1cbddbc68e8e5f495127576d",
+    ".bin/run-local-benchmark-host.py": "9c194c8a7887c805a5f346e0490ac2a70b065fa68d7bce07af508d67da3845f7",
+    "benchmarks/slimfaas.local.benchmark.yaml": "686968d13a6a504d8c35f5e1d1abe0cfb79b99d8153366c60dc272947b549119",
+    "global.json": "fced88beb35df214761681ffd3f6204b5328d5f1f535a6fc08cb5bf48c88af56",
+    "Directory.Build.props": "e4e14832ccf20ad8db9208680b4f8805175c2e0333583b4c9c75a8d6bb8bbe0e",
+    "Directory.Build.targets": "60f4f5f07c6abd8a68c549b970bcd50396e25edca1cbb49a3b372fcf89400308",
+    "Directory.Packages.props": "c402bbee68e013f4ac425eddae800e2e4877da3110b4e9ec5edc4f7c87b4d99a"
+  },
+  "binaries": {
+    "runtime-reference/SlimFaas.dll": {
+      "sha256": "d03258c9e481fc6bd7d9f761ab0a8d6387c5fdf4a553ad0c87a33a0b27ec5a82",
+      "bytes": 3965952
+    },
+    "runtime-reference/SlimData.dll": {
+      "sha256": "85c6f085db85b378bce023743d83e18ee65dba01d012d3041f370d3eb9ae7495",
+      "bytes": 680960
+    },
+    "runtime-direct/SlimData.dll": {
+      "sha256": "44186bd0fc9fdbf23abed99363fd8c0198b442b95ca0cbf4162c0c26e8c3f616",
+      "bytes": 680960
+    },
+    "runtime-chunk/SlimData.dll": {
+      "sha256": "0781e6eb5d9be4abdb431a9a69ca8b576d5c41cc962a31d457c77c5c495ea8f7",
+      "bytes": 680960
+    },
+    "native-final/SlimFaas.exe": {
+      "sha256": "52542efb598eee8cbe76f7f553cecfcfbb80c0befc84bc5ec2f54052228162d8",
+      "bytes": 74398208
+    },
+    "src/SlimFaas/bin/Release/net11.0/SlimFaas.dll": {
+      "sha256": "d39d291cc7b171f3fc4d60cffcb2b12b773ba7449016f27bd5945f0b80a3cfef",
+      "bytes": 3965952
+    },
+    "src/SlimFaas/bin/Release/net11.0/SlimData.dll": {
+      "sha256": "5146159ea2f8684871a853b5b5db4d5bdf1fc6325ac1184084261f34392ccd5a",
+      "bytes": 681984
+    }
+  },
+  "runs": [
+    {
+      "name": "ci-a8b5a34e/websocket",
+      "parameters": {
+        "started_utc": 1794587887.7864003,
+        "platform": "Windows-10-10.0.26100-SP0",
+        "python": "3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "747705fec679ed6358bf8d9bb4170fb14f7a655c",
+        "runtime_sha256": "261a60dbb3a91fbee5932de8917043085773265a39e5cca72de72fec1f63ff3f",
+        "slimdata_sha256": "a02b2abb4f6d0ef3fa43814b7462ea27c8177c02c4f5eeb9c9661eaa1604a228",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "D:\\a\\SlimFaas\\SlimFaas\\src\\SlimFaas\\bin\\Release\\net11.0\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "artifacts\\local-chaos\\websocket",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError('stream 3c9a7be672a0441fa705297fa7e6b9af: HTTP None, None')",
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": false,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": true,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": false,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": true,
+            "port": 35123,
+            "passed": true
+          }
+        ],
+        "accepted": 15,
+        "unknown": 4,
+        "missing": [],
+        "finished_utc": 1794588023.7832587
+      },
+      "initial_stream_seconds": [],
+      "markers": {},
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "before-websocket",
+      "parameters": {
+        "started_utc": 1794608369.7022982,
+        "platform": "Windows-11-10.0.26300-SP0",
+        "python": "3.12.11 (main, Aug 18 2025, 19:17:54) [MSC v.1944 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "d03258c9e481fc6bd7d9f761ab0a8d6387c5fdf4a553ad0c87a33a0b27ec5a82",
+        "slimdata_sha256": "238ae43d19328f2cfb06c93540da621179b16ac440eeb5da5ee6a04dec1b4d28",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\src\\SlimFaas\\bin\\Release\\net11.0\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "artifacts\\windows-benchmark\\before-websocket",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError(\"async 82e0850cb1b0494f8d275d008e1829e0: HTTP 404, b''\")",
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": false,
+            "port": 35122,
+            "passed": true
+          }
+        ],
+        "accepted": 11,
+        "unknown": 0,
+        "missing": [],
+        "finished_utc": 1794608756.2013516
+      },
+      "initial_stream_seconds": [],
+      "markers": {},
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "control-private-websocket",
+      "parameters": {
+        "started_utc": 1794608547.5490108,
+        "platform": "Windows-11-10.0.26300-SP0",
+        "python": "3.12.11 (main, Aug 18 2025, 19:17:54) [MSC v.1944 64 bit (AMD64)]",
+        "environment_overrides": {
+          "SlimData__WalMemoryManagement": "PrivateMemory"
+        },
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "d03258c9e481fc6bd7d9f761ab0a8d6387c5fdf4a553ad0c87a33a0b27ec5a82",
+        "slimdata_sha256": "238ae43d19328f2cfb06c93540da621179b16ac440eeb5da5ee6a04dec1b4d28",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\src\\SlimFaas\\bin\\Release\\net11.0\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "artifacts\\windows-benchmark\\control-private-websocket",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 36120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError('stream 76b7e17aaee44c39aea43ab530fcaea3: HTTP None, None')",
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 36123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 36121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 36121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 36122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": false,
+            "port": 36122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": true,
+            "port": 36123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": true,
+            "port": 36122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": false,
+            "port": 36121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": false,
+            "port": 36123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": true,
+            "port": 36121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": false,
+            "port": 36122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": true,
+            "port": 36123,
+            "passed": true
+          }
+        ],
+        "accepted": 15,
+        "unknown": 4,
+        "missing": [],
+        "finished_utc": 1794608703.014915
+      },
+      "initial_stream_seconds": [],
+      "markers": {},
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "private-diagnostic",
+      "parameters": {
+        "started_utc": 1794608736.1003969,
+        "platform": "Windows-11-10.0.26300-SP0",
+        "python": "3.12.11 (main, Aug 18 2025, 19:17:54) [MSC v.1944 64 bit (AMD64)]",
+        "environment_overrides": {
+          "SlimData__WalMemoryManagement": "PrivateMemory"
+        },
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "d03258c9e481fc6bd7d9f761ab0a8d6387c5fdf4a553ad0c87a33a0b27ec5a82",
+        "slimdata_sha256": "238ae43d19328f2cfb06c93540da621179b16ac440eeb5da5ee6a04dec1b4d28",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\src\\SlimFaas\\bin\\Release\\net11.0\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "artifacts\\windows-benchmark\\private-diagnostic",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 37120,
+          "node_log_level": "Information",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError('async 2c89c55911ac47f7a6372447989b140f: HTTP None, None')",
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 37121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 37122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 37121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 37123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": false,
+            "port": 37121,
+            "passed": true
+          }
+        ],
+        "accepted": 9,
+        "unknown": 5,
+        "missing": [],
+        "finished_utc": 1794608994.6710484
+      },
+      "initial_stream_seconds": [],
+      "markers": {},
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "control-direct-websocket",
+      "parameters": {
+        "started_utc": 1794609055.3120697,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {
+          "SlimData__WalMemoryManagement": "PrivateMemory"
+        },
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "d03258c9e481fc6bd7d9f761ab0a8d6387c5fdf4a553ad0c87a33a0b27ec5a82",
+        "slimdata_sha256": "44186bd0fc9fdbf23abed99363fd8c0198b442b95ca0cbf4162c0c26e8c3f616",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "artifacts\\windows-benchmark\\runtime-direct\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "artifacts\\windows-benchmark\\control-direct-websocket",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": false,
+        "error": "AssertionError('async dc262eb2bd104d0286bac8af9d1bb77b: HTTP None, None')",
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          }
+        ],
+        "accepted": 8,
+        "unknown": 3,
+        "missing": [],
+        "finished_utc": 1794609426.9141796
+      },
+      "initial_stream_seconds": [],
+      "markers": {},
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "control-chunk-websocket",
+      "parameters": {
+        "started_utc": 1794609260.4511402,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "d03258c9e481fc6bd7d9f761ab0a8d6387c5fdf4a553ad0c87a33a0b27ec5a82",
+        "slimdata_sha256": "0781e6eb5d9be4abdb431a9a69ca8b576d5c41cc962a31d457c77c5c495ea8f7",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "artifacts\\windows-benchmark\\runtime-chunk\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "artifacts\\windows-benchmark\\control-chunk-websocket",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 38120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 38123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 38121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 38122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 38121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": false,
+            "port": 38122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": true,
+            "port": 38123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": false,
+            "port": 38121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": true,
+            "port": 38122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": false,
+            "port": 38123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": true,
+            "port": 38121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": false,
+            "port": 38122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": true,
+            "port": 38123,
+            "passed": true
+          },
+          {
+            "phase": "full-persistent-restart",
+            "passed": true
+          },
+          {
+            "phase": "websocket",
+            "function": "chaos-ws-890621740eb94fb1b3f5cae9540609de",
+            "stream": "stream-chaos-ws-890621740eb94fb1b3f5cae9540609de",
+            "passed": true
+          }
+        ],
+        "accepted": 306,
+        "unknown": 11,
+        "missing": [],
+        "finished_utc": 1794609448.51322
+      },
+      "initial_stream_seconds": [
+        1.0460000000000491,
+        2.9529999999999745,
+        2.9529999999999745,
+        3.6400000000001
+      ],
+      "markers": {},
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "reference-payloads-311",
+      "parameters": {
+        "started_utc": 1794611902.5860054,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "d03258c9e481fc6bd7d9f761ab0a8d6387c5fdf4a553ad0c87a33a0b27ec5a82",
+        "slimdata_sha256": "85c6f085db85b378bce023743d83e18ee65dba01d012d3041f370d3eb9ae7495",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\runtime-reference\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\reference-payloads-311",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 15,
+          "recovery_timeout": 180,
+          "scenarios": "payloads",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "payloads",
+            "bytes": 262144,
+            "chunked": true,
+            "id": "cb081c9147514f97ad421317d92002b8",
+            "seconds": 1.3900000000003274,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 65536,
+            "chunked": true,
+            "id": "888e95a7dd564c1bb444d97aeb1fd33b",
+            "seconds": 1.405999999999949,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 262144,
+            "chunked": false,
+            "id": "0ee279d20ad94959bbd6e8d2a2e43d8c",
+            "seconds": 1.3900000000003274,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 65536,
+            "chunked": false,
+            "id": "4d4d24f769a248218620920c57b0318d",
+            "seconds": 1.405999999999949,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 1048576,
+            "chunked": false,
+            "id": "53a6dae24b66446eac2a9c42380539d5",
+            "seconds": 7.515999999999622,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 1048576,
+            "chunked": true,
+            "id": "a4da2a19f5db4aec99de5d93f21d1364",
+            "seconds": 7.640999999999622,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2000000,
+            "chunked": true,
+            "id": "aafb44c32658425a8783f490c58db445",
+            "seconds": 7.734000000000378,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2000000,
+            "chunked": false,
+            "id": "312c6be854814748a41116ee41c644da",
+            "seconds": 7.765999999999622,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2097152,
+            "chunked": false,
+            "id": "fdd411cfd0de4ee68513f17407d8e362",
+            "seconds": 0.35900000000037835,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2097152,
+            "chunked": true,
+            "id": "b07e339bb689447f967d46a130a07b89",
+            "seconds": 0.375,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 4194304,
+            "chunked": false,
+            "id": "9f76fc571f5d4ef1a870a517adf3ca47",
+            "seconds": 0.35900000000037835,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 4194304,
+            "chunked": true,
+            "id": "1ef4c02033bc4e7aaab131125917c049",
+            "seconds": 0.35899999999946886,
+            "passed": true
+          }
+        ],
+        "accepted": 12,
+        "unknown": 0,
+        "missing": [],
+        "finished_utc": 1794611933.2729762
+      },
+      "initial_stream_seconds": [],
+      "markers": {},
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "final-managed-websocket",
+      "parameters": {
+        "started_utc": 1794611934.3101285,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "d39d291cc7b171f3fc4d60cffcb2b12b773ba7449016f27bd5945f0b80a3cfef",
+        "slimdata_sha256": "5146159ea2f8684871a853b5b5db4d5bdf1fc6325ac1184084261f34392ccd5a",
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\src\\SlimFaas\\bin\\Release\\net11.0\\SlimFaas.dll",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-managed-websocket",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": false,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": true,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": false,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": true,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "full-persistent-restart",
+            "passed": true
+          },
+          {
+            "phase": "websocket",
+            "function": "chaos-ws-65f0819994344d7a9ee832df85ad2f6c",
+            "stream": "stream-chaos-ws-65f0819994344d7a9ee832df85ad2f6c",
+            "passed": true
+          }
+        ],
+        "accepted": 131,
+        "unknown": 10,
+        "missing": [],
+        "finished_utc": 1794612009.6203816
+      },
+      "initial_stream_seconds": [
+        0.75,
+        0.75,
+        1.0320000000001528,
+        1.4219999999995707
+      ],
+      "markers": {
+        "state/data/slimfaas-0/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-1/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-2/wal/slimdata-chunk-size": "65536"
+      },
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "final-native-quick",
+      "parameters": {
+        "started_utc": 1794612011.0866332,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "52542efb598eee8cbe76f7f553cecfcfbb80c0befc84bc5ec2f54052228162d8",
+        "slimdata_sha256": null,
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-quick",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 15,
+          "recovery_timeout": 180,
+          "scenarios": "payloads,api,files,wake,retries,chaos,restarts",
+          "durations": [
+            1.0,
+            5.0,
+            10.0
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "payloads",
+            "bytes": 262144,
+            "chunked": true,
+            "id": "322c5df48ac84615a51f965f1f1d8795",
+            "seconds": 0.8119999999998981,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 65536,
+            "chunked": true,
+            "id": "09d65187f7794680a9c4250e8b6cf506",
+            "seconds": 0.9059999999999491,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 65536,
+            "chunked": false,
+            "id": "246d18f2f575434b82324a59a27dbdf3",
+            "seconds": 0.9530000000004293,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 262144,
+            "chunked": false,
+            "id": "910bb510c0b24003ad44bf19e0650691",
+            "seconds": 0.9840000000003783,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 1048576,
+            "chunked": true,
+            "id": "71b46884901b4d2f955291e728035d4d",
+            "seconds": 0.5,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 1048576,
+            "chunked": false,
+            "id": "260dc8fb86de4914987de1dfed44554f",
+            "seconds": 0.6090000000003783,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2000000,
+            "chunked": true,
+            "id": "ab1ac3080ee242bdb80b45cfb5f51de5",
+            "seconds": 0.4679999999998472,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2000000,
+            "chunked": false,
+            "id": "8de8132c3c234547acbfac71fd36bfd9",
+            "seconds": 0.5309999999999491,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2097152,
+            "chunked": false,
+            "id": "12009a29d1014d4ca73f7ff843d11aa7",
+            "seconds": 0.34400000000005093,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 4194304,
+            "chunked": false,
+            "id": "400897011cf8473593a5a0dc561affb4",
+            "seconds": 0.5,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 2097152,
+            "chunked": true,
+            "id": "2f5fd5c334db44dbb8eaf5ef9c0ca080",
+            "seconds": 0.5630000000001019,
+            "passed": true
+          },
+          {
+            "phase": "payloads",
+            "bytes": 4194304,
+            "chunked": true,
+            "id": "591e35293acc4e75b6c84cbb58c57db3",
+            "seconds": 0.5929999999998472,
+            "passed": true
+          },
+          {
+            "phase": "api-smoke",
+            "passed": true
+          },
+          {
+            "phase": "file-boundaries",
+            "passed": true
+          },
+          {
+            "phase": "wake-and-cancel",
+            "passed": true
+          },
+          {
+            "phase": "retries-dlq-jobs",
+            "passed": true,
+            "job_ids": [
+              "d1b6c2d66f804e9ea73e0447537c7f22",
+              "7ecc1293971e4ce797aad4106943230a",
+              "bf98544ef49d408a9ed4e505759b2f3f"
+            ],
+            "dlq_id": "dlq-f08038b0-8f3f-40db-b0dd-e126a4a44e4f"
+          },
+          {
+            "phase": "absence-follower-1s",
+            "fault": "process-suspension",
+            "nodes": [
+              1
+            ],
+            "requested_absence_seconds": 1.0,
+            "actual_absence_seconds": 1.0159999999996217,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 0.125,
+            "full_recovery_seconds": 2.0780000000004293,
+            "accepted": 120,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-leader-1s",
+            "fault": "process-suspension",
+            "nodes": [
+              0
+            ],
+            "requested_absence_seconds": 1.0,
+            "actual_absence_seconds": 1.0160000000005311,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 0.15599999999994907,
+            "full_recovery_seconds": 2.280999999999949,
+            "accepted": 128,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-quorum-1s",
+            "fault": "process-suspension",
+            "nodes": [
+              1,
+              2
+            ],
+            "requested_absence_seconds": 1.0,
+            "actual_absence_seconds": 1.0160000000005311,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 3.186999999999898,
+            "full_recovery_seconds": 5.436999999999898,
+            "accepted": 137,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-follower-5s",
+            "fault": "process-suspension",
+            "nodes": [
+              1
+            ],
+            "requested_absence_seconds": 5.0,
+            "actual_absence_seconds": 5.015000000000327,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 0.34400000000005093,
+            "full_recovery_seconds": 2.155999999999949,
+            "accepted": 159,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-leader-5s",
+            "fault": "process-suspension",
+            "nodes": [
+              0
+            ],
+            "requested_absence_seconds": 5.0,
+            "actual_absence_seconds": 5.0,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 1.1400000000003274,
+            "full_recovery_seconds": 2.936999999999898,
+            "accepted": 168,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-quorum-5s",
+            "fault": "process-suspension",
+            "nodes": [
+              0,
+              1
+            ],
+            "requested_absence_seconds": 5.0,
+            "actual_absence_seconds": 5.015999999999622,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 3.2650000000003274,
+            "full_recovery_seconds": 5.92200000000048,
+            "accepted": 177,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-follower-10s",
+            "fault": "process-suspension",
+            "nodes": [
+              0
+            ],
+            "requested_absence_seconds": 10.0,
+            "actual_absence_seconds": 10.015999999999622,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 1.1720000000004802,
+            "full_recovery_seconds": 3.2030000000004293,
+            "accepted": 215,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-leader-10s",
+            "fault": "process-suspension",
+            "nodes": [
+              1
+            ],
+            "requested_absence_seconds": 10.0,
+            "actual_absence_seconds": 10.015999999999622,
+            "new_leader_observed_seconds": 4.344000000000051,
+            "ready_after_resume_seconds": 1.1090000000003783,
+            "full_recovery_seconds": 4.2960000000002765,
+            "accepted": 237,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "absence-quorum-10s",
+            "fault": "process-suspension",
+            "nodes": [
+              1,
+              2
+            ],
+            "requested_absence_seconds": 10.0,
+            "actual_absence_seconds": 10.015000000000327,
+            "new_leader_observed_seconds": null,
+            "ready_after_resume_seconds": 3.1099999999996726,
+            "full_recovery_seconds": 4.969000000000051,
+            "accepted": 247,
+            "unknown": 1,
+            "passed": true
+          },
+          {
+            "phase": "full-persistent-restart",
+            "passed": true
+          }
+        ],
+        "accepted": 301,
+        "unknown": 11,
+        "missing": [],
+        "finished_utc": 1794612162.6464562
+      },
+      "initial_stream_seconds": [],
+      "markers": {
+        "state/data/slimfaas-0/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-1/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-2/wal/slimdata-chunk-size": "65536"
+      },
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "final-native-websocket",
+      "parameters": {
+        "started_utc": 1794612163.6163225,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "52542efb598eee8cbe76f7f553cecfcfbb80c0befc84bc5ec2f54052228162d8",
+        "slimdata_sha256": null,
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-websocket",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 120.0,
+          "recovery_timeout": 300.0,
+          "scenarios": "websocket",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 65536,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 262144,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": true,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 1048576,
+            "chunked": false,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": false,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2000000,
+            "chunked": true,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": false,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 2097152,
+            "chunked": true,
+            "port": 35121,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": false,
+            "port": 35122,
+            "passed": true
+          },
+          {
+            "phase": "websocket-async",
+            "bytes": 4194304,
+            "chunked": true,
+            "port": 35123,
+            "passed": true
+          },
+          {
+            "phase": "full-persistent-restart",
+            "passed": true
+          },
+          {
+            "phase": "websocket",
+            "function": "chaos-ws-8e9172ebb28d4a49abe66cb3b098c7f4",
+            "stream": "stream-chaos-ws-8e9172ebb28d4a49abe66cb3b098c7f4",
+            "passed": true
+          }
+        ],
+        "accepted": 79,
+        "unknown": 6,
+        "missing": [],
+        "finished_utc": 1794612207.082279
+      },
+      "initial_stream_seconds": [
+        0.39099999999962165,
+        0.8599999999996726,
+        0.875,
+        1.280999999999949
+      ],
+      "markers": {
+        "state/data/slimfaas-0/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-1/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-2/wal/slimdata-chunk-size": "65536"
+      },
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "final-native-owner-timeout",
+      "parameters": {
+        "started_utc": 1794612208.307903,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "52542efb598eee8cbe76f7f553cecfcfbb80c0befc84bc5ec2f54052228162d8",
+        "slimdata_sha256": null,
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-owner-timeout",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": true,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 30.0,
+          "recovery_timeout": 60.0,
+          "scenarios": "websocket-timeout",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "websocket-owner-timeout",
+            "passed": true,
+            "delivery_timeout_seconds": 8,
+            "owner_absence_after_acceptance_seconds": 20,
+            "id": "a149aed870f74a878a2acd8d41356b63",
+            "default_retry_statuses": true
+          }
+        ],
+        "accepted": 1,
+        "unknown": 0,
+        "missing": [],
+        "finished_utc": 1794612241.622044
+      },
+      "initial_stream_seconds": [],
+      "markers": {
+        "state/data/slimfaas-0/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-1/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-2/wal/slimdata-chunk-size": "65536"
+      },
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    },
+    {
+      "name": "final-native-lease",
+      "parameters": {
+        "started_utc": 1794612243.263866,
+        "platform": "Windows-10-10.0.26300-SP0",
+        "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+        "environment_overrides": {},
+        "commit": "a8b5a34e4a31ecf8f8bc0ded658b704b4e2afca2",
+        "runtime_sha256": "52542efb598eee8cbe76f7f553cecfcfbb80c0befc84bc5ec2f54052228162d8",
+        "slimdata_sha256": null,
+        "harness_sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab",
+        "arguments": {
+          "runtime": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+          "dotnet": "dotnet",
+          "backend_config": null,
+          "source_commit": null,
+          "output": "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-lease",
+          "state_directory": null,
+          "resume": false,
+          "port_base": 35120,
+          "node_log_level": "Warning",
+          "delivery_diagnostics": false,
+          "payload_sizes": [
+            65536,
+            262144,
+            1048576,
+            2000000,
+            2097152,
+            4194304
+          ],
+          "concurrency": 4,
+          "request_timeout": 15.0,
+          "recovery_timeout": 180.0,
+          "scenarios": "lease-burst,leader-route,protocol-timeout",
+          "durations": [
+            1,
+            5,
+            10
+          ],
+          "roles": "follower,leader,quorum",
+          "traffic_interval": 1
+        }
+      },
+      "report": {
+        "passed": true,
+        "error": null,
+        "results": [
+          {
+            "phase": "leader-lease-burst",
+            "leader": 0,
+            "silent_follower": 1,
+            "healthy_writes": 18,
+            "silent_writes": 23,
+            "probe_seconds": 0.03099999999994907,
+            "probe_budget_seconds": 15,
+            "passed": true
+          },
+          {
+            "phase": "stale-leader-http-route",
+            "ingress_node": 1,
+            "old_leader": 0,
+            "seconds": 9.42199999999957,
+            "passed": true
+          },
+          {
+            "phase": "protocol-probe-with-silent-follower",
+            "passed": true,
+            "suspended_follower": 0,
+            "restarted_leader": 2,
+            "ready_and_write_seconds": 2.905999999999949,
+            "restart_to_listener_seconds": 2.891000000000531
+          }
+        ],
+        "accepted": 45,
+        "unknown": 0,
+        "missing": [],
+        "finished_utc": 1794612274.3713481
+      },
+      "initial_stream_seconds": [],
+      "markers": {
+        "state/data/slimfaas-0/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-1/wal/slimdata-chunk-size": "65536",
+        "state/data/slimfaas-2/wal/slimdata-chunk-size": "65536"
+      },
+      "raw_state": "Preserved locally; WAL/snapshot files and heap dumps are not included in the compact archive."
+    }
+  ],
+  "solution_tests": [
+    {
+      "log": "full-tests-after-validation.log",
+      "suites": [
+        {
+          "suite": "SlimFaas.Tests.dll",
+          "failed": 0,
+          "passed": 1602,
+          "total": 1602
+        },
+        {
+          "suite": "SlimData.Tests.dll",
+          "failed": 0,
+          "passed": 354,
+          "total": 354
+        },
+        {
+          "suite": "SlimFaasMcp.Tests.dll",
+          "failed": 0,
+          "passed": 106,
+          "total": 106
+        },
+        {
+          "suite": "SlimFaasKafka.Tests.dll",
+          "failed": 0,
+          "passed": 11,
+          "total": 11
+        },
+        {
+          "suite": "SlimFaasClient.Tests.dll",
+          "failed": 0,
+          "passed": 52,
+          "total": 52
+        }
+      ]
+    },
+    {
+      "log": "full-tests-confirmation.log",
+      "suites": [
+        {
+          "suite": "SlimFaas.Tests.dll",
+          "failed": 1,
+          "passed": 1601,
+          "total": 1602
+        },
+        {
+          "suite": "SlimData.Tests.dll",
+          "failed": 0,
+          "passed": 354,
+          "total": 354
+        },
+        {
+          "suite": "SlimFaasMcp.Tests.dll",
+          "failed": 0,
+          "passed": 106,
+          "total": 106
+        },
+        {
+          "suite": "SlimFaasKafka.Tests.dll",
+          "failed": 0,
+          "passed": 11,
+          "total": 11
+        },
+        {
+          "suite": "SlimFaasClient.Tests.dll",
+          "failed": 0,
+          "passed": 52,
+          "total": 52
+        }
+      ]
+    },
+    {
+      "log": "full-tests-final.log",
+      "suites": [
+        {
+          "suite": "SlimFaasMcp.Tests.dll",
+          "failed": 0,
+          "passed": 106,
+          "total": 106
+        },
+        {
+          "suite": "SlimFaasKafka.Tests.dll",
+          "failed": 0,
+          "passed": 11,
+          "total": 11
+        },
+        {
+          "suite": "SlimFaasClient.Tests.dll",
+          "failed": 0,
+          "passed": 52,
+          "total": 52
+        },
+        {
+          "suite": "SlimData.Tests.dll",
+          "failed": 0,
+          "passed": 354,
+          "total": 354
+        },
+        {
+          "suite": "SlimFaas.Tests.dll",
+          "failed": 1,
+          "passed": 1601,
+          "total": 1602
+        }
+      ]
+    },
+    {
+      "log": "full-tests.log",
+      "suites": [
+        {
+          "suite": "SlimFaasKafka.Tests.dll",
+          "failed": 0,
+          "passed": 11,
+          "total": 11
+        },
+        {
+          "suite": "SlimFaasMcp.Tests.dll",
+          "failed": 0,
+          "passed": 106,
+          "total": 106
+        },
+        {
+          "suite": "SlimFaasClient.Tests.dll",
+          "failed": 0,
+          "passed": 52,
+          "total": 52
+        },
+        {
+          "suite": "SlimFaas.Tests.dll",
+          "failed": 0,
+          "passed": 1602,
+          "total": 1602
+        },
+        {
+          "suite": "SlimData.Tests.dll",
+          "failed": 1,
+          "passed": 353,
+          "total": 354
+        }
+      ]
+    }
+  ],
+  "http_smoke": {
+    "measured_cases": 24,
+    "failed_requests": 0,
+    "missing_async": 0,
+    "duplicate_async": 0,
+    "settings": {
+      "SlimFaasUrl": "http://127.0.0.1:31020",
+      "DirectUrl": "http://127.0.0.1:31080",
+      "NodeUrls": [
+        "http://127.0.0.1:31021",
+        "http://127.0.0.1:31022",
+        "http://127.0.0.1:31023"
+      ],
+      "Function": "benchmark-latency",
+      "ScaleFunction": "benchmark-scale",
+      "DurationSeconds": 3,
+      "WarmupSeconds": 1,
+      "Repetitions": 1,
+      "PayloadBytes": [
+        64,
+        4096,
+        262144,
+        2097152
+      ],
+      "Concurrency": [
+        1,
+        16
+      ],
+      "ScaleMessages": 200,
+      "ScaleConcurrency": 32,
+      "ScaleTargetReplicas": 4,
+      "Profile": "standard",
+      "AsyncPacedMessages": 100,
+      "AsyncPacedIntervalMilliseconds": 100,
+      "AsyncBurstMessages": 1000,
+      "AsyncBurstConcurrency": 64,
+      "SamplesFormat": "csv"
+    },
+    "scaling": {
+      "Messages": 200,
+      "Concurrency": 32,
+      "TargetReplicas": 4,
+      "Accepted": 200,
+      "Failed": 0,
+      "FirstAcceptedMilliseconds": 82.0153,
+      "AllAcceptedMilliseconds": 626.9533,
+      "RequestedOneMilliseconds": 1091.3028,
+      "ReadyOneMilliseconds": 4298.8386,
+      "RequestedTargetMilliseconds": 4298.8386,
+      "ReadyTargetMilliseconds": 7474.5829,
+      "QueueDrainedMilliseconds": 23577.3909,
+      "PeakReadyQueue": 200,
+      "TimedOut": false
+    }
+  },
+  "source_demo": {
+    "passed": true,
+    "function_status": 200,
+    "body": "Hello local!"
+  },
+  "diagnostic_variants": {
+    "before-websocket": "Unmodified source; Python 3.12.11; managed.",
+    "control-private-websocket": "Unmodified source with explicit PrivateMemory; managed.",
+    "private-diagnostic": "Explicit PrivateMemory, Information logging and intrusive heap captures; diagnostic only.",
+    "control-direct-websocket": "Base Startup with NoBuffering=OperatingSystem.IsWindows(), explicit PrivateMemory; managed.",
+    "control-chunk-websocket": "Base Startup with ChunkSize=OperatingSystem.IsWindows()?65536:Environment.SystemPageSize; managed, unmarked experimental volumes."
+  },
+  "validation_commands": [
+    {
+      "name": "reference-payloads-311",
+      "command": [
+        "C:\\github\\SlimFaas-pr506-windows\\client\\python\\slimfaas-client\\.venv\\Scripts\\python.exe",
+        "C:\\github\\SlimFaas-pr506-windows\\.bin\\test-slimdata-local-chaos.py",
+        "--runtime",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\runtime-reference\\SlimFaas.dll",
+        "--output",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\reference-payloads-311",
+        "--scenarios",
+        "payloads"
+      ],
+      "started_utc_epoch": 1794611901.1816442,
+      "finished_utc_epoch": 1794611933.3446646,
+      "exit_code": 0,
+      "must_pass": false
+    },
+    {
+      "name": "final-managed-websocket",
+      "command": [
+        "C:\\github\\SlimFaas-pr506-windows\\client\\python\\slimfaas-client\\.venv\\Scripts\\python.exe",
+        "C:\\github\\SlimFaas-pr506-windows\\.bin\\test-slimdata-local-chaos.py",
+        "--runtime",
+        "C:\\github\\SlimFaas-pr506-windows\\src\\SlimFaas\\bin\\Release\\net11.0\\SlimFaas.dll",
+        "--output",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-managed-websocket",
+        "--scenarios",
+        "websocket",
+        "--delivery-diagnostics",
+        "--request-timeout",
+        "120",
+        "--recovery-timeout",
+        "300"
+      ],
+      "started_utc_epoch": 1794611933.3461757,
+      "finished_utc_epoch": 1794612009.6938803,
+      "exit_code": 0,
+      "must_pass": true
+    },
+    {
+      "name": "final-native-quick",
+      "command": [
+        "C:\\github\\SlimFaas-pr506-windows\\client\\python\\slimfaas-client\\.venv\\Scripts\\python.exe",
+        "C:\\github\\SlimFaas-pr506-windows\\.bin\\test-slimdata-local-chaos.py",
+        "--runtime",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+        "--output",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-quick",
+        "--durations",
+        "1,5,10"
+      ],
+      "started_utc_epoch": 1794612009.6951897,
+      "finished_utc_epoch": 1794612162.7033303,
+      "exit_code": 0,
+      "must_pass": true
+    },
+    {
+      "name": "final-native-websocket",
+      "command": [
+        "C:\\github\\SlimFaas-pr506-windows\\client\\python\\slimfaas-client\\.venv\\Scripts\\python.exe",
+        "C:\\github\\SlimFaas-pr506-windows\\.bin\\test-slimdata-local-chaos.py",
+        "--runtime",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+        "--output",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-websocket",
+        "--scenarios",
+        "websocket",
+        "--delivery-diagnostics",
+        "--request-timeout",
+        "120",
+        "--recovery-timeout",
+        "300"
+      ],
+      "started_utc_epoch": 1794612162.70533,
+      "finished_utc_epoch": 1794612207.1816967,
+      "exit_code": 0,
+      "must_pass": true
+    },
+    {
+      "name": "final-native-owner-timeout",
+      "command": [
+        "C:\\github\\SlimFaas-pr506-windows\\client\\python\\slimfaas-client\\.venv\\Scripts\\python.exe",
+        "C:\\github\\SlimFaas-pr506-windows\\.bin\\test-slimdata-local-chaos.py",
+        "--runtime",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+        "--output",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-owner-timeout",
+        "--scenarios",
+        "websocket-timeout",
+        "--delivery-diagnostics",
+        "--request-timeout",
+        "30",
+        "--recovery-timeout",
+        "60"
+      ],
+      "started_utc_epoch": 1794612207.1837194,
+      "finished_utc_epoch": 1794612241.7298589,
+      "exit_code": 0,
+      "must_pass": true
+    },
+    {
+      "name": "final-native-lease",
+      "command": [
+        "C:\\github\\SlimFaas-pr506-windows\\client\\python\\slimfaas-client\\.venv\\Scripts\\python.exe",
+        "C:\\github\\SlimFaas-pr506-windows\\.bin\\test-slimdata-local-chaos.py",
+        "--runtime",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\native-final\\SlimFaas.exe",
+        "--output",
+        "C:\\github\\SlimFaas-pr506-windows\\artifacts\\windows-benchmark\\final-native-lease",
+        "--scenarios",
+        "lease-burst,leader-route,protocol-timeout",
+        "--request-timeout",
+        "15",
+        "--recovery-timeout",
+        "180"
+      ],
+      "started_utc_epoch": 1794612241.7322102,
+      "finished_utc_epoch": 1794612274.4487562,
+      "exit_code": 0,
+      "must_pass": true
+    }
+  ],
+  "archive": {
+    "path": "windows-benchmark-evidence.zip",
+    "bytes": 3148994,
+    "sha256": "a9dc4eb1c4375982966cba306b8b7d2ae638a1f7325d78bc2925cb878dcaf075",
+    "files": [
+      {
+        "path": "http/benchmark-manifest.txt",
+        "bytes": 882,
+        "sha256": "b99daa377dd29932c14c3914a4ba978f08ec4849abefb89534ca1df659abaa0f"
+      },
+      {
+        "path": "http/latency-samples.csv",
+        "bytes": 3138005,
+        "sha256": "e4de2da8e62e8ae8c6860d13edb5786812807b7d8280cf780a1617965cef1288"
+      },
+      {
+        "path": "http/results.json",
+        "bytes": 57588,
+        "sha256": "a3f2541af687367b7ff1b64a53d9a9341939c5adac22afa5c7f0d5e6c4a21287"
+      },
+      {
+        "path": "http/scaling-timeline.csv",
+        "bytes": 6657,
+        "sha256": "0fe955b4ce23aa45e8caab915a00f71c30fd9f40456acc9486c3cbbd175c0502"
+      },
+      {
+        "path": "http/slimfaas-local.log",
+        "bytes": 7880,
+        "sha256": "5dfeec3f349ee62101cba4ebd1d7138d3325f2d4d627ba1b67a615992cc03103"
+      },
+      {
+        "path": "http/summary.md",
+        "bytes": 6180,
+        "sha256": "456842b55a4f6d5c72e92d707a6c75cd1a2c19a3fcd69483c0499f86d81208a4"
+      },
+      {
+        "path": "runs/before-websocket/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/before-websocket/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/before-websocket/client.jsonl",
+        "bytes": 101224,
+        "sha256": "81122cf1d478c009030146c3480d502e8065393db5a3a9dc503e6def3c59b86f"
+      },
+      {
+        "path": "runs/before-websocket/diagnostic-node-0.prom",
+        "bytes": 204066,
+        "sha256": "26a4248f02e14f3a7e66a7c455f5953c4f9410b4de8efbec0274c355ee719e4e"
+      },
+      {
+        "path": "runs/before-websocket/diagnostic-node-1.prom",
+        "bytes": 186910,
+        "sha256": "c7e186315e11abffd28dbc437585e0cffd03d7745adf065900f5668f6cc500be"
+      },
+      {
+        "path": "runs/before-websocket/diagnostic-node-2.prom",
+        "bytes": 159915,
+        "sha256": "7beceae1224717397c978acba37c8384b276cb47f3328ed1d41aea33e1f6c1d0"
+      },
+      {
+        "path": "runs/before-websocket/failure-node-0.prom",
+        "bytes": 194695,
+        "sha256": "269365e25bbb1ccd7a1986e19e463dc9ea3893a0b1ef6b73ffd10c1187268e96"
+      },
+      {
+        "path": "runs/before-websocket/failure-node-1.prom",
+        "bytes": 185420,
+        "sha256": "9363c4b068cd176b6a61bfa5c3bf8e3728e9c167b57db288344078dd436ead3c"
+      },
+      {
+        "path": "runs/before-websocket/failure-node-2.prom",
+        "bytes": 158685,
+        "sha256": "ae0716b2e14098316f6e68c6709d089d5b81489176649e8c7e1c212575f6e5b0"
+      },
+      {
+        "path": "runs/before-websocket/initial-node-0.prom",
+        "bytes": 57104,
+        "sha256": "199054ea1e3d950aa3f33da0d9a3ef545cf1851136cdda3dd626c6d83b173362"
+      },
+      {
+        "path": "runs/before-websocket/initial-node-1.prom",
+        "bytes": 55862,
+        "sha256": "7048d4450bd725642adca01af569611a8e75d4d60382ff1660f2691b6360b65d"
+      },
+      {
+        "path": "runs/before-websocket/initial-node-2.prom",
+        "bytes": 44467,
+        "sha256": "c6f6925d4ddd39ff4c5b6a18f5143460e74f3d749412bbc17b0626b65d0a6dcd"
+      },
+      {
+        "path": "runs/before-websocket/manifest.yaml",
+        "bytes": 2962,
+        "sha256": "73bb50edbd623c8b79b2f01db7e76db7c05205877ba0f11a59d8706b5d2347e2"
+      },
+      {
+        "path": "runs/before-websocket/parameters.json",
+        "bytes": 1313,
+        "sha256": "8871476b9c52b7ffc2f0e6896bb2dd921b22be6352a92e6f73f0b5a402c486a8"
+      },
+      {
+        "path": "runs/before-websocket/receipts/receipts-websocket-9028.jsonl",
+        "bytes": 2023,
+        "sha256": "1bc867b746e8e7ed89b85c28ab8fd8f5dbe96604386d959472108042c0666e1b"
+      },
+      {
+        "path": "runs/before-websocket/report.json",
+        "bytes": 938,
+        "sha256": "930238fac579e3005de2902919d96c444e187ab2a75dfb7ceb74ebec4565f35e"
+      },
+      {
+        "path": "runs/before-websocket/supervisor-0.log",
+        "bytes": 446814,
+        "sha256": "887c3db77a65461b9073d01efab6bbb322cf077086746e12947f24ff5760058c"
+      },
+      {
+        "path": "runs/before-websocket/websocket.json",
+        "bytes": 119,
+        "sha256": "21967ac0850b4c19a1b1e4a8c2c70c11bed2c0e86500211dcacf00c2cd512b02"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/client.jsonl",
+        "bytes": 104286,
+        "sha256": "420be0eb67439e29e85078309e10c0d263d8fa78c6d585e7d0d9493435648940"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/failure-node-0.prom",
+        "bytes": 184215,
+        "sha256": "d891cb293f98952e4551ac8138638ab036719f0e1d1bc38ed46f4e8d8837187e"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/failure-node-1.prom",
+        "bytes": 168134,
+        "sha256": "d9bd04b019e6d6eb69e1da57dadc9c9b347497a1dc20c08d007e226583ea567f"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/failure-node-2.prom",
+        "bytes": 166810,
+        "sha256": "a74847b8664c4d0ff4eaebf693d4b31220a00aa3bfec86e2347a9d9664ef683c"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/initial-node-0.prom",
+        "bytes": 48285,
+        "sha256": "ab3cb10b5c452d82dec19657758b67bb06904e3b59c6065a9a31e3f81bcb7632"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/initial-node-1.prom",
+        "bytes": 38138,
+        "sha256": "f98712c27453fc88f5d8be097b1408f0263ba863edc358b4fc7e99cde32848ee"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/initial-node-2.prom",
+        "bytes": 39770,
+        "sha256": "a94271d9127b99618921f7afcb6fd1d7fea1111aa1d7c01d6e21b3bb872ee20d"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/manifest.yaml",
+        "bytes": 2741,
+        "sha256": "87131c177061fa1c74719ce70a900d6ad513794834ddd4b825747abaf783708b"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/parameters.json",
+        "bytes": 1306,
+        "sha256": "1ee6991a6dd0c922fa2c13c7a9184699f23131b59cec282f79837b7a73a92da4"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/receipts/receipts-websocket-6164.jsonl",
+        "bytes": 4861,
+        "sha256": "2200cc6a9377d0898a5b0eb3d8089660583b6377e628bc1ffed0b2a20bb64681"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/report.json",
+        "bytes": 1943,
+        "sha256": "2e234fce8cab08e1a3583d45dff376fec67cde0d0337dc46e0104d2b45b5afaa"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/supervisor-0.log",
+        "bytes": 848916,
+        "sha256": "6761a358d3326ddc645e8fbc6ced13d52dd35102f69bd1fcff2592acbd0e557f"
+      },
+      {
+        "path": "runs/ci-a8b5a34e/websocket/websocket.json",
+        "bytes": 119,
+        "sha256": "2d27e676520022aba77debeef7d3722837000822c6ce76d2371a6678acce6d70"
+      },
+      {
+        "path": "runs/control-chunk-websocket/accounting.json",
+        "bytes": 3320,
+        "sha256": "0a2f4085c2cea34cef1cf8836bf78048d8abeabb7574eb23565c1b4f9b717da6"
+      },
+      {
+        "path": "runs/control-chunk-websocket/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/control-chunk-websocket/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/control-chunk-websocket/client.jsonl",
+        "bytes": 417143,
+        "sha256": "c589dfab04ffa26149c4e6eb565bc5d71ead231b5987aeb76b07a6978e5bc984"
+      },
+      {
+        "path": "runs/control-chunk-websocket/final-node-0.prom",
+        "bytes": 68004,
+        "sha256": "7d16ba44d2d0f938fc9ed5f9ff62b52cd76aa4371e3988686b492513c8fbac6c"
+      },
+      {
+        "path": "runs/control-chunk-websocket/final-node-1.prom",
+        "bytes": 72502,
+        "sha256": "9aa456bf19f99878a9c3eba3c5bb83062a3a0d0f4730b66b1f0ea3476bd1b840"
+      },
+      {
+        "path": "runs/control-chunk-websocket/final-node-2.prom",
+        "bytes": 68455,
+        "sha256": "0fce318d2966153a3a43167493b4dd8765ba390976e71439f7c9fac0d491525b"
+      },
+      {
+        "path": "runs/control-chunk-websocket/initial-node-0.prom",
+        "bytes": 51421,
+        "sha256": "e65a472eb480d73a69eb6adde7a48bc28f40096078f2a73b8208a791cd1c8256"
+      },
+      {
+        "path": "runs/control-chunk-websocket/initial-node-1.prom",
+        "bytes": 66264,
+        "sha256": "7e96ea9817ab20aed7aa56e523c5d2e9647af146feed3c155e2f25c5f62b8258"
+      },
+      {
+        "path": "runs/control-chunk-websocket/initial-node-2.prom",
+        "bytes": 44532,
+        "sha256": "b9d2fa86a73214f2a9387199a9efab77e2cf59d8755016c05cd86757ab285399"
+      },
+      {
+        "path": "runs/control-chunk-websocket/manifest.yaml",
+        "bytes": 3011,
+        "sha256": "c562a285ac858bf5380fdeebb29cb40100741feabdb8bfddf38656b43ab7d018"
+      },
+      {
+        "path": "runs/control-chunk-websocket/parameters.json",
+        "bytes": 1306,
+        "sha256": "d87723b17cc2d0f7c446a7e5ded332e95f4052ae4a3cfa0de893cacf46ba9012"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-10244-3dd2167937554db9a023012febe30f0b.jsonl",
+        "bytes": 212,
+        "sha256": "ef8bf3c1bf81318f5ddaf40a76d6f5b680edf726eed19a4f98844e771cc8190a"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-10292-04850a235903412f914e6f99a10d1f3b.jsonl",
+        "bytes": 213,
+        "sha256": "273574522e0c8b897870bd81e85803a173a88a98aaf964fdf9578c60242dad10"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-10536-6d8ae8d3d19249cd9e7b4442fc0152c7.jsonl",
+        "bytes": 213,
+        "sha256": "a259c5512d39ad4fe581e129515a84f02a5d37581bf0ba19a1b008e8c334c2a1"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-11228-fbee6863809b4950967d747a20830adb.jsonl",
+        "bytes": 213,
+        "sha256": "6372ed8a5631f972f9eb1a481758d47271380b17bf6bf585fd95a22ef557e9b4"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-12492-90de811ffbcc4c9da85089439b5b93d0.jsonl",
+        "bytes": 212,
+        "sha256": "e92931106e9773990e02a73c10e0844d0c6b9ad73c9174d0e498e595214302d5"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-12496-ff1b34c7da8f45dc9ce28fa1faba6eea.jsonl",
+        "bytes": 213,
+        "sha256": "55955312a648ce1c6af4e94ae44069101072df8014412a457ac8565e94b5c506"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-12996-66f85297a3e34deb9ba49e23a37d5a8f.jsonl",
+        "bytes": 213,
+        "sha256": "401b67f74583cf5484fa8c7118e3bc6b206c5784ad5cd245faeda6c9c77ce07b"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-13400-fb592e1a17ff42f19482139e55b7626a.jsonl",
+        "bytes": 213,
+        "sha256": "706620841b15e5038f4c5b03d6e928cd989f2aee6dce591c1087e42b00c0107d"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-13456-5a9ce01b042a4fb5b86ddc776f817b76.jsonl",
+        "bytes": 212,
+        "sha256": "12ddfbf426bebcb60df812ab9c49f1bc85b839b81a688f57f74ed29d0b5824ad"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-13460-702efc568d5341f8af7d7f8f06ce5f56.jsonl",
+        "bytes": 213,
+        "sha256": "018ad8b3e2a8ec6b1e90614227d8e9e9bca919161a509b57cf9ef2ed0c13e9da"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-14124-540ab54cc6f4413492982b98be136e40.jsonl",
+        "bytes": 213,
+        "sha256": "70ac0ce37c1ab225f4bafecf3efb1ae3ab7ee10bcfb59762291873ddf437c453"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-14912-04c3fdd948864cedb3fe4bdd6c77ba78.jsonl",
+        "bytes": 213,
+        "sha256": "56dacf5063d3bfd551a2446b76a9d898a68c2d879a9c80fbcdb7c6d69c0489c0"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-1524-d5966379210f42a1a0003dd6ca1d4c4e.jsonl",
+        "bytes": 212,
+        "sha256": "ccd7ec3c34027ba0fa7deb3a4b4afd1af04da08e6617446cc4e1a9f88d5ec93d"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-16648-9084f9ff76c3494faf9c11e63f5eb708.jsonl",
+        "bytes": 213,
+        "sha256": "67025a2fc5d9f692065d26b7835959c98f9c982776ab116eb98fa6fa57b703d9"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-1668-6707df5cac5f4ef6930ffc7487de9a86.jsonl",
+        "bytes": 212,
+        "sha256": "abb0c878d4b5a258b4367cdbc20816b340440d5269ac1d13433541f0cc1258a5"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-17000-2527494fe92d4e0ab9ea79cea70b7f0b.jsonl",
+        "bytes": 213,
+        "sha256": "334d2a06106888a82cc87f768bf1cf8e346ae5a63911c852bfa69b38b151c707"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-17240-f050ab3f864b415cbd4f1bec11aff328.jsonl",
+        "bytes": 213,
+        "sha256": "4308ea3f28acb49b712f4f39c9a6bec047693e5a87ef1c04d1c80b14d158ec87"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-17336-4ce69fe7381e40859025bc171df48721.jsonl",
+        "bytes": 213,
+        "sha256": "16e44c5c3a42d8582561520e541ac5c35e86cb8e943d654a16f264c32c0893ed"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-17356-42fbb748076a400badd64f698c7efb11.jsonl",
+        "bytes": 213,
+        "sha256": "1a41ecfe561d73eddcc45ee6fce6fa996410a8d0d4470d9acec0e06dc01c7500"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-17812-59bff3874fcd4f59afd0c6345ef2539e.jsonl",
+        "bytes": 213,
+        "sha256": "315a32dc53c7e91457a5f50703038a39805b08850a63b004b58e3cc76ea635c1"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-17972-1cc468e8016d47f491dbf22d68f4bfb5.jsonl",
+        "bytes": 213,
+        "sha256": "90a14136288434829d4a30e9c46623c1e751273b241b7f05c122a381269e63de"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-17972-fb6418b3a22c484095e8c3e3eb9138be.jsonl",
+        "bytes": 213,
+        "sha256": "f74c7f3360ab27b6ed15535749fdb257230843aae836b2a2cd91ebc342241d38"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-18036-3a22f714b03a43f1adf2bc8a7148bae0.jsonl",
+        "bytes": 213,
+        "sha256": "1db5a267dbc2968456fa4bcfbdccd7373bb72c77dbc97a5cd938afd54483c426"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-18172-93b55b2d337f425ebd986deb5b0d4dee.jsonl",
+        "bytes": 213,
+        "sha256": "1e02cb86e36972643e8c3d83a524994908115d83b47170836b00539f98d666d1"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-2440-75ba29297e0040a19c03e91b996f7e98.jsonl",
+        "bytes": 212,
+        "sha256": "efbf916c882f807a635f060af94030cedc7db3dc827d75c1cf0d30a44aa1b4b7"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-2632-1fbd4841fbdb4800ad80d48fd7cd4f6e.jsonl",
+        "bytes": 212,
+        "sha256": "40118175fef7b93bbc5f08437021155849b6b5474163c9f5bec58fd3e3fdebd1"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-3436-4cfdae274e7f432980331be6c81b5514.jsonl",
+        "bytes": 212,
+        "sha256": "3ae45c836bb4700b6e9f83148dd12928e02f3b26584ee21ff4920ff3b4ba3ccf"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-4260-cee8580fafc04724a2b5431cc0912a76.jsonl",
+        "bytes": 212,
+        "sha256": "c748006e7b07af38dc63945cc934368ea5b6a52c18faedb6c6b9b7f26f749df9"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-4396-aef4095a71534498bc09b4ef8247c6fb.jsonl",
+        "bytes": 211,
+        "sha256": "0c384cb81181450820e9fbe3a2272800d2a86098b6bbdf89244c17a53fe78ed5"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-5176-60c59cf5223942439de360f77670cefd.jsonl",
+        "bytes": 211,
+        "sha256": "294cf9cf36190dad7e7b2d7f3e34b481a892e1541fc46f521b5f2c5f70787224"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-5320-507b3e601928441c915e01f991c4c9b9.jsonl",
+        "bytes": 212,
+        "sha256": "7a20dac5caeb51675a52c0a1614f5da5b68c9f6a058e14a4a6334d224955fce6"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-5532-a16cc80d0b174140a8bd7597b22b3ee1.jsonl",
+        "bytes": 211,
+        "sha256": "05ebe1c54a91115426583b44ee0f4453c518c7f63bacc07aba9ea278dcf838ea"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-6328-04c4f6bd9f974230b599b131ca420a84.jsonl",
+        "bytes": 212,
+        "sha256": "b696256193e43de92da42fa6958f0319956746059bacbc6d9b58497eb58fff70"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-7248-085f7a44fbde46ffb31ec13202a4b991.jsonl",
+        "bytes": 212,
+        "sha256": "74d80875ef8f2204463e9c3c144625caf6c53ef27d5e70c66d186efc3776d225"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-836-323e90c92e86458391eab005f8a268d7.jsonl",
+        "bytes": 210,
+        "sha256": "04399f97e29b60cc624d0c039c1a0225a3ecc6783603b52b1393ebcb4e329856"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-8924-634bd831e5ca4ca8ab50b4dd18af7b6a.jsonl",
+        "bytes": 212,
+        "sha256": "832d61d16910b26e58aa0a9fe9330e72ad29a1f37d425d031de22b0800b54380"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-9128-24dc8ce220474890bf87277bb5613062.jsonl",
+        "bytes": 212,
+        "sha256": "1e2d73b186b9722587875b70cac2ea45772b8bbaec65a5c8b74abd887fcaafb9"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-9276-9ed4838a05e94407b5e36d502ca94e55.jsonl",
+        "bytes": 212,
+        "sha256": "12e303b5a6879f8e98ae941cf70dd91d6411441d4ada1794f04636e892012e26"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-9344-d4d72af96fc5413eb05bb90ac071e5d0.jsonl",
+        "bytes": 212,
+        "sha256": "fc2745f2ae4ab77aa05e74f14294061dcd57f65a32d39e63e28337b602733ad9"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-9436-e7581cecea1f453b87c41fbf8188eb1c.jsonl",
+        "bytes": 212,
+        "sha256": "3db592d50588deb4606c2e71b19c738d929a1b517b58bc783e1181a5dfff9810"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-9696-0e854065908141c88e5563b620c2d5be.jsonl",
+        "bytes": 103595,
+        "sha256": "5e207d52f56c5d86446f4dbce9a0c8f02e12d132ecf295b4e2ab4ca7b4c95558"
+      },
+      {
+        "path": "runs/control-chunk-websocket/receipts/receipts-websocket-1256.jsonl",
+        "bytes": 8153,
+        "sha256": "e46db2556fe22590713c1b4593ff8a1a825051ba4af648eff37d64b437764600"
+      },
+      {
+        "path": "runs/control-chunk-websocket/report.json",
+        "bytes": 2149,
+        "sha256": "eb23ddbdb571e8cac46d670a6a5858ef70e071c37d3cecfff3a8085fcde65b18"
+      },
+      {
+        "path": "runs/control-chunk-websocket/supervisor-0.log",
+        "bytes": 511353,
+        "sha256": "2fce23f69a276cd5aa57eeac79873c2b4b7d5e0a3f6fa3dd7e0ed42bc461c7df"
+      },
+      {
+        "path": "runs/control-chunk-websocket/supervisor-1.log",
+        "bytes": 18179,
+        "sha256": "db6a140b8a052530d5a3ea70ea2e88c36fb524fdfa16255daef120ea8e505b5f"
+      },
+      {
+        "path": "runs/control-chunk-websocket/websocket.json",
+        "bytes": 119,
+        "sha256": "a4471c0f14121afca9362609671f59ff2ff2d01d2a010352a9ef8183148dfccb"
+      },
+      {
+        "path": "runs/control-direct-websocket/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/control-direct-websocket/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/control-direct-websocket/client.jsonl",
+        "bytes": 94165,
+        "sha256": "03169a64c3aa35147b145a434c53ce7363fb2698c0b03b1ea7a25f83f54f46a0"
+      },
+      {
+        "path": "runs/control-direct-websocket/failure-node-0.prom",
+        "bytes": 186991,
+        "sha256": "64be4083cdc702c9cc7c449dd8fc0b7b625fbdf593a79539a568bc9f2cd1fb3a"
+      },
+      {
+        "path": "runs/control-direct-websocket/failure-node-1.prom",
+        "bytes": 178120,
+        "sha256": "e4da9c83ecdc6ca0aeabf94bef73b9bd3f591a9f3cd31b8982fece3a215a9e87"
+      },
+      {
+        "path": "runs/control-direct-websocket/failure-node-2.prom",
+        "bytes": 163677,
+        "sha256": "47a2b075d8974910ab06643601b826a2c5d4830884fe321fdafb31339a94e42a"
+      },
+      {
+        "path": "runs/control-direct-websocket/initial-node-0.prom",
+        "bytes": 57932,
+        "sha256": "7f00abc94f4e5839083e3a3e7fc8505c8f49ae6ad4d8ba8190fc67258b245ef3"
+      },
+      {
+        "path": "runs/control-direct-websocket/initial-node-1.prom",
+        "bytes": 57446,
+        "sha256": "ddfe5870ad6522bdd0e583ebe1758ef6ba6f3a365273be7ffd1f7a90b866397a"
+      },
+      {
+        "path": "runs/control-direct-websocket/initial-node-2.prom",
+        "bytes": 50842,
+        "sha256": "659c49d03a7711dfa4f49462640a456204c61c42b01ca4e189de78f6acdfa73a"
+      },
+      {
+        "path": "runs/control-direct-websocket/manifest.yaml",
+        "bytes": 3018,
+        "sha256": "880e102ff0671d0e330951c2d04f4e15ceca311b66baabeca7845463b8859cc7"
+      },
+      {
+        "path": "runs/control-direct-websocket/parameters.json",
+        "bytes": 1366,
+        "sha256": "cc06f6293a65676064ed8f967419a81dc6b3eee2d12941e3f56b4bee4928e695"
+      },
+      {
+        "path": "runs/control-direct-websocket/receipts/receipts-websocket-10144.jsonl",
+        "bytes": 2027,
+        "sha256": "162d24cc7b7e2237628e307e589ae8ab10d6b9a21066575cd2e27713c082260b"
+      },
+      {
+        "path": "runs/control-direct-websocket/report.json",
+        "bytes": 793,
+        "sha256": "de01c8b6e6a856fc8ecddce0b270221613fbe9989008b2b6fadc252f8c6ba690"
+      },
+      {
+        "path": "runs/control-direct-websocket/supervisor-0.log",
+        "bytes": 2274838,
+        "sha256": "23fd66650d5c659c68777a9e82503aac4c697df34f9ae2be93fc141b7731cd8b"
+      },
+      {
+        "path": "runs/control-direct-websocket/websocket.json",
+        "bytes": 119,
+        "sha256": "604483bb20cb8c70d9c58165c0ffbb470950992162219d0b9a1bca148659624a"
+      },
+      {
+        "path": "runs/control-private-websocket/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/control-private-websocket/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/control-private-websocket/client.jsonl",
+        "bytes": 104905,
+        "sha256": "b85417eb4eab768e7fa0e7db42b98b91feec6390a8a631b3cebe44d7763438c4"
+      },
+      {
+        "path": "runs/control-private-websocket/failure-node-0.prom",
+        "bytes": 197367,
+        "sha256": "d9b295618857d179dd58ccec22694f3da85cf933a804095c97012f03ca59f7c6"
+      },
+      {
+        "path": "runs/control-private-websocket/failure-node-1.prom",
+        "bytes": 188430,
+        "sha256": "723b9d2a4edfe4703a51834518ef76c456e74f5becb2f1bb1f38d4adc474f717"
+      },
+      {
+        "path": "runs/control-private-websocket/failure-node-2.prom",
+        "bytes": 182908,
+        "sha256": "0c5b245267326e74e673ea65d2fe742293dd6094751ef34585ca6a5dc6d23a4b"
+      },
+      {
+        "path": "runs/control-private-websocket/initial-node-0.prom",
+        "bytes": 64540,
+        "sha256": "ae40fa1c7ad49c1be0d5a560a6e2065be2b609af68cc728fbf3ccb6944ff7252"
+      },
+      {
+        "path": "runs/control-private-websocket/initial-node-1.prom",
+        "bytes": 43580,
+        "sha256": "7eba7e28dde1cdf9c4c149714443d58717229e9e85c8a643392cf20b4e74d3f9"
+      },
+      {
+        "path": "runs/control-private-websocket/initial-node-2.prom",
+        "bytes": 47990,
+        "sha256": "d4e833117677c55e94630b63f1c2394936358910e5ded26bd77508db02566eb1"
+      },
+      {
+        "path": "runs/control-private-websocket/manifest.yaml",
+        "bytes": 3025,
+        "sha256": "bd949f488a79d435d27365b3c49a2b726ca04d7e9546c8097c7f3330c6b02eb2"
+      },
+      {
+        "path": "runs/control-private-websocket/parameters.json",
+        "bytes": 1380,
+        "sha256": "f065966c239abfda73fbd848e86df841dfa64cc7538dcc6f70fd6dbe3cb272bf"
+      },
+      {
+        "path": "runs/control-private-websocket/receipts/receipts-websocket-2044.jsonl",
+        "bytes": 4863,
+        "sha256": "bc1cc5e5cc2bc3aebe20230d0c072287fa423ccd64ef19cdf6811d2c9f6adcd4"
+      },
+      {
+        "path": "runs/control-private-websocket/report.json",
+        "bytes": 1942,
+        "sha256": "c16d809f5bd10f8f747c609f305b1e18abe989baa7b4585c979e34ed3a2550f1"
+      },
+      {
+        "path": "runs/control-private-websocket/supervisor-0.log",
+        "bytes": 1031075,
+        "sha256": "78c334fcb81436c77ff60490c54e9006d95e138290f39cd1522ccc0960139f9a"
+      },
+      {
+        "path": "runs/control-private-websocket/websocket.json",
+        "bytes": 119,
+        "sha256": "d330f888b7eb6f87ece880e1580bb25abd50bf89365c8b93f4adc34be0899ed8"
+      },
+      {
+        "path": "runs/final-managed-websocket/accounting.json",
+        "bytes": 2144,
+        "sha256": "64c81791e765592f957f63b0e833617a8ef51109cb5546dfb8ed2a90040e726e"
+      },
+      {
+        "path": "runs/final-managed-websocket/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/final-managed-websocket/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/final-managed-websocket/client.jsonl",
+        "bytes": 234667,
+        "sha256": "fc363ff471d5b113a9f89680e0c480af682b65cc7f728ae0bf7a843688e0bf08"
+      },
+      {
+        "path": "runs/final-managed-websocket/final-node-0.prom",
+        "bytes": 58526,
+        "sha256": "25af4e1858d8c3b75c2657ea336ae7b88e2beeed565f15f72a72e54511270675"
+      },
+      {
+        "path": "runs/final-managed-websocket/final-node-1.prom",
+        "bytes": 105430,
+        "sha256": "b8fb6d1a4d6df9d9438e5daa03a83b33cc0bfba2c8e168eea3c0b62f24061328"
+      },
+      {
+        "path": "runs/final-managed-websocket/final-node-2.prom",
+        "bytes": 67765,
+        "sha256": "8f14736a87acd0da739f229b9a8dc78f7d7cedcf5ee986bffadca26687769f44"
+      },
+      {
+        "path": "runs/final-managed-websocket/initial-node-0.prom",
+        "bytes": 43629,
+        "sha256": "465ef5148cb6edf6fbea4dbe95b99dd33b0512ad3187cde38be395abee2cacbe"
+      },
+      {
+        "path": "runs/final-managed-websocket/initial-node-1.prom",
+        "bytes": 50514,
+        "sha256": "8d2b6b14d3c27865b1e6593070a559e496e59183b0c20672ee2c6d184fe369bf"
+      },
+      {
+        "path": "runs/final-managed-websocket/initial-node-2.prom",
+        "bytes": 69599,
+        "sha256": "69059cdf491689195ae527dd55f3f514c1843b11e39c55d883ea7ea76285f771"
+      },
+      {
+        "path": "runs/final-managed-websocket/manifest.yaml",
+        "bytes": 3011,
+        "sha256": "114f0323babee46213037305c07b83eb19f74ef1d93ad7430dc9fd75097b52e2"
+      },
+      {
+        "path": "runs/final-managed-websocket/parameters.json",
+        "bytes": 1371,
+        "sha256": "1422c3f7b11101dea866953f82939189814f707959b1b3d2e8a02166082728f7"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-15092-b070c8627bc14909936a48e3612ba380.jsonl",
+        "bytes": 213,
+        "sha256": "8793c71a9b300d75973834f87390c12d0326aeb6937a19f916d4e0005473036a"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-15428-411fa40b5a994a499ab5d93a76beb66c.jsonl",
+        "bytes": 213,
+        "sha256": "2dfc8e6a2596aa3591e4d49149855b7cad9d24d9ba4a906789d4fa78ff552b71"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-17252-fed1e65a3f7e49f49c036620c469ca07.jsonl",
+        "bytes": 213,
+        "sha256": "3016050e32d48d90ba4e1b61cff50b8543ff03146ee500e2e0db50f909805124"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-18544-c8aac71cd931469c8abbbf064252a950.jsonl",
+        "bytes": 211,
+        "sha256": "0fb3a1b1619a56fd5c63b8bc1d7e0c062b0da1ad219646930828d8263d59a6d3"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-1868-750d18a10cd14db0b29ae15824c57346.jsonl",
+        "bytes": 212,
+        "sha256": "4140899758e45ccba62af9f783e5bb27a3094c8e2dfde038fca7a8f0831c9f41"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-18824-5105eac6201646a4993f315aab75fa5b.jsonl",
+        "bytes": 213,
+        "sha256": "a15a390c7bf82bd241843d96af8ebb06c5d464bb138cedf3b7b96305cb7f2bd8"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-18888-08ce51bcb8d1463dbd0357784a085206.jsonl",
+        "bytes": 212,
+        "sha256": "650c2a2633f4c3a8231a19d981ac1fa093b20a05703067d0dcf27cda97d7a68f"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-18908-23f9f27f0aa748db8403335f9dfdb4fb.jsonl",
+        "bytes": 43850,
+        "sha256": "148d54ca54daaf8141b395e8557e37485a358f9bfe9521ad0e50750aa757f193"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-3500-aea915e2c57a4fa6ab4c2a561dd024ce.jsonl",
+        "bytes": 212,
+        "sha256": "f8b709ba1cd13c828641be723f8fde419b497aa735be34ec92869da9ffe41453"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-4736-faa32368da9a4903a90cfd341fbee8cf.jsonl",
+        "bytes": 212,
+        "sha256": "80493a0d76d951ec10746dcb43f18cfb621194494bd04f582982c95d79c907b4"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-528-3fa0151bf55647e896822b9ada2113ec.jsonl",
+        "bytes": 211,
+        "sha256": "7dc86e0cde7815928f5c6f06d3d086f3c74a3f625b80ec526a679f46dddc6167"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-5432-c7fc472cce1d4663bbe3a4a113851a50.jsonl",
+        "bytes": 212,
+        "sha256": "127a8488290ee5c2a7c64bbe8e117b11d87ed65cbe186dd439fe27db4ed0f114"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-6540-fee319a1a1a348cca6d1ac605f192960.jsonl",
+        "bytes": 212,
+        "sha256": "9c35cacc4d082942908ef009dbeffad75217a12dc430cb9cf2c9a179ee284026"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-6636-0c293c31871342cf9e792c47e3c4c4c3.jsonl",
+        "bytes": 212,
+        "sha256": "cd8aa3ba30f3db14ae050a9418bf0a6ea0527ace8ddf91788bc63a6bfbf71592"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-7368-74b87e31bc21439bbbab7c545eaa8bff.jsonl",
+        "bytes": 212,
+        "sha256": "a8f1a3ea70d6cf4c2b7c74308622ec6b4bf1f7750fc1fec51557d1baacf5bb80"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-9772-97bf125fc05142dabfa2a2e12b92a1cc.jsonl",
+        "bytes": 211,
+        "sha256": "ed837c7b1fe08ff3126426d93ed44b235ace53f9bb4f0be43c90cc260611f4b7"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-9856-f7c896a3c1294fd58771e7596bcdedba.jsonl",
+        "bytes": 212,
+        "sha256": "a794bcd82d4e7ad74a2dd54d3749b32b4a2198a103e7a75f60c46ef41cb5fcd1"
+      },
+      {
+        "path": "runs/final-managed-websocket/receipts/receipts-websocket-3372.jsonl",
+        "bytes": 8154,
+        "sha256": "35977a2797b80638912e4b72c628c137910399c1747e1fb7d0cf6c935ff06c35"
+      },
+      {
+        "path": "runs/final-managed-websocket/report.json",
+        "bytes": 2151,
+        "sha256": "aff21dc6e1788aee707deac612b1b845a6c6ca29aceccfc079c218310462b35e"
+      },
+      {
+        "path": "runs/final-managed-websocket/supervisor-0.log",
+        "bytes": 171456,
+        "sha256": "76dd4e932674be6db06c403b2cb0e28a7a3e30f416bf4d2303ebbf7338544e66"
+      },
+      {
+        "path": "runs/final-managed-websocket/supervisor-1.log",
+        "bytes": 19257,
+        "sha256": "0c6ce31b3add04b2a45a2721e169afa5ae792f7b00db792cb8643b3a782221c4"
+      },
+      {
+        "path": "runs/final-managed-websocket/websocket.json",
+        "bytes": 119,
+        "sha256": "6bf7263757684e6b7f5c33a1998b57bc49290691ec3d4a69b79341a3464e7171"
+      },
+      {
+        "path": "runs/final-native-lease/accounting.json",
+        "bytes": 191,
+        "sha256": "5913d5727b32da2eedb7283a7d55911037f00124301739faef19ca9acccd7146"
+      },
+      {
+        "path": "runs/final-native-lease/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/final-native-lease/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/final-native-lease/client.jsonl",
+        "bytes": 84601,
+        "sha256": "c98883be1ea2c49b2135712fee817ad8792195fbca2a403974198e7a4ef7064c"
+      },
+      {
+        "path": "runs/final-native-lease/final-node-0.prom",
+        "bytes": 141512,
+        "sha256": "68eaa5100bb0ea490dad586bdea05117f5da4cb90620b256397db2a0a4797d3d"
+      },
+      {
+        "path": "runs/final-native-lease/final-node-1.prom",
+        "bytes": 153402,
+        "sha256": "6177cc84ce0b42ce96f5a2bfbaa86c76d73dd1a457f771ed18e1dbcf412911b8"
+      },
+      {
+        "path": "runs/final-native-lease/final-node-2.prom",
+        "bytes": 53449,
+        "sha256": "0f5785c3eeeb45156d372e991f0fbb9984481ba36ca004c8156e052f28a7fa04"
+      },
+      {
+        "path": "runs/final-native-lease/initial-node-0.prom",
+        "bytes": 46621,
+        "sha256": "a2ef40968200e04b9ae27e38c2700ee05ead303e86fe8669c174ebea47e87aaa"
+      },
+      {
+        "path": "runs/final-native-lease/initial-node-1.prom",
+        "bytes": 40780,
+        "sha256": "0d72372a5e190daadad0bdc4f676a5d65d1470ef8ed95e77cda357ab2f2ae74b"
+      },
+      {
+        "path": "runs/final-native-lease/initial-node-2.prom",
+        "bytes": 40759,
+        "sha256": "73cde35e42cdac39fe26f48ad42c7f167d69e4d368924c062cfbf84651d5c4f2"
+      },
+      {
+        "path": "runs/final-native-lease/manifest.yaml",
+        "bytes": 2976,
+        "sha256": "bf99ce1c5645895d10014de8dedde6217b78ae69557d0e616b56843e946cb640"
+      },
+      {
+        "path": "runs/final-native-lease/parameters.json",
+        "bytes": 1341,
+        "sha256": "45f7bf1a1b8aeba6cd7586a69ca3b92341a9d5b6d5694ec4bddf568e86badb03"
+      },
+      {
+        "path": "runs/final-native-lease/report.json",
+        "bytes": 845,
+        "sha256": "39001cb875bbade8d957063544a4546828fd9e28d54b7bb499766cf6334ce619"
+      },
+      {
+        "path": "runs/final-native-lease/supervisor-0.log",
+        "bytes": 125859,
+        "sha256": "9d599f7c4d18ec30a2ef0952cf1637acc755786f9fec908fe0be3d8c2b44ece2"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/accounting.json",
+        "bytes": 190,
+        "sha256": "4043a315356c20ffebf30b3ee3005590d96b040399152aab0098d4134fc24a73"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/client.jsonl",
+        "bytes": 38251,
+        "sha256": "245dfd8e4d3fb3aa1e60014e78d97450238246d0d166a6f67cc15e886dd24034"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/final-node-0.prom",
+        "bytes": 113421,
+        "sha256": "b4d7ff5df0b5d819bf4d47d5c3cf90468533a6d6325559d4abae3037d29a7b7e"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/final-node-1.prom",
+        "bytes": 145321,
+        "sha256": "286e3c9453b653fb6bcc83c6d2ff94acdc9c7f54a12b5e172df9829a1fa5bb3b"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/final-node-2.prom",
+        "bytes": 89518,
+        "sha256": "2d1d398a629b15d5d8a3c2c17812affae984792536760bc790f16e2ee0270d42"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/initial-node-0.prom",
+        "bytes": 61212,
+        "sha256": "004f1f7256a584cbf7bc48bdfa6590d113b3988503308dd4a8e2edba7a80d18a"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/initial-node-1.prom",
+        "bytes": 66166,
+        "sha256": "1820d08534d16ccf316b9c00fe0c736a3a3b04b1ae7fe4467dc75dfb45eb0ba7"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/initial-node-2.prom",
+        "bytes": 48180,
+        "sha256": "2d10ecd426735739318cc096fe2f167acc3996bdbe51590320029315ee26540f"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/manifest.yaml",
+        "bytes": 3032,
+        "sha256": "0ac29a3996e26180762efc4c1c7938df7d0ced9f4e76cda969f4410dab51136a"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/parameters.json",
+        "bytes": 1323,
+        "sha256": "eadb36016876dcb2b4ffdcd8d7d9385e876ccf360071468d357c293bc323095b"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/receipts/receipts-websocket-2168.jsonl",
+        "bytes": 407,
+        "sha256": "598831e73059b5251e76cebc4dc27d2efdd5a3a44c7a21643cb4df3e74cd2621"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/report.json",
+        "bytes": 411,
+        "sha256": "ecac240de5004882db43cbd033047ce77e786fd1a3bf591b78b872f5dc203929"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/supervisor-0.log",
+        "bytes": 106945,
+        "sha256": "d169f18a5fdabe8959083c27adc2cd6cb385a49028e4cf9ec7e32769ea2643a7"
+      },
+      {
+        "path": "runs/final-native-owner-timeout/websocket-timeout.json",
+        "bytes": 119,
+        "sha256": "bc58ac62eec53fd0e9dc1132fa08031922de871223f11e12e7e4114c26b4c796"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-10s-node-0.prom",
+        "bytes": 250675,
+        "sha256": "2f9d16c753a6ee1d51521c90238af777fe66122741b8dc656bb6291d3833ea26"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-10s-node-1.prom",
+        "bytes": 257016,
+        "sha256": "6a4e478ee241c193eeec995ac61fb4cf1b8b69c842242b482cfdd99938e8258d"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-10s-node-2.prom",
+        "bytes": 230969,
+        "sha256": "2429549e25115bb2a06c71b10658c0ea3e6558f6a7b494b7cf992f96741bb07a"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-1s-node-0.prom",
+        "bytes": 193284,
+        "sha256": "2d88491a75d25016e949949240d8af85a4f243292351aebc73ff653ac55dfd22"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-1s-node-1.prom",
+        "bytes": 155682,
+        "sha256": "54f81f0ca4cb46cfbc3fbd2ff5d32c28529405cb9331f7cee3d2b851db51c847"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-1s-node-2.prom",
+        "bytes": 158150,
+        "sha256": "359fb54f7e0a8ec8a3014fa5f56c109b00e1782b9d7f9c60175330dfea83ebae"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-5s-node-0.prom",
+        "bytes": 234937,
+        "sha256": "094ee1f2863872855d53c7552267be1709150d54cd53d2933263b052495e43a7"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-5s-node-1.prom",
+        "bytes": 203058,
+        "sha256": "33a32fdb9a1b09eb4071527f5c6df3b59e7a012efdbff7588c00bc876615ffea"
+      },
+      {
+        "path": "runs/final-native-quick/absence-follower-5s-node-2.prom",
+        "bytes": 174774,
+        "sha256": "7ad96ccf4c2b7ce414ae74d42ff9e5795fcbe57c7b37a4ba58544905337d5f43"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-10s-node-0.prom",
+        "bytes": 253267,
+        "sha256": "f6d8f39648a19327c8509fc4db95a916f076556ab7ceff26c58921ad1c200c37"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-10s-node-1.prom",
+        "bytes": 259858,
+        "sha256": "8653bec0da2bcd9a42241c00bdf37d72aad8a2238691e8817a6365868ccfebb3"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-10s-node-2.prom",
+        "bytes": 231110,
+        "sha256": "4f0d1713ebc91f2a86fb644687a747d5cc6fa6ad78196141bed067a6f2a75959"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-1s-node-0.prom",
+        "bytes": 196528,
+        "sha256": "3d6c342041e9382f9282fb798e39c9b205bfac33a34b1e3321bd6673ac71e5b9"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-1s-node-1.prom",
+        "bytes": 175476,
+        "sha256": "f4ddb401c2e9c8f6e4b8a5a65d126d2cbccc42bc058ae2e6d1c20550232700b8"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-1s-node-2.prom",
+        "bytes": 167694,
+        "sha256": "3ae256fbaef992eb4c8010041d1340c667ca7b87cc6cbfca9eb27aeb7af31791"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-5s-node-0.prom",
+        "bytes": 243122,
+        "sha256": "b8a02bc28e08d303efe828edc3f9ab6b7c255d0321c1c1c6318d25e8e5195e21"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-5s-node-1.prom",
+        "bytes": 214166,
+        "sha256": "d83977895aab03e6e282a59b58f51bd0c76d27d3905fab8caf7f33c0cf6f4498"
+      },
+      {
+        "path": "runs/final-native-quick/absence-leader-5s-node-2.prom",
+        "bytes": 225564,
+        "sha256": "5cbe2cc60ffdf14556eb5fbb474ab8594cb33cca9cd8a6b681318189ef5132ed"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-10s-node-0.prom",
+        "bytes": 253341,
+        "sha256": "d4348ad232b1e9e01568483b3fc4ac36989188170ab792dec9362b563274c9a4"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-10s-node-1.prom",
+        "bytes": 259864,
+        "sha256": "56c317461af9925b4b15eaeb00444a192bc6f7e7d2dc63c429dd410ae0c6010f"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-10s-node-2.prom",
+        "bytes": 241922,
+        "sha256": "182478c24137d60d0a7a134ed99e57d81b5e403c3e2e1f704cae037e49c17c32"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-1s-node-0.prom",
+        "bytes": 225499,
+        "sha256": "2af165a571fed18863cf2536a9c6145826f27ae4518c457b8dfa811427f10db2"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-1s-node-1.prom",
+        "bytes": 192035,
+        "sha256": "76d804b9794e8baa923ca3f4d321302b6732edb1fb38c341d038340087d6c6c8"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-1s-node-2.prom",
+        "bytes": 174685,
+        "sha256": "c62c80c58b27dd3b21fcc3bb0128b69eba720609f0e7f9e15aea8e73ff2ce245"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-5s-node-0.prom",
+        "bytes": 250553,
+        "sha256": "8b43265837674ba095c2d2feefc11bf9b8276cc36ddbee5ebd8ed628c9f0bd61"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-5s-node-1.prom",
+        "bytes": 249160,
+        "sha256": "0536a743cb82b16706a11d542e1e7a5043857493c5a06167535264edf1a1315d"
+      },
+      {
+        "path": "runs/final-native-quick/absence-quorum-5s-node-2.prom",
+        "bytes": 230906,
+        "sha256": "f03264089d3ef344c6b43ca8d43ce639a0b361c5628b5b00cfcf44030d66dc67"
+      },
+      {
+        "path": "runs/final-native-quick/accounting.json",
+        "bytes": 3054,
+        "sha256": "e54bd6300f8f14579f651d77a31a481c2c04d9fe11944999c1848557bc7f3823"
+      },
+      {
+        "path": "runs/final-native-quick/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/final-native-quick/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/final-native-quick/client.jsonl",
+        "bytes": 559664,
+        "sha256": "0dbc2c292f24d6f5d72f562f5614e793923d77220c1ce1ef1f6602673e6991aa"
+      },
+      {
+        "path": "runs/final-native-quick/final-node-0.prom",
+        "bytes": 67723,
+        "sha256": "d80ef4da46d6453d5403f12982e1b47f4b4fbc445de9e33a3c329c52cec140ff"
+      },
+      {
+        "path": "runs/final-native-quick/final-node-1.prom",
+        "bytes": 81499,
+        "sha256": "53278db5b31e913cee6890bdfe0668a3aa8480014a1d4e21a4451d1a23a305d3"
+      },
+      {
+        "path": "runs/final-native-quick/final-node-2.prom",
+        "bytes": 60824,
+        "sha256": "5c26ba03e44ab8319bb9755ea67121629668fa4f33f8319e5855cee3b1f3e552"
+      },
+      {
+        "path": "runs/final-native-quick/initial-node-0.prom",
+        "bytes": 46635,
+        "sha256": "300056bd7e1f86be2c0e4fc4d1c85c1bd3a8364fd755cd4de1b228c3cfe2b01b"
+      },
+      {
+        "path": "runs/final-native-quick/initial-node-1.prom",
+        "bytes": 40769,
+        "sha256": "17d9fc636fc01cafa9d6d1eceaed43c6f24ca4b11b17b4712321d19c1a044ff5"
+      },
+      {
+        "path": "runs/final-native-quick/initial-node-2.prom",
+        "bytes": 41004,
+        "sha256": "f99307a8a0c6af83be83b009c5d12d5b31010a7ca40fed318c6913ffdcb2d58a"
+      },
+      {
+        "path": "runs/final-native-quick/manifest.yaml",
+        "bytes": 2976,
+        "sha256": "5e83491f7da4954101ea0df7af5e318f0ea1cd3732d7f117b49f30f4a8fd650a"
+      },
+      {
+        "path": "runs/final-native-quick/parameters.json",
+        "bytes": 1349,
+        "sha256": "a53a00a58edc81ac2816251987de8efbf720480cfeb271fc673024a9d6729532"
+      },
+      {
+        "path": "runs/final-native-quick/payloads-node-0.prom",
+        "bytes": 121283,
+        "sha256": "dcf23890a75a0b9c9e99895796735f8dc32507bc7b09e8a295e9a9043be95c3a"
+      },
+      {
+        "path": "runs/final-native-quick/payloads-node-1.prom",
+        "bytes": 93939,
+        "sha256": "fdd4598b6945705c54095fda2f059d38a06186c9c3b65fa702ce33c594569b96"
+      },
+      {
+        "path": "runs/final-native-quick/payloads-node-2.prom",
+        "bytes": 96513,
+        "sha256": "c2f9681b25973d256054a509996af76dcd93e348974914cadc6c37b109d47ecb"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-10508-65d48091e9a74038bad2a6e8393745f9.jsonl",
+        "bytes": 213,
+        "sha256": "6a558624f25598375c525882ec74849f3670532dcd9cb0dc3a4e702d0839b314"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-10532-d89ecc6eec574cb8b67063ab2af66ac3.jsonl",
+        "bytes": 213,
+        "sha256": "9cb2846ff2e61efc9c555b1069516d0661fe9f990cf5d1bee8eac8c1e7fc478f"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-10540-a5812c51cad44f029b75b4d0f4da6048.jsonl",
+        "bytes": 212,
+        "sha256": "6dc9c6f8e79698427eea3962a9b485ae2949bf3aecde40101a5a67ce36e13ed7"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-11124-81f5f950e9064b80bb9a6de0f1365121.jsonl",
+        "bytes": 212,
+        "sha256": "6c72274f47e939a66ec29e0f1fb5626e9c1466f6bf1b502f8ab18a65fedd5345"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-11624-0b9ed9daca77433c90a4454ef1db02f4.jsonl",
+        "bytes": 213,
+        "sha256": "3fef87d87d921b99dc20a3ee13d4301a92b609902e4f6c4718659b1dab3ee8bb"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-12152-cb861e9748cd4e65a5b618c5d7dd606c.jsonl",
+        "bytes": 213,
+        "sha256": "be6fb762175164840e0f778ce10c4db4b606696ea981f842dbadc1f2a6efffe6"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-12960-2889e9447574447686af4eac5dde2eee.jsonl",
+        "bytes": 213,
+        "sha256": "2edc536f442527fb4c9e2d680d1e3138403f31e9c5d27fbc7dbb5bd2af5ba099"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-13436-cace02a05b0c41449e86139cc16653ee.jsonl",
+        "bytes": 213,
+        "sha256": "9911755ce11885ebea0154d7889d480b1dbad4fe54056fc8fd262d5ca25fc2d5"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-152-6766d4c0ef9449aeb40865065f1ce6d5.jsonl",
+        "bytes": 211,
+        "sha256": "7a8a95b582b3ee0fa502c6e8c6e9bbd0954b2d18d4ed280fdff5cdd192f96765"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-15260-49dc18a6a15a42e4ad7790298e1edd02.jsonl",
+        "bytes": 212,
+        "sha256": "a5a9ea6eda07c13e1dc7b81011a643eefacfb2afd2d6227ae2da65eb97953ea0"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-15268-85870a31ebac4f2d86086af290973246.jsonl",
+        "bytes": 211,
+        "sha256": "f3c68defb405228a709cef31325acc26b7ce7fa8a943fd589742a74e56d95c10"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-1540-eef08c4bce234f61beaa14b5bfb5670a.jsonl",
+        "bytes": 212,
+        "sha256": "63311522e284f2e9fe7f2395f77d34f3b23caa4888ea89990e6609b8ba44dd37"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-16788-36649e167179426c91434f76deb68b3f.jsonl",
+        "bytes": 213,
+        "sha256": "832bd7aa6340f17c4b31fc4cb9a4f16b26c858879cdf98d3d4b821ffd26b22d2"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-16856-4c24afda679144a9af2c3e84791ebfcd.jsonl",
+        "bytes": 212,
+        "sha256": "5fb8dbdc5329fd24e1fc92f911ba42f7eb66d7df49e03111fbecf8290ce01e49"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-16884-78987b4adcd547cea6dda719e0c1f767.jsonl",
+        "bytes": 213,
+        "sha256": "11ff3b2050e3dc0c085e444088e20dc4ab9d10e707f481e64ed55bf05b3634b4"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-17844-510fcf60940a4cbbbc93380420ceb3b3.jsonl",
+        "bytes": 213,
+        "sha256": "c11586dcec809fc0f1a2654753743c8635d39501a870014d62043764e3402fb9"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-1824-5235730dde0b41bfa3c640786572f169.jsonl",
+        "bytes": 212,
+        "sha256": "09b0ef0fd62812d2759be3ac6ab09040edd030826b2bcc56e0226ee42bf95eab"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-18868-f40a165a8ca64c748e9a30e35bd136cc.jsonl",
+        "bytes": 934,
+        "sha256": "b3a81143ade7a4d4257deeafc1179a8f538a67ee193b1fdc5763f4b5884ade9f"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-2060-3e24fa5f60c24a62be41a5fd4b5d53fd.jsonl",
+        "bytes": 212,
+        "sha256": "3e2a472ed4d592f778813b7c4e776ce17bfcfe35b8a2437e766ccccc214f9612"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-4584-eeeb1ee40ad74ead88a3e3ed3b9793aa.jsonl",
+        "bytes": 212,
+        "sha256": "c614627ab38fa70295ca2c405d12666986a2447e0c3f71f805a65eff19c1001b"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-4864-25e4bce8f21244e8b3fcf02211de1bd1.jsonl",
+        "bytes": 212,
+        "sha256": "de7cb613d3db4bbb11649f674c9af33cc32246076a58f41efd095556d2fe6949"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-4904-5320dfe4df7847caa61b267aa0816c9f.jsonl",
+        "bytes": 96553,
+        "sha256": "f337f3c4bbc59cd197efd29234d34d13760938641287829f39c580f82e761ad0"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-5024-bb2a4009f8f04242a58c84a8d1e49c14.jsonl",
+        "bytes": 212,
+        "sha256": "6ff3ed9d41bb7cacb51e64c7fc1092ba08ef17d114f4946dd49bf2b49cd326b2"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-6472-30f90c800a52464bbd9b687d62f415ac.jsonl",
+        "bytes": 212,
+        "sha256": "1d54d548573c3c75724e346a478388e7966c81bd331e181b0ad52b9f173b7cec"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-6540-95667f4dee954fc3a6e7b3c3aeb7672d.jsonl",
+        "bytes": 212,
+        "sha256": "d529c8aeb224cca7bd98f542f488a6be35a7610be8ef802cd9a9f02eda324a2b"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-6960-2aaac18a076c40a381b98985dbb38c4d.jsonl",
+        "bytes": 211,
+        "sha256": "196dd4c630fa80170c0aa2515ada589ec9d3d92962bbd691b694601283399fbd"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-7008-9a0ea7c020b4426dac286a8ba8211066.jsonl",
+        "bytes": 212,
+        "sha256": "ed4278a49df6ff1ca4e366f84fda25921f2b68c23618aca6c92de7857c2e61fd"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-7092-8190423a5e3848fd97a404c3276b1286.jsonl",
+        "bytes": 212,
+        "sha256": "cb59a81a800b92375ec977862e73ded8d267a55bc08cb9bdd06779605861edf9"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-7144-3d950bf70a4443d9a0108bd15e20b90a.jsonl",
+        "bytes": 212,
+        "sha256": "28005dea880bdad9c50fd4f34977e9e6a123f48e4d4c0b9bd7d0edd47dc19796"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-7548-e0fc58a0b8554b3498077b5151f2442a.jsonl",
+        "bytes": 212,
+        "sha256": "358540d33cb597c6cf7f25ccc8a1312615f5890a1d7e90bec2fb6c98991a57a3"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-828-5332afd89cc443fdac8760541a8aefc4.jsonl",
+        "bytes": 210,
+        "sha256": "7a550705428e4d8a1d16ddd868b31c3a539d560b1341424f76e213d248ddddb4"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-8436-85f253a9986f42e09d5ff376d514e45a.jsonl",
+        "bytes": 212,
+        "sha256": "aeeb241b61f328f90d7f98f29ce9c55c7f3454539b0e17727c7b41e60b6bac56"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-9580-2553cb5bcaf4427f9153c1e5d0146a82.jsonl",
+        "bytes": 211,
+        "sha256": "a31f5fe8e0ca75875f7d5f3943dfee2eba637a92c32e7b45f03247d53127a75a"
+      },
+      {
+        "path": "runs/final-native-quick/receipts/receipts-9784-c40b352363804d0fa149892e6b80c456.jsonl",
+        "bytes": 212,
+        "sha256": "f7ec21a1992479caff3fb9f8e96a124740a3780b88314b0a55cc5987c3576597"
+      },
+      {
+        "path": "runs/final-native-quick/report.json",
+        "bytes": 7139,
+        "sha256": "ebe46c13cdf2ea02a9638c1f5f17a7de6b14d135e88cc657b449872e19ad6c84"
+      },
+      {
+        "path": "runs/final-native-quick/supervisor-0.log",
+        "bytes": 421698,
+        "sha256": "5e8db330fe5f9c71a0b2639b7c10dd126078ee21a15c16cecfb63e9df888c2dc"
+      },
+      {
+        "path": "runs/final-native-quick/supervisor-1.log",
+        "bytes": 14571,
+        "sha256": "ccefefba21d8c25f498abdad39187b4b271f94650d6dbc83b379424c11f1db5d"
+      },
+      {
+        "path": "runs/final-native-websocket/accounting.json",
+        "bytes": 1298,
+        "sha256": "58c48fef8d609eaa5d0b505823b19ba868bf07d52f3698376dba1c435befffef"
+      },
+      {
+        "path": "runs/final-native-websocket/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/final-native-websocket/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/final-native-websocket/client.jsonl",
+        "bytes": 175433,
+        "sha256": "9f89c4a2e3011edc32844808a4b6266ff0ea0e6dc992a0878fba9926023db588"
+      },
+      {
+        "path": "runs/final-native-websocket/final-node-0.prom",
+        "bytes": 65346,
+        "sha256": "c4e7ab028982a8518157424841d5c4754ed2ad23ad2aed3ba852913fc5e1565c"
+      },
+      {
+        "path": "runs/final-native-websocket/final-node-1.prom",
+        "bytes": 69203,
+        "sha256": "44325a752cb3206a17f9053d33362e8f2e5b77a978af9c68b28665f07b1479b4"
+      },
+      {
+        "path": "runs/final-native-websocket/final-node-2.prom",
+        "bytes": 63744,
+        "sha256": "1609651ee2f5e026ce2ccab93592d59c412f72814e2a1c0d4babebbfd1c0591c"
+      },
+      {
+        "path": "runs/final-native-websocket/initial-node-0.prom",
+        "bytes": 43865,
+        "sha256": "cd957040cf90edf509cbcfb1fc200333eaea1426f84a5a40dd197712d7d3d764"
+      },
+      {
+        "path": "runs/final-native-websocket/initial-node-1.prom",
+        "bytes": 36933,
+        "sha256": "5432f373762ed91be881f29d652281df1f424da1de695b26840354f84b20ce94"
+      },
+      {
+        "path": "runs/final-native-websocket/initial-node-2.prom",
+        "bytes": 36974,
+        "sha256": "c2c8870711ecb1215a8188b6033a9c122e59dc5ae81c98ebcbd195cda26284c3"
+      },
+      {
+        "path": "runs/final-native-websocket/manifest.yaml",
+        "bytes": 3004,
+        "sha256": "0ac92f2e2d03a007f8d158668d06709b29d17baed0ae30949dcc6a303402cadf"
+      },
+      {
+        "path": "runs/final-native-websocket/parameters.json",
+        "bytes": 1314,
+        "sha256": "50a3ebbf3bd73155eeb01c0d00c3a1da3d28e29b1cb28cf3a37d5e152deea30d"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-10536-b6b3b1d04bd3406ebb890235385bbfea.jsonl",
+        "bytes": 213,
+        "sha256": "f6d65d590c6c6ecd0db66f4adea98bcb3997cc4cb90c226a63313adf577f347f"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-10920-9390ae4ad00f4782a22db59cbcde55bf.jsonl",
+        "bytes": 213,
+        "sha256": "661f54be9e08f125a38b8a5449b32ad3a47f3e81334b5b321dcc7800d779f3e3"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-15416-aa77a04c0f08490f8662a01d728d9e64.jsonl",
+        "bytes": 213,
+        "sha256": "047ffd0bed38800cb58503723b290f09cef7605ce495fa98d6634bb924396628"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-16580-df4a4752dbbd4ec19177d989f80c9779.jsonl",
+        "bytes": 213,
+        "sha256": "98e8cb3841200e40ee91bb9a3af4ee80437438a98c7a75b37c1c0dc22d7098fc"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-6840-fb18589b6a5a4c398cb301f95806ccaf.jsonl",
+        "bytes": 212,
+        "sha256": "209ac706a2017f617e57992ca6f57bf50b41f0f784482d944616b759da9089c7"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-6928-d7e8827abcb34ddab9384d450de03227.jsonl",
+        "bytes": 212,
+        "sha256": "a28abae1b83e06ac19c53578f3ff4ac64bbd446f3566c6bf2cae926f25e58884"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-7000-d043b7d4fc264b508a2bf82c9dd753d7.jsonl",
+        "bytes": 23950,
+        "sha256": "5c32b7b2edf02b81d6e7383fda919267975fda27dffaa658b328342f6ac07310"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-7236-385f3814f92d4d3abe580d426f3c05be.jsonl",
+        "bytes": 212,
+        "sha256": "3ac4ea0f3cdc8473a0f9d888280678dfb680cdff3efa4605df562931f26f4192"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-8812-db2c4dd280a74f5194f0dfce3c2fa2a1.jsonl",
+        "bytes": 212,
+        "sha256": "316967173a0e93b17d445fc8681ddc0d4ae726a77d95c03d1d659f4f9d16b126"
+      },
+      {
+        "path": "runs/final-native-websocket/receipts/receipts-websocket-2128.jsonl",
+        "bytes": 8144,
+        "sha256": "cf754584f8d8641c9812e5d8705f62de8b274f893fe0f8ece18f64d0ecaf6aee"
+      },
+      {
+        "path": "runs/final-native-websocket/report.json",
+        "bytes": 2148,
+        "sha256": "e38d229f2b40f98b27ecc1e7bda3d816237b4de08ad021f55d021d3b84383ca7"
+      },
+      {
+        "path": "runs/final-native-websocket/supervisor-0.log",
+        "bytes": 83684,
+        "sha256": "26341768a11fd8255dc83275249f7ccbace5632c27ba08be115682e94985a22d"
+      },
+      {
+        "path": "runs/final-native-websocket/supervisor-1.log",
+        "bytes": 16224,
+        "sha256": "f86ae2fa484bb9c869e8afc99fec4a687fb58b89afda34780af6bd6f98317660"
+      },
+      {
+        "path": "runs/final-native-websocket/websocket.json",
+        "bytes": 119,
+        "sha256": "59eb80c3be340d924f3ddb75640489205bc49307992e47bf61bfd47ac74fa107"
+      },
+      {
+        "path": "runs/private-diagnostic/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/private-diagnostic/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/private-diagnostic/client.jsonl",
+        "bytes": 100980,
+        "sha256": "4680a4e50871097be9ebf5e17069468a0f36a2bda4581d96a10c95d2ad59dc36"
+      },
+      {
+        "path": "runs/private-diagnostic/failure-node-0.prom",
+        "bytes": 204260,
+        "sha256": "5d503b2ee977d2192195b7df00c3e524e8544a75fcfaa153213171309094c147"
+      },
+      {
+        "path": "runs/private-diagnostic/failure-node-1.prom",
+        "bytes": 195804,
+        "sha256": "cde6b0660d33830a09460b3036782fd0f04e26a4720c6e64e488582e6fe3f9b3"
+      },
+      {
+        "path": "runs/private-diagnostic/failure-node-2.prom",
+        "bytes": 170402,
+        "sha256": "89d8f19f0c9fd666e8c56100fd9b0759d0d81acac8524d0b2d746af6cbd04899"
+      },
+      {
+        "path": "runs/private-diagnostic/initial-node-0.prom",
+        "bytes": 62994,
+        "sha256": "02eca58c99c964e6031d80af3130b2279db26498bdc31cef2b2679ca97f8aac2"
+      },
+      {
+        "path": "runs/private-diagnostic/initial-node-1.prom",
+        "bytes": 49528,
+        "sha256": "dd8e11e7ac787ef97ab6dad3aae72a2b160a76e71ee12d0d6ec06925c4e561e7"
+      },
+      {
+        "path": "runs/private-diagnostic/initial-node-2.prom",
+        "bytes": 50822,
+        "sha256": "25ba7fa0531c14f369070762559b639a239e67990c14c36b9d0a211facb5384c"
+      },
+      {
+        "path": "runs/private-diagnostic/manifest.yaml",
+        "bytes": 2980,
+        "sha256": "7f242c981e1b449a0737c95449aa5ae472690f05ee790a30605f7ecfe55b2934"
+      },
+      {
+        "path": "runs/private-diagnostic/parameters.json",
+        "bytes": 1378,
+        "sha256": "29b48bf924fe8c923d52de61c751bb636e17538a85275e013511f636101e9c2b"
+      },
+      {
+        "path": "runs/private-diagnostic/receipts/receipts-websocket-15536.jsonl",
+        "bytes": 2433,
+        "sha256": "9882e3e5579da8b029210716b3c6cc048cb3f51527d614f44cdc787ceb01261c"
+      },
+      {
+        "path": "runs/private-diagnostic/report.json",
+        "bytes": 937,
+        "sha256": "b5fa6d175360fe34097f31e6f3bf4e5987edc0357b8a7e45660b81d64ecda9b3"
+      },
+      {
+        "path": "runs/private-diagnostic/supervisor-0.log",
+        "bytes": 22724884,
+        "sha256": "081cb0cbeb6c6f622ab20f7794ee6a8447736bf4c05e7df2bc9033efbe4f8f91"
+      },
+      {
+        "path": "runs/private-diagnostic/websocket.json",
+        "bytes": 119,
+        "sha256": "b2ca4900bd3fe045174de8b8a67672c2881e7ac13d26180db234125d7b4fd1f4"
+      },
+      {
+        "path": "runs/reference-payloads-311/accounting.json",
+        "bytes": 193,
+        "sha256": "0529989efb593ef91543afbf7cac565804db8b3df5fb9a6282a61fbbaa57b316"
+      },
+      {
+        "path": "runs/reference-payloads-311/campaign.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "runs/reference-payloads-311/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "runs/reference-payloads-311/client.jsonl",
+        "bytes": 55383,
+        "sha256": "b481cc98f323cd3f9ed8402b169c6582fac3263ecc7c1f48ce5ea99cebb5e71c"
+      },
+      {
+        "path": "runs/reference-payloads-311/final-node-0.prom",
+        "bytes": 104955,
+        "sha256": "260f54029f8d6b64f4ac0aec99263fc720d0782f357e326ab2f399af93baf348"
+      },
+      {
+        "path": "runs/reference-payloads-311/final-node-1.prom",
+        "bytes": 98041,
+        "sha256": "eafbc9155ec9f08eb23b2c7dedf25e42ea226af0d3a808d7304f025038856547"
+      },
+      {
+        "path": "runs/reference-payloads-311/final-node-2.prom",
+        "bytes": 139610,
+        "sha256": "7aa4a86312fc821a895b1526d184ba9d7228601f2ced2a1fb5f1375865ad01ff"
+      },
+      {
+        "path": "runs/reference-payloads-311/initial-node-0.prom",
+        "bytes": 64522,
+        "sha256": "dcc13f37f02512199841c3b2babea10ec3bd7ba48b95d1f5463ebca52487e8b7"
+      },
+      {
+        "path": "runs/reference-payloads-311/initial-node-1.prom",
+        "bytes": 43582,
+        "sha256": "9640ab92910a237b8fa9ecea305eabdbbe4aea8c200bd6f67c46852b1180dc01"
+      },
+      {
+        "path": "runs/reference-payloads-311/initial-node-2.prom",
+        "bytes": 49042,
+        "sha256": "59f5a807db646e5259fd61688d12ecd507e7b582cb0b28c81ab0b406840d62b3"
+      },
+      {
+        "path": "runs/reference-payloads-311/manifest.yaml",
+        "bytes": 3004,
+        "sha256": "44a2913bad1a1a0dbd3afb099720cf86c98f7cacbcd512304a3d944b0d0930db"
+      },
+      {
+        "path": "runs/reference-payloads-311/parameters.json",
+        "bytes": 1376,
+        "sha256": "a4d7a46ee7b2394c5c2505c04de960c2b19e81aee80ecc708917f944c10c26ae"
+      },
+      {
+        "path": "runs/reference-payloads-311/payloads-node-0.prom",
+        "bytes": 104910,
+        "sha256": "bb562d113076dbe065d4f0932027003480226e757b2fb0ed4eb60b7fb5e2e278"
+      },
+      {
+        "path": "runs/reference-payloads-311/payloads-node-1.prom",
+        "bytes": 98004,
+        "sha256": "5c714799e5197e3da86561b6b2a500a5b0264a976b6f0756617b4313f6f92900"
+      },
+      {
+        "path": "runs/reference-payloads-311/payloads-node-2.prom",
+        "bytes": 139573,
+        "sha256": "ca5a5e09eadf65201a0c7111310010523560a3b4f5c0a66762b5bf3304692176"
+      },
+      {
+        "path": "runs/reference-payloads-311/receipts/receipts-13040-e9e588a02f0243958ad28bfaebda93bc.jsonl",
+        "bytes": 12301,
+        "sha256": "0d7a03b47f58243a2c4f29131da7b59a435a64dfa287ee8fe8640f5617fc3c04"
+      },
+      {
+        "path": "runs/reference-payloads-311/report.json",
+        "bytes": 2550,
+        "sha256": "a30cb92be56c7b5e95e396d0efa2a811ff48b445a52097ddb369d520b3eefe19"
+      },
+      {
+        "path": "runs/reference-payloads-311/supervisor-0.log",
+        "bytes": 51483,
+        "sha256": "c2104b6bbc59003e49186177185911fb4b8461d24f960e7ecd5caa8266f58c5e"
+      },
+      {
+        "path": "source/.bin/run-local-benchmark-host.py",
+        "bytes": 5128,
+        "sha256": "9c194c8a7887c805a5f346e0490ac2a70b065fa68d7bce07af508d67da3845f7"
+      },
+      {
+        "path": "source/.bin/slimfaas-local-benchmark.sh",
+        "bytes": 6127,
+        "sha256": "1c0183387bdd82465576b05d8b42a40e4f5696ef1cbddbc68e8e5f495127576d"
+      },
+      {
+        "path": "source/.bin/test-slimdata-local-chaos.py",
+        "bytes": 100794,
+        "sha256": "8650976acb3e0ea205047c641e25d6c4aee465e7664d18d4369fe2c19e6032ab"
+      },
+      {
+        "path": "source/Directory.Build.props",
+        "bytes": 1601,
+        "sha256": "e4e14832ccf20ad8db9208680b4f8805175c2e0333583b4c9c75a8d6bb8bbe0e"
+      },
+      {
+        "path": "source/Directory.Build.targets",
+        "bytes": 2000,
+        "sha256": "60f4f5f07c6abd8a68c549b970bcd50396e25edca1cbb49a3b372fcf89400308"
+      },
+      {
+        "path": "source/Directory.Packages.props",
+        "bytes": 4214,
+        "sha256": "c402bbee68e013f4ac425eddae800e2e4877da3110b4e9ec5edc4f7c87b4d99a"
+      },
+      {
+        "path": "source/benchmarks/slimfaas.local.benchmark.yaml",
+        "bytes": 2556,
+        "sha256": "686968d13a6a504d8c35f5e1d1abe0cfb79b99d8153366c60dc272947b549119"
+      },
+      {
+        "path": "source/global.json",
+        "bytes": 118,
+        "sha256": "fced88beb35df214761681ffd3f6204b5328d5f1f535a6fc08cb5bf48c88af56"
+      },
+      {
+        "path": "source/src/SlimData/Startup.cs",
+        "bytes": 13390,
+        "sha256": "77f976bb31578b42eb522f207e01e8b2757481e5cbe6ddffc99d867cb9823b55"
+      },
+      {
+        "path": "source/src/SlimData/WalChunkSize.cs",
+        "bytes": 1983,
+        "sha256": "ebe67aafbc9856a02b2d1108f1b50b0ee3a2a37ce4fb729503f3e5e7cc9fcecb"
+      },
+      {
+        "path": "source/tests/SlimData.Tests/WalChunkSizeTests.cs",
+        "bytes": 5204,
+        "sha256": "f89f4066e7ba7ef0b5cd4091386fa99a29648e84d1cbb7d5c454c124ee177614"
+      },
+      {
+        "path": "source/tests/SlimFaas.Tests/Local/chaos_function.py",
+        "bytes": 7088,
+        "sha256": "d1046d09c20f9e2f25a54a5f1c578673ea34134a584e016a9a6662fb504b21e0"
+      },
+      {
+        "path": "validation/async-node-0.txt",
+        "bytes": 40122,
+        "sha256": "30e21e7559eed13268557e9836f85989ea6e8749802149e88c70920d4e88dc65"
+      },
+      {
+        "path": "validation/async-node-1.txt",
+        "bytes": 332641,
+        "sha256": "3d1f3723a2b1f37113cace0f7127fd307b2ebd957a26efa90aba93e67e2335dd"
+      },
+      {
+        "path": "validation/before-stack-1280.txt",
+        "bytes": 12311,
+        "sha256": "8a4a6a43e33e0093f7328fe2edfc15ef4c1889a682e646df726ef7d3fbd9da08"
+      },
+      {
+        "path": "validation/before-stack-14912.txt",
+        "bytes": 11222,
+        "sha256": "4b4d1b2e7351445e14adc32bcdacd11810666ba405289307ea9bd6d53405225e"
+      },
+      {
+        "path": "validation/before-stack-7008.txt",
+        "bytes": 13567,
+        "sha256": "ccb92d93e8225cf0258ebc5ec3d5c897f9833045d28197de83b16ae2aaa87bd8"
+      },
+      {
+        "path": "validation/before-websocket.log",
+        "bytes": 3005,
+        "sha256": "4b8505987257d6bde0faa6318b65c760ec8d7d4b6432eef5f00dfb1dc0f65da9"
+      },
+      {
+        "path": "validation/build-before.log",
+        "bytes": 1894,
+        "sha256": "65fb95f5adf2adf8ffee11ae8eddf5b320ef02d03586503d7c1750e716674638"
+      },
+      {
+        "path": "validation/build-chunk.log",
+        "bytes": 204,
+        "sha256": "8c33c1dce27f2aba4f278abc73bbfc2b1488d81b061f7587753df0bbb5393ecf"
+      },
+      {
+        "path": "validation/build-direct.log",
+        "bytes": 205,
+        "sha256": "f27720ab4bb55f3c740d106061b9a9c8f45aef0f41bc67c915b190d2999a4d2d"
+      },
+      {
+        "path": "validation/check-source-demo.py",
+        "bytes": 2848,
+        "sha256": "8855c2101a6a6f062d43389fc091750029753f78c7a728c0a68e3493702340ec"
+      },
+      {
+        "path": "validation/compiler-stack.txt",
+        "bytes": 76716,
+        "sha256": "d9b16abffc2332a51a1bcddb1e58068e05dc31597dd088b2889174603c3bf892"
+      },
+      {
+        "path": "validation/compress-copilot.log",
+        "bytes": 256965,
+        "sha256": "384d0d27ed1e29e32b40516b4efbbbaf2eda8e6bb22f81eac7141b5f67007d19"
+      },
+      {
+        "path": "validation/compress-unused-sdk.log",
+        "bytes": 111650,
+        "sha256": "7d60b77ab456605f8954758ecdd78acfe4fdbc39687c26dd106c72af580a856c"
+      },
+      {
+        "path": "validation/control-chunk-websocket.log",
+        "bytes": 3447,
+        "sha256": "413a56982b1199164525242344b150ff7442d8b7a72b20857ab6e028af5b7f3d"
+      },
+      {
+        "path": "validation/control-direct-websocket.log",
+        "bytes": 2716,
+        "sha256": "23986af213ebd617b61566a49a98af613a1e93ff128894b0ab22c93d344a854f"
+      },
+      {
+        "path": "validation/control-private-websocket.log",
+        "bytes": 3728,
+        "sha256": "b614b0d49efa573be2e4ee5f35a057c80c972d0ff898bafbdf6c8e70e6715e78"
+      },
+      {
+        "path": "validation/dotnet-install.log",
+        "bytes": 717,
+        "sha256": "167dbbc926807597537ba1089d90e8b9b256529809fc1bcb31cc6ce8e7e59b76"
+      },
+      {
+        "path": "validation/final-http.exit",
+        "bytes": 3,
+        "sha256": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+      },
+      {
+        "path": "validation/final-http.log",
+        "bytes": 3294,
+        "sha256": "a76bf96a03444620d80382f22f6b2cf423f70d61319277086500b742c8797f16"
+      },
+      {
+        "path": "validation/final-managed-websocket.log",
+        "bytes": 2523,
+        "sha256": "eced672b2cc6d75aae2d32d96664784c093fced54bef2ea46765ad1767e80514"
+      },
+      {
+        "path": "validation/final-native-lease.log",
+        "bytes": 522,
+        "sha256": "2546279ea1ea3237a7bd81e12a192ad8b9b3059eb684c34a35af857ae05f8a8f"
+      },
+      {
+        "path": "validation/final-native-owner-timeout.log",
+        "bytes": 205,
+        "sha256": "d126a0c668437891f978d3c17d9dff2ef8fb5b85f86c498eac4e92a7e80bad15"
+      },
+      {
+        "path": "validation/final-native-quick.log",
+        "bytes": 5370,
+        "sha256": "5c3bc2c5d90ae946534da0227332e66b4bdf902b43eba5e37703ecf78d2e2484"
+      },
+      {
+        "path": "validation/final-native-websocket.log",
+        "bytes": 1839,
+        "sha256": "32f6383498594e22e5bf608588cf9f4cf1042672ab5d2d7080156b11fc86c69d"
+      },
+      {
+        "path": "validation/final-runtime.patch",
+        "bytes": 8497,
+        "sha256": "ce36ca7945f952d81daab1e3d30e42e4f9b6f1ec7fb1b7d1d93f84ac67fdfad0"
+      },
+      {
+        "path": "validation/final-validation.json",
+        "bytes": 4559,
+        "sha256": "930720a28a92295bde725673a4a0a33bfc34f1040bcec473cbe3c3b32dc9ee6a"
+      },
+      {
+        "path": "validation/full-tests-after-validation.log",
+        "bytes": 1812,
+        "sha256": "0a43f8d7d1e32fdfe0e024446c1ca07926effa694e463957a17275b24f26f5b1"
+      },
+      {
+        "path": "validation/full-tests-confirmation.log",
+        "bytes": 2808,
+        "sha256": "2bada6df42eaf47f40f343b2c1c42936a769e1e1ddef3bbf4e35241ddaf82a18"
+      },
+      {
+        "path": "validation/full-tests-final.log",
+        "bytes": 8332,
+        "sha256": "ae985045c26b41511e7b5b8e2fe513a4538f4d1e78acf508daa9f47303ee809c"
+      },
+      {
+        "path": "validation/full-tests.log",
+        "bytes": 6066,
+        "sha256": "620dbd57c4392cde5336f6b7801432a33a7c09b35065c92e89855a4ca8699be1"
+      },
+      {
+        "path": "validation/harness-tests-before.log",
+        "bytes": 129,
+        "sha256": "5015b07fb61397cd2da07bc769812d43dfaee6651a453faf59c40a0594edb38f"
+      },
+      {
+        "path": "validation/install-dump.log",
+        "bytes": 158,
+        "sha256": "199ce343073db9eb5dfc3ef8aa1a26af76810e536ceaa151fb4537bb1c3f9bd3"
+      },
+      {
+        "path": "validation/install-stack.log",
+        "bytes": 160,
+        "sha256": "7826cb76b26a92af498e71b018d38f72ddbb01670fababa1feb19dc6b173ecc6"
+      },
+      {
+        "path": "validation/native-publish.log",
+        "bytes": 1296,
+        "sha256": "41aa5f9623a264e807f58e9f551950b83081bc4d9ec9d29cc42795d58671cbcb"
+      },
+      {
+        "path": "validation/private-diagnostic.log",
+        "bytes": 3007,
+        "sha256": "21a4b446040de28cd60cb4c233762ed92f2bbb5f43d25df709a89bc57351d5e6"
+      },
+      {
+        "path": "validation/private-stack-18328.txt",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "validation/reference-build.log",
+        "bytes": 347,
+        "sha256": "4eda02ba8f8ad8c8eba30d36d9539ec707ed643fa8cd88afa0f68e0ec1b0aeee"
+      },
+      {
+        "path": "validation/reference-payloads-311.log",
+        "bytes": 1748,
+        "sha256": "cdac52ede1f3d73b2dbaa318af990f9177885fa16ad889456c38c0765aa3fd6a"
+      },
+      {
+        "path": "validation/run-http-smoke.ps1",
+        "bytes": 843,
+        "sha256": "14600774f0ebfc7c5ddb19c0c336160845d3697e7501ff133c916b2214773125"
+      },
+      {
+        "path": "validation/site-build.log",
+        "bytes": 1903,
+        "sha256": "552701aea2319b3d488c9f3f9d7ed7484ac7458ef5637f9fed44fb5d335ab847"
+      },
+      {
+        "path": "validation/site-install.log",
+        "bytes": 23679,
+        "sha256": "9ed8d6426c27d9e36cf060495134886eae93544074aa44ffb8d63d50895c1d21"
+      },
+      {
+        "path": "validation/source-demo-check.log",
+        "bytes": 173,
+        "sha256": "f2f381ca14dd3a1eafeb22486be08b85b212387813767604fc338acfbc1d6b4c"
+      },
+      {
+        "path": "validation/source-demo-result.json",
+        "bytes": 76,
+        "sha256": "d1395bb45effa7c4b494d55581dd5e1b8d61df1c6b3f487e6c5dc017742ae5ea"
+      },
+      {
+        "path": "validation/source-demo-status.json",
+        "bytes": 414,
+        "sha256": "f93a60f54b8698d388416a59b5ec433e964b0c2d7d316a096db7ac561d6d38d6"
+      },
+      {
+        "path": "validation/source-demo.log",
+        "bytes": 28883,
+        "sha256": "eb7dccd0ccb4364b8ffe2852e03f8591f5e08ed794609713fddb41c53544ddee"
+      },
+      {
+        "path": "validation/summarize-windows.py",
+        "bytes": 7059,
+        "sha256": "e7867049f7806787607ee3baf9ce530e8c8ec4f351b1faeea2f67b15678c99f9"
+      },
+      {
+        "path": "validation/validate-final.py",
+        "bytes": 2354,
+        "sha256": "c4e54f6e3c2d04520c4ce21e3f60e28fb7caf170cca22fb2cec23167abe512f6"
+      },
+      {
+        "path": "validation/windows-host-tests.log",
+        "bytes": 819,
+        "sha256": "c6cf0ad09ef35050d48a8c9b68c9c89a168f326a6298b6ac3a7eb21ad0ec6c32"
+      }
+    ]
+  }
+}

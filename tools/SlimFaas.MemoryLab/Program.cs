@@ -1,13 +1,17 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Prometheus;
 using Prometheus.HttpClientMetrics;
+using SlimFaas.Benchmarking;
+using SlimFaasBenchmark;
 
 if (args.Length == 0)
 {
@@ -37,10 +41,11 @@ catch (Exception exception)
 static async Task<int> RunFunctionAsync(Arguments arguments)
 {
     int port = arguments.GetInt("port", 5050, 1, 65535);
+    IPAddress address = IPAddress.Parse(arguments.Get("host", "127.0.0.1"));
     var builder = WebApplication.CreateSlimBuilder();
     builder.Logging.ClearProviders();
     builder.WebHost.ConfigureKestrel(options =>
-        options.ListenLocalhost(port, listen => listen.Protocols = HttpProtocols.Http1));
+        options.Listen(address, port, listen => listen.Protocols = HttpProtocols.Http1));
 
     var app = builder.Build();
     app.MapGet("/health", () => Results.Text("OK"));
@@ -53,7 +58,7 @@ static async Task<int> RunFunctionAsync(Arguments arguments)
             context.Response.StatusCode = StatusCodes.Status204NoContent;
         });
 
-    Console.WriteLine($"Memory lab function listening on http://127.0.0.1:{port}");
+    Console.WriteLine($"Memory lab function listening on http://{address}:{port}");
     await app.RunAsync();
     return 0;
 }
@@ -182,19 +187,41 @@ static HttpClientExporterOptions CreateBoundedHttpClientExporterOptions(Collecto
 
 static double ToMegabytes(long bytes) => bytes / 1024d / 1024d;
 
+static IReadOnlyList<Uri> ParseNodeUrls(Arguments arguments, int firstPort)
+{
+    string? configured = arguments.GetOptional("node-urls");
+    if (configured is null)
+    {
+        int count = arguments.GetInt("nodes", 3, 1, 32);
+        if (firstPort + count - 1 > 65535)
+            throw new ArgumentException("The node port range exceeds 65535.");
+        return Enumerable.Range(0, count).Select(index => new Uri($"http://127.0.0.1:{firstPort + index}/")).ToArray();
+    }
+    string[] values = configured.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    if (values.Length is < 1 or > 32)
+        throw new ArgumentException("--node-urls must contain between 1 and 32 HTTP(S) URLs.");
+    return values.Select(value => Uri.TryCreate(value.TrimEnd('/') + "/", UriKind.Absolute, out Uri? uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+        uri.AbsolutePath == "/" && string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment)
+            ? uri : throw new ArgumentException($"Invalid node URL '{value}'.")).ToArray();
+}
+
 static async Task<int> RunLoadAsync(Arguments arguments)
 {
     string scenario = arguments.Get("scenario", "mixed").ToLowerInvariant();
-    if (scenario is not ("mixed" or "sync" or "async" or "set" or "files" or "slimdata-set" or "slimdata-mixed"))
-        throw new ArgumentException("scenario must be mixed, sync, async, set, files, slimdata-set, or slimdata-mixed.");
+    if (scenario is not ("mixed" or "sync" or "async" or "set" or "files" or "slimdata-set" or "slimdata-mixed" or "get" or "delete" or "hashset" or "hashget" or "hashdelete" or "increment" or "decrement" or "files-upload" or "files-download" or "files-unique"))
+        throw new ArgumentException("Unknown scenario. See docs/benchmarking.md for the supported feature matrix.");
 
     int durationSeconds = arguments.GetInt("duration", 60, 1, 86_400);
     int concurrency = arguments.GetInt("concurrency", 12, 1, 1_024);
-    int payloadBytes = arguments.GetInt("payload-bytes", 4096, 0, 1_048_576);
+    int payloadBytes = arguments.GetInt("payload-bytes", 4096, 0, 64 * 1024 * 1024);
     int fileBytes = arguments.GetInt("file-bytes", 262_144, 1, 64 * 1024 * 1024);
     int firstPort = arguments.GetInt("first-port", 30021, 1, 65535);
-    int nodeCount = arguments.GetInt("nodes", 3, 1, 32);
+    string function = arguments.Get("function", "memory-function");
+    IReadOnlyList<Uri> nodeUrls = ParseNodeUrls(arguments, firstPort);
+    int nodeCount = nodeUrls.Count;
     int keysPerWorker = arguments.GetInt("keys-per-worker", 16, 1, 10_000);
+    int maxOperations = arguments.GetInt("max-operations", scenario is "delete" or "hashdelete" ? keysPerWorker * concurrency : scenario == "files-unique" ? 200 : int.MaxValue, 1, int.MaxValue);
     double targetRequestsPerSecond = arguments.GetDouble(
         "target-rps",
         defaultValue: 0d,
@@ -211,6 +238,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
     string? csvPath = arguments.GetOptional("csv");
     string? jsonPath = arguments.GetOptional("json");
     bool validate = arguments.GetBool("validate", defaultValue: false);
+    bool cleanupOwnedFiles = arguments.GetBool("cleanup-owned-files", defaultValue: false);
     string? phaseFile = arguments.GetOptional("phase-file");
 
     var payload = CreatePayload(payloadBytes);
@@ -223,16 +251,51 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
         UseProxy = false
     };
-    using var client = new HttpClient(handler, disposeHandler: false)
+    using var journal = RequestJournal.Open(arguments.GetOptional("journal-directory"));
+    using HttpMessageHandler transport = journal?.Wrap(handler) ?? handler;
+    using var client = new HttpClient(transport, disposeHandler: false)
     {
         Timeout = TimeSpan.FromSeconds(30)
     };
 
     var statistics = new LoadStatistics();
-    var expectedState = new ExpectedSlimDataState();
+    var expectedState = new ExpectedSlimDataState
+    {
+        AsyncPayloadSha256 = Convert.ToHexStringLower(SHA256.HashData(payload))
+    };
     var requestScheduler = targetRequestsPerSecond > 0d
         ? new PacedRequestScheduler(targetRequestsPerSecond)
         : null;
+    if (scenario is "get" or "delete" or "hashget" or "hashdelete" or "files-download")
+    {
+        string route = scenario is "hashget" or "hashdelete" ? "hashsets" : scenario == "files-download" ? "files" : "sets";
+        string kind = route == "hashsets" ? "hash" : route == "files" ? "file" : "set";
+        for (int worker = 0; worker < concurrency; worker++)
+        for (int key = 0; key < keysPerWorker; key++)
+        {
+            string id = BoundedId(keyPrefix, kind, worker, key, keysPerWorker);
+            byte[] content = route == "files" ? filePayload : payload;
+            string path = route == "sets" ? $"data/sets/{id}" : $"data/{route}?id={id}";
+            await PostBytesAsync(client, new Uri(nodeUrls[0], path), content, CancellationToken.None);
+            if (route == "files") expectedState.Files[id] = new ExpectedFile(content.Length, SHA256.HashData(content));
+            if (route == "sets") expectedState.Sets[id] = true;
+            if (route == "hashsets") expectedState.Hashsets[id] = true;
+            foreach (Uri node in nodeUrls)
+            {
+                using var readiness = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                while (true)
+                {
+                    try { await VerifyBytesAsync(client, new Uri(node, $"data/{route}/{id}"), content, readiness.Token); break; }
+                    catch (Exception error) when (error is HttpRequestException or InvalidDataException)
+                    { await Task.Delay(25, readiness.Token); }
+                }
+            }
+        }
+    }
+    using var metricsClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+    await using var resourceMonitor = await ClusterResourceMonitor.StartAsync(metricsClient, nodeUrls, diagnostics: false);
+    if (!string.IsNullOrWhiteSpace(phaseFile))
+        await File.WriteAllTextAsync(phaseFile, "load");
     using var duration = new CancellationTokenSource(TimeSpan.FromSeconds(durationSeconds));
     using var progress = new PeriodicTimer(TimeSpan.FromSeconds(5));
     var progressTask = PrintProgressAsync(progress, statistics, duration.Token);
@@ -242,8 +305,8 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         .Select(worker => RunWorkerAsync(
             worker,
             scenario,
-            nodeCount,
-            firstPort,
+            function,
+            nodeUrls,
             client,
             payload,
             filePayload,
@@ -252,14 +315,18 @@ static async Task<int> RunLoadAsync(Arguments arguments)
             keyPrefix,
             keysPerWorker,
             requestScheduler,
+            journal,
+            (maxOperations / concurrency) + (worker < maxOperations % concurrency ? 1 : 0),
             duration.Token))
         .ToArray();
 
     await Task.WhenAll(workers);
+    await duration.CancelAsync();
     progress.Dispose();
     await progressTask;
 
     stopwatch.Stop();
+    AsyncResourceUsage? resources = await resourceMonitor.CompleteAsync(statistics.Completed);
     if (!string.IsNullOrWhiteSpace(phaseFile))
     {
         // End measured RSS/CPU before report serialization and state verification.
@@ -267,7 +334,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         string metricsDirectory = Path.GetDirectoryName(Path.GetFullPath(phaseFile))!;
         for (int node = 0; node < nodeCount; node++)
         {
-            string metrics = await client.GetStringAsync(new Uri($"http://127.0.0.1:{firstPort + node}/metrics"));
+            string metrics = await client.GetStringAsync(new Uri(nodeUrls[node], "metrics"));
             await File.WriteAllTextAsync(Path.Combine(metricsDirectory, $"metrics-load-end-slimfaas-{node}.prom"), metrics);
         }
     }
@@ -280,25 +347,41 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         keyPrefix,
         targetRequestsPerSecond,
         targetRequestsPerReplica,
-        stopwatch.Elapsed);
+        stopwatch.Elapsed) with { FileBytes = fileBytes, Repetition = arguments.GetInt("repetition", 1, 1, 1000) };
     PrintLoadReport(report);
     if (!string.IsNullOrWhiteSpace(csvPath))
         statistics.WriteCsv(csvPath);
-    if (!string.IsNullOrWhiteSpace(jsonPath))
-        WriteJson(jsonPath, report, statistics.Samples);
-
     var validationFailures = 0;
-    if (validate && scenario is "slimdata-mixed" or "slimdata-set")
+    if (validate)
     {
         using var validationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         validationFailures = await ValidateSlimDataStateAsync(
             client,
             expectedState,
-            nodeCount,
-            firstPort,
+            nodeUrls,
             payload,
             validationTimeout.Token);
     }
+
+    int cleanedFiles = 0;
+    // Release only this run's successfully verified files through the public API.
+    // Keep failed payloads and every WAL/journal for inspection. Cleanup is outside load.
+    if (cleanupOwnedFiles && validate && validationFailures == 0 && statistics.Failed == 0)
+        foreach (string id in expectedState.Files.Keys)
+        {
+            try
+            {
+                await DeleteAsync(client, new Uri(nodeUrls[0], $"data/files/{id}"), CancellationToken.None);
+                cleanedFiles++;
+            }
+            catch (HttpRequestException error)
+            {
+                validationFailures++;
+                await Console.Error.WriteLineAsync($"Owned file cleanup failed for {id}: {error.Message}");
+            }
+        }
+    if (!string.IsNullOrWhiteSpace(jsonPath))
+        WriteJson(jsonPath, report, statistics.Samples, validationFailures, resources, cleanedFiles);
 
     return statistics.Failed == 0 && validationFailures == 0 ? 0 : 1;
 }
@@ -306,8 +389,8 @@ static async Task<int> RunLoadAsync(Arguments arguments)
 static async Task RunWorkerAsync(
     int worker,
     string scenario,
-    int nodeCount,
-    int firstPort,
+    string function,
+    IReadOnlyList<Uri> nodeUrls,
     HttpClient client,
     byte[] payload,
     byte[] filePayload,
@@ -316,10 +399,12 @@ static async Task RunWorkerAsync(
     string keyPrefix,
     int keysPerWorker,
     PacedRequestScheduler? requestScheduler,
+    RequestJournal? journal,
+    int maxOperations,
     CancellationToken cancellationToken)
 {
     long sequence = 0;
-    while (!cancellationToken.IsCancellationRequested)
+    while (!cancellationToken.IsCancellationRequested && sequence < maxOperations)
     {
         if (requestScheduler is not null)
         {
@@ -334,18 +419,19 @@ static async Task RunWorkerAsync(
         }
 
         var operation = SelectOperation(scenario, worker, sequence);
-        int node = (int)((sequence + worker) % nodeCount);
-        var baseUri = new Uri($"http://127.0.0.1:{firstPort + node}");
+        int node = (int)((sequence + worker) % nodeUrls.Count);
+        Uri baseUri = nodeUrls[node];
         var startedAt = Stopwatch.GetTimestamp();
         var timestamp = DateTimeOffset.UtcNow;
+        string requestId = $"{keyPrefix}-{operation.ToString().ToLowerInvariant()}-{worker}-{sequence}";
         try
         {
             await ExecuteOperationAsync(
                 operation,
+                function,
                 worker,
                 node,
-                nodeCount,
-                firstPort,
+                nodeUrls,
                 baseUri,
                 client,
                 payload,
@@ -355,7 +441,9 @@ static async Task RunWorkerAsync(
                 keysPerWorker,
                 scenario,
                 sequence,
+                requestId,
                 CancellationToken.None);
+            journal?.RecordOperation(requestId, "operation-completed");
             statistics.RecordCompleted(
                 new OperationSample(
                     timestamp,
@@ -369,6 +457,7 @@ static async Task RunWorkerAsync(
         }
         catch (Exception exception)
         {
+            journal?.RecordOperation(requestId, "operation-failed", exception.GetType().Name + ": " + exception.Message);
             statistics.RecordFailure(
                 new OperationSample(
                     timestamp,
@@ -388,10 +477,10 @@ static async Task RunWorkerAsync(
 
 static async Task ExecuteOperationAsync(
     Operation operation,
+    string function,
     int worker,
     int node,
-    int nodeCount,
-    int firstPort,
+    IReadOnlyList<Uri> nodeUrls,
     Uri baseUri,
     HttpClient client,
     byte[] payload,
@@ -401,38 +490,38 @@ static async Task ExecuteOperationAsync(
     int keysPerWorker,
     string scenario,
     long sequence,
+    string requestId,
     CancellationToken cancellationToken)
 {
     switch (operation)
     {
         case Operation.Sync:
-            await PostBytesAsync(
-                client,
-                new Uri(baseUri, "/function/memory-function/echo"),
-                payload,
-                cancellationToken);
-            break;
-
         case Operation.Async:
-            await PostBytesAsync(
-                client,
-                new Uri(baseUri, "/async-function/memory-function/echo"),
-                payload,
-                cancellationToken);
+        {
+            string route = operation == Operation.Async ? "async-function" : "function";
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                new Uri(baseUri, $"/{route}/{Uri.EscapeDataString(function)}/echo"));
+            request.Content = new ByteArrayContent(payload);
+            request.Headers.Add("X-Chaos-Id", requestId);
+            request.Headers.Add("X-Chaos-Sha256", expectedState.AsyncPayloadSha256);
+            using HttpResponseMessage response = await client.SendAsync(request,
+                HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (operation == Operation.Async && response.StatusCode != HttpStatusCode.Accepted)
+                throw new HttpRequestException($"Async enqueue returned HTTP {(int)response.StatusCode}; expected 202.");
+            await EnsureSuccessAndDrainAsync(response, cancellationToken);
             break;
+        }
 
         case Operation.Set:
         {
-            string id = $"memory-lab-set-{worker}";
+            string id = $"{keyPrefix}-set-{worker}";
             await PostBytesAsync(
                 client,
                 new Uri(baseUri, $"/data/sets/{id}?ttl=120000"),
                 payload,
                 cancellationToken);
-            await GetEventuallyAsync(
-                client,
-                new Uri(baseUri, $"/data/sets/{id}"),
-                cancellationToken);
+            expectedState.Sets[id] = true;
+            await VerifyBytesAsync(client, new Uri(baseUri, $"/data/sets/{id}"), payload, cancellationToken);
             break;
         }
 
@@ -455,22 +544,24 @@ static async Task ExecuteOperationAsync(
 
         case Operation.SlimDataDelete:
         {
-            string id = BoundedId(keyPrefix, "set", worker, sequence / 16, keysPerWorker);
+            string id = BoundedId(keyPrefix, "set", worker, scenario == "slimdata-mixed" ? sequence / 16 : sequence, keysPerWorker);
             await DeleteAsync(client, new Uri(baseUri, $"/data/sets/{id}"), cancellationToken);
             expectedState.Sets[id] = false;
             break;
         }
 
+        case Operation.SlimDataDecrement:
         case Operation.SlimDataIncrement:
         {
-            string id = BoundedId(keyPrefix, "counter", worker, sequence / 16, keysPerWorker);
+            string id = BoundedId(keyPrefix, "counter", worker, scenario == "slimdata-mixed" ? sequence / 16 : sequence, keysPerWorker);
             string value = await PostAndReadStringAsync(
                 client,
-                new Uri(baseUri, $"/data/sets/{id}/incr"),
+                new Uri(baseUri, $"/data/sets/{id}/{(operation == Operation.SlimDataIncrement ? "incr" : "decr")}"),
                 cancellationToken);
             if (!long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var actual))
                 throw new InvalidDataException($"Increment returned invalid integer '{value}'.");
-            var expected = expectedState.Counters.AddOrUpdate(id, 1L, static (_, current) => current + 1L);
+            long delta = operation == Operation.SlimDataIncrement ? 1L : -1L;
+            var expected = expectedState.Counters.AddOrUpdate(id, delta, (_, current) => current + delta);
             if (actual != expected)
                 throw new InvalidDataException($"Increment result for {id} is {actual}; expected {expected}.");
             break;
@@ -478,7 +569,7 @@ static async Task ExecuteOperationAsync(
 
         case Operation.SlimDataHashSet:
         {
-            string id = BoundedId(keyPrefix, "hash", worker, sequence / 16, keysPerWorker);
+            string id = BoundedId(keyPrefix, "hash", worker, scenario == "slimdata-mixed" ? sequence / 16 : sequence, keysPerWorker);
             await PostBytesAsync(
                 client,
                 new Uri(baseUri, $"/data/hashsets?id={id}"),
@@ -490,27 +581,47 @@ static async Task ExecuteOperationAsync(
 
         case Operation.SlimDataHashDelete:
         {
-            string id = BoundedId(keyPrefix, "hash", worker, sequence / 16, keysPerWorker);
+            string id = BoundedId(keyPrefix, "hash", worker, scenario == "slimdata-mixed" ? sequence / 16 : sequence, keysPerWorker);
             await DeleteAsync(client, new Uri(baseUri, $"/data/hashsets/{id}"), cancellationToken);
             expectedState.Hashsets[id] = false;
             break;
         }
 
+        case Operation.SlimDataGet:
+        case Operation.SlimDataHashGet:
+        {
+            string kind = operation == Operation.SlimDataGet ? "set" : "hash";
+            string route = operation == Operation.SlimDataGet ? "sets" : "hashsets";
+            string id = BoundedId(keyPrefix, kind, worker, sequence, keysPerWorker);
+            await VerifyBytesAsync(client, new Uri(baseUri, $"data/{route}/{id}"), payload, cancellationToken);
+            break;
+        }
+        case Operation.FilesDownload:
+        {
+            string id = BoundedId(keyPrefix, "file", worker, sequence, keysPerWorker);
+            await VerifyBytesAsync(client, new Uri(baseUri, $"data/files/{id}"), filePayload, cancellationToken);
+            break;
+        }
+        case Operation.FilesUpload:
         case Operation.Files:
         {
-            string id = $"memory-lab-file-{worker}";
+            string id = scenario == "files-unique" ? $"{keyPrefix}-file-{worker}-{sequence}" : BoundedId(keyPrefix, "file", worker, sequence, keysPerWorker);
+            byte[] content = (byte[])filePayload.Clone();
+            byte[] nonce = SHA256.HashData(Encoding.UTF8.GetBytes(requestId));
+            for (int index = 0; index < Math.Min(nonce.Length, content.Length); index++) content[index] = nonce[index];
             await PostBytesAsync(
                 client,
-                new Uri(baseUri, $"/data/files?id={id}&ttl=120000"),
-                filePayload,
+                new Uri(baseUri, $"/data/files?id={id}&ttl=3600000"),
+                content,
                 cancellationToken,
                 "application/octet-stream");
 
-            int readNode = (node + 1) % nodeCount;
-            await GetEventuallyAsync(
-                client,
-                new Uri($"http://127.0.0.1:{firstPort + readNode}/data/files/{id}"),
-                cancellationToken);
+            expectedState.Files[id] = new ExpectedFile(content.Length, SHA256.HashData(content));
+            if (operation == Operation.Files)
+            {
+                int readNode = (node + 1) % nodeUrls.Count;
+                await VerifyBytesAsync(client, new Uri(nodeUrls[readNode], $"data/files/{id}"), content, cancellationToken);
+            }
             break;
         }
 
@@ -519,27 +630,26 @@ static async Task ExecuteOperationAsync(
     }
 }
 
-static async Task GetEventuallyAsync(
-    HttpClient client,
-    Uri uri,
-    CancellationToken cancellationToken)
+static Task VerifyBytesAsync(HttpClient client, Uri uri, byte[] expected, CancellationToken token)
+    => VerifyFileAsync(client, uri, new ExpectedFile(expected.Length, SHA256.HashData(expected)), token);
+
+static async Task VerifyFileAsync(HttpClient client, Uri uri, ExpectedFile expected, CancellationToken token)
 {
-    const int maxAttempts = 20;
-    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    using HttpResponseMessage response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, token);
+    response.EnsureSuccessStatusCode();
+    await using Stream body = await response.Content.ReadAsStreamAsync(token);
+    using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+    byte[] buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
+    long length = 0;
+    try
     {
-        using var response = await client.GetAsync(
-            uri,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-
-        if (response.StatusCode != HttpStatusCode.NotFound || attempt == maxAttempts)
-        {
-            await EnsureSuccessAndDrainAsync(response, cancellationToken);
-            return;
-        }
-
-        await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
+        int read;
+        while ((read = await body.ReadAsync(buffer.AsMemory(), token)) != 0)
+        { hash.AppendData(buffer.AsSpan(0, read)); length += read; }
     }
+    finally { ArrayPool<byte>.Shared.Return(buffer); }
+    if (length != expected.Length || !hash.GetHashAndReset().AsSpan().SequenceEqual(expected.Sha256))
+        throw new InvalidDataException($"Length or SHA-256 mismatch from {uri}.");
 }
 
 static async Task PostBytesAsync(
@@ -595,8 +705,21 @@ static async Task EnsureSuccessAndDrainAsync(
 
 static Operation SelectOperation(string scenario, int worker, long sequence)
 {
-    if (scenario == "slimdata-set")
-        return Operation.SlimDataSet;
+    Operation? isolated = scenario switch
+    {
+        "slimdata-set" => Operation.SlimDataSet,
+        "get" => Operation.SlimDataGet,
+        "delete" => Operation.SlimDataDelete,
+        "hashset" => Operation.SlimDataHashSet,
+        "hashget" => Operation.SlimDataHashGet,
+        "hashdelete" => Operation.SlimDataHashDelete,
+        "increment" => Operation.SlimDataIncrement,
+        "decrement" => Operation.SlimDataDecrement,
+        "files-upload" or "files-unique" => Operation.FilesUpload,
+        "files-download" => Operation.FilesDownload,
+        _ => null
+    };
+    if (isolated is not null) return isolated.Value;
 
     if (scenario == "slimdata-mixed")
     {
@@ -652,12 +775,20 @@ static void PrintLoadReport(LoadReport report)
 static void WriteJson(
     string path,
     LoadReport report,
-    IReadOnlyList<OperationSample> samples)
+    IReadOnlyList<OperationSample> samples,
+    int validationFailures,
+    AsyncResourceUsage? resources,
+    int cleanedFiles)
 {
     EnsureParentDirectory(path);
     var document = new
     {
+        schemaVersion = 2,
         report,
+        resources,
+        resourceWindow = "load",
+        cleanedFiles,
+        validationFailures,
         samples = samples.Select(static sample => new
         {
             sample.Timestamp,
@@ -686,18 +817,17 @@ static void EnsureParentDirectory(string path)
 static async Task<int> ValidateSlimDataStateAsync(
     HttpClient client,
     ExpectedSlimDataState expected,
-    int nodeCount,
-    int firstPort,
+    IReadOnlyList<Uri> nodeUrls,
     byte[] payload,
     CancellationToken cancellationToken)
 {
     var failures = new List<string>();
-    await WaitForQueueDrainAsync(client, nodeCount, firstPort, failures, cancellationToken);
+    await WaitForQueueDrainAsync(client, nodeUrls, failures, cancellationToken);
     KeyValuePair<string, bool>[] sets = expected.Sets.OrderBy(static item => item.Key).ToArray();
     KeyValuePair<string, bool>[] hashsets = expected.Hashsets.OrderBy(static item => item.Key).ToArray();
     KeyValuePair<string, long>[] counters = expected.Counters.OrderBy(static item => item.Key).ToArray();
     // Every value is checked on every member, with at most one request per member.
-    List<string>[] nodeFailures = await Task.WhenAll(Enumerable.Range(0, nodeCount).Select(ValidateNodeAsync));
+    List<string>[] nodeFailures = await Task.WhenAll(Enumerable.Range(0, nodeUrls.Count).Select(ValidateNodeAsync));
     failures.AddRange(nodeFailures.SelectMany(static items => items));
 
     async Task<List<string>> ValidateNodeAsync(int node)
@@ -708,7 +838,7 @@ static async Task<int> ValidateSlimDataStateAsync(
         foreach ((string id, long expectedValue) in counters)
         {
             using HttpResponseMessage response = await client.GetAsync(
-                new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"), cancellationToken);
+                new Uri(nodeUrls[node], $"data/sets/{id}"), cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 errors.Add($"Node {node}: Counter {id} returned HTTP {(int)response.StatusCode}.");
@@ -719,6 +849,12 @@ static async Task<int> ValidateSlimDataStateAsync(
                 actual != expectedValue)
                 errors.Add($"Node {node}: Counter {id} is '{text}'; expected {expectedValue}.");
         }
+        foreach ((string id, ExpectedFile content) in expected.Files)
+        {
+            try { await VerifyFileAsync(client, new Uri(nodeUrls[node], $"data/files/{id}"), content, cancellationToken); }
+            catch (Exception exception) when (exception is HttpRequestException or InvalidDataException)
+            { errors.Add($"Node {node}: File {id}: {exception.Message}"); }
+        }
         return errors;
     }
 
@@ -728,7 +864,7 @@ static async Task<int> ValidateSlimDataStateAsync(
         foreach ((string id, bool shouldExist) in items)
         {
             using HttpResponseMessage response = await client.GetAsync(
-                new Uri($"http://127.0.0.1:{firstPort + node}/data/{route}/{id}"), cancellationToken);
+                new Uri(nodeUrls[node], $"data/{route}/{id}"), cancellationToken);
             if (!shouldExist)
             {
                 if (response.StatusCode != HttpStatusCode.NotFound)
@@ -752,16 +888,15 @@ static async Task<int> ValidateSlimDataStateAsync(
         expected.Hashsets.Count,
         expected.Counters.Count,
         failures.Count,
-        nodeCount);
+        nodeUrls.Count);
     foreach (var failure in failures.Take(20))
-        await Console.Error.WriteLineAsync($"validation failed: {failure}");
+        await Console.Error.WriteLineAsync($"validation failed: {failure}".AsMemory(), cancellationToken);
     return failures.Count;
 }
 
 static async Task WaitForQueueDrainAsync(
     HttpClient client,
-    int nodeCount,
-    int firstPort,
+    IReadOnlyList<Uri> nodeUrls,
     List<string> failures,
     CancellationToken cancellationToken)
 {
@@ -769,10 +904,10 @@ static async Task WaitForQueueDrainAsync(
     for (var attempt = 0; attempt < 120; attempt++)
     {
         var allDrained = true;
-        for (var node = 0; node < nodeCount; node++)
+        for (var node = 0; node < nodeUrls.Count; node++)
         {
             var metrics = await client.GetStringAsync(
-                new Uri($"http://127.0.0.1:{firstPort + node}/metrics"),
+                new Uri(nodeUrls[node], "metrics"),
                 cancellationToken);
             var value = ReadMetric(metrics, metricName);
             allDrained &= value == 0d;
@@ -792,7 +927,7 @@ static double ReadMetric(string metrics, string metricName)
     {
         if (!line.StartsWith(metricName, StringComparison.Ordinal))
             continue;
-        var separator = line.LastIndexOf(' ');
+        var separator = line.LastIndexOf(' ', StringComparison.Ordinal);
         if (separator > 0 &&
             double.TryParse(
                 line.AsSpan(separator + 1),
@@ -1379,14 +1514,18 @@ static void PrintUsage()
     Console.WriteLine(
         """
         SlimFaas.MemoryLab:
-          function [--port 5050]
+          function [--port 5050] [--host 127.0.0.1]
           load [--scenario mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [--duration 60] [--phase-file PATH]
                [--concurrency 12] [--payload-bytes 4096] [--file-bytes 262144]
-               [--first-port 30021] [--nodes 3] [--keys-per-worker 16]
+               [--max-operations 200] [--repetition 1] [--cleanup-owned-files false]
+               [--first-port 30021] [--nodes 3] [--node-urls http://node-0:5000,http://node-1:5000]
+               [--keys-per-worker 16]
+               [--function memory-function]
                [--target-rps 0]
                [--target-rps-per-replica 0]
                [--key-prefix memory-lab] [--validate true]
                [--csv operations.csv] [--json operations.json]
+               [--journal-directory requests]
           report --csv <memory.csv>
           compare --root <runs-directory> --output <comparison.md> [--baseline before]
           select-partition --root <screening-runs> --output <selection.env>
@@ -1405,7 +1544,12 @@ enum Operation
     SlimDataDelete,
     SlimDataIncrement,
     SlimDataHashSet,
-    SlimDataHashDelete
+    SlimDataHashDelete,
+    SlimDataGet,
+    SlimDataHashGet,
+    SlimDataDecrement,
+    FilesUpload,
+    FilesDownload
 }
 
 sealed class LoadStatistics
@@ -1534,17 +1678,7 @@ sealed class LoadStatistics
     }
 
     private static double Percentile(double[] sorted, double percentile)
-    {
-        if (sorted.Length == 0)
-            return 0d;
-        var rank = percentile * (sorted.Length - 1);
-        var lower = (int)Math.Floor(rank);
-        var upper = (int)Math.Ceiling(rank);
-        if (lower == upper)
-            return sorted[lower];
-        var fraction = rank - lower;
-        return sorted[lower] + ((sorted[upper] - sorted[lower]) * fraction);
-    }
+        => SlimFaas.Benchmarking.BenchmarkStatistics.Percentile(sorted, percentile);
 
     private static string EscapeCsv(string? value)
     {
@@ -1554,8 +1688,12 @@ sealed class LoadStatistics
     }
 }
 
+sealed record ExpectedFile(int Length, byte[] Sha256);
+
 sealed class ExpectedSlimDataState
 {
+    public ConcurrentDictionary<string, ExpectedFile> Files { get; } = new(StringComparer.Ordinal);
+    public string AsyncPayloadSha256 { get; init; } = string.Empty;
     internal ConcurrentDictionary<string, bool> Sets { get; } = new(StringComparer.Ordinal);
     internal ConcurrentDictionary<string, bool> Hashsets { get; } = new(StringComparer.Ordinal);
     internal ConcurrentDictionary<string, long> Counters { get; } = new(StringComparer.Ordinal);
@@ -1594,7 +1732,9 @@ sealed record LoadReport(
     long Completed,
     long Failed,
     double Rate,
-    IReadOnlyList<OperationReport> Operations);
+    IReadOnlyList<OperationReport> Operations,
+    int? FileBytes = null,
+    int Repetition = 1);
 
 sealed record BenchmarkRun(
     string Variant,

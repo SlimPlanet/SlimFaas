@@ -224,7 +224,7 @@ class AsyncRequest:
     """True if this is the last retry attempt."""
 
     try_number: int
-    """Attempt number (starts at 1)."""
+    """Queue attempt number starts at 0; durable Stream attempts start at 1."""
 
     @classmethod
     def from_payload(cls, payload: dict) -> "AsyncRequest":

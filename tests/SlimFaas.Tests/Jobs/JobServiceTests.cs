@@ -167,6 +167,19 @@ public class JobServiceTests
     }
 
     [Fact]
+    public async Task Missing_configuration_without_a_declared_default_is_rejected_before_enqueue()
+    {
+        _jobConfigurationMock.Setup(value => value.Configuration).Returns(new SlimFaasJobConfiguration([]));
+        CreateJob command = new(["argument"]);
+        ResultWithError<EnqueueJobResult> result = await _jobService.EnqueueJobAsync("missing", command, true);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("configuration_not_found", result.Error?.Key);
+        Assert.False(await _jobService.DeleteJobAsync("missing", "execution", true));
+        _jobQueueMock.Verify(value => value.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.Never);
+    }
+
+    [Fact]
     public async Task EnqueueJobAsync_ShouldQueueDefaultJobs_WhereTheJobsWorkerReadsThem()
     {
         // Arrange : vraie file sur la base en mémoire, configuration "Default" publique

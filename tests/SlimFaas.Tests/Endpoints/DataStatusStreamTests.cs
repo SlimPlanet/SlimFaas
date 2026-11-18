@@ -168,12 +168,13 @@ public class DataStatusStreamTests
         var tracker = host.Services.GetRequiredService<NetworkActivityTracker>();
         for (int index = 0; index < batchSize; index++)
             tracker.Record("data_request", "external", "slimfaas", dataKind: "sets", dataOperation: "read");
-        int states = 0; bool observed = false;
-        while (states < 3)
+        int states = 0; bool observed = false; bool readingState = false;
+        while (expose ? !observed : states < 3)
         {
             string line = (await reader.ReadLineAsync(cancellation.Token))!;
-            if (line == "event: state") states++;
+            if (line == "event: state") readingState = true;
             if (line.Contains("data_request", StringComparison.Ordinal)) observed = true;
+            if (line.Length == 0 && readingState) { states++; readingState = false; }
         }
         Assert.Equal(expose, observed);
         await cancellation.CancelAsync();

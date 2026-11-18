@@ -1,0 +1,32 @@
+[
+  {
+    "key": "night",
+    "headline": "Give your agent tools the night off.",
+    "voice": "Why keep a tool running all night for one morning report? With SlimFaas, idle agent tools can sleep.",
+    "voiceSamples": 145408
+  },
+  {
+    "key": "wake",
+    "headline": "Ready when you call.",
+    "voice": "Keep your existing HTTP app. The next call wakes a worker and waits for the answer. Here, one sleeping tool comes back with fifty-five.",
+    "voiceSamples": 202240
+  },
+  {
+    "key": "rush",
+    "headline": "Take the morning rush in stride.",
+    "voice": "Then the rush hits. We sent thirty calculations at once. The queue held the work while four workers shared the load.",
+    "voiceSamples": 153088
+  },
+  {
+    "key": "quiet",
+    "headline": "All done. Clock out.",
+    "voice": "All thirty finished. The workers went back to zero, freeing capacity for the next thing your team wants to run.",
+    "voiceSamples": 151552
+  },
+  {
+    "key": "try",
+    "headline": "Give one tool a five-minute try.",
+    "voice": "Pick a tool your agent already calls. Run the local demo and watch it wake up. Then let it sleep.",
+    "voiceSamples": 134144
+  }
+]

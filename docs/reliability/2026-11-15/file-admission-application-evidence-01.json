@@ -1,0 +1,1497 @@
+{
+  "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+  "native_publication": {
+    "started": 1794770458.230442,
+    "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+    "phases": [
+      {
+        "name": "publish-native-slimfaas",
+        "exit_code": 0,
+        "finished": 1794770522.855625,
+        "log": "logs/net11-25-publish-native-slimfaas.log",
+        "sha256": "92bfabe8e8999d19019f50a54cb9a4aace5713c11b40167003058f26086c2c21"
+      },
+      {
+        "name": "publish-native-slimdata",
+        "exit_code": 0,
+        "finished": 1794770533.145099,
+        "log": "logs/net11-25-publish-native-slimdata.log",
+        "sha256": "d70469c2012f90b6d6fb587de575a0e0a884324d06d2c452acddc6fc16cba27c"
+      },
+      {
+        "name": "publish-native-slimfaasmcp",
+        "exit_code": 0,
+        "finished": 1794770548.0888069,
+        "log": "logs/net11-25-publish-native-slimfaasmcp.log",
+        "sha256": "4576e72a10aacb9271e7a3dc7a87e87ce2e3a335eab59e303bee76823e247c00"
+      },
+      {
+        "name": "build-memorylab-release",
+        "exit_code": 0,
+        "finished": 1794770554.119528,
+        "log": "logs/net11-25-build-memorylab-release.log",
+        "sha256": "0c0842af87fffdb421cbbce88ba4e81bd25796db4abe1965343b5cbb88dbee36"
+      },
+      {
+        "name": "build-benchmark-release",
+        "exit_code": 0,
+        "finished": 1794770556.175036,
+        "log": "logs/net11-25-build-benchmark-release.log",
+        "sha256": "c538c14b0a237e7ac5bb44a6f5dae533abe3ae9a78a28a0d51355da3ac4346c2"
+      },
+      {
+        "name": "native-correctness-controls",
+        "exit_code": 1,
+        "finished": 1794770586.527294,
+        "log": "logs/net11-25-native-correctness-controls.log",
+        "sha256": "06dc78182172b03e449261ff4a338d4ae49a468f8714dec0a4dd7aea90706722"
+      }
+    ],
+    "runtime_environment_overrides": {
+      "SlimData__Files__RequiredDurableCopies": "2",
+      "SlimFaas__AsyncBodyOffloadThresholdBytes": "524288"
+    },
+    "full_dotnet_tests": 2389,
+    "scope": "Native AOT publication and correctness controls; dedicated permanent volume loss and comparative durability cost are separate pending phases",
+    "diagnostic_build_option": "IlcGenerateDgmlFile=false: omit regenerable dependency graph XML to avoid 4 GiB of temporary files; code generation, analyzers and mstat stay enabled.",
+    "phase": "failed",
+    "publications": [
+      {
+        "path": "builds/candidate-osx-net11-25/SlimFaas",
+        "sha256": "f482cf6b968c7666dd30c5e9cfab83a597ab8065c756d4cdfa17ef3538ff3f3c",
+        "bytes": 57693272,
+        "mode": "Native AOT osx-arm64"
+      },
+      {
+        "path": "builds/slimdata-osx-net11-25/SlimData",
+        "sha256": "50e8245c58cad0b9aa41457d4f8b488f420f23259a446503b6119dce6c8a0cfc",
+        "bytes": 70573640,
+        "mode": "Native AOT osx-arm64"
+      },
+      {
+        "path": "builds/mcp-osx-net11-25/SlimFaasMcp",
+        "sha256": "aaebbcd9b3d2e39c51663657dfbf2d71bdb995602ad6fdb08864bd8ceba26499",
+        "bytes": 18185784,
+        "mode": "Native AOT osx-arm64"
+      }
+    ],
+    "finished": 1794770586.528529,
+    "passed": false,
+    "error": "CalledProcessError(1, ['/opt/homebrew/opt/python@3.14/bin/python3.14', '.bin/test-slimdata-local-chaos.py', '--runtime', '/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/builds/candidate-osx-net11-25/SlimFaas', '--source-commit', '49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa', '--output', '/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/macos/net11-25-quick-01', '--port-base', '49820', '--scenarios', 'protocol-timeout,job-during-node-stop,lease-burst,leader-route,api,payloads,files,retries,streams,restarts', '--recovery-timeout', '300', '--traffic-interval', '2'], None, None)"
+  },
+  "native_one_copy_control": {
+    "report": {
+      "passed": true,
+      "error": null,
+      "results": [
+        {
+          "phase": "protocol-probe-with-silent-follower",
+          "passed": true,
+          "suspended_follower": 0,
+          "restarted_leader": 2,
+          "ready_and_write_seconds": 4.995462292019511,
+          "restart_to_listener_seconds": 3.114767874998506
+        },
+        {
+          "phase": "job-during-node-stop",
+          "passed": true,
+          "follower": 0,
+          "job_id": "fa1f84d32e564292b6bbf66b1771ffe3",
+          "seconds": 1.2501485829998273
+        },
+        {
+          "phase": "leader-lease-burst",
+          "leader": 2,
+          "silent_follower": 0,
+          "healthy_writes": 27,
+          "silent_writes": 27,
+          "probe_seconds": 0.00953404197935015,
+          "probe_budget_seconds": 15,
+          "passed": true
+        },
+        {
+          "phase": "stale-leader-http-route",
+          "ingress_node": 0,
+          "old_leader": 2,
+          "seconds": 6.499848625011509,
+          "passed": true
+        },
+        {
+          "phase": "api-smoke",
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 65536,
+          "chunked": true,
+          "id": "6e073e08f4194a6999dcbc7c9f70c7ce",
+          "seconds": 0.22142612500465475,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 65536,
+          "chunked": false,
+          "id": "d7bb223ee0994071a9428663a227068b",
+          "seconds": 0.2466911249794066,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 262144,
+          "chunked": false,
+          "id": "5422e726a2e246cc8a1b8a4b2ccfa69b",
+          "seconds": 0.24698491700110026,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 262144,
+          "chunked": true,
+          "id": "5026d1f2337046b0a4ac1674ab675d4f",
+          "seconds": 0.25085658300668,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 1048576,
+          "chunked": false,
+          "id": "325f59e1853b4dd8831c5e974b0690fd",
+          "seconds": 0.26177608300349675,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 1048576,
+          "chunked": true,
+          "id": "591da9400c574dd1a9f44db666b6034b",
+          "seconds": 0.28041437501087785,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2000000,
+          "chunked": false,
+          "id": "c2b052a73f1e467f97aa262d0f267c06",
+          "seconds": 0.2802313339780085,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2000000,
+          "chunked": true,
+          "id": "bf435e4198414bea8b59a8144f5aeb71",
+          "seconds": 0.33369854200282134,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2097152,
+          "chunked": false,
+          "id": "5fbcc56f0d20490f93a9574db7e0dc50",
+          "seconds": 0.27158983299159445,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 2097152,
+          "chunked": true,
+          "id": "97c229158379412c9bb0a3c0a305a999",
+          "seconds": 0.2684259999950882,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 4194304,
+          "chunked": false,
+          "id": "e4d0d4c0b8d643d49a4d93539be831ba",
+          "seconds": 0.29470770800253376,
+          "passed": true
+        },
+        {
+          "phase": "payloads",
+          "bytes": 4194304,
+          "chunked": true,
+          "id": "f183aa3042ce4171b0ddb80f63ce99ee",
+          "seconds": 0.27205220898031257,
+          "passed": true
+        },
+        {
+          "phase": "file-boundaries",
+          "passed": true
+        },
+        {
+          "phase": "retries-dlq-jobs",
+          "passed": true,
+          "job_ids": [
+            "9e28ead32e314863b440ad4ee1649b2e",
+            "eac5921c57b14a63a40dab46a9d37ed8",
+            "17acea946005445589c093adf2cef426"
+          ],
+          "dlq_id": "dlq-a7ee9b01-593d-410c-b284-498b91ccfb4b"
+        },
+        {
+          "phase": "stream-fanout-retention",
+          "passed": true,
+          "initial_append_order": [
+            "84ce97af39f142b5a84ad464bde2fb5c_00000000000000000001",
+            "84ce97af39f142b5a84ad464bde2fb5c_00000000000000000002",
+            "84ce97af39f142b5a84ad464bde2fb5c_00000000000000000003"
+          ],
+          "retention_gap_summaries": {
+            "chaos-fanout-a": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-a",
+              "Active": true,
+              "Generation": "988d808dfad24b49b96a09ffbb5e72ce",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-15T19:32:20.811093+00:00",
+              "Revision": 39
+            },
+            "chaos-fanout-b": {
+              "Stream": "chaos-bounded",
+              "Function": "chaos-fanout-b",
+              "Active": true,
+              "Generation": "7674ee6e74ea4a44b45dbcf9953bda6e",
+              "StartSequence": 0,
+              "AcknowledgedThrough": 6,
+              "LastAcknowledged": 6,
+              "RetentionGapCount": 1,
+              "Lag": 0,
+              "PendingCount": 0,
+              "WaitingForCallbackCount": 0,
+              "RetryScheduledCount": 0,
+              "FailedCount": 0,
+              "RunnableCount": 0,
+              "LastStatus": 200,
+              "CapturedAt": "2026-11-15T19:32:20.812792+00:00",
+              "Revision": 39
+            }
+          },
+          "functions": [
+            "chaos-fanout-a",
+            "chaos-fanout-b"
+          ]
+        },
+        {
+          "phase": "full-persistent-restart",
+          "passed": true
+        }
+      ],
+      "accepted": 205,
+      "unknown": 10,
+      "missing": [],
+      "finished_utc": 1794771164.456109
+    },
+    "derived_receipt_accounting": {
+      "successful_delivery_attempts": 44,
+      "failed_delivery_attempts": 5,
+      "successful_id_functions": [
+        {
+          "id": "a6bc120877334bd2b6ffd91876325cab",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "24912a1d392949c7993b56bfe7b89034",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "56e39e12747f4326a4dd61a6da26d947",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "7ea44b219a464702904cee44901878b6",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "cfdfea94278c4845a9facf7f38062246",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "49fa1e2439de43e9966a6439ddd774ef",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "b98eedde59054e4ea4e123ee74b2980b",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "9d2f921ec5a5475aa0f0a171ce398d1b",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "777474c57fd14a728b43d5e8f40ea1ea",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "78a7309484364385b75b7baa9c762ae3",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "859bee14db3f49a680034394f082d23b",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "bef3d513750b4c05b9083305f5d89195",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "ec39d559792f47eab84f2a658cacc6ae",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "eeec9245ba114fffb04d45af15a22b1c",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "796309b9f16448f18fd8b120d0abba03",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "e3eb40b8a0e64af684a2c9940fa6a16b",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "32419c2d5b07431ba85baa8e9a133652",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "0347f95434aa4c829d7ac950d3e23f07",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "f288457ccc7940f4af83de9bdc2e5224",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "a48bb3fcc215431d9a2d0e79e29a4812",
+          "function": "chaos-fanout-b",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "58ef7fff0b8a4849be27735b877d4ec8",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "d9113f14c0174235ab0d9c36b04d2c97",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "6e073e08f4194a6999dcbc7c9f70c7ce",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "d7bb223ee0994071a9428663a227068b",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "5422e726a2e246cc8a1b8a4b2ccfa69b",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "5026d1f2337046b0a4ac1674ab675d4f",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "325f59e1853b4dd8831c5e974b0690fd",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "c2b052a73f1e467f97aa262d0f267c06",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "591da9400c574dd1a9f44db666b6034b",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "bf435e4198414bea8b59a8144f5aeb71",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "5fbcc56f0d20490f93a9574db7e0dc50",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "97c229158379412c9bb0a3c0a305a999",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "e4d0d4c0b8d643d49a4d93539be831ba",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "f183aa3042ce4171b0ddb80f63ce99ee",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "828097fd47924569a8ecc48df5dcc346",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "48457c8928da4680bf9f960fe0021c37",
+          "function": "",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "eeec9245ba114fffb04d45af15a22b1c",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "796309b9f16448f18fd8b120d0abba03",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "e3eb40b8a0e64af684a2c9940fa6a16b",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "32419c2d5b07431ba85baa8e9a133652",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "0347f95434aa4c829d7ac950d3e23f07",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "f288457ccc7940f4af83de9bdc2e5224",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "a48bb3fcc215431d9a2d0e79e29a4812",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        },
+        {
+          "id": "a6bc120877334bd2b6ffd91876325cab",
+          "function": "chaos-fanout-a",
+          "successful_deliveries": 1
+        }
+      ],
+      "repeated_successful_id_functions": [],
+      "scope": "Derived from immutable original journals; original accounting.json is unchanged. Failed retries and separate fanout subscribers are not repeated successful deliveries to one function."
+    }
+  },
+  "linux_managed_publication": {
+    "started": 1794770774.942802,
+    "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+    "phase": "ready-for-bounded-diagnostic",
+    "compilation_mode": "Linux musl ARM64 self-contained managed/trimmed; identical frozen benchmark and MemoryLab drivers inherited from after-tools-net11-08",
+    "full_solution_tests": {
+      "passed": 2389,
+      "failed": 0,
+      "skipped": 0,
+      "results": [
+        {
+          "file": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_48_net11.0[1].trx",
+          "sha256": "df754d1564a79bc1529257c287dfda3c87355366a8abac5a39e12388a3a176dc",
+          "counters": {
+            "total": "52",
+            "executed": "52",
+            "passed": "52",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "file": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_48_net11.0.trx",
+          "sha256": "c05e6c792086738994e7fb595d8332650016759125752d0b3e7f5acd773a1be1",
+          "counters": {
+            "total": "11",
+            "executed": "11",
+            "passed": "11",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "file": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_54_net11.0.trx",
+          "sha256": "adc5e2ae3e21b9f9baf65eb584a8a2c9e7c8af3883cd78d2dbe8332abfd2be65",
+          "counters": {
+            "total": "1769",
+            "executed": "1769",
+            "passed": "1769",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "file": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_15_05_net11.0.trx",
+          "sha256": "8125a603fcbcf49ad7c2842315851bacf70acf80ea0649722dc539f27f803093",
+          "counters": {
+            "total": "109",
+            "executed": "109",
+            "passed": "109",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        },
+        {
+          "file": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_52_net11.0.trx",
+          "sha256": "38f03bce446a8f5e6a26069d9fed4571a5ccbdc010c2cdafbeae38bb4c49f067",
+          "counters": {
+            "total": "448",
+            "executed": "448",
+            "passed": "448",
+            "failed": "0",
+            "error": "0",
+            "timeout": "0",
+            "aborted": "0",
+            "inconclusive": "0",
+            "passedButRunAborted": "0",
+            "notRunnable": "0",
+            "notExecuted": "0",
+            "disconnected": "0",
+            "warning": "0",
+            "completed": "0",
+            "inProgress": "0",
+            "pending": "0"
+          }
+        }
+      ]
+    },
+    "command": [
+      "podman",
+      "machine",
+      "ssh",
+      "podman exec --privileged -i slimfaas-pr506-worker3 ctr --namespace=k8s.io images import --all-platforms --digests - < /var/home/core/slimfaas-pr506/images/after-tools-net11-26.tar"
+    ],
+    "finished": 1794770819.0619168,
+    "passed": true,
+    "images": {
+      "localhost/slimfaas-pr506:after-tools-net11-26": "18a0b7e4db407f7eed324f60217d52e6a03daca570aba45c0899bd303e652f85"
+    },
+    "hashes": {
+      "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "/app/SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b",
+      "/app/SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+      "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    },
+    "archive": "/var/home/core/slimfaas-pr506/images/after-tools-net11-26.tar",
+    "fixture_sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48",
+    "fixture_source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa"
+  },
+  "kubernetes_faults": [
+    {
+      "state": {
+        "started": 1794770847.186351,
+        "namespace": "slimfaas-pr506-fa27-follower-async-01",
+        "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-26",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "endurance",
+        "fault_case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "async",
+        "updated": 1794771070.86185,
+        "phase": "closed",
+        "job_uid": "4fd641c0-6fca-4ef6-b9f3-bb4fc8f21478",
+        "job_status": {
+          "completionTime": "2026-11-15T19:31:03Z",
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T19:31:03Z",
+              "lastTransitionTime": "2026-11-15T19:31:03Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "SuccessCriteriaMet"
+            },
+            {
+              "lastProbeTime": "2026-11-15T19:31:03Z",
+              "lastTransitionTime": "2026-11-15T19:31:03Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "Complete"
+            }
+          ],
+          "ready": 0,
+          "startTime": "2026-11-15T19:27:28Z",
+          "succeeded": 1,
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 24813891584,
+        "finished": 1794771081.1763961,
+        "passed": true,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa27-follower-async-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794770850.0508955,
+        "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+        "case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "async",
+        "passed": true,
+        "workload_started": true,
+        "injected_fault": true,
+        "scope": "Single owned runtime killed; its complete data-PV contents moved outside active mounts and never restored. Other data volumes retained. A paused third runtime is killed and returns without its in-memory announcements. Source rejoins with fresh storage. All kind workers share their VM; this is logical PV-content loss, not independent-host hardware proof.",
+        "events": [
+          {
+            "utc": 1794770864.2845635,
+            "event": "function-gated"
+          },
+          {
+            "utc": 1794770864.2970924,
+            "event": "third-node-suspended-before-upload",
+            "node": 2,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 2,
+              "pid": 35,
+              "pod_uid": "a6f26c15-0a89-45c6-bf6b-8781290d7a0b",
+              "started": "17082014"
+            }
+          },
+          {
+            "utc": 1794770866.9107196,
+            "event": "accepted-with-two-declared-volume-copies",
+            "status": 202,
+            "ingress_storage_identity": "2a5e51dd318348638a110c39f6f8ea5a",
+            "survivor_storage_identity": "1e2f3faa46804915869dd9fe508fcd87"
+          },
+          {
+            "utc": 1794770866.9222,
+            "event": "ingress-runtime-killed",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 1,
+              "pid": 34,
+              "pod_uid": "c8ba8d1b-e10a-4737-9386-59ae5d7645d9",
+              "started": "17082014"
+            }
+          },
+          {
+            "utc": 1794770866.9271352,
+            "event": "data-volume-contents-permanently-removed",
+            "node": 1,
+            "quarantine": "/evidence/runs/slimfaas-pr506-fa27-follower-async-01/volume-quarantine/slimfaas-1-1794770866925973643",
+            "retained_entries": [
+              {
+                "name": "backup",
+                "device": 64772,
+                "inode": 180530466
+              },
+              {
+                "name": "slimfaas-1",
+                "device": 64772,
+                "inode": 297817511
+              },
+              {
+                "name": ".slimfaas-files-storage-identity",
+                "device": 64772,
+                "inode": 151200166
+              }
+            ],
+            "initialization": {
+              "node": "slimfaas-1",
+              "chunk_bytes": 65536,
+              "existing_wal": false,
+              "fresh_bootstrap_permission": false
+            }
+          },
+          {
+            "utc": 1794770866.9313905,
+            "event": "absent-runtime-killed-without-consuming-historical-announcements",
+            "node": 2
+          },
+          {
+            "utc": 1794770870.396166,
+            "event": "returned-node-ready",
+            "node": 2,
+            "body_already_local": false,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 2,
+              "pid": 94,
+              "pod_uid": "a6f26c15-0a89-45c6-bf6b-8781290d7a0b",
+              "started": "17083713"
+            }
+          },
+          {
+            "utc": 1794770879.340157,
+            "event": "fresh-ingress-repaired-without-bootstrap",
+            "node": 1,
+            "original_storage_identity": "2a5e51dd318348638a110c39f6f8ea5a",
+            "fresh_storage_identity": "93e7b75bb4c74a2e9efdc9a2560fd10a",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 1,
+              "pid": 94,
+              "pod_uid": "c8ba8d1b-e10a-4737-9386-59ae5d7645d9",
+              "started": "17083713"
+            }
+          }
+        ],
+        "post_delivery_observation_seconds": 180,
+        "ready_utc": 1794770857.7524285,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 0,
+            "pid": 34,
+            "pod_uid": "6142c6fd-766a-4fa1-aa2d-f76765112e95",
+            "started": "17082012"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 1,
+            "pid": 34,
+            "pod_uid": "c8ba8d1b-e10a-4737-9386-59ae5d7645d9",
+            "started": "17082014"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 2,
+            "pid": 35,
+            "pod_uid": "a6f26c15-0a89-45c6-bf6b-8781290d7a0b",
+            "started": "17082014"
+          }
+        ],
+        "driver_sha256": "74225c8a977409432ebedb48892704e1765bbb46bcff3cd1ff0ac68e914603e1",
+        "ingress_node": 1,
+        "absent_node": 2,
+        "survivor_node": 0,
+        "identifier": "00915b6463474988b55ffa5b66d58dd6",
+        "physical_id": "sf-internal-778001774bf6412e933cc1bb11cc450a-internal",
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+        "payload_bytes": 1048576,
+        "acceptance_seconds": 2.6063885289768223,
+        "healthy_majority_recovery_seconds": 1.8176700450130738,
+        "absent_node_catchup_after_ready_seconds": 3.063180923461914,
+        "fresh_ingress_catchup_after_ready_seconds": 3.8623199462890625,
+        "observed_after_delivery_seconds": 180.1169936490187,
+        "accounting": {
+          "accepted": 1,
+          "unknown": [],
+          "completed_deliveries": 1,
+          "distinct_delivered_ids": 1,
+          "repeated_deliveries": {},
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "accepted": 1,
+        "unknown_count": 0,
+        "missing_confirmed": [],
+        "final_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 0,
+            "pid": 34,
+            "pod_uid": "6142c6fd-766a-4fa1-aa2d-f76765112e95",
+            "started": "17082012"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 1,
+            "pid": 94,
+            "pod_uid": "c8ba8d1b-e10a-4737-9386-59ae5d7645d9",
+            "started": "17083713"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 2,
+            "pid": 94,
+            "pod_uid": "a6f26c15-0a89-45c6-bf6b-8781290d7a0b",
+            "started": "17083713"
+          }
+        ],
+        "finished_utc": 1794771060.259536
+      },
+      "runtime_error_occurrences": 2,
+      "managed_oom_log_occurrences": 0,
+      "runtime_log_coverage_complete": true
+    },
+    {
+      "state": {
+        "started": 1794771164.899971,
+        "namespace": "slimfaas-pr506-fa27-leader-async-01",
+        "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-26",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "endurance",
+        "fault_case": "volume-loss",
+        "ingress_role": "leader",
+        "kind": "async",
+        "updated": 1794771388.3160708,
+        "phase": "closed",
+        "job_uid": "800c630c-47d8-4087-8913-1851727843c0",
+        "job_status": {
+          "completionTime": "2026-11-15T19:36:22Z",
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T19:36:22Z",
+              "lastTransitionTime": "2026-11-15T19:36:22Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "SuccessCriteriaMet"
+            },
+            {
+              "lastProbeTime": "2026-11-15T19:36:22Z",
+              "lastTransitionTime": "2026-11-15T19:36:22Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "Complete"
+            }
+          ],
+          "ready": 0,
+          "startTime": "2026-11-15T19:32:46Z",
+          "succeeded": 1,
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 25306591232,
+        "finished": 1794771397.644829,
+        "passed": true,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa27-leader-async-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794771167.30773,
+        "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+        "case": "volume-loss",
+        "ingress_role": "leader",
+        "kind": "async",
+        "passed": true,
+        "workload_started": true,
+        "injected_fault": true,
+        "scope": "Single owned runtime killed; its complete data-PV contents moved outside active mounts and never restored. Other data volumes retained. A paused third runtime is killed and returns without its in-memory announcements. Source rejoins with fresh storage. All kind workers share their VM; this is logical PV-content loss, not independent-host hardware proof.",
+        "events": [
+          {
+            "utc": 1794771181.8713396,
+            "event": "function-gated"
+          },
+          {
+            "utc": 1794771181.884105,
+            "event": "third-node-suspended-before-upload",
+            "node": 1,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 1,
+              "pid": 34,
+              "pod_uid": "a3f3b9d9-8a11-4523-a355-2cfc793a108e",
+              "started": "17113783"
+            }
+          },
+          {
+            "utc": 1794771187.0229416,
+            "event": "accepted-with-two-declared-volume-copies",
+            "status": 202,
+            "ingress_storage_identity": "480ea0dadbf241a1b72f56c3ecd9fe87",
+            "survivor_storage_identity": "d534372ea461428caf2d97b3b77b82cd"
+          },
+          {
+            "utc": 1794771187.034469,
+            "event": "ingress-runtime-killed",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 0,
+              "pid": 35,
+              "pod_uid": "c6e92ad9-7e68-418a-b747-c7b6dcba80a2",
+              "started": "17113786"
+            }
+          },
+          {
+            "utc": 1794771187.0403156,
+            "event": "data-volume-contents-permanently-removed",
+            "node": 0,
+            "quarantine": "/evidence/runs/slimfaas-pr506-fa27-leader-async-01/volume-quarantine/slimfaas-0-1794771187039223581",
+            "retained_entries": [
+              {
+                "name": "backup",
+                "device": 64772,
+                "inode": 79879649
+              },
+              {
+                "name": "slimfaas-0",
+                "device": 64772,
+                "inode": 50464511
+              },
+              {
+                "name": ".profile-bootstrap-consumed",
+                "device": 64772,
+                "inode": 197281595
+              },
+              {
+                "name": ".slimfaas-files-storage-identity",
+                "device": 64772,
+                "inode": 197281599
+              }
+            ],
+            "initialization": {
+              "node": "slimfaas-0",
+              "chunk_bytes": 65536,
+              "existing_wal": false,
+              "fresh_bootstrap_permission": false
+            }
+          },
+          {
+            "utc": 1794771187.044839,
+            "event": "absent-runtime-killed-without-consuming-historical-announcements",
+            "node": 1
+          },
+          {
+            "utc": 1794771190.3031294,
+            "event": "returned-node-ready",
+            "node": 1,
+            "body_already_local": false,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 1,
+              "pid": 96,
+              "pod_uid": "a3f3b9d9-8a11-4523-a355-2cfc793a108e",
+              "started": "17115682"
+            }
+          },
+          {
+            "utc": 1794771199.045765,
+            "event": "fresh-ingress-repaired-without-bootstrap",
+            "node": 0,
+            "original_storage_identity": "480ea0dadbf241a1b72f56c3ecd9fe87",
+            "fresh_storage_identity": "9359f4183fac4f3faa3da15dbaafcbfa",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 0,
+              "pid": 94,
+              "pod_uid": "c6e92ad9-7e68-418a-b747-c7b6dcba80a2",
+              "started": "17115688"
+            }
+          }
+        ],
+        "post_delivery_observation_seconds": 180,
+        "ready_utc": 1794771175.3376765,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 0,
+            "pid": 35,
+            "pod_uid": "c6e92ad9-7e68-418a-b747-c7b6dcba80a2",
+            "started": "17113786"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 1,
+            "pid": 34,
+            "pod_uid": "a3f3b9d9-8a11-4523-a355-2cfc793a108e",
+            "started": "17113783"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 2,
+            "pid": 32,
+            "pod_uid": "eb2638da-8637-41be-9e93-e054ff7a9273",
+            "started": "17113783"
+          }
+        ],
+        "driver_sha256": "74225c8a977409432ebedb48892704e1765bbb46bcff3cd1ff0ac68e914603e1",
+        "ingress_node": 0,
+        "absent_node": 1,
+        "survivor_node": 2,
+        "identifier": "a89a701796844211bef7e2190c17182e",
+        "physical_id": "sf-internal-18eb7e5f798649998f1d8bc1840d3fda-internal",
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+        "payload_bytes": 1048576,
+        "acceptance_seconds": 5.127775779023068,
+        "healthy_majority_recovery_seconds": 2.0231678639829624,
+        "absent_node_catchup_after_ready_seconds": 2.8615882396698,
+        "fresh_ingress_catchup_after_ready_seconds": 4.066691160202026,
+        "observed_after_delivery_seconds": 180.09846107801422,
+        "accounting": {
+          "accepted": 1,
+          "unknown": [],
+          "completed_deliveries": 1,
+          "distinct_delivered_ids": 1,
+          "repeated_deliveries": {},
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "accepted": 1,
+        "unknown_count": 0,
+        "missing_confirmed": [],
+        "final_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 0,
+            "pid": 94,
+            "pod_uid": "c6e92ad9-7e68-418a-b747-c7b6dcba80a2",
+            "started": "17115688"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 1,
+            "pid": 96,
+            "pod_uid": "a3f3b9d9-8a11-4523-a355-2cfc793a108e",
+            "started": "17115682"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 2,
+            "pid": 32,
+            "pod_uid": "eb2638da-8637-41be-9e93-e054ff7a9273",
+            "started": "17113783"
+          }
+        ],
+        "finished_utc": 1794771379.9690454
+      },
+      "runtime_error_occurrences": 12,
+      "managed_oom_log_occurrences": 0,
+      "runtime_log_coverage_complete": true
+    },
+    {
+      "state": {
+        "started": 1794771398.085202,
+        "namespace": "slimfaas-pr506-fa27-follower-file-01",
+        "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-26",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "endurance",
+        "fault_case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "file",
+        "updated": 1794771601.310923,
+        "phase": "closed",
+        "job_uid": "58274a4e-aa20-4166-8142-5d7ac922de4d",
+        "job_status": {
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T19:39:58Z",
+              "lastTransitionTime": "2026-11-15T19:39:58Z",
+              "message": "Job has reached the specified backoff limit",
+              "reason": "BackoffLimitExceeded",
+              "status": "True",
+              "type": "FailureTarget"
+            },
+            {
+              "lastProbeTime": "2026-11-15T19:39:58Z",
+              "lastTransitionTime": "2026-11-15T19:39:58Z",
+              "message": "Job has reached the specified backoff limit",
+              "reason": "BackoffLimitExceeded",
+              "status": "True",
+              "type": "Failed"
+            }
+          ],
+          "failed": 1,
+          "ready": 0,
+          "startTime": "2026-11-15T19:36:39Z",
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 25285783552,
+        "finished": 1794771610.7994518,
+        "passed": false,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa27-follower-file-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794771400.5194685,
+        "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+        "case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "file",
+        "passed": false,
+        "workload_started": true,
+        "injected_fault": true,
+        "scope": "Single owned runtime killed; its complete data-PV contents moved outside active mounts and never restored. Other data volumes retained. A paused third runtime is killed and returns without its in-memory announcements. Source rejoins with fresh storage. All kind workers share their VM; this is logical PV-content loss, not independent-host hardware proof.",
+        "events": [
+          {
+            "utc": 1794771409.0281508,
+            "event": "third-node-suspended-before-upload",
+            "node": 2,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 2,
+              "pid": 33,
+              "pod_uid": "03549dcb-f47d-44e1-8d7e-9cd5ab2641d3",
+              "started": "17137136"
+            }
+          },
+          {
+            "utc": 1794771411.6519587,
+            "event": "accepted-with-two-declared-volume-copies",
+            "status": 200,
+            "ingress_storage_identity": "27c10a272f2646b3802939e5a0367254",
+            "survivor_storage_identity": "2d8f9763aa4c467b83517f6d634b2bef"
+          },
+          {
+            "utc": 1794771411.6629972,
+            "event": "ingress-runtime-killed",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 1,
+              "pid": 34,
+              "pod_uid": "fc54652c-af7c-4431-a91a-ca87113ced57",
+              "started": "17137134"
+            }
+          },
+          {
+            "utc": 1794771411.6680324,
+            "event": "data-volume-contents-permanently-removed",
+            "node": 1,
+            "quarantine": "/evidence/runs/slimfaas-pr506-fa27-follower-file-01/volume-quarantine/slimfaas-1-1794771411666932284",
+            "retained_entries": [
+              {
+                "name": "backup",
+                "device": 64772,
+                "inode": 310449200
+              },
+              {
+                "name": "slimfaas-1",
+                "device": 64772,
+                "inode": 25211048
+              },
+              {
+                "name": ".slimfaas-files-storage-identity",
+                "device": 64772,
+                "inode": 83906017
+              }
+            ],
+            "initialization": {
+              "node": "slimfaas-1",
+              "chunk_bytes": 65536,
+              "existing_wal": false,
+              "fresh_bootstrap_permission": false
+            }
+          },
+          {
+            "utc": 1794771411.6741803,
+            "event": "absent-runtime-killed-without-consuming-historical-announcements",
+            "node": 2
+          },
+          {
+            "utc": 1794771415.7763433,
+            "event": "returned-node-ready",
+            "node": 2,
+            "body_already_local": false,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+              },
+              "node": 2,
+              "pid": 94,
+              "pod_uid": "03549dcb-f47d-44e1-8d7e-9cd5ab2641d3",
+              "started": "17138137"
+            }
+          }
+        ],
+        "post_delivery_observation_seconds": 180,
+        "ready_utc": 1794771408.994941,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 0,
+            "pid": 35,
+            "pod_uid": "47c6748e-af52-47bc-8e3a-6cd65b094e5a",
+            "started": "17137134"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 1,
+            "pid": 34,
+            "pod_uid": "fc54652c-af7c-4431-a91a-ca87113ced57",
+            "started": "17137134"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "8c880343041b590c04ae2c6dad3d96a5a61a36a1ebffbe5b39e4938f9ec70d08",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "6f5c870c7e1bb3aec633128153305cbd85c5ff2f5152d961399d135b53d2dc1b"
+            },
+            "node": 2,
+            "pid": 33,
+            "pod_uid": "03549dcb-f47d-44e1-8d7e-9cd5ab2641d3",
+            "started": "17137136"
+          }
+        ],
+        "driver_sha256": "74225c8a977409432ebedb48892704e1765bbb46bcff3cd1ff0ac68e914603e1",
+        "ingress_node": 1,
+        "absent_node": 2,
+        "survivor_node": 0,
+        "identifier": "98af3b12a64e4a37aca3a60a0a5514e0",
+        "physical_id": "sf-internal-d0fabb91a7f9458f9202fed5f45508c4-internal",
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+        "payload_bytes": 1048576,
+        "acceptance_seconds": 2.6165590260061435,
+        "healthy_majority_recovery_seconds": 3.0305650919908658,
+        "error": "Traceback (most recent call last):\n  File \"/profile/file-admission-driver.py\", line 211, in <module>\n    local.wait_until('durable-reference repair without historical announcements', lambda:\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        local_file_ready(absent, physical_id, checksum), 180)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/src/.bin/test-slimdata-local-chaos.py\", line 107, in wait_until\n    raise AssertionError(f\"Timed out: {description}; last transport error: {last}\")\nAssertionError: Timed out: durable-reference repair without historical announcements; last transport error: None\n",
+        "finished_utc": 1794771595.7795355
+      },
+      "runtime_error_occurrences": 3,
+      "managed_oom_log_occurrences": 0,
+      "runtime_log_coverage_complete": true
+    }
+  ],
+  "failed_files_surviving_bytes": {
+    "recorded": 1794771920.7646568,
+    "failed_campaign": "slimfaas-pr506-fa27-follower-file-01",
+    "scope": "Closed VM index records a surviving live-volume body and the quarantined ingress body with the accepted checksum/length. This is background catch-up failure, not confirmed permanent loss; no quarantined bytes were restored.",
+    "source": "49e9801f25e4ef13c4b9dfeb9e9cf4a5ece107aa",
+    "identifier": "98af3b12a64e4a37aca3a60a0a5514e0",
+    "physical_id": "sf-internal-d0fabb91a7f9458f9202fed5f45508c4-internal",
+    "copies": [
+      {
+        "path": "state/data/slimfaas-0/slimfaas-0/files/c2YtaW50ZXJuYWwtZDBmYWJiOTFhN2Y5NDU4ZjkyMDJmZWQ1ZjQ1NTA4YzQtaW50ZXJuYWw.bin",
+        "bytes": 1048576,
+        "allocated_bytes": 1048576,
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769"
+      },
+      {
+        "path": "volume-quarantine/slimfaas-1-1794771411666932284/slimfaas-1/files/c2YtaW50ZXJuYWwtZDBmYWJiOTFhN2Y5NDU4ZjkyMDJmZWQ1ZjQ1NTA4YzQtaW50ZXJuYWw.bin",
+        "bytes": 1048576,
+        "allocated_bytes": 1048576,
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769"
+      }
+    ],
+    "index_sha256": "0d5f3e726389488fdacb65090879e079fe2ce3b50cd15650e2e341909b2021d7"
+  },
+  "limits": "Targeted one-request 1MiB faults, not the 200-message concurrency16 load; inherited common messages/concurrency arguments do not describe actual fault traffic. Same-VM logical volume content loss, no independent hardware proof. Final-source repeats and durability cost remain pending."
+}

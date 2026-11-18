@@ -1,0 +1,373 @@
+{
+  "schema": 1,
+  "audit_script_sha256": "92faa1e77cb68c74b9d5375bbb91b7ccaa6d03b8016246b299a121b7727e62bd",
+  "note": "Post-hoc read-only checks of original ledgers; no runtime mutations or rewritten campaign outcomes.",
+  "results": [
+    {
+      "archive": "C:\\github\\SlimFaas\\artifacts\\slimdata-lts\\ci-final-571-zips\\slimdata-local-endurance-follower.zip",
+      "archive_sha256": "b9d6ad1b44c7e4820c8afe94d2841c64f8c3264a22a22484773302e04c9cf20b",
+      "run": "endurance",
+      "runtime_source_commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+      "runtime_sha256": "6ea434b9e4f22966a68e830fc8481a27d2e407d9b3aa64b63258daf3f104038f",
+      "original_report_passed": true,
+      "observations": 11,
+      "confirmed_counter_responses": 3264,
+      "highest_confirmed_counter_response": 3264,
+      "unknown_increments": 1,
+      "final_values_by_phase": {
+        "confirmed-before-fault": [
+          1,
+          1,
+          1
+        ],
+        "absence-follower-30s": [
+          16,
+          16,
+          16
+        ],
+        "absence-follower-60s": [
+          37,
+          37,
+          37
+        ],
+        "absence-follower-300s": [
+          185,
+          185,
+          185
+        ],
+        "absence-follower-900s": [
+          627,
+          627,
+          627
+        ],
+        "absence-follower-1800s": [
+          1503,
+          1503,
+          1503
+        ],
+        "absence-follower-3600s": [
+          3258,
+          3258,
+          3258
+        ],
+        "crash-restarts": [
+          3264,
+          3264,
+          3264
+        ],
+        "full-persistent-restart": [
+          3264,
+          3264,
+          3264
+        ]
+      },
+      "violations": [],
+      "audit_passed": true
+    },
+    {
+      "archive": "C:\\github\\SlimFaas\\artifacts\\slimdata-lts\\ci-final-571-zips\\slimdata-local-endurance-leader.zip",
+      "archive_sha256": "6203bb0e04f5cdcee691ccca2607a7f16c435f6a053f5e563635db2ec1d4674c",
+      "run": "endurance",
+      "runtime_source_commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+      "runtime_sha256": "6b3b8182159c25fc0f595d65afde73f9866f69b12582da3ccdad61b9b0f3aa2c",
+      "original_report_passed": true,
+      "observations": 11,
+      "confirmed_counter_responses": 3187,
+      "highest_confirmed_counter_response": 3187,
+      "unknown_increments": 3,
+      "final_values_by_phase": {
+        "confirmed-before-fault": [
+          1,
+          1,
+          1
+        ],
+        "absence-leader-30s": [
+          13,
+          13,
+          13
+        ],
+        "absence-leader-60s": [
+          34,
+          34,
+          34
+        ],
+        "absence-leader-300s": [
+          175,
+          175,
+          175
+        ],
+        "absence-leader-900s": [
+          603,
+          603,
+          603
+        ],
+        "absence-leader-1800s": [
+          1460,
+          1460,
+          1460
+        ],
+        "absence-leader-3600s": [
+          3183,
+          3183,
+          3183
+        ],
+        "crash-restarts": [
+          3187,
+          3187,
+          3187
+        ],
+        "full-persistent-restart": [
+          3187,
+          3187,
+          3187
+        ]
+      },
+      "violations": [],
+      "audit_passed": true
+    },
+    {
+      "archive": "C:\\github\\SlimFaas\\artifacts\\slimdata-lts\\ci-final-571-zips\\slimdata-local-endurance-quorum.zip",
+      "archive_sha256": "8865a1474ef8258a2abd5ac42e8d50ca8f67bc5b0250a291f44d24c2fc211c7a",
+      "run": "endurance",
+      "runtime_source_commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+      "runtime_sha256": "7d2323117c246df17998fb3ae9e8df103cc187233137ad20aeb2f8ed18e8d853",
+      "original_report_passed": true,
+      "observations": 11,
+      "confirmed_counter_responses": 8,
+      "highest_confirmed_counter_response": 9,
+      "unknown_increments": 3270,
+      "final_values_by_phase": {
+        "confirmed-before-fault": [
+          1,
+          1,
+          1
+        ],
+        "absence-quorum-30s": [
+          2,
+          2,
+          2
+        ],
+        "absence-quorum-60s": [
+          2,
+          2,
+          2
+        ],
+        "absence-quorum-300s": [
+          2,
+          2,
+          2
+        ],
+        "absence-quorum-900s": [
+          2,
+          2,
+          2
+        ],
+        "absence-quorum-1800s": [
+          2,
+          2,
+          2
+        ],
+        "absence-quorum-3600s": [
+          2,
+          2,
+          2
+        ],
+        "crash-restarts": [
+          9,
+          9,
+          9
+        ],
+        "full-persistent-restart": [
+          9,
+          9,
+          9
+        ]
+      },
+      "violations": [],
+      "audit_passed": true
+    },
+    {
+      "archive": "C:\\github\\SlimFaas\\artifacts\\slimdata-lts\\ci-final-571-zips\\slimdata-local-endurance-windows-native-follower.zip",
+      "archive_sha256": "f41a22293c533d318d4fde8a3a528cf27b7e024cf37f48885641e68cc022222b",
+      "run": "endurance-windows-native",
+      "runtime_source_commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+      "runtime_sha256": "35659246cba054fdf7688422e3de7a4c8e0debe354435c9b7fe7178c14fea070",
+      "original_report_passed": true,
+      "observations": 11,
+      "confirmed_counter_responses": 3058,
+      "highest_confirmed_counter_response": 3058,
+      "unknown_increments": 5,
+      "final_values_by_phase": {
+        "confirmed-before-fault": [
+          1,
+          1,
+          1
+        ],
+        "absence-follower-30s": [
+          15,
+          15,
+          15
+        ],
+        "absence-follower-60s": [
+          37,
+          37,
+          37
+        ],
+        "absence-follower-300s": [
+          168,
+          168,
+          168
+        ],
+        "absence-follower-900s": [
+          577,
+          577,
+          577
+        ],
+        "absence-follower-1800s": [
+          1404,
+          1404,
+          1404
+        ],
+        "absence-follower-3600s": [
+          3056,
+          3056,
+          3056
+        ],
+        "crash-restarts": [
+          3058,
+          3058,
+          3058
+        ],
+        "full-persistent-restart": [
+          3058,
+          3058,
+          3058
+        ]
+      },
+      "violations": [],
+      "audit_passed": true
+    },
+    {
+      "archive": "C:\\github\\SlimFaas\\artifacts\\slimdata-lts\\ci-final-571-zips\\slimdata-local-endurance-windows-native-leader.zip",
+      "archive_sha256": "3ee196414097aeb916b8bc6c4b556200892b61d95e828baa102131602bd63c7e",
+      "run": "endurance-windows-native",
+      "runtime_source_commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+      "runtime_sha256": "b2e266827c9d83ec7c6cd609a8dcc13f55596374ab619ae86c947cf4625c467a",
+      "original_report_passed": true,
+      "observations": 11,
+      "confirmed_counter_responses": 3180,
+      "highest_confirmed_counter_response": 3180,
+      "unknown_increments": 4,
+      "final_values_by_phase": {
+        "confirmed-before-fault": [
+          1,
+          1,
+          1
+        ],
+        "absence-leader-30s": [
+          7,
+          7,
+          7
+        ],
+        "absence-leader-60s": [
+          33,
+          33,
+          33
+        ],
+        "absence-leader-300s": [
+          169,
+          169,
+          169
+        ],
+        "absence-leader-900s": [
+          599,
+          599,
+          599
+        ],
+        "absence-leader-1800s": [
+          1457,
+          1457,
+          1457
+        ],
+        "absence-leader-3600s": [
+          3176,
+          3176,
+          3176
+        ],
+        "crash-restarts": [
+          3180,
+          3180,
+          3180
+        ],
+        "full-persistent-restart": [
+          3180,
+          3180,
+          3180
+        ]
+      },
+      "violations": [],
+      "audit_passed": true
+    },
+    {
+      "archive": "C:\\github\\SlimFaas\\artifacts\\slimdata-lts\\ci-final-571-zips\\slimdata-local-endurance-windows-native-quorum.zip",
+      "archive_sha256": "e067b97630908ed76d26a1fbf2187dc431b941eb548d2007b810ccf9476a5924",
+      "run": "endurance-windows-native",
+      "runtime_source_commit": "571728a9cd0b72fd5f3c8da7517a4696f3e92f6d",
+      "runtime_sha256": "a026043a69e2d6c5b583640fa934fc0248026c4079d8fb090167c78e4b7978ed",
+      "original_report_passed": true,
+      "observations": 11,
+      "confirmed_counter_responses": 3,
+      "highest_confirmed_counter_response": 5,
+      "unknown_increments": 3294,
+      "final_values_by_phase": {
+        "confirmed-before-fault": [
+          1,
+          1,
+          1
+        ],
+        "absence-quorum-30s": [
+          1,
+          1,
+          1
+        ],
+        "absence-quorum-60s": [
+          1,
+          1,
+          1
+        ],
+        "absence-quorum-300s": [
+          1,
+          1,
+          1
+        ],
+        "absence-quorum-900s": [
+          1,
+          1,
+          1
+        ],
+        "absence-quorum-1800s": [
+          3,
+          3,
+          3
+        ],
+        "absence-quorum-3600s": [
+          3,
+          3,
+          3
+        ],
+        "crash-restarts": [
+          5,
+          5,
+          5
+        ],
+        "full-persistent-restart": [
+          5,
+          5,
+          5
+        ]
+      },
+      "violations": [],
+      "audit_passed": true
+    }
+  ]
+}

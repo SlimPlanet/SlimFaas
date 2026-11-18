@@ -1,0 +1,201 @@
+{
+  "kind": "bounded diagnostic, not formal performance comparison",
+  "generation": "08",
+  "finished_utc": 1794733464.721962,
+  "variants": {
+    "before": {
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "b53cd5e070cd6f9e0eca357b62d63fccdbcbb83f2c097977cb3999f33e16e768",
+        "slimdata_dll": "9ea29b40a6ebf144a448ffcb9746072135a594455ebc64ac0595c0e7630e4d54"
+      }
+    },
+    "after": {
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-05",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "bbbfae6e26b7b5ac57b4d0daeaa8a4dcf4330e5498481989f00f07560296bd31",
+        "slimdata_dll": "7924bbea28de8ddaa1caa7513a996f41b9eed9ec937e3e96bf49a3025639ba5d"
+      },
+      "image_config_sha256": "bba7f39dd5e3355e971de40efd4f21df59a347e748402a0a7bcdc83f7bf7c83c"
+    }
+  },
+  "messages": 200,
+  "payload_bytes": 1048576,
+  "concurrency": 16,
+  "runtime_memory_limit_bytes": 1073741824,
+  "wal_chunk_bytes": 65536,
+  "observation_bound_seconds": 180,
+  "normal_probes": true,
+  "fresh_one_shot_bootstrap": true,
+  "notes": [
+    "Missing at the observation bound is not a confirmed permanent loss. Original state/receipts remain retained.",
+    "Current-only container logs can omit earlier incarnations; restart counts and historical stack traces remain separate evidence.",
+    "Log occurrence counts are not distinct exception counts. Kernel OOMKilled and restart counts do not detect all managed OOM."
+  ],
+  "phases": [
+    {
+      "ordinal": 1,
+      "variant": "before",
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 3.5539525320054963,
+      "observation_seconds": 180.0002574980026,
+      "not_delivered_at_bound": 183,
+      "extra_deliveries": 0,
+      "repeated_identifiers": 0,
+      "container_restarts_max": 4,
+      "observation_error_counts": {
+        "sampling": 30,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": false,
+      "final_capture_error": "Traceback (most recent call last):\n  File \"/profile/driver.py\", line 140, in <module>\n    campaign.capture('final')\n    ~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"/src/.bin/slimdata_kubernetes_backend.py\", line 176, in capture\n    [self.control(index) for index in range(3)], indent=2))\n     ~~~~~~~~~~~~^^^^^^^\n  File \"/src/.bin/slimdata_kubernetes_backend.py\", line 132, in control\n    with local[\"HTTP\"].open(request, timeout=5) as response:\n         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.14/urllib/request.py\", line 493, in open\n    response = meth(req, response)\n  File \"/usr/lib/python3.14/urllib/request.py\", line 602, in http_response\n    response = self.parent.error(\n        'http', request, response, code, msg, hdrs)\n  File \"/usr/lib/python3.14/urllib/request.py\", line 531, in error\n    return self._call_chain(*args)\n           ~~~~~~~~~~~~~~~~^^^^^^^\n  File \"/usr/lib/python3.14/urllib/request.py\", line 464, in _call_chain\n    result = func(*args)\n  File \"/usr/lib/python3.14/urllib/request.py\", line 611, in http_error_default\n    raise HTTPError(req.full_url, code, msg, hdrs, fp)\nurllib.error.HTTPError: HTTP Error 503: Service Unavailable\n",
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 0
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 24,
+          "new_leader_messages": 2
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-08/slimfaas-pr506-ps08-1-before",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps08-1-before"
+    },
+    {
+      "ordinal": 2,
+      "variant": "after",
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 4.192463821993442,
+      "observation_seconds": 180.00025895700674,
+      "not_delivered_at_bound": 0,
+      "extra_deliveries": 0,
+      "repeated_identifiers": 0,
+      "container_restarts_max": 0,
+      "observation_error_counts": {
+        "sampling": 0,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": true,
+      "final_capture_error": null,
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-08/slimfaas-pr506-ps08-2-after",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps08-2-after"
+    },
+    {
+      "ordinal": 3,
+      "variant": "after",
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 3.9266884839744307,
+      "observation_seconds": 180.00118379399646,
+      "not_delivered_at_bound": 0,
+      "extra_deliveries": 64,
+      "repeated_identifiers": 64,
+      "container_restarts_max": 0,
+      "observation_error_counts": {
+        "sampling": 0,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": false,
+      "final_capture_error": null,
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 26,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-08/slimfaas-pr506-ps08-3-after",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps08-3-after"
+    },
+    {
+      "ordinal": 4,
+      "variant": "before",
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 3.6506238139991183,
+      "observation_seconds": 180.00059487498947,
+      "not_delivered_at_bound": 181,
+      "extra_deliveries": 0,
+      "repeated_identifiers": 0,
+      "container_restarts_max": 4,
+      "observation_error_counts": {
+        "sampling": 29,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": false,
+      "final_capture_error": "Traceback (most recent call last):\n  File \"/profile/driver.py\", line 140, in <module>\n    campaign.capture('final')\n    ~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"/src/.bin/slimdata_kubernetes_backend.py\", line 176, in capture\n    [self.control(index) for index in range(3)], indent=2))\n     ~~~~~~~~~~~~^^^^^^^\n  File \"/src/.bin/slimdata_kubernetes_backend.py\", line 132, in control\n    with local[\"HTTP\"].open(request, timeout=5) as response:\n         ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.14/urllib/request.py\", line 493, in open\n    response = meth(req, response)\n  File \"/usr/lib/python3.14/urllib/request.py\", line 602, in http_response\n    response = self.parent.error(\n        'http', request, response, code, msg, hdrs)\n  File \"/usr/lib/python3.14/urllib/request.py\", line 531, in error\n    return self._call_chain(*args)\n           ~~~~~~~~~~~~~~~~^^^^^^^\n  File \"/usr/lib/python3.14/urllib/request.py\", line 464, in _call_chain\n    result = func(*args)\n  File \"/usr/lib/python3.14/urllib/request.py\", line 611, in http_error_default\n    raise HTTPError(req.full_url, code, msg, hdrs, fp)\nurllib.error.HTTPError: HTTP Error 503: Service Unavailable\n",
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 119,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 117,
+          "new_leader_messages": 4
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-08/slimfaas-pr506-ps08-4-before",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps08-4-before"
+    }
+  ]
+}

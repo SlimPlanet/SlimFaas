@@ -1,0 +1,21 @@
+{
+  "before": {
+    "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+    "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+    "hashes": {
+      "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "slimfaas_dll": "b53cd5e070cd6f9e0eca357b62d63fccdbcbb83f2c097977cb3999f33e16e768",
+      "slimdata_dll": "9ea29b40a6ebf144a448ffcb9746072135a594455ebc64ac0595c0e7630e4d54"
+    }
+  },
+  "after": {
+    "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+    "image": "localhost/slimfaas-pr506:after-tools-net11-05",
+    "hashes": {
+      "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "slimfaas_dll": "bbbfae6e26b7b5ac57b4d0daeaa8a4dcf4330e5498481989f00f07560296bd31",
+      "slimdata_dll": "7924bbea28de8ddaa1caa7513a996f41b9eed9ec937e3e96bf49a3025639ba5d"
+    },
+    "image_config_sha256": "bba7f39dd5e3355e971de40efd4f21df59a347e748402a0a7bcdc83f7bf7c83c"
+  }
+}

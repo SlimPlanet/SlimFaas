@@ -1,0 +1,16 @@
+{
+  "observed": 1794863118.685576,
+  "head": "81881c7a64b2bccc3e7d95be1ee9f92020027d6a",
+  "run": 43950346189,
+  "job": 133590868780,
+  "log": "ci/unified-sonar-818-failed.log",
+  "log_sha256": "898996031cbd979ae4cdfa9874dcdf4d1f2f11d5c3df2f1e2ecee2f5fce22073",
+  "test_results": {
+    "passed": 2432,
+    "failed": 1,
+    "skipped": 0,
+    "failure": "RaftMembershipRecoveryTests removeWhileOffline=True; NotLeaderException during ReconcileOnceAsync/remove-member after node is offline, line91. Different from the previously fixed initial-seed race; recovery writes remain single-attempt."
+  },
+  "scan_failure": "TypeScript discovery includes copied ClientApp/tsconfig.json under benchmark and test bin directories, which lack src inputs. Native stderr also terminates Windows PowerShell Tee pipeline. No completed analysis/scope/coverage certification.",
+  "correction": "Limit tsconfig discovery to the three original application configs; exclude generated bin/obj outputs; retain submitted-project metadata before end. Tests/scan rerun required; membership failure remains under investigation."
+}

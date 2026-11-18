@@ -1,0 +1,15 @@
+{
+  "archive": "performance-raw-file-index-net11-03.json.gz",
+  "sha256": "ff47769bd14c3b1f2ea7e337242ab0dfef8a4893838e88d3ab415c4cffc8f1ae",
+  "expanded_sha256": "33541ca9d7ddfbe0a2889bec9650c103ae8dff57def08442df822c2f8e338ae5",
+  "bytes": 3837181,
+  "local_roots": 9,
+  "vm_roots": 65,
+  "monitoring": {
+    "archive": "monitoring-raw-file-index-net11-03.json.gz",
+    "files": 243,
+    "bytes": 11988,
+    "sha256": "1149d2253a35de121edf2863ea8e244602831cb334fe7a0040927206210d9c7f",
+    "expanded_sha256": "f074df50997785f89286bfe68ac913d86bfb5ee8923eff33a27bdb14d6e328bc"
+  }
+}

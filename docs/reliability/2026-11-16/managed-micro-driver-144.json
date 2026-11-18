@@ -1,0 +1,126 @@
+{
+  "passed": true,
+  "created": 1794841675.139591,
+  "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "mode": "Managed framework-dependent untrimmed .NET11.0; optimized Release/InProcessEmit for both variants",
+  "discovered_method_count": 33,
+  "methods": [
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.FilterPeerHeaders",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.JobCallerLookup",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.ProjectDetailedStatuses",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.ProjectRequestHeaders",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.ProjectVirtualDeployment",
+    "SlimFaas.Benchmarks.CollectionPipelineBenchmarks.StageManagedQueue",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.FileTags",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.RetryQueue",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.RunningQueue",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.StreamCounters",
+    "SlimFaas.Benchmarks.DataFeatureBenchmarks.StreamRunning",
+    "SlimFaas.Benchmarks.DeadLetterMetadataBenchmarks.PayloadOwnerReferences",
+    "SlimFaas.Benchmarks.DeadLetterMetadataBenchmarks.RetentionSweep",
+    "SlimFaas.Benchmarks.DeploymentsSnapshotBenchmarks.ReadDeployments",
+    "SlimFaas.Benchmarks.DeploymentsSnapshotBenchmarks.ReadJobs",
+    "SlimFaas.Benchmarks.DeploymentsSnapshotBenchmarks.SearchFunction",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.PortCheck_AllocationFree",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.PortCheck_WithArrays",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.ProxyAcquireReleaseSync",
+    "SlimFaas.Benchmarks.HttpHotPathBenchmarks.ResolveVisibility_PathRules",
+    "SlimFaas.Benchmarks.QueueCountBenchmarks.CountOnly",
+    "SlimFaas.Benchmarks.QueueCountBenchmarks.MaterializeThenCount",
+    "SlimFaas.Benchmarks.QueueSelectionBenchmarks.Running",
+    "SlimFaas.Benchmarks.RoutingQueryBenchmarks.FirstReadyPodPorts",
+    "SlimFaas.Benchmarks.RoutingQueryBenchmarks.SearchFunction",
+    "SlimFaas.Benchmarks.RoutingQueryBenchmarks.StatusReadyCount",
+    "SlimFaas.Benchmarks.SchedulingBenchmarks.RegisterAlreadyKnownQuery",
+    "SlimFaas.Benchmarks.SchedulingBenchmarks.ScheduleLastTicks",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListCallback",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListCallbackBatch",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListLeftPushBatch",
+    "SlimFaas.Benchmarks.SlimDataQueueBenchmarks.ListRightPop",
+    "SlimFaas.Benchmarks.SlimDataStateBenchmarks.PayloadBytes"
+  ],
+  "runtime_config": {
+    "runtimeOptions": {
+      "tfm": "net11.0",
+      "frameworks": [
+        {
+          "name": "Microsoft.NETCore.App",
+          "version": "11.0.0"
+        },
+        {
+          "name": "Microsoft.AspNetCore.App",
+          "version": "11.0.0"
+        }
+      ],
+      "configProperties": {
+        "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
+        "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false
+      }
+    }
+  },
+  "before_driver_sha256": "4f5e38ffe19f9f319325e4897eff69f04451272f71609202903c675d4b0c55a3",
+  "after_driver_sha256": "414cbf5686313ee002709dbd33ce6731e1f7d0d09ca93da10b0a569ed14b646d",
+  "configuration_sha256": "1c1d530a0c5048f8086c8d8289aab7513c02a9f836e1c1ba733b312cda3122a6",
+  "corrected_build_argv": [
+    "dotnet",
+    "build",
+    "benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj",
+    "-c",
+    "Release",
+    "-p:PublishAot=false",
+    "-p:SelfContained=false",
+    "-p:SkipClientAppBuild=true",
+    "-nr:false",
+    "-o",
+    "artifacts/pr506/builds/drivers-net11-189/micro-after"
+  ],
+  "build_log_sha256": "ff18ecf95aba90ce984329641c778d84ef346e38ecf31185e4dfa24c2b748af6",
+  "scope": "NETSDK1151 from original114 publish retained. Corrected build/list validation only; no timed micro/matrix result exists yet. Product AOT/publications and compiler/analyzer/audit policies unchanged. Referenced products retain PublishTrimmed=true for compatibility analyzers; no trimming is performed by build.",
+  "archive": {
+    "path": "managed-micro-driver-144-raw.tar.gz",
+    "bytes": 2949,
+    "sha256": "59613c9259751e5ab2c60a14548c2f92e45b1187dd6dfb7b898662dcf62cf78b"
+  },
+  "files": [
+    {
+      "path": "preflight/net11-144-managed-micro-driver.json",
+      "sha256": "462fa612b885522b0cbdd8e26884d4ad1b9621ce03f615bf3e42052a228a5eb4",
+      "bytes": 4078
+    },
+    {
+      "path": "logs/net11-114-build-micro.log",
+      "sha256": "ca8ae1ccf1effc479cc787b5f110d400f4c61408fcdceeb4f4b3727c173ec931",
+      "bytes": 1441
+    },
+    {
+      "path": "logs/net11-144-build-micro.log",
+      "sha256": "ff18ecf95aba90ce984329641c778d84ef346e38ecf31185e4dfa24c2b748af6",
+      "bytes": 588
+    },
+    {
+      "path": "logs/net11-144-micro-list-before.log",
+      "sha256": "746a43bcde4f754381f3b0aae5c027e872e3f4426cc4b06281d0929d2b24ec0b",
+      "bytes": 2048
+    },
+    {
+      "path": "logs/net11-144-micro-list-after.log",
+      "sha256": "746a43bcde4f754381f3b0aae5c027e872e3f4426cc4b06281d0929d2b24ec0b",
+      "bytes": 2048
+    },
+    {
+      "path": "preflight/net11-114-final-matrix-sequence.json",
+      "sha256": "3eae9ac8f023ec1c119c842b06c566cc01b518588560117af2efa77fb6e7cf9e",
+      "bytes": 774
+    },
+    {
+      "path": "builds/drivers-net11-02/micro-before/SlimFaas.Benchmarks.runtimeconfig.json",
+      "sha256": "1c1d530a0c5048f8086c8d8289aab7513c02a9f836e1c1ba733b312cda3122a6",
+      "bytes": 440
+    },
+    {
+      "path": "builds/drivers-net11-189/micro-after/SlimFaas.Benchmarks.runtimeconfig.json",
+      "sha256": "1c1d530a0c5048f8086c8d8289aab7513c02a9f836e1c1ba733b312cda3122a6",
+      "bytes": 440
+    }
+  ]
+}

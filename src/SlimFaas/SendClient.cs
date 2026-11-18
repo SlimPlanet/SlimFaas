@@ -46,6 +46,8 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             customRequest.FunctionName, activityQueueName, targetPod: reservedPodIp);
         var requestOutId = !trackActivity ? null : activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, customRequest.FunctionName,
             activityQueueName, sourcePod: activitySourcePod, targetPod: reservedPodIp, correlationId: dequeueId ?? activityCorrelationId);
+        int transportEntries = 0;
+        string elementId = logger.IsEnabled(LogLevel.Trace) ? QueueElementId(customRequest) : string.Empty;
 
         try
         {
@@ -70,15 +72,33 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
                         using HttpRequestMessage targetRequestMessage =
                             CreateTargetMessage(customRequest, new Uri(targetUrl), bodyOverrideStream);
-                        return await httpClient.SendAsync(targetRequestMessage,
-                            HttpCompletionOption.ResponseHeadersRead,
-                            finalToken);
+                        transportEntries++;
+                        logger.LogAsyncTransportStage("enter-transport", customRequestFunctionName, elementId,
+                            transportEntries, reservedPodIp, targetUrl, null);
+                        HttpResponseMessage response;
+                        try
+                        {
+                            response = await httpClient.SendAsync(targetRequestMessage,
+                                HttpCompletionOption.ResponseHeadersRead,
+                                finalToken);
+                        }
+                        catch
+                        {
+                            logger.LogAsyncTransportStage("transport-outcome-unknown", customRequestFunctionName, elementId,
+                                transportEntries, reservedPodIp, targetUrl, null);
+                            throw;
+                        }
+                        logger.LogAsyncTransportStage("response-headers", customRequestFunctionName, elementId,
+                            transportEntries, reservedPodIp, targetUrl, (int)response.StatusCode);
+                        return response;
                     },
                     logger, slimFaasDefaultConfiguration.TimeoutRetries, slimFaasDefaultConfiguration.HttpStatusRetries)
                 .ConfigureAwait(false);
         }
         catch (Exception e)
         {
+            logger.LogAsyncTransportStage(transportEntries == 0 ? "failed-before-transport" : "send-operation-failed",
+                customRequest.FunctionName, elementId, transportEntries, reservedPodIp, null, null);
             logger.LogErrorInSendHttpRequestAsyncToTo(e, customRequest.FunctionName, customRequest.Path);
             throw;
         }
@@ -87,6 +107,17 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             if (trackActivity) activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, customRequest.FunctionName,
                 queueName: activityQueueName, sourcePod: activitySourcePod, targetPod: reservedPodIp, correlationId: requestOutId);
         }
+    }
+
+    private static string QueueElementId(CustomRequest request)
+    {
+        foreach (CustomHeader header in request.Headers)
+        {
+            if (string.Equals(header.Key, SlimQueuesWorker.SlimfaasElementId, StringComparison.OrdinalIgnoreCase) &&
+                header.Values.Length > 0)
+                return header.Values[0] ?? string.Empty;
+        }
+        return string.Empty;
     }
 
     public async Task<HttpResponseMessage> SendHttpRequestSync(

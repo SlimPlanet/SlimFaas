@@ -7,6 +7,8 @@ using SlimFaas.Kubernetes.Watch;
 using SlimFaas.Options;
 using NetworkActivityTracker = SlimFaas.Endpoints.NetworkActivityTracker;
 
+using ZLinq;
+
 namespace SlimFaas.Jobs;
 
 
@@ -89,7 +91,7 @@ public class SlimJobsWorker(
         {
             // Finished jobs remain listed until TTL cleanup, but no longer reserve
             // execution slots or keep their dependencies awake.
-            jobs = jobs.Where(j => j.Status is JobStatus.Pending or JobStatus.Running).ToList();
+            jobs = jobs.AsValueEnumerable().Where(static j => j.Status is JobStatus.Pending or JobStatus.Running).ToList();
             var jobsDictionary = new Dictionary<string, List<Job>>(StringComparer.OrdinalIgnoreCase);
             var configurations = jobConfiguration.Configuration.Configurations;
             foreach (var data in configurations)
@@ -97,7 +99,8 @@ public class SlimJobsWorker(
                 jobsDictionary.Add(JobService.QueueName(data.Key), new List<Job>());
             }
 
-            foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey, StringComparison.Ordinal)))
+            foreach (Job job in jobs.AsValueEnumerable().Where(static j =>
+                         j.Name.Contains(KubernetesService.SlimfaasJobKey, StringComparison.Ordinal)))
             {
                 var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                 string jobConfigurationName = jobNameSplits[0];
@@ -223,7 +226,7 @@ public class SlimJobsWorker(
             return DependencyReference.IsLocalProcessReady(deployments, dependency);
 
         DeploymentInformation? function =
-            deployments.Functions.FirstOrDefault(item => item.Deployment == dependency);
+            deployments.FindFunction(dependency);
         return function is not { Replicas: <= 0 };
     }
 }

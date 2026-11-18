@@ -1,5 +1,6 @@
 using SlimFaas.Kubernetes;
 using System.Text.Json;
+using ZLinq;
 
 namespace SlimFaas.WebSocket;
 
@@ -33,20 +34,19 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
 
     public IReadOnlyList<DeploymentInformation> GetVirtualDeployments()
     {
-        var result = new List<DeploymentInformation>();
-
         if (_directory is not null)
         {
             var connections = _directory.Connections;
             lock (_cacheLock)
             {
                 if (ReferenceEquals(connections, _connectionsSnapshot)) return _globalSnapshot;
+                var result = new List<DeploymentInformation>();
                 foreach (var group in connections.GroupBy(connection => connection.Function, StringComparer.OrdinalIgnoreCase))
                 {
                     var config = JsonSerializer.Deserialize(group.First().Configuration, AppJsonContext.Default.WebSocketFunctionConfiguration)
                         ?? throw new InvalidDataException("Missing WebSocket directory configuration.");
                     WebSocketConnectionRegistry.ParseConfiguration(group.Key, config);
-                    result.Add(CreateDeployment(group.Key, config, group.Select(connection => connection.Id)));
+                    result.Add(CreateDeployment(group.Key, config, group.AsValueEnumerable().Select(static connection => connection.Id)));
                 }
                 _connectionsSnapshot = connections;
                 _globalSnapshot = result;
@@ -54,6 +54,7 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
             }
         }
 
+        var localDeployments = new List<DeploymentInformation>();
         foreach (var functionName in _registry.GetRegisteredFunctionNames())
         {
             var config = _registry.GetConfiguration(functionName);
@@ -62,13 +63,17 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
             var connections = _registry.GetConnections(functionName);
             if (connections.Count == 0) continue;
 
-            result.Add(CreateDeployment(functionName, config, connections.Select(connection => connection.ConnectionId)));
+            localDeployments.Add(CreateDeployment(functionName, config,
+                connections.AsValueEnumerable().Select(static connection => connection.ConnectionId)));
         }
-        return result;
+        return localDeployments;
     }
 
     internal static DeploymentInformation CreateDeployment(string functionName, WebSocketFunctionConfiguration config,
-        IEnumerable<string> connectionIds)
+        IEnumerable<string> connectionIds) => CreateDeployment(functionName, config, connectionIds.AsValueEnumerable());
+
+    private static DeploymentInformation CreateDeployment<TEnumerator>(string functionName, WebSocketFunctionConfiguration config,
+        ValueEnumerable<TEnumerator, string> connectionIds) where TEnumerator : struct, IValueEnumerator<string>, allows ref struct
     {
             var pods = connectionIds
                 .Select(id => new PodInformation(
@@ -90,7 +95,7 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 ? FunctionTrust.Untrusted
                 : FunctionTrust.Trusted;
 
-            var subscribeEvents = config.SubscribeEvents
+            var subscribeEvents = config.SubscribeEvents.AsValueEnumerable()
                 .Select(e =>
                 {
                     FunctionVisibility evtVisibility = visibility; // hérite de DefaultVisibility par défaut
@@ -104,8 +109,8 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 })
                 .ToList();
 
-            var pathsVisibility = config.PathsStartWithVisibility
-                .Select(p => new PathVisibility(
+            var pathsVisibility = config.PathsStartWithVisibility.AsValueEnumerable()
+                .Select(static p => new PathVisibility(
                     p.Path,
                     p.Visibility.Equals("Private", StringComparison.OrdinalIgnoreCase)
                         ? FunctionVisibility.Private

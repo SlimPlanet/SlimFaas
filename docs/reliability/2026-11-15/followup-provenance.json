@@ -1,0 +1,1493 @@
+{
+  "sources": {
+    "766ada9b": {
+      "native": {
+        "started": 1794733471.90784,
+        "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+        "phases": [
+          {
+            "name": "publish-native-slimfaas",
+            "exit_code": 0,
+            "finished": 1794733568.505445,
+            "log": "logs/net11-04-publish-native-slimfaas.log",
+            "sha256": "00010a9d79aa87d398a22382edda66bd6ed8fb4f61accff3a133081ce45afad7"
+          },
+          {
+            "name": "publish-native-slimdata",
+            "exit_code": 0,
+            "finished": 1794734333.0492318,
+            "log": "logs/net11-04-publish-native-slimdata.log",
+            "sha256": "64e69c8006d50e555cb09a91314f74fe17534fa6e0f1f4cc8a0faa5b479b781f"
+          },
+          {
+            "name": "native-correctness-controls",
+            "exit_code": 0,
+            "finished": 1794734418.22682,
+            "log": "logs/net11-04-native-correctness-controls.log",
+            "sha256": "91f177bd4088e382d6a90ffaccb06418ba01fa97be102b58d45e6af0b7b3d6a0"
+          }
+        ],
+        "phase": "closed",
+        "publications": [
+          {
+            "path": "builds/candidate-osx-net11-04/SlimFaas",
+            "sha256": "fe206690a3625be3fa0602ac6ef24e1f7fbac6f21adc9612d0d10a3f5b0fddb9",
+            "bytes": 57279272,
+            "mode": "Native AOT osx-arm64"
+          },
+          {
+            "path": "builds/slimdata-osx-net11-04/SlimData",
+            "sha256": "896ae529d96ff51e221583a71ceee9c40017b049452c22b56a45fa29e9098458",
+            "bytes": 69281352,
+            "mode": "Native AOT osx-arm64"
+          }
+        ],
+        "finished": 1794734418.22761,
+        "passed": true,
+        "formal_performance_acceptance": false
+      },
+      "proof": {
+        "path": "preflight/net11-04-native-producer-session.json",
+        "sha256": "74090327c64b7c0c43ace723552f8dc5fdc846ac5c2a996641b4c72312ac149d"
+      },
+      "linux": {
+        "started": 1794731390.905504,
+        "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+        "phase": "ready-for-bounded-diagnostic",
+        "full_solution_tests": {
+          "passed": 2140,
+          "failed": 0,
+          "skipped": 0,
+          "results": [
+            {
+              "file": "reproductions/producer-session-memory-01/full-solution/_a115vcCX1PXQ575D_2026-11-15_09_28_25_net11.0[1].trx",
+              "sha256": "fc6348e4bc0b220ff11f536f8562b9fee58377f25c6bc46f994609940070a797",
+              "counters": {
+                "total": "1605",
+                "executed": "1605",
+                "passed": "1605",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/producer-session-memory-01/full-solution/_a115vcCX1PXQ575D_2026-11-15_09_27_12_net11.0[1].trx",
+              "sha256": "cdd90105ec2c4ecccff27012e9031447f4fb60b5aa5ceb8727b4864199602d21",
+              "counters": {
+                "total": "52",
+                "executed": "52",
+                "passed": "52",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/producer-session-memory-01/full-solution/_a115vcCX1PXQ575D_2026-11-15_09_28_08_net11.0.trx",
+              "sha256": "95398d42fddddcaaddc2c25191281bbb63625a9bc4dd62032ac644c712c24159",
+              "counters": {
+                "total": "106",
+                "executed": "106",
+                "passed": "106",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/producer-session-memory-01/full-solution/_a115vcCX1PXQ575D_2026-11-15_09_28_25_net11.0.trx",
+              "sha256": "4fd6b7b545f51cffef64005c518d9e0a46fa1a011d7c2f52be00cbd3688645e0",
+              "counters": {
+                "total": "366",
+                "executed": "366",
+                "passed": "366",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/producer-session-memory-01/full-solution/_a115vcCX1PXQ575D_2026-11-15_09_27_12_net11.0.trx",
+              "sha256": "86d2059fe8964ab9bf29b7af0af7eed9af1360c137c0e7601abf708508142640",
+              "counters": {
+                "total": "11",
+                "executed": "11",
+                "passed": "11",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            }
+          ]
+        },
+        "command": [
+          "podman",
+          "machine",
+          "ssh",
+          "podman exec --privileged -i slimfaas-pr506-worker3 ctr --namespace=k8s.io images import --all-platforms --digests - < /var/home/core/slimfaas-pr506/images/after-tools-net11-05.tar"
+        ],
+        "finished": 1794731463.033688,
+        "passed": true,
+        "images": {
+          "localhost/slimfaas-pr506:after-tools-net11-05": "bba7f39dd5e3355e971de40efd4f21df59a347e748402a0a7bcdc83f7bf7c83c"
+        },
+        "hashes": {
+          "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+          "/app/SlimFaas.dll": "bbbfae6e26b7b5ac57b4d0daeaa8a4dcf4330e5498481989f00f07560296bd31",
+          "/app/SlimData.dll": "7924bbea28de8ddaa1caa7513a996f41b9eed9ec937e3e96bf49a3025639ba5d",
+          "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+          "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+        },
+        "archive": "/var/home/core/slimfaas-pr506/images/after-tools-net11-05.tar"
+      },
+      "linux_proof": {
+        "path": "preflight/net11-04-producer-session-build.json",
+        "sha256": "4c583648135089eb7f146b83da8628d0ce4a87c3d2101d69a09662001058585a"
+      }
+    },
+    "c2fa989a": {
+      "native": {
+        "started": 1794737025.2925692,
+        "source": "c2fa989a068256a09e4fa7a2192f373eee00ad91",
+        "phases": [
+          {
+            "name": "publish-native-slimfaas",
+            "exit_code": 0,
+            "finished": 1794737118.623091,
+            "log": "logs/net11-05-publish-native-slimfaas.log",
+            "sha256": "a1f4c20f30a737f4c5a640225261452931ba9e27185cd77a3c4869a3da2e10e3"
+          },
+          {
+            "name": "publish-native-slimdata",
+            "exit_code": 0,
+            "finished": 1794737128.787762,
+            "log": "logs/net11-05-publish-native-slimdata.log",
+            "sha256": "bae8f71d1995c80459e8c697a7b8c7e8e81185c0158dbca2f8fbc6c63e579625"
+          },
+          {
+            "name": "native-correctness-controls",
+            "exit_code": 0,
+            "finished": 1794737215.152372,
+            "log": "logs/net11-05-native-correctness-controls.log",
+            "sha256": "7b738c26bb4fc45f7b5e3691817b7b7b47fff76cfda2b5436dadff3026e90aaf"
+          }
+        ],
+        "phase": "closed",
+        "publications": [
+          {
+            "path": "builds/candidate-osx-net11-05/SlimFaas",
+            "sha256": "86341e4509ac2837c3e43db1f150c466072348d3a5a4b6ae43ee2b96f5876dce",
+            "bytes": 57279320,
+            "mode": "Native AOT osx-arm64"
+          },
+          {
+            "path": "builds/slimdata-osx-net11-05/SlimData",
+            "sha256": "b780575caf39763ad7d395fee645286a2e43052af2c5406b70911cb61da2dca8",
+            "bytes": 69324568,
+            "mode": "Native AOT osx-arm64"
+          }
+        ],
+        "finished": 1794737215.15336,
+        "passed": true,
+        "formal_performance_acceptance": false
+      },
+      "proof": {
+        "path": "preflight/net11-05-native-batch-response.json",
+        "sha256": "8f6f4ad48349ee69ab48029346c78272357592dc10d5bccd067cd1d1c0eb72a2"
+      },
+      "linux": {
+        "started": 1794736845.830893,
+        "source": "c2fa989a068256a09e4fa7a2192f373eee00ad91",
+        "phase": "ready-for-bounded-diagnostic",
+        "full_solution_tests": {
+          "passed": 2150,
+          "failed": 0,
+          "skipped": 0,
+          "results": [
+            {
+              "file": "reproductions/batch-response-memory-02/full-solution-02/_a115vcCX1PXQ575D_2026-11-15_10_52_51_net11.0.trx",
+              "sha256": "91fef7c79f3e7b875a30b9bb849a86ab0aee9f287442a5eee6a1e84a259de703",
+              "counters": {
+                "total": "106",
+                "executed": "106",
+                "passed": "106",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/batch-response-memory-02/full-solution-02/_a115vcCX1PXQ575D_2026-11-15_10_52_41_net11.0.trx",
+              "sha256": "3f358eb5e6258035cddc1afa3548f822f14befca08b5d08e1ed7dc2183437cb4",
+              "counters": {
+                "total": "11",
+                "executed": "11",
+                "passed": "11",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/batch-response-memory-02/full-solution-02/_a115vcCX1PXQ575D_2026-11-15_10_52_43_net11.0[1].trx",
+              "sha256": "7f9ec89cab8df01bf9dd79d623ba05e52841f9ceff6d0069cb4b01fea418333c",
+              "counters": {
+                "total": "372",
+                "executed": "372",
+                "passed": "372",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/batch-response-memory-02/full-solution-02/_a115vcCX1PXQ575D_2026-11-15_10_52_49_net11.0.trx",
+              "sha256": "3043bba76d297d8e16015e1060c1f21de46cc37948eb69c01aa93891f5e7b592",
+              "counters": {
+                "total": "1609",
+                "executed": "1609",
+                "passed": "1609",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/batch-response-memory-02/full-solution-02/_a115vcCX1PXQ575D_2026-11-15_10_52_43_net11.0.trx",
+              "sha256": "e50c51ed74aca5ca45e933b1381158e07b0bb1457b9087bcd6dd9c72d742202f",
+              "counters": {
+                "total": "52",
+                "executed": "52",
+                "passed": "52",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            }
+          ]
+        },
+        "command": [
+          "podman",
+          "machine",
+          "ssh",
+          "podman exec --privileged -i slimfaas-pr506-worker3 ctr --namespace=k8s.io images import --all-platforms --digests - < /var/home/core/slimfaas-pr506/images/after-tools-net11-06.tar"
+        ],
+        "finished": 1794736893.4688342,
+        "passed": true,
+        "images": {
+          "localhost/slimfaas-pr506:after-tools-net11-06": "612ac278a0c04eed701fff54e4275c5a3d6ac4807891c2a5551bbba2bbe036fa"
+        },
+        "hashes": {
+          "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+          "/app/SlimFaas.dll": "359e569e529e25405c2c2dc77ba2edf08994b09affc21af06bdbea623a846ef9",
+          "/app/SlimData.dll": "3b3dfde1cfe18745c56d34f5eec8fccab1960eab2b2b5a0fd390c212aebe3df0",
+          "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+          "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+        },
+        "archive": "/var/home/core/slimfaas-pr506/images/after-tools-net11-06.tar"
+      },
+      "linux_proof": {
+        "path": "preflight/net11-05-batch-response-build.json",
+        "sha256": "00ab5d39e64fd8f9a64ef63348d9410ca730e585837ff21e08b1d5ea6a21fd99"
+      }
+    },
+    "e5883fa8": {
+      "native": {
+        "started": 1794740984.953404,
+        "source": "e5883fa8e28ba2775c4dee8e5e6a31a850d22c82",
+        "phases": [
+          {
+            "name": "publish-native-slimfaas",
+            "exit_code": 0,
+            "finished": 1794741049.333296,
+            "log": "logs/net11-06-publish-native-slimfaas.log",
+            "sha256": "ac09890e0aa843b8345ad3f04f243baab004069965ef96e9754e9bc628472494"
+          },
+          {
+            "name": "publish-native-slimdata",
+            "exit_code": 0,
+            "finished": 1794741059.412128,
+            "log": "logs/net11-06-publish-native-slimdata.log",
+            "sha256": "5e16c6d7ce5223ab10cc654ce7089b3254ebbf404e9a474be5932108b726dfec"
+          },
+          {
+            "name": "native-correctness-controls",
+            "exit_code": 0,
+            "finished": 1794741140.6919649,
+            "log": "logs/net11-06-native-correctness-controls.log",
+            "sha256": "7a5bb7eaf0489531c01cd82552c6637e120c68d81319d9958ec472b41a79ede1"
+          }
+        ],
+        "diagnostic_build_option": "IlcGenerateDgmlFile=false: omit regenerable dependency graph XML to avoid 4 GiB of temporary files; code generation, analyzers and mstat stay enabled.",
+        "phase": "closed",
+        "publications": [
+          {
+            "path": "builds/candidate-osx-net11-06/SlimFaas",
+            "sha256": "5762a1bf87b7b6599c814c1cc34ab3a6167f9ae71d38d11be29cdd3e6fb08336",
+            "bytes": 57295864,
+            "mode": "Native AOT osx-arm64"
+          },
+          {
+            "path": "builds/slimdata-osx-net11-06/SlimData",
+            "sha256": "f7e63dedab5a6cded8188e1ab1f28bf76b6025e58afbce33cd85fb8f776f829d",
+            "bytes": 69324568,
+            "mode": "Native AOT osx-arm64"
+          }
+        ],
+        "finished": 1794741140.6926441,
+        "passed": true,
+        "formal_performance_acceptance": false
+      },
+      "proof": {
+        "path": "preflight/net11-06-native-dispatch-ownership.json",
+        "sha256": "06d5cd458ba3306194539d25e4fa7d022cd5bd720159d14d87e02aefee6e57a1"
+      },
+      "linux": {
+        "started": 1794740913.963592,
+        "source": "e5883fa8e28ba2775c4dee8e5e6a31a850d22c82",
+        "phase": "ready-for-bounded-diagnostic",
+        "full_solution_tests": {
+          "passed": 2161,
+          "failed": 0,
+          "skipped": 0,
+          "results": [
+            {
+              "file": "reproductions/queued-body-memory-03/full-solution/_a115vcCX1PXQ575D_2026-11-15_12_03_35_net11.0.trx",
+              "sha256": "f17fcf41d97bd8119d41d8f44ff7ecaa6dee86fcb34f994c4eab302f5866f65a",
+              "counters": {
+                "total": "372",
+                "executed": "372",
+                "passed": "372",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/queued-body-memory-03/full-solution/_a115vcCX1PXQ575D_2026-11-15_12_03_33_net11.0.trx",
+              "sha256": "0d98b40a209eadc4f4af5746b3d9d514341f7e1c90e26876f030eda96f8b425f",
+              "counters": {
+                "total": "11",
+                "executed": "11",
+                "passed": "11",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/queued-body-memory-03/full-solution/_a115vcCX1PXQ575D_2026-11-15_12_03_35_net11.0[1].trx",
+              "sha256": "7fa1a146350599af634f445b1b9bead7abc459eaedc2a5d9ca071dfe37e3ebbd",
+              "counters": {
+                "total": "1620",
+                "executed": "1620",
+                "passed": "1620",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/queued-body-memory-03/full-solution/_a115vcCX1PXQ575D_2026-11-15_12_03_41_net11.0.trx",
+              "sha256": "9cfb7cb708a002d434318d9a8adbdba5ed5c05b460efffe19bf13cfd16e61ca9",
+              "counters": {
+                "total": "106",
+                "executed": "106",
+                "passed": "106",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/queued-body-memory-03/full-solution/_a115vcCX1PXQ575D_2026-11-15_12_03_32_net11.0.trx",
+              "sha256": "460f5d8c3be72690cee5ca5ec60827ee860347426a73efd17637ff2a8e5f6cec",
+              "counters": {
+                "total": "52",
+                "executed": "52",
+                "passed": "52",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            }
+          ]
+        },
+        "command": [
+          "podman",
+          "machine",
+          "ssh",
+          "podman exec --privileged -i slimfaas-pr506-worker3 ctr --namespace=k8s.io images import --all-platforms --digests - < /var/home/core/slimfaas-pr506/images/after-tools-net11-07.tar"
+        ],
+        "finished": 1794740951.75754,
+        "passed": true,
+        "images": {
+          "localhost/slimfaas-pr506:after-tools-net11-07": "4e7c96b543b026891ae16bed7132626a39dcbe8613592088c23fc3e664307d81"
+        },
+        "hashes": {
+          "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+          "/app/SlimFaas.dll": "ad6a7aa6bee1b07feedce4c553906bfca51e25a7d5498eaf743fcd0d36009187",
+          "/app/SlimData.dll": "ccd446f4db4b54f3c9f7eeb52003c182d7de5bf0a21f45b3f348028cc4fb584d",
+          "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+          "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+        },
+        "archive": "/var/home/core/slimfaas-pr506/images/after-tools-net11-07.tar"
+      },
+      "linux_proof": {
+        "path": "preflight/net11-06-dispatch-ownership-build-02.json",
+        "sha256": "7d1dec79223478daf28b85a714688431bf900534450ec0f898b636e4f24c68ea"
+      }
+    },
+    "f14b05b3": {
+      "native": {
+        "started": 1794753572.515432,
+        "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+        "phases": [
+          {
+            "name": "publish-native-slimdata",
+            "exit_code": 0,
+            "finished": 1794753588.314647,
+            "log": "logs/net11-09-publish-native-slimdata-02.log",
+            "sha256": "733380faad87dd894df63657008b0c0f91edb4a307d21ca3f1867d996f5ee295"
+          },
+          {
+            "name": "native-correctness-controls",
+            "exit_code": 0,
+            "finished": 1794753668.882745,
+            "log": "logs/net11-09-native-correctness-controls-02.log",
+            "sha256": "ad201e198c4faeff9a0651dd0625b5ee039a27369f6671561a41480eaaca0af4"
+          }
+        ],
+        "diagnostic_build_option": "IlcGenerateDgmlFile=false: omit regenerable dependency graph XML to avoid 4 GiB of temporary files; code generation, analyzers and mstat stay enabled.",
+        "publications": [
+          {
+            "path": "builds/candidate-osx-net11-09/SlimFaas",
+            "sha256": "f210451a535a49d21c2d48743c0dce1b599e79e4c74ed2142c5267a571df50a9",
+            "bytes": 57295896,
+            "mode": "Native AOT osx-arm64"
+          },
+          {
+            "path": "builds/slimdata-osx-net11-09/SlimData",
+            "sha256": "c5c01e0915217613ae370c8ab574b1e4d14ae2694df125a1a99f0e10daa3185b",
+            "bytes": 69337720,
+            "mode": "Native AOT osx-arm64"
+          }
+        ],
+        "resumes": "net11-09-native-async-offload.json",
+        "phase": "closed",
+        "finished": 1794753668.883463,
+        "passed": true,
+        "formal_performance_acceptance": false
+      },
+      "native_first_attempt": {
+        "started": 1794752613.260629,
+        "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+        "phases": [
+          {
+            "name": "publish-native-slimfaas",
+            "exit_code": 0,
+            "finished": 1794752677.710989,
+            "log": "logs/net11-09-publish-native-slimfaas.log",
+            "sha256": "196b24abbfb633cae49ee31e630a0e2c7d9e03b17ccb9456eea9a3acd962cf9e"
+          }
+        ],
+        "diagnostic_build_option": "IlcGenerateDgmlFile=false: omit regenerable dependency graph XML to avoid 4 GiB of temporary files; code generation, analyzers and mstat stay enabled.",
+        "phase": "failed",
+        "publications": [
+          {
+            "path": "builds/candidate-osx-net11-09/SlimFaas",
+            "sha256": "f210451a535a49d21c2d48743c0dce1b599e79e4c74ed2142c5267a571df50a9",
+            "bytes": 57295896,
+            "mode": "Native AOT osx-arm64"
+          }
+        ],
+        "finished": 1794752677.736654,
+        "passed": false,
+        "error": "AssertionError()"
+      },
+      "linux": {
+        "started": 1794752598.830784,
+        "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+        "resumes": "net11-09-async-offload-build-01.json",
+        "reason": "Archive name collision was rejected before writing; keep the original archive and publish a fresh 08 archive. Reuse and reverify the completed runtime publication/image.",
+        "phase": "ready",
+        "command": [
+          "podman",
+          "machine",
+          "ssh",
+          "podman exec --privileged -i slimfaas-pr506-worker3 ctr --namespace=k8s.io images import --all-platforms --digests - < /var/home/core/slimfaas-pr506/images/after-tools-net11-08.tar"
+        ],
+        "finished": 1794752613.22122,
+        "passed": true,
+        "image": "localhost/slimfaas-pr506:after-tools-net11-08",
+        "image_config_sha256": "cca0c90a413084d974206d6c0df4ec1b097369502c2da7afd79e2e580f95dab5",
+        "hashes": {
+          "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+          "/app/SlimFaas.dll": "45d4b14f4ccf68cac35a07f16df62599a2d8e79e447ed1b554afdb91b8f48227",
+          "/app/SlimData.dll": "e30a5a7f84efb0b8a40d932757e51953a8ef8b50d164fe2ce7af052eea1031d5",
+          "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+          "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07",
+          "/src/tests/SlimFaas.Tests/Local/chaos_function.py": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48"
+        },
+        "archive": "/var/home/core/slimfaas-pr506/images/after-tools-net11-08.tar",
+        "full_solution_tests": {
+          "passed": 2226,
+          "failed": 0,
+          "skipped": 0,
+          "results": [
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_14_net11.0.trx",
+              "sha256": "12736280076e3262825fd0ef26d2df4d9855994c38cb116ace2a6c088e260b8b",
+              "counters": {
+                "total": "1677",
+                "executed": "1677",
+                "passed": "1677",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_00_net11.0[1].trx",
+              "sha256": "a46bb39ae306524c9841ada0bc51ad7fc04ff559690b129e818b399424389327",
+              "counters": {
+                "total": "52",
+                "executed": "52",
+                "passed": "52",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_19_net11.0.trx",
+              "sha256": "02ce312dbd30ef5e7e798ebd5a7bdfd994bad135f326539363b34cd6c5a90c00",
+              "counters": {
+                "total": "106",
+                "executed": "106",
+                "passed": "106",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_00_net11.0.trx",
+              "sha256": "d28a0e5f92c2ccd07b4579d4ffe5cd5f022a512368d55e1d367f1217ce6e7485",
+              "counters": {
+                "total": "11",
+                "executed": "11",
+                "passed": "11",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_13_net11.0.trx",
+              "sha256": "1325a5fab8a4a315fd6b4f406f3b2b09cb09d3ffedf3630b7258c1fd41174f88",
+              "counters": {
+                "total": "380",
+                "executed": "380",
+                "passed": "380",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            }
+          ]
+        }
+      },
+      "linux_first_attempt": {
+        "started": 1794752497.9743512,
+        "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+        "phase": "failed",
+        "full_solution_tests": {
+          "passed": 2226,
+          "failed": 0,
+          "skipped": 0,
+          "results": [
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_14_net11.0.trx",
+              "sha256": "12736280076e3262825fd0ef26d2df4d9855994c38cb116ace2a6c088e260b8b",
+              "counters": {
+                "total": "1677",
+                "executed": "1677",
+                "passed": "1677",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_00_net11.0[1].trx",
+              "sha256": "a46bb39ae306524c9841ada0bc51ad7fc04ff559690b129e818b399424389327",
+              "counters": {
+                "total": "52",
+                "executed": "52",
+                "passed": "52",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_19_net11.0.trx",
+              "sha256": "02ce312dbd30ef5e7e798ebd5a7bdfd994bad135f326539363b34cd6c5a90c00",
+              "counters": {
+                "total": "106",
+                "executed": "106",
+                "passed": "106",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_00_net11.0.trx",
+              "sha256": "d28a0e5f92c2ccd07b4579d4ffe5cd5f022a512368d55e1d367f1217ce6e7485",
+              "counters": {
+                "total": "11",
+                "executed": "11",
+                "passed": "11",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_13_net11.0.trx",
+              "sha256": "1325a5fab8a4a315fd6b4f406f3b2b09cb09d3ffedf3630b7258c1fd41174f88",
+              "counters": {
+                "total": "380",
+                "executed": "380",
+                "passed": "380",
+                "failed": "0",
+                "error": "0",
+                "timeout": "0",
+                "aborted": "0",
+                "inconclusive": "0",
+                "passedButRunAborted": "0",
+                "notRunnable": "0",
+                "notExecuted": "0",
+                "disconnected": "0",
+                "warning": "0",
+                "completed": "0",
+                "inProgress": "0",
+                "pending": "0"
+              }
+            }
+          ]
+        },
+        "command": [
+          "podman",
+          "machine",
+          "ssh",
+          "test ! -e /var/home/core/slimfaas-pr506/images/after-tools-net11-07.tar && podman save --format docker-archive -o /var/home/core/slimfaas-pr506/images/after-tools-net11-07.tar localhost/slimfaas-pr506:after-tools-net11-08"
+        ],
+        "finished": 1794752523.745193,
+        "passed": false,
+        "error": "CalledProcessError(1, ['podman', 'machine', 'ssh', 'test ! -e /var/home/core/slimfaas-pr506/images/after-tools-net11-07.tar && podman save --format docker-archive -o /var/home/core/slimfaas-pr506/images/after-tools-net11-07.tar localhost/slimfaas-pr506:after-tools-net11-08'])"
+      },
+      "threshold_tests": {
+        "recorded": 1794752350.467809,
+        "base": "942729a7224107350fa87cbdfee2c2920c93f361",
+        "default_bytes": 1048576,
+        "comparison": "strictly greater",
+        "settings_location": "SlimFaas:AsyncBodyOffloadThresholdBytes",
+        "checks": {
+          "before-02": [
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/before-02/_a115vcCX1PXQ575D_2026-11-15_15_14_48_net11.0.trx",
+              "sha256": "c293c7bdcf6c59ea97dc67cbf017b6e0276f61d61894101eeecd97fbd9fb5ed2",
+              "total": 49,
+              "passed": 37,
+              "failed": 12,
+              "notExecuted": 0
+            }
+          ],
+          "after": [
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/after/_a115vcCX1PXQ575D_2026-11-15_15_16_08_net11.0.trx",
+              "sha256": "9162f6f7c9e45aeda8db0c3740f0c9d7c492a04fc55a59eac68853828e9f929c",
+              "total": 58,
+              "passed": 58,
+              "failed": 0,
+              "notExecuted": 0
+            }
+          ],
+          "full-solution": [
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_00_net11.0.trx",
+              "sha256": "d28a0e5f92c2ccd07b4579d4ffe5cd5f022a512368d55e1d367f1217ce6e7485",
+              "total": 11,
+              "passed": 11,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_00_net11.0[1].trx",
+              "sha256": "a46bb39ae306524c9841ada0bc51ad7fc04ff559690b129e818b399424389327",
+              "total": 52,
+              "passed": 52,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_13_net11.0.trx",
+              "sha256": "1325a5fab8a4a315fd6b4f406f3b2b09cb09d3ffedf3630b7258c1fd41174f88",
+              "total": 380,
+              "passed": 380,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_14_net11.0.trx",
+              "sha256": "12736280076e3262825fd0ef26d2df4d9855994c38cb116ace2a6c088e260b8b",
+              "total": 1677,
+              "passed": 1677,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/async-offload-threshold-net11-09/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_17_19_net11.0.trx",
+              "sha256": "02ce312dbd30ef5e7e798ebd5a7bdfd994bad135f326539363b34cd6c5a90c00",
+              "total": 106,
+              "passed": 106,
+              "failed": 0,
+              "notExecuted": 0
+            }
+          ]
+        },
+        "boundary_cases": "128/256/512/1024 KiB, minus one/equal/plus one, known/unknown Content-Length, root/path routes; original 2 MiB regression retained.",
+        "final_validation": "Positive thresholds only, below Array.MaxLength. The full suite includes the final zero-rejection option check.",
+        "intermediate_failure": "First test fixture used Assert.NotNull on a value type, rejected by xUnit2002; removed without suppression and failing compiler log retained.",
+        "application_benchmarks": "Pending; default unchanged."
+      }
+    }
+  },
+  "note": "Native AOT macOS and managed/trimmed Linux publications are distinct. Each comparison stays within one mode. The new diagnostic 11 and renewed formal/endurance acceptance remain pending. No earlier validation is assigned retroactively.",
+  "subsequent_storage_tests": {
+    "190314779ec3de71f4b4e60333471f9162aaf7c9": {
+      "proof": "preflight/net11-07-files-integrity-tests.json",
+      "sha256": "2ac7ad18dc8ed60b604a77087c187be55506a02708a05dff6c015e98a7f40f4c",
+      "observations": {
+        "recorded": 1794750084.029888,
+        "base": "f94030d271ed7d6e375b4846ee11ff25c70bb747",
+        "working_changes": "Verify actual local Files length/SHA before availability",
+        "passed": 2163,
+        "failed": 0,
+        "skipped": 0,
+        "results": [
+          {
+            "file": "reproductions/files-integrity-net11-07/full-solution/_a115vcCX1PXQ575D_2026-11-15_14_35_39_net11.0.trx",
+            "sha256": "eb053e1c343f5acf4167582f6cfd1117cb0d4f9f5fe1044fb90497a511577da4",
+            "counters": {
+              "total": "11",
+              "executed": "11",
+              "passed": "11",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/files-integrity-net11-07/full-solution/_a115vcCX1PXQ575D_2026-11-15_14_35_39_net11.0[1].trx",
+            "sha256": "e75525e15f53ad8827026338baf4ceba6773496e317911bf44f8d066428226cc",
+            "counters": {
+              "total": "52",
+              "executed": "52",
+              "passed": "52",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/files-integrity-net11-07/full-solution/_a115vcCX1PXQ575D_2026-11-15_14_35_40_net11.0.trx",
+            "sha256": "ea07565f794e5a8b7fe367245223615085879d47825fbf188b7c922ce46b1a27",
+            "counters": {
+              "total": "374",
+              "executed": "374",
+              "passed": "374",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/files-integrity-net11-07/full-solution/_a115vcCX1PXQ575D_2026-11-15_14_35_43_net11.0.trx",
+            "sha256": "fdc4357cde2c5cbb03a0bc4b52b59ba07423bc9dfaadbe4e15a2c1bb582d0fc5",
+            "counters": {
+              "total": "1620",
+              "executed": "1620",
+              "passed": "1620",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/files-integrity-net11-07/full-solution/_a115vcCX1PXQ575D_2026-11-15_14_35_48_net11.0.trx",
+            "sha256": "6e7bf7a01da4e0b667ad3ec208b48f1517d464e17f7f0874a3a4c329a5f450b0",
+            "counters": {
+              "total": "106",
+              "executed": "106",
+              "passed": "106",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          }
+        ],
+        "source_diff_sha256": "73e5f0d06875a8de86e84a057158e8968b4a26844eb5eee0808d5005b1ddc05c"
+      },
+      "local_native_and_container_checks": "Pending; frozen e588 images do not contain these changes."
+    },
+    "24e36d71be5409e924af1476dbb694f23d342910": {
+      "proof": "preflight/net11-08-peer-replacement-tests.json",
+      "sha256": "25a6dc82f73af780d48991fda210c62933fdaea41cb3a8a001af49c311d1033a",
+      "observations": {
+        "recorded": 1794751906.059198,
+        "source_before": "190314779ec3de71f4b4e60333471f9162aaf7c9",
+        "failure": "Bad peer hash publishes new body then deletes the ID, removing an earlier valid local version. Truncated transfer control already preserves the old version.",
+        "correction": "SaveVerifiedAsync checks the existing single streaming hash and measured length on the temporary body before publication. A failed download leaves the previous body and metadata intact.",
+        "checks": {
+          "before": [
+            {
+              "file": "reproductions/peer-replacement-net11-08/before/_a115vcCX1PXQ575D_2026-11-15_15_07_38_net11.0.trx",
+              "sha256": "f9cb9e4b82fbe6f22f4a8b06454c0b5a06bd10ab2394bdb4832cc9b41ca331bb",
+              "total": 2,
+              "passed": 1,
+              "failed": 1,
+              "notExecuted": 0
+            }
+          ],
+          "after-02": [
+            {
+              "file": "reproductions/peer-replacement-net11-08/after-02/_a115vcCX1PXQ575D_2026-11-15_15_09_14_net11.0.trx",
+              "sha256": "76413e0e1288b107f48bc87025577e0ce6c74051b5c8176c88e18572ca5dd550",
+              "total": 380,
+              "passed": 380,
+              "failed": 0,
+              "notExecuted": 0
+            }
+          ],
+          "full-solution": [
+            {
+              "file": "reproductions/peer-replacement-net11-08/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_09_57_net11.0.trx",
+              "sha256": "4320dbb4049066916a640dbeaa13f342ead8160c0e98fb75f42562edc1d8e680",
+              "total": 52,
+              "passed": 52,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/peer-replacement-net11-08/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_09_58_net11.0.trx",
+              "sha256": "8c713c808d1508de9524bab58e3fc01b603956ce31bb45babfa5705c4abdb897",
+              "total": 11,
+              "passed": 11,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/peer-replacement-net11-08/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_10_00_net11.0.trx",
+              "sha256": "f729c12a7af4467c680a3cc79dc190dbbc3af23a77164556adf9455396fd9bd2",
+              "total": 380,
+              "passed": 380,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/peer-replacement-net11-08/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_10_02_net11.0.trx",
+              "sha256": "30cc8203c09500d7875cdd01f32abc0fcd445c3e01b8fb650511e35f1b74d53e",
+              "total": 1620,
+              "passed": 1620,
+              "failed": 0,
+              "notExecuted": 0
+            },
+            {
+              "file": "reproductions/peer-replacement-net11-08/full-solution/_a115vcCX1PXQ575D_2026-11-15_15_10_14_net11.0.trx",
+              "sha256": "cd79e074c9145154832a2f3325f4f549a223f3d6e48470cf162ad53cea285725",
+              "total": 106,
+              "passed": 106,
+              "failed": 0,
+              "notExecuted": 0
+            }
+          ]
+        },
+        "intermediate_failure": "Initial private helper parameter order failed CA1068; corrected without suppression, retained logs/net11-08-peer-replacement-after.log.",
+        "new_aot_or_container_measurements": false
+      },
+      "local_native_and_container_checks": "Pending; frozen e588 images do not contain these changes."
+    },
+    "0e98ed08": {
+      "proof": "preflight/net11-10-file-version-tests.json",
+      "sha256": "33e7a366bf2acb81e5c243cfc8781ae94b7c13a59f10d64bd4397af426227a82",
+      "observations": {
+        "recorded": 1794758698.5528908,
+        "base": "f14b05b36277c2c4e53576414c68954ec4eee066",
+        "working_changes": "Checksum-selected retained revisions and reference-aware cleanup. Fresh IDs and same-checksum repairs retain the old layout; changed hashes use retained revisions and a legacy current-path hard link.",
+        "passed": 2236,
+        "failed": 0,
+        "skipped": 0,
+        "results": [
+          {
+            "file": "reproductions/file-version-publication-net11-10/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_16_59_40_net11.0.trx",
+            "sha256": "12f60bca636acb9c2a808bfa063e91bc5a1ad0b9897b4954d999d72b23df910a",
+            "counters": {
+              "total": "52",
+              "executed": "52",
+              "passed": "52",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/file-version-publication-net11-10/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_16_59_41_net11.0.trx",
+            "sha256": "c7a2a263b92e0721881eca8b1767b8d65f4de80a8c76ab8c3774b2f6e20928cd",
+            "counters": {
+              "total": "11",
+              "executed": "11",
+              "passed": "11",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/file-version-publication-net11-10/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_16_59_55_net11.0.trx",
+            "sha256": "7cfd9936bc57ea79b50215341909195813ffa2f53e682b86056bf60a13a430ac",
+            "counters": {
+              "total": "387",
+              "executed": "387",
+              "passed": "387",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/file-version-publication-net11-10/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_16_59_57_net11.0.trx",
+            "sha256": "4364ca54d859012b0e8eea39f61aaab6f6a183d7197c4f4ac33ef13108a5952b",
+            "counters": {
+              "total": "1680",
+              "executed": "1680",
+              "passed": "1680",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          },
+          {
+            "file": "reproductions/file-version-publication-net11-10/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_17_00_01_net11.0.trx",
+            "sha256": "f5bddf21560345e976d5c566836387fb1ab3bfa2514b50fa202bb8fc81d1bf1f",
+            "counters": {
+              "total": "106",
+              "executed": "106",
+              "passed": "106",
+              "failed": "0",
+              "error": "0",
+              "timeout": "0",
+              "aborted": "0",
+              "inconclusive": "0",
+              "passedButRunAborted": "0",
+              "notRunnable": "0",
+              "notExecuted": "0",
+              "disconnected": "0",
+              "warning": "0",
+              "completed": "0",
+              "inProgress": "0",
+              "pending": "0"
+            }
+          }
+        ],
+        "before_revisions": "Two regressions fail on f14; retained requested bytes disappear before Raft metadata publication.",
+        "before_ttl": "Old f14 cleaner over the draft repository deletes an expired local body while Raft metadata TTL is live: one failing regression. Scope is an isolated cleaner overlay, not an unmodified application.",
+        "intermediates": "Initial CA2000/CA1859 diagnostics fixed without suppression; first TTL fixture missing namespace failed compilation; three old single-filename fixture assumptions updated after hard links. All original logs/TRX retained.",
+        "native_container_checks": "Pending for this working source. Frozen f14 publications do not contain it.",
+        "guarantee_limits": "No durable admission pin, file/directory persistence barrier, remote persisted-copy acknowledgement or durable-reference catchup is provided by this component."
+      },
+      "local_native_and_container_checks": "Pending for this source; f14 binaries do not contain it."
+    }
+  },
+  "dco_source_equivalence": {
+    "prepared": 1794743391.912004,
+    "original_commit": "e5883fa8e28ba2775c4dee8e5e6a31a850d22c82",
+    "corrected_commit": "f94030d271ed7d6e375b4846ee11ff25c70bb747",
+    "tree": "d85dde5e2b0d48b7fa7600070ee5fe6e3b4d9231",
+    "parent": "c2fa989a068256a09e4fa7a2192f373eee00ad91",
+    "source_tree_identical": true,
+    "branch_unchanged": true,
+    "published": true,
+    "dco_check": "https://github.com/SlimPlanet/SlimFaas/runs/132792344605",
+    "message_file": "dco-corrected-commit-message.txt",
+    "user_approved": true,
+    "approved_at": 1794746338.0671449,
+    "approval_record": "User explicitly approved replacing only e5883fa8 with the prepared identical-tree signoff correction, after the current campaign, preserving the original SHA in an evidence ref.",
+    "published_at": 1794748663.06368,
+    "evidence_ref": "refs/heads/codex/pr506-evidence-e5883fa8",
+    "branch_tree_unchanged": true,
+    "dirty_diff_sha256": "36dd9e400d019475966013d1cbfa203cd568a42577763bb1849a0f4b65f1251b",
+    "finished_after_screen": 1794747478.275886,
+    "permission_before_approval": "Replacing the last published commit requires a precisely leased branch update. Preserve the original source object in an evidence ref and finish the active campaign first.",
+    "permission_pending": false
+  },
+  "merged_validation_85b628d5": {
+    "recorded": 1794759163.6473348,
+    "source": "85b628d506a6a335899ce55f0bb983228cea0936",
+    "parents": [
+      "0e98ed080ba95a6c4dfb690232f1bd27dc91233a",
+      "e09b9dfbfe7ac525da2a4fd961e1d40a46562232"
+    ],
+    "passed": 2247,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "file": "reproductions/file-version-publication-net11-10/merged-full-solution/_a115vcCX1PXQ575D_2026-11-15_17_08_13_net11.0.trx",
+        "sha256": "7ad1ff720ad0ed2f0fabba1463c07b7dfcf449c25120703eadbf25640baee70c",
+        "counters": {
+          "total": "11",
+          "executed": "11",
+          "passed": "11",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-version-publication-net11-10/merged-full-solution/_a115vcCX1PXQ575D_2026-11-15_17_08_13_net11.0[1].trx",
+        "sha256": "8e59b275db17d83549113e7d62e0b0798316b5c2fc002161f594a50a3ed29860",
+        "counters": {
+          "total": "52",
+          "executed": "52",
+          "passed": "52",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-version-publication-net11-10/merged-full-solution/_a115vcCX1PXQ575D_2026-11-15_17_08_27_net11.0.trx",
+        "sha256": "92709ad5d42fee8b329208ae39075fa115a49c01bb6db47e438365f2a5ca2581",
+        "counters": {
+          "total": "387",
+          "executed": "387",
+          "passed": "387",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-version-publication-net11-10/merged-full-solution/_a115vcCX1PXQ575D_2026-11-15_17_08_28_net11.0.trx",
+        "sha256": "b6882bd6a1601ce666a9cf3078ea345730b6489bd6334fabe364ccc1c790b5b5",
+        "counters": {
+          "total": "1688",
+          "executed": "1688",
+          "passed": "1688",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      {
+        "file": "reproductions/file-version-publication-net11-10/merged-full-solution/_a115vcCX1PXQ575D_2026-11-15_17_08_33_net11.0.trx",
+        "sha256": "e716746bb98ee7ed1ac61561112c7034f17853bed0f5ef9b9e8442b702d0f68b",
+        "counters": {
+          "total": "109",
+          "executed": "109",
+          "passed": "109",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      }
+    ],
+    "reason": "Normal signed merge preserves the remotely published main merge and the independently tested revision/lifetime correction. No published history is rewritten.",
+    "bundle_helpers_log": "logs/net11-10-merged-bundle-helpers.log"
+  }
+}

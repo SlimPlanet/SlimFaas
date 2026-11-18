@@ -1,10 +1,33 @@
 <div align="center">
+
+## Requirements and compatibility
+
+This version targets **net11.0 only** and requires .NET 11. The previous .NET 8,
+9 and 10 targets have been removed. Upgrade consuming applications to .NET 11
+before updating the package. HTTP/WebSocket protocols and public client method
+contracts are unchanged. Build from source with the SDK selected by the root
+`global.json` (11.0.100 or a newer stable .NET 11 SDK).
+
   <a href="https://slimfaas.dev/">
     <img src="https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/src/SlimFaasSite/public/slimfaas.svg" alt="SlimFaas" width="96" />
   </a>
 </div>
 
 # SlimFaasClient
+
+The server's default retry statuses include `504` for delivery/owner timeouts.
+The runtime releases an Async ID cancelled before transmission. An interrupted
+active send closes its connection; reconnect allows safe at-least-once replay.
+A fully transmitted attempt remains reserved until its callback or disconnect.
+Explicit `HttpStatusRetries` lists override this policy. Existing queued messages
+retain their original statuses; enable DLQ retention for exhausted failures.
+
+Async bodies are base64 encoded inside WebSocket JSON envelopes. For Python
+workers receiving larger bodies, see [the Python client's bounded receive limits](../../python/slimfaas-client/README.md#incoming-message-limits).
+
+Async request `TryNumber` starts at `0`. With two configured retries, only
+attempt `2` has `IsLastTry == true`. Older runtimes exposed incorrect queue
+attempt metadata; the runtime correction does not change the client wire format.
 
 Durable Streams use `SubscribeStreams` (`SubscribeStreamConfig`) and
 `OnStreamMessage` (`SlimFaasStreamMessage`). The message includes `StreamName`,
@@ -79,6 +102,11 @@ await client.RunForeverAsync(cts.Token);
 ```
 
 If the handler throws before the response starts, the client sends a `500`.
+`Response.WriteAsync` accepts large buffers and sends them as ordered chunks of
+at most 64 KiB. This preserves streaming across another SlimFaas node, whose
+peer relay bounds complete frames at 256 KiB. Both Stream write overloads share
+this behavior, and cancellation stops before the next chunk. The wire format
+and application response bytes are unchanged.
 If it throws after the status and headers are sent, the status can no longer
 change, so the client cancels the stream and the caller gets a truncated
 response. See [sync streaming](../../../docs/clients.md#7-synchronous-http-over-websocket).

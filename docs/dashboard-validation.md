@@ -54,7 +54,7 @@ For interactive scenarios, run `npm run storybook` and open **Dashboard / Live**
 
 ## Integration validation
 
-The complete .NET suite passed 1,214 tests (SlimFaas 950, SlimData 176, MCP 79, Kafka 9). Dashboard and documentation tests each passed 8 tests; dashboard, Storybook and documentation builds succeeded. Run these checks with Node 24 on PATH:
+The complete .NET suite passed 1,214 tests (SlimFaas 950, SlimData 176, MCP 79, Kafka 9). Dashboard and documentation tests each passed 8 tests; dashboard, Storybook and documentation builds succeeded. Run these checks on the current checkout with .NET SDK 11.0.100 and Node 26 LTS on PATH:
 
 ```bash
 dotnet test
@@ -274,7 +274,7 @@ Windows CI also exposed two unrelated fixture races: PowerShell can still hold a
 
 ## Scaling diagnostics and playground validation
 
-Build the dashboard, then run its production browser regression with Node 24 and an external Playwright Core installation:
+Build the dashboard, then run its production browser regression with Node 26 LTS and an external Playwright Core installation:
 
 ```bash
 (cd src/SlimFaas/ClientApp && npm test && npm run build)
@@ -330,7 +330,7 @@ responses are checked at their actual canvas positions.
 (cd src/SlimFaas/ClientApp && npm run test:e2e -- --grep 'recursive|async')
 ```
 
-Use Node 24 and .NET 10. Build the runtime for the host RID (`osx-arm64` below; CI uses `linux-x64`):
+Use Node 26 LTS and .NET SDK 11.0.100. Build the runtime for the host RID (`osx-arm64` below; CI uses `linux-x64`):
 
 ```bash
 (cd src/SlimFaas/ClientApp && npm ci --ignore-scripts && ./node_modules/.bin/playwright install chromium)

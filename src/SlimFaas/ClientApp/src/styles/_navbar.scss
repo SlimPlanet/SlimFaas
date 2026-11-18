@@ -1,15 +1,29 @@
 .navbar {
-  min-height: 76px; padding: 0 2rem; display: flex; align-items: center; gap: 2.5rem; background: var(--color-primary); color: #fff;
+  position: relative; z-index: 5; flex-shrink: 0; min-height: 54px; padding: .45rem 1rem; display: flex; align-items: center; gap: 1rem; background: var(--color-primary); color: #fff;
   &__skip:not(:focus) { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
-  &__skip:focus { position: absolute; left: 1rem; top: .5rem; z-index: 50; padding: .5rem; background: #fff; }
-  &__brand { display: flex; gap: .6rem; align-items: center; color: #fff; text-decoration: none; font-size: 1.3rem; font-weight: 750; }
-  &__logo { display: block; padding: 4px; background: #fff; border-radius: 8px; }
-  &__label { font-size: .75rem; font-weight: 450; opacity: .75; border-left: 1px solid #8888ff; padding-left: .7rem; margin-left: .3rem; }
-  &__navigation { display: flex; gap: .5rem; }
-  &__link { display: flex; align-items: center; gap: .5rem; padding: .6rem 1rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: .9rem; }
-  &__link:hover, &__link--active { background: #ffffff24; }
-  &__link--active { box-shadow: inset 0 -2px #fff; font-weight: 650; }
-  &__docs { display: flex; align-items: center; gap: .5rem; margin-left: auto; color: #fff; font-size: .8rem; text-decoration: none; }
-  @media (max-width: 900px) { gap: 1rem; &__label, &__docs { display: none; } }
-  @media (max-width: 540px) { padding: .8rem 1rem; flex-wrap: wrap; &__navigation { width: 100%; flex-wrap: wrap; } &__link { flex: 1; justify-content: center; } }
+  &__skip:focus { position: absolute; left: 1rem; top: .5rem; z-index: 1; padding: .5rem; background: #fff; }
+  &__brand { display: flex; gap: .5rem; align-items: center; color: #fff; text-decoration: none; font-size: 1.1rem; font-weight: 750; }
+  &__logo { padding: 4px; background: #fff; border-radius: 7px; }
+  &__connection { display: flex; align-items: center; gap: .45rem; font-size: .76rem; margin-left: auto; }
+  &__connection::before { content: ''; width: .5rem; height: .5rem; border-radius: 50%; background: #ffd682; }
+  &__connection--live::before { background: #88efbd; }
+  &__github { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 38px; padding: .3rem; color: white; font-weight: 600; text-decoration: none; }
+  &__github:hover { text-decoration: underline; }
+  &__menu { position: relative; }
+  &__toggle { min-height: 38px; padding: .35rem .7rem; color: white; background: transparent; border: 1px solid #ffffff80; border-radius: 8px; font-weight: 600; }
+  &__navigation { position: absolute; top: calc(100% + .5rem); right: 0; min-width: 185px; padding: .4rem; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: 0 8px 24px #19244224; }
+  &__link { display: block; padding: .6rem .8rem; color: var(--ink); text-decoration: none; border-radius: 6px; font-size: .85rem; }
+  &__link:hover, &__link[aria-current] { background: var(--soft); color: var(--color-primary); }
+  @media (max-width: 600px) {
+    gap: .5rem; padding: .4rem .6rem;
+    &__logo { width: 26px; height: 26px; }
+    &__connection span, &__github span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    &__connection { flex: 0 0 .5rem; }
+    &__wake-extra { display: none; }
+    .navbar__wake { padding-inline: .5rem; }
+  }
+  @media (max-width: 360px) {
+    &__wake-label { display: none; }
+    .navbar__wake { min-width: 38px; }
+  }
 }

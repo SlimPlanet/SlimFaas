@@ -4,10 +4,11 @@ using DotNext.Net.Cluster.Messaging;
 
 namespace SlimData.ClusterFiles;
 
-internal sealed class ClusterFileSyncChannel(ClusterFileAnnounceQueue announceQueue) : IInputChannel
+internal sealed class ClusterFileSyncChannel(ClusterFileAnnounceQueue announceQueue,
+    Func<ISubscriber, FileCopyRequest, CancellationToken, Task<FileCopyReceipt>>? confirmCopy = null) : IInputChannel
 {
     public bool IsSupported(string messageName, bool oneWay)
-        => oneWay &&
+        => !oneWay && confirmCopy is not null && messageName == FileCopyProtocol.RequestName || oneWay &&
            (messageName.StartsWith(FileSyncProtocol.AnnouncePrefix + "|", StringComparison.Ordinal) ||
             messageName.StartsWith(FileSyncProtocol.DeletePrefix + "|", StringComparison.Ordinal));
 
@@ -39,6 +40,12 @@ internal sealed class ClusterFileSyncChannel(ClusterFileAnnounceQueue announceQu
         return Task.CompletedTask;
     }
 
-    public Task<IMessage> ReceiveMessage(ISubscriber sender, IMessage message, object? context, CancellationToken token)
-        => Task.FromResult<IMessage>(new TextMessage("", "slimfaas.file.fetch.notfound")); // ou throw/not supported
+    public async Task<IMessage> ReceiveMessage(ISubscriber sender, IMessage message, object? context, CancellationToken token)
+    {
+        if (confirmCopy is null || message.Name != FileCopyProtocol.RequestName)
+            return new TextMessage("", "slimfaas.file.fetch.notfound");
+        FileCopyRequest request = await FileCopyProtocol.ReadRequestAsync(message, token).ConfigureAwait(false);
+        FileCopyReceipt receipt = await confirmCopy(sender, request, token).ConfigureAwait(false);
+        return FileCopyProtocol.Reply(receipt);
+    }
 }

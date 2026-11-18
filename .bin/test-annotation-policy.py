@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 NAMESPACE = "slimfaas-demo"
+CONTEXT = None
 SLIMFAAS = f"system:serviceaccount:{NAMESPACE}:slimfaas"
 
 FUNCTION = {
@@ -57,7 +58,7 @@ def job(kind, annotations):
 
 
 def kubectl(*args, user=None, groups=(), stdin=None, check=True):
-    command = ["kubectl", *args]
+    command = ["kubectl", "--context", CONTEXT, *args]
     if user:
         command += ["--as", user, *[f"--as-group={group}" for group in groups]]
     result = subprocess.run(command, input=stdin, capture_output=True, text=True)
@@ -89,18 +90,22 @@ def main():
     parser.add_argument("--image", help="kind node image (Kubernetes 1.30 or later)")
     parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--keep-cluster", action="store_true")
-    parser.add_argument("--context",
-                        help="test an existing cluster instead of creating a kind cluster; "
-                             f"the {NAMESPACE} namespace must not exist")
     args = parser.parse_args()
 
+    global CONTEXT
+    CONTEXT = f"kind-{args.cluster}"
+    existing = subprocess.run(["kind", "get", "clusters"], capture_output=True, text=True, check=True)
+    if args.cluster in existing.stdout.split():
+        sys.exit(f"kind cluster {args.cluster} already exists; choose another --cluster name")
+
+    created = False
     try:
-        if args.context is None:
-            create_cluster = ["kind", "create", "cluster", "--name", args.cluster, "--wait", "120s"]
-            if args.image:
-                create_cluster += ["--image", args.image]
-            subprocess.run(create_cluster, check=True)
-        kubectl("config", "use-context", args.context or f"kind-{args.cluster}")
+        create_cluster = ["kind", "create", "cluster", "--name", args.cluster, "--wait", "120s"]
+        if args.image:
+            create_cluster += ["--image", args.image]
+        # Set before running: a failed creation can leave a partial cluster that this run owns.
+        created = True
+        subprocess.run(create_cluster, check=True)
         kubectl("apply", "-f", str(ROOT / "demo/service-account-slimfaas.yml"))
         kubectl("apply", "-f", "-", stdin=json.dumps(EDITOR_ROLE))
         kubectl("-n", NAMESPACE, "create", "rolebinding", "workload-editors", "--role=workload-editor",
@@ -148,11 +153,7 @@ def main():
         if failures:
             sys.exit(f"{failures} case(s) failed")
     finally:
-        if args.context is not None:
-            kubectl("delete", "--ignore-not-found", "--wait=false",
-                    "-f", str(ROOT / "demo/slimfaas-annotation-policy.yml"),
-                    "-f", str(ROOT / "demo/service-account-slimfaas.yml"), check=False)
-        elif not args.keep_cluster:
+        if created and not args.keep_cluster:
             subprocess.run(["kind", "delete", "cluster", "--name", args.cluster], check=False)
 
 

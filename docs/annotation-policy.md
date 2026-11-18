@@ -55,7 +55,7 @@ spec:
 python3 .bin/test-annotation-policy.py
 ```
 
-`--image` selects the kind node image (Kubernetes 1.30 or later) and `--keep-cluster` keeps the cluster for inspection. `--context <name>` runs the same checks against an existing cluster in which the `slimfaas-demo` namespace does not exist yet; the script deletes what it created at the end. The CI workflow runs the script on kind for every change.
+`--image` selects the kind node image (Kubernetes 1.30 or later) and `--keep-cluster` keeps the cluster for inspection. `--cluster` sets the kind cluster name; the script refuses to run when a cluster with that name already exists and only deletes a cluster it created. The CI workflow runs the script on kind for every change.
 
 ## Limitations
 

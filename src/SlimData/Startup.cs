@@ -5,6 +5,7 @@ using DotNext.Net.Cluster.Consensus.Raft.Http;
 using DotNext.Net.Cluster.Consensus.Raft.Membership;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SlimData.ClusterFiles;
 using SlimData.ClusterFiles.Http;
 using SlimData.Commands;
@@ -14,7 +15,7 @@ namespace SlimData;
 
 public class Startup(IConfiguration configuration)
 {
-    private static readonly List<string> ClusterMembers = new(2);
+    private static readonly List<string> ClusterMembers = [with(capacity: 2)];
     private static Uri? LocalEndpoint;
     internal const string MembershipAnnounceResource = "/SlimData/members/announce";
     internal const string ProtocolResource = "/SlimData/protocol";
@@ -110,6 +111,7 @@ public class Startup(IConfiguration configuration)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
                 AllowAutoRedirect = false,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
                 UseProxy = false
             });
 
@@ -130,6 +132,8 @@ public class Startup(IConfiguration configuration)
                 UseProxy = false
             });
         var path = configuration[SlimPersistentState.LogLocation];
+        var declaredStorageRoot = configuration["SlimData:Directory"];
+        if (string.IsNullOrWhiteSpace(declaredStorageRoot)) declaredStorageRoot = path;
         var stateRoot = string.IsNullOrWhiteSpace(path)
             ? Path.Combine(Path.GetTempPath(), "SlimData", Guid.NewGuid().ToString("N"))
             : path;
@@ -170,20 +174,25 @@ public class Startup(IConfiguration configuration)
                 .AddOptions()
                 .AddRouting();
 
-        services
-            .UseStateMachine<SlimPersistentState>(new WriteAheadLog.Options
-            {
-                Location = walPath,
-                MemoryManagement = GetWalMemoryManagement(configuration)
-            })
-            .AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
+        var walOptions = new WriteAheadLog.Options
+        {
+            Location = walPath,
+            MemoryManagement = GetWalMemoryManagement(configuration),
+            ChunkSize = WalChunkSize.Resolve(walPath, OperatingSystem.IsWindows())
+        };
+        services.UseStateMachine<SlimPersistentState>(walOptions);
+        services.Replace(ServiceDescriptor.Singleton<IPersistentState>(sp =>
+            new DurableWriteAheadLog(walOptions, sp.GetRequiredService<IStateMachine>())));
+        services.AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
 
         if (!string.IsNullOrWhiteSpace(path))
         {
            services.AddSingleton<IFileRepository>(sp => new DiskFileRepository(
                Path.Combine(stateRoot, "files"),
                sp.GetRequiredService<ILogger<DiskFileRepository>>(),
-               sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DropPageCache));
+               sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DropPageCache,
+               sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DurableWrites,
+               storageRoot: declaredStorageRoot));
            services.AddSingleton<ClusterFileAnnounceQueue>();
            services.AddHostedService<ClusterFileAnnounceWorker>();
 
@@ -272,7 +281,7 @@ public class Startup(IConfiguration configuration)
 
     private static string RemoveOrdinal(string hostLabel)
     {
-        var separator = hostLabel.LastIndexOf('-');
+        var separator = hostLabel.LastIndexOf('-', StringComparison.Ordinal);
         return separator > 0 && int.TryParse(hostLabel.AsSpan(separator + 1), out _)
             ? hostLabel[..separator]
             : hostLabel;

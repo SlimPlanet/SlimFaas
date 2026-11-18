@@ -1,0 +1,401 @@
+{
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "reference_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+  "environment": "macOS ARM64 Native AOT .NET 11",
+  "verdict": "FAIL",
+  "blocks": {
+    "set-c12": {
+      "pairs": {
+        "a1-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 136.19243984417054,
+            "p99_ms": 250.055,
+            "rss_mib": 169.984375
+          },
+          "candidate": {
+            "rate": 130.99744140164034,
+            "p99_ms": 250.328153,
+            "rss_mib": 175.421875
+          },
+          "ratios": {
+            "rate": 0.9618554565255294,
+            "p99_ms": 1.0010923716782307,
+            "rss_mib": 1.0319882342127034
+          }
+        },
+        "a1-b3": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 136.19243984417054,
+            "p99_ms": 250.055,
+            "rss_mib": 169.984375
+          },
+          "candidate": {
+            "rate": 141.81974057739265,
+            "p99_ms": 246.421785,
+            "rss_mib": 169.78125
+          },
+          "ratios": {
+            "rate": 1.0413187452964408,
+            "p99_ms": 0.9854703365259643,
+            "rss_mib": 0.9988050372276863
+          }
+        },
+        "a4-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 127.03448161758932,
+            "p99_ms": 252.690577,
+            "rss_mib": 170.109375
+          },
+          "candidate": {
+            "rate": 130.99744140164034,
+            "p99_ms": 250.328153,
+            "rss_mib": 175.421875
+          },
+          "ratios": {
+            "rate": 1.0311959377768052,
+            "p99_ms": 0.9906509216606046,
+            "rss_mib": 1.031229907228805
+          }
+        },
+        "a4-b3": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 127.03448161758932,
+            "p99_ms": 252.690577,
+            "rss_mib": 170.109375
+          },
+          "candidate": {
+            "rate": 141.81974057739265,
+            "p99_ms": 246.421785,
+            "rss_mib": 169.78125
+          },
+          "ratios": {
+            "rate": 1.116387761586742,
+            "p99_ms": 0.9751918252179226,
+            "rss_mib": 0.9980710939652797
+          }
+        }
+      },
+      "contradictory_brackets": false,
+      "verdict": "PASS"
+    },
+    "set-c48": {
+      "pairs": {
+        "a1-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 1033.077848498229,
+            "p99_ms": 126.17703999999999,
+            "rss_mib": 164.25
+          },
+          "candidate": {
+            "rate": 1078.191542251565,
+            "p99_ms": 134.331817,
+            "rss_mib": 161.5625
+          },
+          "ratios": {
+            "rate": 1.0436692102332046,
+            "p99_ms": 1.0646296426037574,
+            "rss_mib": 0.9836377473363774
+          }
+        },
+        "a1-b3": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 1033.077848498229,
+            "p99_ms": 126.17703999999999,
+            "rss_mib": 164.25
+          },
+          "candidate": {
+            "rate": 936.7470415209802,
+            "p99_ms": 136.69298600000002,
+            "rss_mib": 165.265625
+          },
+          "ratios": {
+            "rate": 0.9067535838491905,
+            "p99_ms": 1.0833427856605293,
+            "rss_mib": 1.006183409436834
+          }
+        },
+        "a4-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 959.7004772936197,
+            "p99_ms": 136.257374,
+            "rss_mib": 168.78125
+          },
+          "candidate": {
+            "rate": 1078.191542251565,
+            "p99_ms": 134.331817,
+            "rss_mib": 161.5625
+          },
+          "ratios": {
+            "rate": 1.1234667146275608,
+            "p99_ms": 0.9858682363862378,
+            "rss_mib": 0.9572301425661914
+          }
+        },
+        "a4-b3": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 959.7004772936197,
+            "p99_ms": 136.257374,
+            "rss_mib": 168.78125
+          },
+          "candidate": {
+            "rate": 936.7470415209802,
+            "p99_ms": 136.69298600000002,
+            "rss_mib": 165.265625
+          },
+          "ratios": {
+            "rate": 0.976082708807889,
+            "p99_ms": 1.0031969792695405,
+            "rss_mib": 0.9791705239770413
+          }
+        }
+      },
+      "contradictory_brackets": false,
+      "verdict": "PASS"
+    },
+    "mixed-c12": {
+      "pairs": {
+        "a1-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 430.5043288720108,
+            "p99_ms": 96.10343499999999,
+            "rss_mib": 150.515625
+          },
+          "candidate": {
+            "rate": 395.8795703852313,
+            "p99_ms": 98.76667,
+            "rss_mib": 164.8125
+          },
+          "ratios": {
+            "rate": 0.919571636881093,
+            "p99_ms": 1.0277121728271212,
+            "rss_mib": 1.0949859856742448
+          }
+        },
+        "a1-b3": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 430.5043288720108,
+            "p99_ms": 96.10343499999999,
+            "rss_mib": 150.515625
+          },
+          "candidate": {
+            "rate": 409.8757736092746,
+            "p99_ms": 99.26306199999996,
+            "rss_mib": 153.15625
+          },
+          "ratios": {
+            "rate": 0.9520828157134069,
+            "p99_ms": 1.0328773576095378,
+            "rss_mib": 1.0175438596491229
+          }
+        },
+        "a4-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 406.81664665923824,
+            "p99_ms": 97.559984,
+            "rss_mib": 157.96875
+          },
+          "candidate": {
+            "rate": 395.8795703852313,
+            "p99_ms": 98.76667,
+            "rss_mib": 164.8125
+          },
+          "ratios": {
+            "rate": 0.9731154652499554,
+            "p99_ms": 1.0123686572150319,
+            "rss_mib": 1.0433234421364985
+          }
+        },
+        "a4-b3": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 406.81664665923824,
+            "p99_ms": 97.559984,
+            "rss_mib": 157.96875
+          },
+          "candidate": {
+            "rate": 409.8757736092746,
+            "p99_ms": 99.26306199999996,
+            "rss_mib": 153.15625
+          },
+          "ratios": {
+            "rate": 1.007519670040933,
+            "p99_ms": 1.0174567269301722,
+            "rss_mib": 0.9695351137487636
+          }
+        }
+      },
+      "contradictory_brackets": false,
+      "verdict": "PASS"
+    },
+    "mixed-c48": {
+      "pairs": {
+        "a1-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 2676.1234595022174,
+            "p99_ms": 35.81681600000002,
+            "rss_mib": 205.53125
+          },
+          "candidate": {
+            "rate": 2649.9661058239894,
+            "p99_ms": 31.587853999999947,
+            "rss_mib": 208.84375
+          },
+          "ratios": {
+            "rate": 0.9902256551037097,
+            "p99_ms": 0.8819280306769851,
+            "rss_mib": 1.016116770564087
+          }
+        },
+        "a1-b3": {
+          "verdict": "FAIL",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": false
+          },
+          "baseline": {
+            "rate": 2676.1234595022174,
+            "p99_ms": 35.81681600000002,
+            "rss_mib": 205.53125
+          },
+          "candidate": {
+            "rate": 2694.65030400234,
+            "p99_ms": 32.03430900000001,
+            "rss_mib": 244.0
+          },
+          "ratios": {
+            "rate": 1.0069230156158673,
+            "p99_ms": 0.8943929856858296,
+            "rss_mib": 1.187167401550859
+          }
+        },
+        "a4-b2": {
+          "verdict": "PASS",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": true
+          },
+          "baseline": {
+            "rate": 2667.5500982789617,
+            "p99_ms": 47.691084000000004,
+            "rss_mib": 208.140625
+          },
+          "candidate": {
+            "rate": 2649.9661058239894,
+            "p99_ms": 31.587853999999947,
+            "rss_mib": 208.84375
+          },
+          "ratios": {
+            "rate": 0.9934081866105093,
+            "p99_ms": 0.662342965406279,
+            "rss_mib": 1.003378124765408
+          }
+        },
+        "a4-b3": {
+          "verdict": "FAIL",
+          "checks": {
+            "throughput": true,
+            "p99": true,
+            "rss": false
+          },
+          "baseline": {
+            "rate": 2667.5500982789617,
+            "p99_ms": 47.691084000000004,
+            "rss_mib": 208.140625
+          },
+          "candidate": {
+            "rate": 2694.65030400234,
+            "p99_ms": 32.03430900000001,
+            "rss_mib": 244.0
+          },
+          "ratios": {
+            "rate": 1.0101592115330327,
+            "p99_ms": 0.671704358827323,
+            "rss_mib": 1.1722843630358082
+          }
+        }
+      },
+      "contradictory_brackets": false,
+      "verdict": "FAIL"
+    }
+  },
+  "note": "Set C12/C48 and mixed C12 pass every bracket comparison. Mixed C48 candidate ordinal three fails the unchanged 115% per-node maximum RSS guardrail against both references; throughput, p99, workload and all-node validation pass. No contradictory brackets, so no automatic repeat applies. Inactive-cache cleanup occurred between mixed C48 ordinals two and three, outside timed measurements. Original pre-interruption isolation samples and completed observations are retained. No publication or workload configuration changed."
+}

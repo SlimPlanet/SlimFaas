@@ -26,6 +26,8 @@ public sealed record QueueDispatchState(
 
 public interface IDatabaseService
 {
+    Task<FileAdmissionResult> ExecuteFileAdmissionAsync(FileAdmissionMutation mutation) =>
+        throw new NotSupportedException("This database does not support atomic file admission.");
     Task<WebSocketDirectoryResult> ExecuteWebSocketDirectoryAsync(WebSocketDirectoryMutation mutation) =>
         throw new NotSupportedException("This database does not support the WebSocket directory.");
     Task<DurableStreamMutationResult> ExecuteStreamAsync(DurableStreamMutation mutation) =>

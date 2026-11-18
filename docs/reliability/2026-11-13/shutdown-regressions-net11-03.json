@@ -1,0 +1,119 @@
+{
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "scope": "Kubernetes controller shutdown and evidence collection only; runtime publications and benchmark algorithms unchanged.",
+  "original_sources": [
+    {
+      "file": "run-kubernetes-campaign.py",
+      "source_sha256": "9a7c7ea57f6dc0c8b69edeacbfdccca971d5dd5f8b1b3f78dde6e67db8a4b45a",
+      "source_commit": "0bd53ef033786c1af4cb7df1c5bb0d3b7d207535"
+    },
+    {
+      "file": "run-platform-matrix.py",
+      "source_sha256": "3e0f1739f158d431541590d7a4621707ec10d2a6f9983544fcd54fc7ad3ba630",
+      "source_commit": "0bd53ef033786c1af4cb7df1c5bb0d3b7d207535"
+    }
+  ],
+  "before": {
+    "mode": "before",
+    "tests_run": 4,
+    "failures": [
+      [
+        "test_kubernetes_stop_waits_for_terminating_controllers_and_active_jobs (platform_tests.PlatformTests.test_kubernetes_stop_waits_for_terminating_controllers_and_active_jobs)",
+        "Traceback (most recent call last):\n  File \"${CANDIDATE}/.bin/test-platform-validation.py\", line 75, in test_kubernetes_stop_waits_for_terminating_controllers_and_active_jobs\n    self.assertEqual(3, len(pod_reads))\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^\nAssertionError: 3 != 0\n"
+      ],
+      [
+        "test_kubernetes_stop_timeout_retains_the_unclosed_writer_identity (platform_tests.PlatformTests.test_kubernetes_stop_timeout_retains_the_unclosed_writer_identity)",
+        "Traceback (most recent call last):\n  File \"${CANDIDATE}/.bin/test-platform-validation.py\", line 102, in test_kubernetes_stop_timeout_retains_the_unclosed_writer_identity\n    with self.assertRaisesRegex(TimeoutError, \"still have writers\"):\n         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: TimeoutError not raised\n"
+      ],
+      [
+        "test_kubernetes_stop_scales_only_the_campaign_label (platform_tests.PlatformTests.test_kubernetes_stop_scales_only_the_campaign_label)",
+        "Traceback (most recent call last):\n  File \"${CANDIDATE}/.bin/test-platform-validation.py\", line 126, in test_kubernetes_stop_scales_only_the_campaign_label\n    self.assertNotIn(\"--all\", arguments)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^\nAssertionError: '--all' unexpectedly found in ['kubectl', '--kubeconfig', '${CANDIDATE}/isolated-config', '--context', 'kind-slimfaas-pr506', 'scale', 'deployment', '--all', '--replicas=0', '-n', 'slimfaas-pr506-stop-scope']\n"
+      ],
+      [
+        "test_kubernetes_matrix_refuses_to_archive_after_stop_failure (platform_tests.PlatformTests.test_kubernetes_matrix_refuses_to_archive_after_stop_failure)",
+        "Traceback (most recent call last):\n  File \"${CANDIDATE}/.bin/test-platform-validation.py\", line 150, in test_kubernetes_matrix_refuses_to_archive_after_stop_failure\n    with self.assertRaises(subprocess.CalledProcessError):\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: CalledProcessError not raised\n"
+      ]
+    ],
+    "errors": [],
+    "passed": false,
+    "expected_original_regressions_reproduced": true
+  },
+  "after": {
+    "mode": "after",
+    "tests_run": 25,
+    "failures": [],
+    "errors": [],
+    "passed": true,
+    "expected_original_regressions_reproduced": false
+  },
+  "isolation_checkpoint": {
+    "pid": 52430,
+    "launcher_pid": 74459,
+    "launcher_identity": "Sat Nov 14 15:59:00 2026     /opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python ${CANDIDATE}/.bin/run-platform-matrix.py --config ${CANDIDATE}/artifacts/pr506/configurations/podman-net11-03.json --output ${CANDIDATE}/artifacts/pr506/measurements/podman-net11-03-serial-01",
+    "container": "slimfaas-pr506-net11-pbench-03-http-attempt-1-2-after",
+    "started": 1794673428.171712,
+    "status": "passed",
+    "note": "Only the host matrix launcher waits at this checkpoint. The current guest workload and serial isolation monitor keep running. Tests start only after the guest container exits; no benchmark workload runs concurrently with them.",
+    "host_launcher_paused_utc": 1794673428.39935,
+    "guest_container_exited_utc": 1794675703.61856,
+    "active_measurement_during_tests": false,
+    "before": {
+      "exit_code": 0,
+      "result": "${CANDIDATE}/artifacts/pr506/reproductions/kubernetes-stop-net11-03/results-before.json"
+    },
+    "after": {
+      "exit_code": 0,
+      "result": "${CANDIDATE}/artifacts/pr506/reproductions/kubernetes-stop-net11-03/results-after.json"
+    },
+    "finished": 1794675704.674554,
+    "source_hashes": {
+      ".bin/run-kubernetes-campaign.py": "c5ce5d0258783c15c39bc1a7bde63e1117d96dbc5483f7aa939ff86197a80fda",
+      ".bin/run-platform-matrix.py": "02862dd205a28a0fcc17b3ebc59c2d512e7752de16af693eba9b96304cf97ff8",
+      ".bin/test-platform-validation.py": "c0c4e5f49eae5a4fb9f3c87e07a3b7b64019a594c82d61b7fccb9fa85a1be395"
+    },
+    "host_launcher_resumed_utc": 1794675704.679473
+  },
+  "podman_first_reference": {
+    "runtime_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+    "environment": "Linux ARM64 managed/trimmed .NET 11 under Podman",
+    "phase": "artifacts/pr506/measurements/podman-net11-03-serial-01/http-attempt-1/1-before",
+    "log_sha256": "2b53640c3df1a8e4050c6b6f7e12f437db1bea97450ba8cb6a93c61af66b6a50",
+    "run_id": "async-4194304-16-2-05b773312acd4e4bb76e830456f1d880",
+    "observed_unique": 1145,
+    "accepted": 1160,
+    "total_observations": 1145,
+    "duplicates": 0,
+    "drain_seconds": 180,
+    "verdict": "INCONCLUSIVE",
+    "note": "Incomplete reference. Bounded observation does not establish permanent loss. Original VM files and verified raw archive retained; candidate runs continue without a deadline change."
+  },
+  "podman_first_candidate": {
+    "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+    "results_sha256": "e11fa9d2a04c2ab40232fa424bd49c6555fede4ff599cc4bca4665aa76b8377e",
+    "latency_cases": 216,
+    "focused_cases": 6,
+    "failed_requests": 0,
+    "missing": 0,
+    "duplicates": 0,
+    "resource_cases": 78,
+    "all_positive_cpu_rss_raft": true,
+    "all_boundaries_three_nodes": true,
+    "scaling": {
+      "Messages": 200,
+      "Concurrency": 32,
+      "TargetReplicas": 4,
+      "Accepted": 200,
+      "Failed": 0,
+      "FirstAcceptedMilliseconds": 19.4641,
+      "AllAcceptedMilliseconds": 101.114,
+      "RequestedOneMilliseconds": 1078.5963,
+      "ReadyOneMilliseconds": 5288.801,
+      "RequestedTargetMilliseconds": 5288.801,
+      "ReadyTargetMilliseconds": 8428.2394,
+      "QueueDrainedMilliseconds": 20998.67,
+      "PeakReadyQueue": 200,
+      "TimedOut": false
+    }
+  },
+  "note": "Four regressions fail on the original public CLI paths; all 25 harness tests pass after correction. Tests run only after the active guest workload container exits. The host launcher then resumes; actual workload processes and its isolation monitor were never suspended. The earlier six endurance originals already had a coordinator-level shutdown barrier before hashing."
+}

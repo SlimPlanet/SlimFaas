@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
-slimfaas_dll="$repo_root/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll"
+slimfaas_dll="$repo_root/src/SlimFaas/bin/Release/net11.0/SlimFaas.dll"
 run_root="${RECOVERY_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-recovery/$(date -u +%Y%m%dT%H%M%SZ)}"
 timeout_seconds="${RECOVERY_TIMEOUT_SECONDS:-180}"
 traffic_interval="${RECOVERY_TRAFFIC_INTERVAL_MS:-25}"
@@ -21,7 +21,7 @@ if [[ "${RECOVERY_SKIP_BUILD:-false}" == "true" ]]; then
   echo "Skipping build; using existing Release binaries"
 else
   dotnet build "$repo_root/src/SlimFaas/SlimFaas.csproj" -c Release -p:SkipClientAppBuild=true --nologo
-  dotnet build "$repo_root/benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj" -c Release --nologo
+  dotnet build "$repo_root/benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj" -c Release -p:PublishAot=false -p:SelfContained=false -p:SkipClientAppBuild=true --nologo
 fi
 
 dotnet "$slimfaas_dll" local validate -f "$manifest"

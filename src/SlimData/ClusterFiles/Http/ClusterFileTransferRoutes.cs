@@ -33,7 +33,7 @@ public static class ClusterFileTransferRoutes
         if (string.IsNullOrWhiteSpace(sha))
             return Results.BadRequest("sha is required.");
 
-        var meta = await repo.TryGetMetadataAsync(id, ct).ConfigureAwait(false);
+        var meta = await repo.TryGetVersionMetadataAsync(id, sha, ct).ConfigureAwait(false);
         if (meta is null)
             return Results.NotFound();
 
@@ -71,14 +71,17 @@ public static class ClusterFileTransferRoutes
         if (string.IsNullOrWhiteSpace(sha))
             return Results.BadRequest("sha is required.");
 
-        var meta = await repo.TryGetMetadataAsync(id, ct).ConfigureAwait(false);
+        var meta = await repo.TryGetVersionMetadataAsync(id, sha, ct).ConfigureAwait(false);
         if (meta is null)
             return Results.NotFound();
 
         if (!meta.Sha256Hex.Equals(sha, StringComparison.OrdinalIgnoreCase))
             return Results.NotFound();
 
-        var stream = await repo.OpenReadAsync(id, ct).ConfigureAwait(false);
+        Stream stream;
+        try { stream = await repo.OpenReadVersionAsync(id, sha, ct).ConfigureAwait(false); }
+        catch (FileNotFoundException) { return Results.NotFound(); }
+        catch (DirectoryNotFoundException) { return Results.NotFound(); }
 
         ctx.Response.Headers["Accept-Ranges"] = "bytes";
         ctx.Response.Headers.ETag = $"\"{meta.Sha256Hex}\"";

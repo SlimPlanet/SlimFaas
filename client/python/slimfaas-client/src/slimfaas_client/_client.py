@@ -75,6 +75,11 @@ class SlimFaasClient:
         Seconds between reconnection attempts (default: 5 s).
     ping_interval:
         Seconds between keepalive pings (default: 30 s, 0 to disable).
+    max_message_size:
+        Maximum incoming WebSocket envelope bytes, including base64/JSON overhead
+        (default: 32 MiB). This does not change the server's HTTP body limits.
+    max_queue:
+        Incoming frame buffer high-water mark (default: 4), with backpressure.
     """
 
     def __init__(
@@ -84,11 +89,19 @@ class SlimFaasClient:
         *,
         reconnect_delay: float = 5.0,
         ping_interval: float = 30.0,
+        max_message_size: int = 32 * 1024 * 1024,
+        max_queue: int = 4,
     ) -> None:
+        if type(max_message_size) is not int or max_message_size <= 0:
+            raise ValueError("max_message_size must be a positive integer")
+        if type(max_queue) is not int or max_queue <= 0:
+            raise ValueError("max_queue must be a positive integer")
         self._url = url
         self._config = config
         self._reconnect_delay = reconnect_delay
         self._ping_interval = ping_interval
+        self._max_message_size = max_message_size
+        self._max_queue = max_queue
 
         self._async_request_handler: Optional[AsyncRequestHandler] = None
         self._stream_message_handler: Optional[StreamMessageHandler] = None
@@ -218,7 +231,9 @@ class SlimFaasClient:
     async def _connect_and_loop(self) -> None:
         logger.info("Connecting to SlimFaas WebSocket at %s …", self._url)
 
-        async with websockets.connect(self._url) as ws:  # type: ignore[attr-defined]
+        async with websockets.connect(  # type: ignore[attr-defined]
+            self._url, max_size=self._max_message_size, max_queue=self._max_queue,
+        ) as ws:
             self._ws = ws
             logger.info("Connected. Registering function '%s' …", self._config.function_name)
 

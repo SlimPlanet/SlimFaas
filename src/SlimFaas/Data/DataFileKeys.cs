@@ -4,6 +4,7 @@ public static class DataFileKeys
 {
     public const string MetaPrefix = "data:file:";
     public const string MetaSuffix = ":meta";
+    public const string StorageIdTag = "StorageId";
     public const string InternalElementIdPrefix = "sf-internal-";
     public const string InternalElementIdSuffix = "-internal";
 

@@ -242,7 +242,7 @@ public sealed class ClusterFileSyncTests
         repo.Setup(r => r.ExistsAsync("id1", "sha", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(new byte[] { 1, 2, 3 }));
 
         var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object, httpFactory);
@@ -259,8 +259,10 @@ public sealed class ClusterFileSyncTests
         Assert.Equal(new byte[] { 1, 2, 3 }, bytes);
     }
 
-    [Fact]
-    public async Task PullFileIfMissingAsync_downloads_from_first_remote_with_file_and_returns_local_stream()
+    [Theory]
+    [InlineData("")]
+    [InlineData("hello")]
+    public async Task PullFileIfMissingAsync_downloads_from_first_remote_with_file_and_returns_local_stream(string content)
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
         var bus = new Mock<IMessageBus>(MockBehavior.Strict);
@@ -283,9 +285,9 @@ public sealed class ClusterFileSyncTests
         bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
         bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
 
-        var payload = Encoding.UTF8.GetBytes("hello");
+        var payload = Encoding.UTF8.GetBytes(content);
         var sha = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
-        var len = payload.Length;
+        int len = payload.Length;
         var expireAt = DateTime.UtcNow.AddMinutes(10).Ticks;
 
         // ExistsAsync appelé au moins 2 fois (avant/après lock)
@@ -298,27 +300,26 @@ public sealed class ClusterFileSyncTests
         long? savedExpireAt = null;
         IDictionary<string, string>? savedTags = null;
 
-        repo.Setup(r => r.SaveAsync(
+        repo.Setup(r => r.SaveVerifiedAsync(
                 "id1",
                 It.IsAny<Stream>(),
-                It.IsAny<string>(),
-                true,
+                new FilePutResult(sha, "application/octet-stream", len),
                 It.IsAny<long?>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<IDictionary<string, string>?>()))
-            .Returns<string, Stream, string, bool, long?, CancellationToken, IDictionary<string, string>?>(async (_, stream, contentType, _, exp, token, tagsArg) =>
+            .Returns<string, Stream, FilePutResult, long?, CancellationToken, IDictionary<string, string>?>(async (_, stream, expected, exp, token, tagsArg) =>
             {
-                savedContentType = contentType;
+                savedContentType = expected.ContentType;
                 savedExpireAt = exp;
                 savedTags = tagsArg is null ? null : new Dictionary<string, string>(tagsArg);
                 using var ms = new MemoryStream();
                 await stream.CopyToAsync(ms, token);
                 savedBytes = ms.ToArray();
                 var sh = Convert.ToHexString(SHA256.HashData(savedBytes)).ToLowerInvariant();
-                return new FilePutResult(sh, contentType, savedBytes.Length);
+                return new FilePutResult(sh, expected.ContentType, savedBytes.Length);
             });
 
-        repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(savedBytes, writable: false));
 
         var tags = new Dictionary<string, string>
@@ -396,6 +397,60 @@ public sealed class ClusterFileSyncTests
             It.IsAny<bool>(),
             It.IsAny<long?>(),
             It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_failed_peer_replacement_preserves_the_previous_valid_local_version(bool truncate)
+    {
+        string directory = Path.Combine(Path.GetTempPath(), "slimdata_peer_integrity_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var repository = new DiskFileRepository(directory, Mock.Of<ILogger<DiskFileRepository>>(), dropPageCache: false);
+            using var original = new MemoryStream(new byte[] { 1, 2, 3 });
+            FilePutResult previous = await repository.SaveAsync(
+                "versioned-id", original, "text/plain", false, null, CancellationToken.None);
+            string expectedHash = Convert.ToHexString(SHA256.HashData(new byte[] { 4, 5, 6, 7 }));
+            var remote = new Mock<ISubscriber>(MockBehavior.Strict);
+            remote.SetupGet(member => member.IsRemote).Returns(true);
+            remote.SetupGet(member => member.EndPoint).Returns(new UriEndPoint(new Uri("http://127.0.0.1:5001")));
+            var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+            bus.SetupGet(value => value.Members).Returns([remote.Object]);
+            bus.Setup(value => value.AddListener(It.IsAny<IInputChannel>()));
+            bus.Setup(value => value.RemoveListener(It.IsAny<IInputChannel>()));
+            using var client = new HttpClient(new StubHttpHandler(request =>
+            {
+                var response = new HttpResponseMessage(
+                    request.Method == HttpMethod.Head ? HttpStatusCode.OK : HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(request.Method == HttpMethod.Head
+                        ? Array.Empty<byte>()
+                        : truncate ? new byte[] { 4, 5 } : new byte[] { 4, 5, 6, 8 })
+                };
+                response.Content.Headers.ContentLength = 4;
+                return response;
+            }));
+            await using var sync = new ClusterFileSync(bus.Object, repository, new ClusterFileAnnounceQueue(),
+                Mock.Of<ILogger<ClusterFileSync>>(), new TestHttpClientFactory(client));
+
+            FilePullResult result = await sync.PullFileIfMissingAsync(
+                "versioned-id", expectedHash, null, CancellationToken.None);
+
+            Assert.Null(result.Stream);
+            Assert.True(await repository.ExistsAsync("versioned-id", previous.Sha256Hex, CancellationToken.None));
+            Assert.Equal("text/plain", (await repository.TryGetMetadataAsync("versioned-id", CancellationToken.None))!.ContentType);
+            await using Stream retained = await repository.OpenReadAsync("versioned-id", CancellationToken.None);
+            using var bytes = new MemoryStream();
+            await retained.CopyToAsync(bytes);
+            Assert.Equal(new byte[] { 1, 2, 3 }, bytes.ToArray());
+            Assert.Empty(Directory.GetFiles(directory, "*.tmp.*"));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
     }
 
     // ---------------- helpers ----------------

@@ -78,7 +78,7 @@ public sealed class ClusterFileTransferRoutesTests
     public async Task Head_MetadataNotFound_returns_404()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((FileMetadata?)null);
 
         await using var app = await CreateAppAsync(repo);
@@ -88,7 +88,7 @@ public sealed class ClusterFileTransferRoutesTests
 
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
 
-        repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         repo.VerifyNoOtherCalls();
     }
@@ -97,7 +97,7 @@ public sealed class ClusterFileTransferRoutesTests
     public async Task Head_ShaMismatch_returns_404()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Meta("aaaaaaaa"));
 
         await using var app = await CreateAppAsync(repo);
@@ -107,7 +107,7 @@ public sealed class ClusterFileTransferRoutesTests
 
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
 
-        repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         repo.VerifyNoOtherCalls();
     }
@@ -116,7 +116,7 @@ public sealed class ClusterFileTransferRoutesTests
     public async Task Head_Ok_sets_headers_and_returns_200()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Meta("deadbeef", length: 42, contentType: "application/pdf", expireAtUtcTicks: 999, tags: new Dictionary<string, string>
             {
                 ["QueueElementId"] = "q-1",
@@ -145,7 +145,7 @@ public sealed class ClusterFileTransferRoutesTests
         Assert.Equal(42, resp.Content.Headers.ContentLength);
         Assert.Equal("application/pdf", resp.Content.Headers.ContentType?.MediaType);
 
-        repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         repo.VerifyNoOtherCalls();
     }
@@ -154,7 +154,7 @@ public sealed class ClusterFileTransferRoutesTests
     public async Task Head_ContentTypeNull_defaults_to_octet_stream()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Meta("deadbeef", length: 1, contentType: null, expireAtUtcTicks: null));
 
         await using var app = await CreateAppAsync(repo);
@@ -184,7 +184,7 @@ public sealed class ClusterFileTransferRoutesTests
     public async Task Get_MetadataNotFound_returns_404()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((FileMetadata?)null);
 
         await using var app = await CreateAppAsync(repo);
@@ -194,7 +194,7 @@ public sealed class ClusterFileTransferRoutesTests
 
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
 
-        repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         repo.VerifyNoOtherCalls();
     }
@@ -203,7 +203,7 @@ public sealed class ClusterFileTransferRoutesTests
     public async Task Get_ShaMismatch_returns_404()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Meta("aaaaaaaa"));
 
         await using var app = await CreateAppAsync(repo);
@@ -213,7 +213,7 @@ public sealed class ClusterFileTransferRoutesTests
 
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
 
-        repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         repo.VerifyNoOtherCalls();
     }
@@ -224,13 +224,13 @@ public sealed class ClusterFileTransferRoutesTests
         var payload = new byte[] { 1, 2, 3, 4 };
 
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Meta("deadbeef", length: payload.Length, contentType: "text/plain", expireAtUtcTicks: 777, tags: new Dictionary<string, string>
             {
                 ["kind"] = "text"
             }));
 
-        repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(payload));
 
         await using var app = await CreateAppAsync(repo);
@@ -256,9 +256,28 @@ public sealed class ClusterFileTransferRoutesTests
         var body = await resp.Content.ReadAsByteArrayAsync();
         Assert.Equal(payload, body);
 
-        repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
-        repo.Verify(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Get_returns_not_found_when_a_revision_disappears_after_metadata_lookup(bool missingDirectory)
+    {
+        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
+        repo.Setup(value => value.TryGetVersionMetadataAsync("id1", "deadbeef", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Meta("deadbeef"));
+        repo.Setup(value => value.OpenReadVersionAsync("id1", "deadbeef", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(missingDirectory ? new DirectoryNotFoundException() : new FileNotFoundException());
+        await using var app = await CreateAppAsync(repo);
+        using var client = app.GetTestClient();
+
+        using var response = await client.GetAsync("/cluster/files/id1?sha=deadbeef");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        repo.VerifyAll();
     }
 
     private static void AssertTags(HttpResponseMessage resp, params (string Key, string Value)[] expected)
@@ -282,11 +301,11 @@ public sealed class ClusterFileTransferRoutesTests
         var payload = new byte[] { 9, 8, 7, 6 };
 
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Meta("deadbeef", length: payload.Length, contentType: "application/octet-stream", expireAtUtcTicks: null));
 
         // stream seekable indispensable pour le range processing
-        repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(payload));
 
         await using var app = await CreateAppAsync(repo);
@@ -303,8 +322,8 @@ public sealed class ClusterFileTransferRoutesTests
         Assert.Single(bytes);
         Assert.Equal(9, bytes[0]);
 
-        repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
-        repo.Verify(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.TryGetVersionMetadataAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.OpenReadVersionAsync("id1", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.VerifyNoOtherCalls();
     }
 }

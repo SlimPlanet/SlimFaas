@@ -1,10 +1,11 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, startCoverage, saveCoverage } from './coverage.mjs';
 import { createHash } from 'node:crypto';
 import { startNative } from './native.mjs';
 
 test('durable failures are visible on peers; bounded inert preview and concurrent replay preserve offloaded bytes', async ({ browser, request }, info) => {
   const cluster = await startNative(info.outputPath('dlq-runtime.log'), 'dlq');
   const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
+  await startCoverage(page);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
@@ -28,6 +29,13 @@ test('durable failures are visible on peers; bounded inert preview and concurren
     expect(message.FailureReason).toBe('NonRetryableResponse');
     expect(message.Attempts).toBe(1);
     expect(message.Request.BodyLength).toBe(body.length);
+    await page.goto(`${cluster.peerUrl}/#/live/traffic?actor=queue%3Afibonacci1`);
+    const queue = page.getByRole('dialog');
+    await queue.getByRole('link', { name: 'Open dead letters' }).click();
+    await queue.getByRole('link', { name: message.Id, exact: true }).click();
+    await expect(queue.getByRole('heading', { name: `Message ${message.Id}`, exact: true })).toBeVisible();
+    await queue.getByRole('button', { name: 'Close details' }).click();
+    await expect(page.locator('canvas')).toBeVisible();
     await page.goto(`${cluster.peerUrl}/#/dead-letters/fibonacci1/messages/${message.Id}`);
     await expect(page.getByRole('heading', { name: `Message ${message.Id}`, exact: true })).toBeVisible();
     expect(await page.evaluate(() => window.__dlqExecuted)).toBeUndefined();
@@ -52,8 +60,8 @@ test('durable failures are visible on peers; bounded inert preview and concurren
       return last.elementId;
     }).toBe(receipts[0].ElementId);
     expect(last).toMatchObject({ method: 'POST', url: '/work?original=query', length: body.length,
-      sha256: createHash('sha256').update(body).digest('hex'), attempt: '1' });
+      sha256: createHash('sha256').update(body).digest('hex'), attempt: '0' });
     expect(errors).toEqual([]);
     await page.screenshot({ path: info.outputPath('dead-letters.png'), fullPage: true });
-  } finally { await page.close(); await cluster.close(); }
+  } finally { await saveCoverage(page); await page.close(); await cluster.close(); }
 });

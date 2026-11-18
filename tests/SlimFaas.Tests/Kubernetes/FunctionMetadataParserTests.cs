@@ -125,7 +125,7 @@ public sealed class FunctionMetadataParserTests
         Assert.Equal(120, metadata.Configuration.DefaultSync.HttpTimeout);
         Assert.Equal(120, metadata.Configuration.DefaultAsync.HttpTimeout);
         Assert.Equal([2, 4, 8], metadata.Configuration.DefaultAsync.TimeoutRetries);
-        Assert.Equal([500, 502, 503], metadata.Configuration.DefaultAsync.HttpStatusRetries);
+        Assert.Equal([500, 502, 503, 504], metadata.Configuration.DefaultAsync.HttpStatusRetries);
         Assert.Equal(15, metadata.Configuration.DefaultPublish.HttpTimeout);
         Assert.Equal([1, 2, 4], metadata.Configuration.DefaultPublish.TimeoutRetries);
         Assert.Equal([500, 502, 503], metadata.Configuration.DefaultPublish.HttpStatusRetries);

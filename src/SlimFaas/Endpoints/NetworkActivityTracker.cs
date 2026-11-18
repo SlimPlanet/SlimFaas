@@ -35,7 +35,7 @@ public record NetworkActivityEvent(
 /// <summary>
 /// Represents the full stream payload sent via SSE.
 /// </summary>
-public record SlimFaasNodeInfo(string Name, string Status, string? Role = null);
+public record SlimFaasNodeInfo(string Name, string Status, string? Role = null, string? Lifecycle = null, Kubernetes.PodRequests? Requests = null);
 
 public record StatusStreamPayload(
     IReadOnlyList<FunctionStatusDetailed> Functions,
@@ -57,7 +57,8 @@ public record StatusStreamPayload(
     bool StreamsTruncated = false,
     bool StreamsFrontEnabled = false,
     bool StreamsAccessible = false,
-    DataStatusSummary? DataSummary = null);
+    DataStatusSummary? DataSummary = null,
+    Kubernetes.PodRequests? Requests = null);
 
 public record QueueInfo(string Name, long Length);
 

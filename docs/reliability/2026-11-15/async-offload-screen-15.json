@@ -1,0 +1,1072 @@
+{
+  "started": 1794754067.2915351,
+  "scope": "Initial four-threshold diagnostic, not formal non-regression or optimal-WAL selection. Same f14b05b3 managed/trimmed Linux ARM64 image and receipt fixture128, fixed fresh 64 KiB WAL, 200 x 1 MiB C16, known Content-Length, normal probes, 1 GiB/runtime, full 180-second window. Exactly 1 MiB stays inline at the default threshold. CPU/allocations/GC cover all three runtime processes; pod network includes measurement/probe/function traffic. Physical I/O cannot yet be attributed specifically to WAL vs Files. Thresholds are screened independently before repeat/combined selection.",
+  "variants": {
+    "after": {
+      "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-08",
+      "image_config_sha256": "cca0c90a413084d974206d6c0df4ec1b097369502c2da7afd79e2e580f95dab5",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "45d4b14f4ccf68cac35a07f16df62599a2d8e79e447ed1b554afdb91b8f48227",
+        "slimdata_dll": "e30a5a7f84efb0b8a40d932757e51953a8ef8b50d164fe2ce7af052eea1031d5"
+      },
+      "fixture_sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48",
+      "common_benchmark_sha256": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "common_memorylab_sha256": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    }
+  },
+  "phases": [
+    {
+      "ordinal": 1,
+      "offload_threshold_bytes": 1048576,
+      "namespace": "slimfaas-pr506-at15-1-1048576",
+      "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+      "exit_code": 1,
+      "isolation_valid": true,
+      "passed": false,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 15.725421171984635,
+      "missing_confirmed": [],
+      "extra_confirmed_deliveries": 54,
+      "max_observed_container_restarts": 0,
+      "runtime_log_coverage_complete": true,
+      "managed_oom_log_occurrences": 0,
+      "runtime_errors_during_workload": 2,
+      "latencies": {
+        "confirmed": 200,
+        "unknown": 0,
+        "confirmed_delivered": 200,
+        "acceptance_http_seconds": {
+          "count": 200,
+          "mean": 1.0362490801188686,
+          "p50": 0.46349358699808363,
+          "p95": 4.592511578077391,
+          "p99": 4.66573532852577
+        },
+        "delivery_intent_to_first_success_seconds": {
+          "count": 200,
+          "mean": 8.951220180988312,
+          "p50": 9.497623085975647,
+          "p95": 14.97805460691452,
+          "p99": 15.214122622013091
+        },
+        "delivery_rate_per_second": 11.171396203057984,
+        "all_confirmed_delivered": true,
+        "scope": "Acceptance uses client HTTP elapsed time. Delivery starts at the fsynced client intent timestamp and ends at the first successful handler completion record, before receipt fsync. All pods share the same VM UTC clock. Unknown outcomes stay separate even if delivered; extra deliveries are evaluated independently."
+      },
+      "resources": {
+        "scopes": {
+          "after-send": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 17.613255000000002,
+              "allocated_bytes": 5583469808.0,
+              "gc_gen0": 78.0,
+              "gc_gen1": 76.0,
+              "gc_gen2": 76.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.08806627500000001,
+              "allocated_bytes": 27917349.04,
+              "gc_gen0": 0.39,
+              "gc_gen1": 0.38,
+              "gc_gen2": 0.38
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754097.6172483,
+              1794754113.4686563
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 225265653,
+                "wchar": 917139457,
+                "syscr": 2514,
+                "syscw": 4992,
+                "read_bytes": 585728,
+                "write_bytes": 1142624256,
+                "cancelled_write_bytes": 224653312
+              },
+              {
+                "rchar": 226145828,
+                "wchar": 813272417,
+                "syscr": 4218,
+                "syscw": 4790,
+                "read_bytes": 438272,
+                "write_bytes": 1039233024,
+                "cancelled_write_bytes": 220454912
+              },
+              {
+                "rchar": 225218257,
+                "wchar": 935952901,
+                "syscr": 2272,
+                "syscw": 4970,
+                "read_bytes": 69632,
+                "write_bytes": 1161441280,
+                "cancelled_write_bytes": 224653312
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 273227991,
+                  "tx_bytes": 280986695
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 281974380,
+                  "tx_bytes": 342202246
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 276165269,
+                  "tx_bytes": 74556019
+                }
+              }
+            ]
+          },
+          "after-drain": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 21.180425999999997,
+              "allocated_bytes": 7467515032.0,
+              "gc_gen0": 85.0,
+              "gc_gen1": 82.0,
+              "gc_gen2": 82.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.10590212999999998,
+              "allocated_bytes": 37337575.16,
+              "gc_gen0": 0.425,
+              "gc_gen1": 0.41,
+              "gc_gen2": 0.41
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754097.6172483,
+              1794754118.5963643
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 225407047,
+                "wchar": 935974688,
+                "syscr": 3227,
+                "syscw": 5536,
+                "read_bytes": 585728,
+                "write_bytes": 1165692928,
+                "cancelled_write_bytes": 224653312
+              },
+              {
+                "rchar": 226338481,
+                "wchar": 935973948,
+                "syscr": 5041,
+                "syscw": 5531,
+                "read_bytes": 438272,
+                "write_bytes": 1165877248,
+                "cancelled_write_bytes": 220454912
+              },
+              {
+                "rchar": 225347530,
+                "wchar": 935963081,
+                "syscr": 2907,
+                "syscw": 5479,
+                "read_bytes": 73728,
+                "write_bytes": 1165705216,
+                "cancelled_write_bytes": 224653312
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 273533442,
+                  "tx_bytes": 282134839
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 282429138,
+                  "tx_bytes": 539908498
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 276469337,
+                  "tx_bytes": 75417637
+                }
+              }
+            ]
+          },
+          "final": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 53.773807999999995,
+              "allocated_bytes": 7918970032.0,
+              "gc_gen0": 108.0,
+              "gc_gen1": 88.0,
+              "gc_gen2": 84.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.26886904,
+              "allocated_bytes": 39594850.16,
+              "gc_gen0": 0.54,
+              "gc_gen1": 0.44,
+              "gc_gen2": 0.42
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754097.6172483,
+              1794754293.5392659
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 228708866,
+                "wchar": 936011848,
+                "syscr": 20852,
+                "syscw": 7116,
+                "read_bytes": 602112,
+                "write_bytes": 1178771456,
+                "cancelled_write_bytes": 224653312
+              },
+              {
+                "rchar": 229840121,
+                "wchar": 936011107,
+                "syscr": 23856,
+                "syscw": 7111,
+                "read_bytes": 438272,
+                "write_bytes": 1178968064,
+                "cancelled_write_bytes": 220454912
+              },
+              {
+                "rchar": 228403741,
+                "wchar": 936000263,
+                "syscr": 19076,
+                "syscw": 7065,
+                "read_bytes": 73728,
+                "write_bytes": 1178767360,
+                "cancelled_write_bytes": 224653312
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 277009267,
+                  "tx_bytes": 313765219
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 286585219,
+                  "tx_bytes": 580414685
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 279928488,
+                  "tx_bytes": 98746437
+                }
+              }
+            ]
+          }
+        },
+        "sampling_interval_seconds": 1,
+        "sampling_errors": [],
+        "sampled_peak_aggregate_runtime_rss_bytes": 2350256128,
+        "sampled_peak_aggregate_wal_logical_bytes": 126234810,
+        "sampled_peak_aggregate_wal_file_count": 1938,
+        "sampled_peak_aggregate_files_logical_bytes": 0,
+        "scope": "All three runtime processes; network includes probes/measurement/function traffic. Kernel I/O is not attributed to WAL vs Files. Inventories/peak RSS are sampled, not continuous maxima. The after-drain sample is within observer cadence of the first all-confirmed reconciliation, while the full 180-second window still runs."
+      },
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/async-offload-screen-net11-15/slimfaas-pr506-at15-1-1048576"
+    },
+    {
+      "ordinal": 2,
+      "offload_threshold_bytes": 524288,
+      "namespace": "slimfaas-pr506-at15-2-524288",
+      "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+      "exit_code": 0,
+      "isolation_valid": true,
+      "passed": true,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 1.33549438699265,
+      "missing_confirmed": [],
+      "extra_confirmed_deliveries": 0,
+      "max_observed_container_restarts": 0,
+      "runtime_log_coverage_complete": true,
+      "managed_oom_log_occurrences": 0,
+      "runtime_errors_during_workload": 0,
+      "latencies": {
+        "confirmed": 200,
+        "unknown": 0,
+        "confirmed_delivered": 200,
+        "acceptance_http_seconds": {
+          "count": 200,
+          "mean": 0.07178384081053082,
+          "p50": 0.06605206250969786,
+          "p95": 0.11650440537923706,
+          "p99": 0.14808807830442672
+        },
+        "delivery_intent_to_first_success_seconds": {
+          "count": 200,
+          "mean": 1.076608613729477,
+          "p50": 1.1160210371017456,
+          "p95": 1.9739903926849365,
+          "p99": 2.010335464477539
+        },
+        "delivery_rate_per_second": 66.66765214469424,
+        "all_confirmed_delivered": true,
+        "scope": "Acceptance uses client HTTP elapsed time. Delivery starts at the fsynced client intent timestamp and ends at the first successful handler completion record, before receipt fsync. All pods share the same VM UTC clock. Unknown outcomes stay separate even if delivered; extra deliveries are evaluated independently."
+      },
+      "resources": {
+        "scopes": {
+          "after-send": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 4.472897,
+              "allocated_bytes": 239719016.0,
+              "gc_gen0": 33.0,
+              "gc_gen1": 33.0,
+              "gc_gen2": 33.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.022364485,
+              "allocated_bytes": 1198595.08,
+              "gc_gen0": 0.165,
+              "gc_gen1": 0.165,
+              "gc_gen2": 0.165
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754341.241315,
+              1794754342.6491587
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 325696075,
+                "wchar": 209765423,
+                "syscr": 4273,
+                "syscw": 2008,
+                "read_bytes": 216973312,
+                "write_bytes": 212312064,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 115747093,
+                "wchar": 209765478,
+                "syscr": 1916,
+                "syscw": 1986,
+                "read_bytes": 49573888,
+                "write_bytes": 212303872,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 153402531,
+                "wchar": 209765394,
+                "syscr": 2090,
+                "syscw": 2000,
+                "read_bytes": 63246336,
+                "write_bytes": 212328448,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 211324222,
+                  "tx_bytes": 241095172
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211170096,
+                  "tx_bytes": 116427814
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211389225,
+                  "tx_bytes": 154343260
+                }
+              }
+            ]
+          },
+          "after-drain": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 10.627827,
+              "allocated_bytes": 339673056.0,
+              "gc_gen0": 40.0,
+              "gc_gen1": 36.0,
+              "gc_gen2": 36.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.053139135,
+              "allocated_bytes": 1698365.28,
+              "gc_gen0": 0.2,
+              "gc_gen1": 0.18,
+              "gc_gen2": 0.18
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754341.241315,
+              1794754347.7245765
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 571295913,
+                "wchar": 209772783,
+                "syscr": 7379,
+                "syscw": 2376,
+                "read_bytes": 413057024,
+                "write_bytes": 215404544,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 115858578,
+                "wchar": 209772818,
+                "syscr": 2507,
+                "syscw": 2353,
+                "read_bytes": 49573888,
+                "write_bytes": 215375872,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 153527192,
+                "wchar": 209772694,
+                "syscr": 2761,
+                "syscw": 2365,
+                "read_bytes": 63246336,
+                "write_bytes": 215384064,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 211910369,
+                  "tx_bytes": 366756559
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211656246,
+                  "tx_bytes": 117380944
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211873988,
+                  "tx_bytes": 155306570
+                }
+              }
+            ]
+          },
+          "final": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 45.271855,
+              "allocated_bytes": 800127648.0,
+              "gc_gen0": 88.0,
+              "gc_gen1": 46.0,
+              "gc_gen2": 38.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.226359275,
+              "allocated_bytes": 4000638.24,
+              "gc_gen0": 0.44,
+              "gc_gen1": 0.23,
+              "gc_gen2": 0.19
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754341.241315,
+              1794754522.6940289
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 574609630,
+                "wchar": 209881155,
+                "syscr": 24783,
+                "syscw": 4005,
+                "read_bytes": 413057024,
+                "write_bytes": 229040128,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 119036646,
+                "wchar": 209881220,
+                "syscr": 19243,
+                "syscw": 3986,
+                "read_bytes": 49590272,
+                "write_bytes": 228990976,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 156751371,
+                "wchar": 209881049,
+                "syscr": 19750,
+                "syscw": 3992,
+                "read_bytes": 63410176,
+                "write_bytes": 228999168,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 216067935,
+                  "tx_bytes": 401787625
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 215190633,
+                  "tx_bytes": 144114650
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 215407665,
+                  "tx_bytes": 182323230
+                }
+              }
+            ]
+          }
+        },
+        "sampling_interval_seconds": 1,
+        "sampling_errors": [],
+        "sampled_peak_aggregate_runtime_rss_bytes": 571408384,
+        "sampled_peak_aggregate_wal_logical_bytes": 1425594,
+        "sampled_peak_aggregate_wal_file_count": 42,
+        "sampled_peak_aggregate_files_logical_bytes": 629284800,
+        "scope": "All three runtime processes; network includes probes/measurement/function traffic. Kernel I/O is not attributed to WAL vs Files. Inventories/peak RSS are sampled, not continuous maxima. The after-drain sample is within observer cadence of the first all-confirmed reconciliation, while the full 180-second window still runs."
+      },
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/async-offload-screen-net11-15/slimfaas-pr506-at15-2-524288"
+    },
+    {
+      "ordinal": 3,
+      "offload_threshold_bytes": 262144,
+      "namespace": "slimfaas-pr506-at15-3-262144",
+      "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+      "exit_code": 0,
+      "isolation_valid": true,
+      "passed": true,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 1.2669820439768955,
+      "missing_confirmed": [],
+      "extra_confirmed_deliveries": 0,
+      "max_observed_container_restarts": 0,
+      "runtime_log_coverage_complete": true,
+      "managed_oom_log_occurrences": 0,
+      "runtime_errors_during_workload": 0,
+      "latencies": {
+        "confirmed": 200,
+        "unknown": 0,
+        "confirmed_delivered": 200,
+        "acceptance_http_seconds": {
+          "count": 200,
+          "mean": 0.07236784404536593,
+          "p50": 0.06379469949752092,
+          "p95": 0.1393858977971831,
+          "p99": 0.15626118638261682
+        },
+        "delivery_intent_to_first_success_seconds": {
+          "count": 200,
+          "mean": 0.9474586343765259,
+          "p50": 1.0204339027404785,
+          "p95": 1.5597561597824097,
+          "p99": 1.6315342497825622
+        },
+        "delivery_rate_per_second": 78.47876736268334,
+        "all_confirmed_delivered": true,
+        "scope": "Acceptance uses client HTTP elapsed time. Delivery starts at the fsynced client intent timestamp and ends at the first successful handler completion record, before receipt fsync. All pods share the same VM UTC clock. Unknown outcomes stay separate even if delivered; extra deliveries are evaluated independently."
+      },
+      "resources": {
+        "scopes": {
+          "after-send": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 4.163592000000001,
+              "allocated_bytes": 240081016.0,
+              "gc_gen0": 33.0,
+              "gc_gen1": 31.0,
+              "gc_gen2": 31.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.020817960000000007,
+              "allocated_bytes": 1200405.08,
+              "gc_gen0": 0.165,
+              "gc_gen1": 0.155,
+              "gc_gen2": 0.155
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754573.6816423,
+              1794754575.026854
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 352867775,
+                "wchar": 209765287,
+                "syscr": 4392,
+                "syscw": 2009,
+                "read_bytes": 235012096,
+                "write_bytes": 212226048,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 172215831,
+                "wchar": 209765018,
+                "syscr": 2110,
+                "syscw": 1974,
+                "read_bytes": 84410368,
+                "write_bytes": 212205568,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 59141227,
+                "wchar": 209765138,
+                "syscr": 1456,
+                "syscw": 1985,
+                "read_bytes": 22806528,
+                "write_bytes": 212226048,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 211410453,
+                  "tx_bytes": 271450540
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211471357,
+                  "tx_bytes": 173364484
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211033616,
+                  "tx_bytes": 59576185
+                }
+              }
+            ]
+          },
+          "after-drain": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 10.643665,
+              "allocated_bytes": 346434168.0,
+              "gc_gen0": 37.0,
+              "gc_gen1": 34.0,
+              "gc_gen2": 34.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.053218325000000004,
+              "allocated_bytes": 1732170.84,
+              "gc_gen0": 0.185,
+              "gc_gen1": 0.17,
+              "gc_gen2": 0.17
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754573.6816423,
+              1794754580.1053824
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 606898890,
+                "wchar": 209772547,
+                "syscr": 7841,
+                "syscw": 2372,
+                "read_bytes": 447873024,
+                "write_bytes": 215269376,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 174469254,
+                "wchar": 209772278,
+                "syscr": 2915,
+                "syscw": 2337,
+                "read_bytes": 85983232,
+                "write_bytes": 215248896,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 59261100,
+                "wchar": 209772358,
+                "syscr": 2107,
+                "syscw": 2346,
+                "read_bytes": 22806528,
+                "write_bytes": 215252992,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 211998128,
+                  "tx_bytes": 403423103
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211959376,
+                  "tx_bytes": 176335810
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211516940,
+                  "tx_bytes": 60538682
+                }
+              }
+            ]
+          },
+          "final": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 45.508483,
+              "allocated_bytes": 805982736.0,
+              "gc_gen0": 63.0,
+              "gc_gen1": 40.0,
+              "gc_gen2": 35.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.227542415,
+              "allocated_bytes": 4029913.68,
+              "gc_gen0": 0.315,
+              "gc_gen1": 0.2,
+              "gc_gen2": 0.175
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754573.6816423,
+              1794754755.0624151
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 610268712,
+                "wchar": 209881171,
+                "syscr": 25809,
+                "syscw": 4015,
+                "read_bytes": 447873024,
+                "write_bytes": 229044224,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 177576146,
+                "wchar": 209880915,
+                "syscr": 19338,
+                "syscw": 3983,
+                "read_bytes": 85983232,
+                "write_bytes": 228999168,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 62478102,
+                "wchar": 209880932,
+                "syscr": 19069,
+                "syscw": 3984,
+                "read_bytes": 22806528,
+                "write_bytes": 229003264,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 216184398,
+                  "tx_bytes": 437774172
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 215536605,
+                  "tx_bytes": 202566071
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 215086963,
+                  "tx_bytes": 87537754
+                }
+              }
+            ]
+          }
+        },
+        "sampling_interval_seconds": 1,
+        "sampling_errors": [],
+        "sampled_peak_aggregate_runtime_rss_bytes": 587558912,
+        "sampled_peak_aggregate_wal_logical_bytes": 1425594,
+        "sampled_peak_aggregate_wal_file_count": 42,
+        "sampled_peak_aggregate_files_logical_bytes": 629284800,
+        "scope": "All three runtime processes; network includes probes/measurement/function traffic. Kernel I/O is not attributed to WAL vs Files. Inventories/peak RSS are sampled, not continuous maxima. The after-drain sample is within observer cadence of the first all-confirmed reconciliation, while the full 180-second window still runs."
+      },
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/async-offload-screen-net11-15/slimfaas-pr506-at15-3-262144"
+    },
+    {
+      "ordinal": 4,
+      "offload_threshold_bytes": 131072,
+      "namespace": "slimfaas-pr506-at15-4-131072",
+      "source": "f14b05b36277c2c4e53576414c68954ec4eee066",
+      "exit_code": 0,
+      "isolation_valid": true,
+      "passed": true,
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 1.3483594769786578,
+      "missing_confirmed": [],
+      "extra_confirmed_deliveries": 0,
+      "max_observed_container_restarts": 0,
+      "runtime_log_coverage_complete": true,
+      "managed_oom_log_occurrences": 0,
+      "runtime_errors_during_workload": 0,
+      "latencies": {
+        "confirmed": 200,
+        "unknown": 0,
+        "confirmed_delivered": 200,
+        "acceptance_http_seconds": {
+          "count": 200,
+          "mean": 0.07671257029898698,
+          "p50": 0.0706652880035108,
+          "p95": 0.1436426287764334,
+          "p99": 0.15899337325128723
+        },
+        "delivery_intent_to_first_success_seconds": {
+          "count": 200,
+          "mean": 0.9964118027687072,
+          "p50": 1.157706379890442,
+          "p95": 1.6662961602211,
+          "p99": 1.7015834045410156
+        },
+        "delivery_rate_per_second": 76.42304835165756,
+        "all_confirmed_delivered": true,
+        "scope": "Acceptance uses client HTTP elapsed time. Delivery starts at the fsynced client intent timestamp and ends at the first successful handler completion record, before receipt fsync. All pods share the same VM UTC clock. Unknown outcomes stay separate even if delivered; extra deliveries are evaluated independently."
+      },
+      "resources": {
+        "scopes": {
+          "after-send": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 4.412286,
+              "allocated_bytes": 239044920.0,
+              "gc_gen0": 32.0,
+              "gc_gen1": 31.0,
+              "gc_gen2": 31.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.02206143,
+              "allocated_bytes": 1195224.6,
+              "gc_gen0": 0.16,
+              "gc_gen1": 0.155,
+              "gc_gen2": 0.155
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754806.0476968,
+              1794754807.467359
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 344462003,
+                "wchar": 209764948,
+                "syscr": 4196,
+                "syscw": 1978,
+                "read_bytes": 236388352,
+                "write_bytes": 212140032,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 195721972,
+                "wchar": 209764923,
+                "syscr": 3208,
+                "syscw": 1973,
+                "read_bytes": 93999104,
+                "write_bytes": 212144128,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 48590676,
+                "wchar": 209764933,
+                "syscr": 1236,
+                "syscw": 1971,
+                "read_bytes": 19173376,
+                "write_bytes": 212160512,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 211363010,
+                  "tx_bytes": 263807959
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211626899,
+                  "tx_bytes": 196484982
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211225738,
+                  "tx_bytes": 49012236
+                }
+              }
+            ]
+          },
+          "after-drain": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 10.43996,
+              "allocated_bytes": 344701376.0,
+              "gc_gen0": 37.0,
+              "gc_gen1": 34.0,
+              "gc_gen2": 34.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.0521998,
+              "allocated_bytes": 1723506.88,
+              "gc_gen0": 0.185,
+              "gc_gen1": 0.17,
+              "gc_gen2": 0.17
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754806.0476968,
+              1794754812.5450206
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 596325639,
+                "wchar": 209772203,
+                "syscr": 7261,
+                "syscw": 2342,
+                "read_bytes": 442368000,
+                "write_bytes": 215183360,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 195839290,
+                "wchar": 209772123,
+                "syscr": 3843,
+                "syscw": 2333,
+                "read_bytes": 93999104,
+                "write_bytes": 215162880,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 48707406,
+                "wchar": 209772113,
+                "syscr": 1859,
+                "syscw": 2330,
+                "read_bytes": 19173376,
+                "write_bytes": 215166976,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 211953389,
+                  "tx_bytes": 393326290
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 212113530,
+                  "tx_bytes": 197470182
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 211710095,
+                  "tx_bytes": 49975006
+                }
+              }
+            ]
+          },
+          "final": {
+            "total_all_three_runtime_processes": {
+              "cpu_seconds": 44.958029999999994,
+              "allocated_bytes": 806066472.0,
+              "gc_gen0": 64.0,
+              "gc_gen1": 41.0,
+              "gc_gen2": 36.0
+            },
+            "per_confirmed_message": {
+              "cpu_seconds": 0.22479014999999997,
+              "allocated_bytes": 4030332.36,
+              "gc_gen0": 0.32,
+              "gc_gen1": 0.205,
+              "gc_gen2": 0.18
+            },
+            "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+            "utc_window": [
+              1794754806.0476968,
+              1794754987.5089867
+            ],
+            "runtime_io_delta": [
+              {
+                "rchar": 599645590,
+                "wchar": 209880385,
+                "syscr": 24831,
+                "syscw": 3963,
+                "read_bytes": 442499072,
+                "write_bytes": 228737024,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 199061218,
+                "wchar": 209880323,
+                "syscr": 20838,
+                "syscw": 3956,
+                "read_bytes": 94064640,
+                "write_bytes": 228696064,
+                "cancelled_write_bytes": 0
+              },
+              {
+                "rchar": 51939807,
+                "wchar": 209880328,
+                "syscr": 18932,
+                "syscw": 3955,
+                "read_bytes": 19206144,
+                "write_bytes": 228700160,
+                "cancelled_write_bytes": 0
+              }
+            ],
+            "pod_network_delta": [
+              {
+                "eth0": {
+                  "rx_bytes": 216085483,
+                  "tx_bytes": 426908843
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 215621166,
+                  "tx_bytes": 225040930
+                }
+              },
+              {
+                "eth0": {
+                  "rx_bytes": 215220923,
+                  "tx_bytes": 76944976
+                }
+              }
+            ]
+          }
+        },
+        "sampling_interval_seconds": 1,
+        "sampling_errors": [],
+        "sampled_peak_aggregate_runtime_rss_bytes": 574226432,
+        "sampled_peak_aggregate_wal_logical_bytes": 1425594,
+        "sampled_peak_aggregate_wal_file_count": 42,
+        "sampled_peak_aggregate_files_logical_bytes": 629284800,
+        "scope": "All three runtime processes; network includes probes/measurement/function traffic. Kernel I/O is not attributed to WAL vs Files. Inventories/peak RSS are sampled, not continuous maxima. The after-drain sample is within observer cadence of the first all-confirmed reconciliation, while the full 180-second window still runs."
+      },
+      "path": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/profiles/async-offload-screen-net11-15/slimfaas-pr506-at15-4-131072"
+    }
+  ],
+  "finished": 1794755007.763485,
+  "verdict": "targeted-screen-complete",
+  "formal_performance_acceptance": false
+}

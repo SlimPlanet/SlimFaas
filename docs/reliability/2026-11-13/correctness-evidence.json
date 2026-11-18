@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "runtime_source": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+  "baseline_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+  "correctness_freeze": {
+    "finished": 1794571945.313226,
+    "runtime_source": "a8e1b5fd5aeed535676dc3860d3adacc9159226a",
+    "baseline_source": "f36084643a75d803051a6918d2950d1a4f674ada",
+    "sdk": "11.0.100",
+    "all_current_correctness_runs_passed": true,
+    "original_state_hashed_before_measurements": true
+  },
+  "availability": "Original bytes retained on validation host and Podman VM; paths identify local evidence, not public download URLs. Closed journal/debug-symbol lossless gzip mappings will accompany final performance index.",
+  "raw_index": {
+    "file": "correctness-raw-index.json.gz",
+    "encoding": "gzip-compressed JSON",
+    "compressed_bytes": 3589939,
+    "compressed_sha256": "3ca6486bba277d4847b71067dd7c6529c912264341978e069c3cc39b9277aab7",
+    "expanded_bytes": 14589662,
+    "expanded_sha256": "54b7a90bf43fbaccd3f2fcb85a744e87eb83fae1ff9fda8e4ec84b6047bc9fb7"
+  },
+  "runs": {
+    "native": {
+      "native-leader": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/endurance-leader-11",
+        "files": 17617,
+        "bytes": 229579474
+      },
+      "native-quick": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/net11-02-quick-01",
+        "files": 152,
+        "bytes": 3260192
+      },
+      "rolling-upgrade": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/net11-upgrade-recovery-01",
+        "files": 52,
+        "bytes": 3307328
+      },
+      "native-follower": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/endurance-follower-11",
+        "files": 17652,
+        "bytes": 226920768
+      },
+      "completion-trace-before-02": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/net11-offload-trace-02",
+        "files": 139,
+        "bytes": 500059313
+      },
+      "completion-trace-after-03": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/net11-offload-trace-03",
+        "files": 3205,
+        "bytes": 3429306377
+      },
+      "source-demo": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/net11-source-demo-02",
+        "files": 27,
+        "bytes": 252182
+      },
+      "native-quorum": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/endurance-quorum-11",
+        "files": 163,
+        "bytes": 147588467
+      },
+      "completion-trace-before-01": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/net11-offload-trace-01",
+        "files": 152,
+        "bytes": 203099699
+      },
+      "native-python-sdk": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/python-sdk-net11-02-01",
+        "files": 258,
+        "bytes": 142908959
+      },
+      "reference-native-api": {
+        "retained_root": "${CANDIDATE}/artifacts/pr506/macos/net11-02-reference-control-01",
+        "files": 78,
+        "bytes": 2290795
+      }
+    },
+    "linux": {
+      "podman-full": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-final-net11-02-01",
+        "files": 1561,
+        "bytes": 228259010
+      },
+      "podman-network": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-network-net11-02-01",
+        "files": 1531,
+        "bytes": 53553375
+      },
+      "podman-disk-sharedmemory-1": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-02-01",
+        "files": 38,
+        "bytes": 136142107
+      },
+      "podman-disk-sharedmemory-2": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-02-02",
+        "files": 39,
+        "bytes": 135994711
+      },
+      "podman-disk-sharedmemory-3": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-02-03",
+        "files": 41,
+        "bytes": 136205660
+      },
+      "podman-disk-sharedmemory-4": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-02-04",
+        "files": 39,
+        "bytes": 136774768
+      },
+      "podman-disk-sharedmemory-5": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-sharedmemory-net11-02-05",
+        "files": 37,
+        "bytes": 136067279
+      },
+      "podman-disk-privatememory-1": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-privatememory-net11-02-01",
+        "files": 41,
+        "bytes": 136384604
+      },
+      "podman-disk-privatememory-2": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-privatememory-net11-02-02",
+        "files": 40,
+        "bytes": 136333406
+      },
+      "podman-disk-privatememory-3": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-disk-privatememory-net11-02-03",
+        "files": 38,
+        "bytes": 136286847
+      },
+      "kubernetes-quick": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-02-quick-01",
+        "files": 530,
+        "bytes": 117124266
+      },
+      "kubernetes-protocol": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-02-protocol-01",
+        "files": 173,
+        "bytes": 20115928
+      },
+      "kubernetes-python": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-02-python-01",
+        "files": 224,
+        "bytes": 109975931
+      },
+      "kubernetes-dotnet": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-02-dotnet-01",
+        "files": 200,
+        "bytes": 384048782
+      },
+      "kubernetes-follower": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-endurance-follower-11",
+        "files": 9509,
+        "bytes": 340590645
+      },
+      "kubernetes-leader": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-endurance-leader-11",
+        "files": 9570,
+        "bytes": 366436513
+      },
+      "kubernetes-quorum": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-endurance-quorum-11",
+        "files": 305,
+        "bytes": 120261567
+      },
+      "reference-kubernetes-api": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-02-reference-control-02",
+        "files": 190,
+        "bytes": 2976781
+      },
+      "podman-dotnet-sdk": {
+        "retained_root": "${VM_EVIDENCE}/podman/linux-dotnet-net11-02-01",
+        "files": 6257,
+        "bytes": 406646943
+      },
+      "reference-known-sidecar-failure": {
+        "retained_root": "${VM_EVIDENCE}/runs/slimfaas-pr506-net11-02-reference-control-01",
+        "files": 29,
+        "bytes": 28564
+      }
+    }
+  }
+}

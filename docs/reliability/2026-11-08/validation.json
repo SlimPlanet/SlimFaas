@@ -1,0 +1,169 @@
+{
+  "schema": 1,
+  "baseline_commit": "496e8739e5f7b4326f64520fe4caa4e0e23f8d06",
+  "native_candidate_commit": "7920d9f99d36ef0c68a0b497d4ee4c3526d2a979",
+  "dotnet_tests": {
+    "SlimData": 295,
+    "SlimFaas": 1523,
+    "SlimFaasMcp": 106,
+    "SlimFaasKafka": 11,
+    "SlimFaasClient": 39
+  },
+  "python_sdk_tests": 37,
+  "harness_tests": 13,
+  "windows_benchmark_host_tests": 3,
+  "native_publish": {
+    "passed": true,
+    "existing_third_party_aggregate_trim_aot_warnings": true
+  },
+  "native_bundle_smoke": {
+    "passed": true,
+    "empty_path": true,
+    "nodes": 3,
+    "functions": 4
+  },
+  "documentation_site": {
+    "passed": true,
+    "pnpm": "10.14.0",
+    "pages": 23,
+    "local_links_and_assets": 1657,
+    "search_entries": 394,
+    "initial_global_pnpm_11_attempt": "failed-modules-version-mismatch"
+  },
+  "bundle_helpers": {
+    "passed": 18,
+    "skipped": 1,
+    "skip_reason": "jq unavailable on Windows"
+  },
+  "installer_tests": {
+    "passed": 9,
+    "platform": "WSL Ubuntu, isolated official unzip package",
+    "earlier_attempts": [
+      "Windows host lacks bash, then Unix test mocks incompatible with Git Bash PATH",
+      "WSL lacked unzip; global package manager already had an interrupted dpkg state; no global repair attempted"
+    ],
+    "isolated_tool": "Ubuntu unzip 6.0-26ubuntu3.2 extracted into task cache"
+  },
+  "ci": [
+    {
+      "run": 42489059631,
+      "overall": "failure",
+      "endurance_follower_leader_quorum": "success",
+      "revision": "5db8e568"
+    },
+    {
+      "run": 42501124569,
+      "revision": "7920d9f9",
+      "linux": "failure-after-diskfull-during-restarts-file-read",
+      "windows": "failure-async-publication-timeout"
+    },
+    {
+      "run": 42502578270,
+      "revision": "e36e8b84",
+      "linux": "success",
+      "windows": "failure-accepted-256KiB-async-no-receipt-within-300-seconds"
+    }
+  ],
+  "raw_file_hashes": {
+    "terminal-wal-full-tests.log": {
+      "bytes": 3215,
+      "sha256": "aa83edda236e97bf5eb9d7d60d6a87b9319e3ce5d8911b10489ec6521b895086"
+    },
+    "final-read-barrier-tests.log": {
+      "bytes": 698,
+      "sha256": "0c9bb524d5c6f95f4c088ea53c0a909a896f6902f0bf39678676ca655e497235"
+    },
+    "python-final-quality.log": {
+      "bytes": 101,
+      "sha256": "c7d3afb6e91ae011246ff539f6236e88c4b6dcead1246fa0ab45af127081800e"
+    },
+    "extended-harness-tests.log": {
+      "bytes": 117,
+      "sha256": "eb49099ac5def514891a7a4edfb2fda19533a5124594de9a030c5a0dc14d4997"
+    },
+    "final-harness-13-tests.log": {
+      "bytes": 117,
+      "sha256": "205391d1a3df8da2059f24b92e9f6ce37eee643cf4b9ec8ce92136d5bb36e118"
+    },
+    "final-owned-process-tests.log": {
+      "bytes": 507,
+      "sha256": "22d9dc82f27ce95b9732f9e85d276a17ae61a7fccea9e3709ee3d34b17496389"
+    },
+    "final-bundle-helpers.log": {
+      "bytes": 2891,
+      "sha256": "8f3c5c48e9477407ab1f1b6bbe29bce12c61b9b30a264f194b6838abfa04ef39"
+    },
+    "final-site-build.log": {
+      "bytes": 2303,
+      "sha256": "8e12d5070579f72a28f5109296d605449014f41872cd3b682d863957e49171eb"
+    },
+    "final-site-build-pinned.log": {
+      "bytes": 1945,
+      "sha256": "ef240bb8b8f32040d63e991bdf9bfa85feff788f252be9fc13c8a5377d7cacf0"
+    },
+    "final-install-demo.log": {
+      "bytes": 25100,
+      "sha256": "87e9d2fcaba42c403468a5bdde910728e3e5dbfee829dbb10b89af688b1fb9cf"
+    },
+    "final-install-demo-gitbash.log": {
+      "bytes": 11299,
+      "sha256": "28e30746df163e3980cdc7910dced8e7a0fe6be746eda8e4cf8ffaa1d4d95533"
+    },
+    "final-install-demo-wsl.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "final-install-demo-isolated-unzip-after.log": {
+      "bytes": 755,
+      "sha256": "d312ce4deb17e79c83c62ec1eca48e7766f9ca0d509e5da285aa8234c197218a"
+    },
+    "terminal-portable.log": {
+      "bytes": 468,
+      "sha256": "b0311d7ff462a675051be6341b9f38beb94b3f3007b3f6b0246fa1ffe8d003ad"
+    },
+    "terminal-aot.log": {
+      "bytes": 1338,
+      "sha256": "c3262c12f23a897a11062358d384a0af0a6d56e9b8bdd7413d27b6710f2769fd"
+    },
+    "terminal-local-demo-package.log": {
+      "bytes": 1092,
+      "sha256": "69daabc6f1c78676e9a340e1d99541345aaa17fcd6f134b353853446db4b699a"
+    },
+    "terminal-local-demo-smoke.log": {
+      "bytes": 306,
+      "sha256": "f6617a7ffe01d95fbe7e2b30ba8b6bc31f9359f9d8cfc219ecdd33f4c9b7f0c1"
+    },
+    "replay-cache-baseline-binary.log": {
+      "bytes": 7082,
+      "sha256": "dbbe5210a29a9d5deff725ff5cb87c41d63608a36b413b7b5994a6d877ecc9fd"
+    },
+    "default-async-timeout-before.log": {
+      "bytes": 1333,
+      "sha256": "42aa646c5e3d24b2d959e7372501cf217324c7df3877e977666bbf32d435b1cb"
+    },
+    "terminal-linux-disk-02.log": {
+      "bytes": 1383,
+      "sha256": "c369ecd6ee938d7163d63ecd9654f02dbeeb8b25dd76ebabc76df79a2f373158"
+    },
+    "ci-7920-linux-job.log": {
+      "bytes": 47806,
+      "sha256": "d73c8b6d6ea823ddc1fff88f5f0addca011d81e2f519db778fb730e491bb57f0"
+    },
+    "ci-7920-windows-job.log": {
+      "bytes": 29815,
+      "sha256": "3411ee5dbce3dfc2d4b7191af3229d882b3ecad431378c0aa7ead41bb072ad28"
+    },
+    "ci-e36-windows-job.log": {
+      "bytes": 42578,
+      "sha256": "af7d0626864b391f02e4586013ff216b65901a7bdc9ceff3a5380d1849ab1287"
+    },
+    "invalid-benchmark-orphan.json": {
+      "bytes": 220,
+      "sha256": "cd64413d2981716fcf3854bc5ce6d182921910ab61c6b50bffea6710139eaaba"
+    },
+    "invalid-benchmark-target-orphans.json": {
+      "bytes": 1735,
+      "sha256": "b628bf4d904c909785cdcf2095eb8c0bd995d9b17ae8fa71eb3f43f03c56f2b8"
+    }
+  }
+}

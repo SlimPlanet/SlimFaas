@@ -2,7 +2,7 @@
 
 Keep the SlimFaas dashboard open while sending requests from a second terminal or Bruno. Follow a request from the caller to a function, through a queue, or into a job, then explore the data APIs.
 
-In **Live Stream → Traffic**, blue circles represent requests, purple diamonds publications and amber squares queue messages. Power icons show sleeping, starting and ready functions. Selecting an actor highlights its traffic; enable **Isolate selection** to hide other connections. Use **Animation speed** to slow the visual trip for inspection; it does not change request processing speed.
+In **Live Stream**, blue circles represent requests, purple diamonds publications and amber squares queue messages. Power icons show sleeping, starting and ready functions. Selecting an actor highlights its traffic; enable **Isolate selection** to hide other connections. Use **Filters → Animation speed** to slow the visual trip for inspection; it does not change request processing speed.
 
 ## Prepare your workspace
 
@@ -20,7 +20,7 @@ export BASE_URL=http://127.0.0.1:30020
 export TOUR_ID="tour-$(date +%s)-$$"
 ```
 
-Open `$BASE_URL/` in your browser. **Overview** contains the Functions and Jobs tables; **Live Stream → Traffic** opens the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
+Open `$BASE_URL/` in your browser. The live network map opens immediately. Select a function or job to see its details, or use **Views → Overview** for the tables. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
 
 ### Use Bruno
 
@@ -175,7 +175,7 @@ application is a demonstration workload and always includes the repair handler.
 
 #### Run the repeatable demonstration
 
-Keep **Live Stream → Traffic** open before running the demo. In a second terminal:
+Keep **Live Stream** open before running the demo. In a second terminal:
 
 ```bash
 export BASE_URL=http://127.0.0.1:30020
@@ -447,7 +447,7 @@ curl -fsS "$BASE_URL/data/files" | jq .
 
 Files return a **plain text ID**, not a JSON string. Downloads preserve the stored media type and filename. Metadata is replicated through SlimData; file contents are stored on disk and pulled from peers when needed.
 
-**In the UI:** **Live Stream → Data** lists Sets and Files metadata, including keys, TTL and file sizes. Use the read, list and download responses to verify stored contents; use node status and metrics to investigate cluster behavior.
+**In the UI:** **Views → Data** lists Sets and Files metadata, including keys, TTL and file sizes. Use the read, list and download responses to verify stored contents; use node status and metrics to investigate cluster behavior.
 
 Cleanup:
 
@@ -565,7 +565,7 @@ Run only one producer/tour at a time.
 
 ### Follow the worker in the UI
 
-Keep **Overview** and **Live Stream → Traffic** open:
+Keep **Overview** and **Live Stream** open:
 
 1. Check **fibonacci-ws** capacity with `GET /status-jobs`. The base limit is
    **two running jobs**. Automation refuses a full configuration before
@@ -682,13 +682,13 @@ Use the [API Reference](api-reference.md) to look up all routes, [How It Works](
 
 ## Follow the live dashboard
 
-Open **Live Stream → Traffic** while running the job-to-function exercises. Search for a job execution and select it to focus its path through SlimFaas, queues and functions. Zoom out to see workload groups, or pause and inspect the event journal.
+Open **Live Stream** while running the job-to-function exercises. Search for a job execution and select it to focus its path through SlimFaas, queues and functions. Zoom out to see workload groups, or pause and inspect the event journal.
 
-During the data exercises, switch to **Live Stream → Data** and search for your `TOUR_ID` prefix. The Sets and Files views show keys and TTL, with document sizes for Files. Watch the countdown, create another entry to see its highlight, and return to the first page if a new key sorts before the current cursor. Values and document contents remain accessible through the API exercises, not the dashboard.
+During the data exercises, select **Set** or **Files** on the map and search for your `TOUR_ID` prefix. The Sets and Files views show keys and TTL, with document sizes for Files. Watch the countdown, create another entry to see its highlight, and return to the first page if a new key sorts before the current cursor. Values and document contents remain accessible through the API exercises, not the dashboard.
 
 ## Explain replicas, the leader and background wake-ups
 
-In **Live Stream → Traffic**, select `fibonacci1` and choose **Show replicas**. Send synchronous or asynchronous requests from the earlier exercises: arrival rings identify the replica selected by SlimFaas. Queued messages start from the queue when dispatched; the technical dequeue and outbound records share one animation. Publications still fan out to their individual recipients. These animations illustrate routing, not measured request latency.
+In **Live Stream**, select `fibonacci1` and choose **Show replicas**. Send synchronous or asynchronous requests from the earlier exercises: arrival rings identify the replica selected by SlimFaas. Queued messages start from the queue when dispatched; the technical dequeue and outbound records share one animation. Publications still fan out to their individual recipients. These animations illustrate routing, not measured request latency.
 
 The green **Leader** badge identifies the Raft leader; another node receives it after a leader change is observed. Select a replica, retained job execution or SlimFaas node to see its details and live logs together. Filter text with **Find in logs** to highlight matching text in yellow, or pause scrolling to inspect output. Log access is enabled explicitly in the demo configurations. Native nodes default to `cluster.nodeLogLevel: Error`, so an empty node log is expected when no errors occur; use `Information` in an overlay for a more verbose exercise.
 

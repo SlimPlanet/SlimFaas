@@ -1,0 +1,17 @@
+{
+  "started_utc": "2026-11-16T17:12:10.987178+00:00",
+  "started": 1794849130.986121,
+  "free_before_bytes": 28661927936,
+  "removed_cache": "/Users/a115vc/.nuget/packages",
+  "lsof_exit_code": 0,
+  "open_references": [],
+  "active_measurement": {
+    "pid": 43036,
+    "started": 1794847375.5532951,
+    "output": "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/measurements/macos-net11-189-serial-01/http-attempt-1/2-after"
+  },
+  "scope": "Preemptive removal of verified inactive regenerable NuGet build cache before20GiB; frozen binaries/drivers, sources, sessions, volumes, WAL, snapshots and all campaign proofs untouched. No compilation/restore or additional campaign. Exact maintenance overlap retained for final performance review, not silently promoted into perfect isolation.",
+  "finished": 1794849134.482126,
+  "elapsed_seconds": 3.496005058288574,
+  "free_after_bytes": 30534512640
+}

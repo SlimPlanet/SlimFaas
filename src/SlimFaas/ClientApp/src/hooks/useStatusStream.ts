@@ -1,6 +1,6 @@
 import { appendActivity } from '../lib/live.ts';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { DataSummary, FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import type { PodRequests, DataSummary, FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
 import { jobQueues } from '../lib/topology.ts';
 import { isDeadLetterSummary, type DeadLetterSummary } from '../lib/deadLetters.ts';
 import { isStreamSummary, isStreamFunction, type StreamSummary, type StreamFunction } from '../lib/streams.ts';
@@ -45,8 +45,23 @@ function normalizeScaleDownTimeout(raw: unknown): { Time: string; Value: number 
   }));
 }
 
+function normalizeRequests(raw: unknown): PodRequests | undefined {
+  const read = (key: string) => pick<number>(raw, key, key[0].toLowerCase() + key.slice(1));
+  const cpu = read('CpuMillis'), memory = read('MemoryBytes'), known = read('KnownPods'), unknown = read('UnknownPods');
+  if (cpu == null || memory == null || known == null || unknown == null ||
+      ![cpu, memory, known, unknown].every(v => Number.isFinite(v) && v >= 0)) return undefined;
+  return { CpuMillis: cpu, MemoryBytes: memory, KnownPods: known, UnknownPods: unknown };
+}
+
+function observation(raw: unknown) {
+  const lifecycle = asString(pick(raw, 'Lifecycle', 'lifecycle'));
+  const requests = normalizeRequests(pick(raw, 'Requests', 'requests'));
+  return { ...(lifecycle && { Lifecycle: lifecycle }), ...(requests && { Requests: requests }) };
+}
+
 function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
   return asArray(raw).map((entry) => {
+    const pods = pick(entry, 'Pods', 'pods');
     const resources = pick<Record<string, unknown>>(entry, 'Resources', 'resources');
     const schedule = pick<Record<string, unknown>>(entry, 'Schedule', 'schedule');
     const scheduleDefault = (schedule?.Default ?? schedule?.default) as Record<string, unknown> | null | undefined;
@@ -104,12 +119,13 @@ function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
         Visibility: asString(pick(path, 'Visibility', 'visibility')),
       })),
       DependsOn: asArray<string>(pick(entry, 'DependsOn', 'dependsOn')),
-      Pods: asArray(pick(entry, 'Pods', 'pods')).map((pod) => ({
+      Pods: Array.isArray(pods) ? pods.map((pod) => ({
         Name: asString(pick(pod, 'Name', 'name')),
         Status: asString(pick(pod, 'Status', 'status')),
         Ready: Boolean(pick(pod, 'Ready', 'ready')),
+        ...observation(pod),
         Identity: asString(pick(pod, 'Identity', 'identity')),
-      })),
+      })) : null,
     };
   });
 }
@@ -134,6 +150,7 @@ function normalizeJobs(raw: unknown): JobConfigurationStatus[] {
     RunningJobs: asArray(pick(entry, 'RunningJobs', 'runningJobs')).map((rj) => ({
       Name: asString(pick(rj, 'Name', 'name')),
       Status: asString(pick(rj, 'Status', 'status')),
+      ...observation(rj),
       ElementId: asString(pick(rj, 'ElementId', 'elementId')),
       InQueueTimestamp: asNumber(pick(rj, 'InQueueTimestamp', 'inQueueTimestamp')),
       StartTimestamp: asNumber(pick(rj, 'StartTimestamp', 'startTimestamp')),
@@ -179,6 +196,7 @@ export function normalizeSlimFaasNodes(raw: unknown): SlimFaasNodeInfo[] {
     return {
       Name: asString(pick(entry, 'Name', 'name')),
       Status: asString(pick(entry, 'Status', 'status')),
+      ...observation(entry),
       Role: role === 'Leader' || role === 'Follower' ? role : 'Unknown',
     };
   });
@@ -194,6 +212,7 @@ function normalizeDataSummary(raw: unknown): DataSummary | null {
 
 export function normalizePayload(raw: unknown): StatusStreamPayload {
   return {
+    Requests: normalizeRequests(pick(raw, 'Requests', 'requests')),
     DataSummary: normalizeDataSummary(pick(raw, 'DataSummary', 'dataSummary')),
     Functions: normalizeFunctions(pick(raw, 'Functions', 'functions')),
     Queues: normalizeQueues(pick(raw, 'Queues', 'queues')),
@@ -230,6 +249,7 @@ export function useStatusStream(includeActivity = true) {
   const [error, setError] = useState<string | null>(null);
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
+  const pendingWake = useRef(new Set<string | null>());
   const [queuesWithActivity, setQueuesWithActivity] = useState<Set<string>>(new Set());
   const [slimFaasReplicas, setSlimFaasReplicas] = useState(1);
   const [slimFaasNodes, setSlimFaasNodes] = useState<SlimFaasNodeInfo[]>([]);
@@ -243,6 +263,7 @@ export function useStatusStream(includeActivity = true) {
   const [streamsAvailable, setStreamsAvailable] = useState(false);
   const [streamsFrontEnabled, setStreamsFrontEnabled] = useState(false);
   const [streamsAccessible, setStreamsAccessible] = useState(false);
+  const [requests, setRequests] = useState<PodRequests>();
   const [dataSummary, setDataSummary] = useState<DataSummary | null>(null);
   const [streamsTruncated, setStreamsTruncated] = useState(false);
 
@@ -348,6 +369,7 @@ export function useStatusStream(includeActivity = true) {
         setStreamsFrontEnabled(payload.StreamsFrontEnabled === true);
         setStreamsAccessible(payload.StreamsAccessible === true);
         setStreamsTruncated(payload.StreamsTruncated === true);
+        setRequests(payload.Requests ?? undefined);
         setDataSummary(payload.DataSummary ?? null);
         dataAvailableRef.current = !!payload.DataSummary;
         if (!dataAvailableRef.current) {
@@ -417,44 +439,36 @@ export function useStatusStream(includeActivity = true) {
     };
   }, [connect]);
 
-  const startCooldown = useCallback((name: string) => {
-    setCoolingDown(prev => new Set(prev).add(name));
-    setTimeout(() => {
-      setCoolingDown(prev => {
-        const next = new Set(prev);
-        next.delete(name);
-        return next;
-      });
-    }, COOLDOWN_MS);
+  const wakeUp = useCallback(async (name: string | null) => {
+    if (pendingWake.current.has(name)) return;
+    pendingWake.current.add(name);
+    const started = performance.now();
+    if (name === null) setWakeAllCooling(true);
+    else setCoolingDown(current => new Set(current).add(name));
+    setActionError(null);
+    try {
+      const url = name === null ? '/wake-functions' : `/wake-function/${encodeURIComponent(name)}`;
+      const response = await fetch(url, { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      setActionError(`Unable to wake ${name ?? 'functions'}: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setTimeout(() => {
+        pendingWake.current.delete(name);
+        if (name === null) setWakeAllCooling(false);
+        else setCoolingDown(current => {
+          const next = new Set(current);
+          next.delete(name);
+          return next;
+        });
+      }, Math.max(0, COOLDOWN_MS - (performance.now() - started)));
+    }
   }, []);
 
-  const wakeUp = useCallback(async (functionName: string) => {
-    if (coolingDown.has(functionName)) return;
-    startCooldown(functionName);
-    try {
-      setActionError(null);
-      const response = await fetch(`/wake-function/${encodeURIComponent(functionName)}`, { method: 'POST' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    } catch (err) {
-      setActionError(`Unable to wake ${functionName}: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [coolingDown, startCooldown]);
-
-  const wakeUpAll = useCallback(async () => {
-    if (wakeAllCooling) return;
-    setWakeAllCooling(true);
-    setTimeout(() => setWakeAllCooling(false), COOLDOWN_MS);
-    try {
-      setActionError(null);
-      const response = await fetch('/wake-functions', { method: 'POST' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    } catch (err) {
-      setActionError(`Unable to wake functions: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [wakeAllCooling]);
+  const wakeUpAll = useCallback(() => wakeUp(null), [wakeUp]);
 
   return {
-    functions, dataSummary,
+    functions, requests, dataSummary,
     queues,
     jobs,
     activity, activitySession,

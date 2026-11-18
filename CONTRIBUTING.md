@@ -20,8 +20,6 @@ Keep ESLint on 9 while `eslint-plugin-react` excludes ESLint 10 from its peer ra
 
 Planet Saver uses Vitest 5 with the matching coverage provider. Keep Mermaid on 11: Mermaid 12 adds `elkjs` under EPL-2.0, which is outside the CNCF license allowlist. Revisit this hold only when a compliant dependency distribution or an explicit CNCF exception is available.
 
-The dashboard and FibonacciReact demo override `serve`'s `compression` dependency to the patched 1.8.2 release because `serve` 14.2.6 pins vulnerable 1.8.1 (GHSA-vc2v-76pw-4v95). Remove these scoped overrides once `serve` includes the fix itself.
-
 The documentation site overrides Mermaid's `katex` dependency to 0.19.1 to address GHSA-238p-pmpm-9mq7; recheck mathematical diagram rendering when changing this override. It excludes Next.js's optional `sharp` dependency and its LGPL-licensed libvips binaries: this site exports static pages with `images.unoptimized: true`, so it does not use the native image optimizer. Revisit this exclusion if image optimization is enabled.
 
 Use xUnit assertions in .NET client tests. FluentAssertions 8 requires a commercial license for commercial use and is not part of the CNCF license allowlist. Review direct and transitive package distributions and require a passing FOSSA License Compliance check before merging dependency updates; declared SPDX metadata alone is insufficient.

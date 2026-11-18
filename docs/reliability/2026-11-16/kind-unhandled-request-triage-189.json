@@ -1,0 +1,237 @@
+{
+  "created_utc": "2026-11-16T16:12:46.856659+00:00",
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "roles": [
+    {
+      "role": "follower",
+      "unique_unhandled_request_messages": 3,
+      "observations": [
+        {
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "header": "2026-11-16T08:41:27.575253925Z       An unhandled exception has occurred while executing the request.",
+          "context": [
+            "2026-11-16T08:41:27.575226133Z fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+            "2026-11-16T08:41:27.575253925Z       An unhandled exception has occurred while executing the request.",
+            "2026-11-16T08:41:27.575260466Z       Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+            "2026-11-16T08:41:27.575284050Z          at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.Http1ContentLengthMessageBody.TryReadInternal(ReadResult& )",
+            "2026-11-16T08:41:27.575288800Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry.TryConsume()",
+            "2026-11-16T08:41:27.575291633Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntriesReader.System.Collections.Generic.IAsyncEnumerator<DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry>.MoveNextAsync()",
+            "2026-11-16T08:41:27.575296633Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendCoreAsync[TEntry](ILogEntryProducer`1, Int64, Boolean, CancellationToken)",
+            "2026-11-16T08:41:27.575297425Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T08:41:27.575298175Z          at SlimData.DurableWriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T08:41:27.575300508Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T08:41:27.575301258Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T08:41:27.575303383Z          at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16)",
+            "2026-11-16T08:41:27.575305967Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T08:41:27.575306633Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T08:41:27.575307300Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T08:41:27.575308050Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T08:41:27.575308675Z          at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl, HttpContext, Task)",
+            "2026-11-16T08:41:27.583792332Z warn: SlimData.ClusterFiles.ClusterFileSync[892939702]",
+            "2026-11-16T08:41:27.583814915Z       FileSync announce failed. Node=http://slimfaas-0.slimfaas.slimfaas-pr506-n189-p113-endurance-follower.svc:3262/",
+            "2026-11-16T08:41:27.583819707Z       System.Threading.Tasks.TaskCanceledException: The operation was canceled."
+          ],
+          "source_files": [
+            "campaign/absence-follower-1800s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-300s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-30s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-3600s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-60s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-900s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-follower/pod-logs/3c9da9c6-45ac-4057-9c6d-1d582ca52eb5/runtime/0-previous-1794825231236726000.log"
+          ],
+          "window": "absence-follower-30s",
+          "exception": "Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+          "request_boundary_not_process_fatal": true
+        },
+        {
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "header": "2026-11-16T08:42:28.192269634Z       An unhandled exception has occurred while executing the request.",
+          "context": [
+            "2026-11-16T08:42:28.192233300Z fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+            "2026-11-16T08:42:28.192269634Z       An unhandled exception has occurred while executing the request.",
+            "2026-11-16T08:42:28.192271717Z       Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+            "2026-11-16T08:42:28.192273425Z          at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.Http1ContentLengthMessageBody.TryReadInternal(ReadResult& )",
+            "2026-11-16T08:42:28.192274259Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry.TryConsume()",
+            "2026-11-16T08:42:28.192275634Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntriesReader.System.Collections.Generic.IAsyncEnumerator<DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry>.MoveNextAsync()",
+            "2026-11-16T08:42:28.192277550Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendCoreAsync[TEntry](ILogEntryProducer`1, Int64, Boolean, CancellationToken)",
+            "2026-11-16T08:42:28.192278342Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T08:42:28.192279092Z          at SlimData.DurableWriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T08:42:28.192280550Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T08:42:28.192281217Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T08:42:28.192282717Z          at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16)",
+            "2026-11-16T08:42:28.192365051Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T08:42:28.192380092Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T08:42:28.192382592Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T08:42:28.192384092Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T08:42:28.192386217Z          at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl, HttpContext, Task)",
+            "2026-11-16T08:47:29.179696783Z fail: SlimFaas.SendClient[279236110]",
+            "2026-11-16T08:47:29.179731950Z       Error in SendHttpRequestSync to chaos to echo ",
+            "2026-11-16T08:47:29.179735200Z       System.Threading.Tasks.TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
+          ],
+          "source_files": [
+            "campaign/absence-follower-1800s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-300s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-3600s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-60s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "campaign/absence-follower-900s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-follower/pod-logs/3c9da9c6-45ac-4057-9c6d-1d582ca52eb5/runtime/0-previous-1794825231236726000.log"
+          ],
+          "window": "absence-follower-60s",
+          "exception": "Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+          "request_boundary_not_process_fatal": true
+        },
+        {
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "header": "2026-11-16T10:32:55.244031998Z       An unhandled exception has occurred while executing the request.",
+          "context": [
+            "2026-11-16T10:32:55.244023832Z fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+            "2026-11-16T10:32:55.244031998Z       An unhandled exception has occurred while executing the request.",
+            "2026-11-16T10:32:55.244033707Z       Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+            "2026-11-16T10:32:55.244042540Z          at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.Http1ContentLengthMessageBody.TryReadInternal(ReadResult& )",
+            "2026-11-16T10:32:55.244043290Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry.TryConsume()",
+            "2026-11-16T10:32:55.244045707Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntriesReader.System.Collections.Generic.IAsyncEnumerator<DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry>.MoveNextAsync()",
+            "2026-11-16T10:32:55.244046915Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendCoreAsync[TEntry](ILogEntryProducer`1, Int64, Boolean, CancellationToken)",
+            "2026-11-16T10:32:55.244047415Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T10:32:55.244048165Z          at SlimData.DurableWriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T10:32:55.244049165Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T10:32:55.244049749Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T10:32:55.244051582Z          at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16)",
+            "2026-11-16T10:32:55.244055165Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T10:32:55.244057207Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T10:32:55.244057999Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T10:32:55.244058499Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T10:32:55.244059124Z          at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl, HttpContext, Task)",
+            "2026-11-16T10:32:55.244059832Z warn: SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker[1344546002]",
+            "2026-11-16T10:32:55.244060540Z       Watch stream jobs unavailable (HTTP ): falling back to the legacy polling cadence until the stream is restored. Check that the service account grants the \"watch\" verb on jobs",
+            "2026-11-16T10:32:55.244062665Z warn: SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker[1344546002]"
+          ],
+          "source_files": [
+            "campaign/absence-follower-3600s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+            "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-follower/pod-logs/3c9da9c6-45ac-4057-9c6d-1d582ca52eb5/runtime/0-previous-1794825231236726000.log"
+          ],
+          "window": "absence-follower-3600s",
+          "exception": "Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+          "request_boundary_not_process_fatal": true
+        }
+      ]
+    },
+    {
+      "role": "leader",
+      "unique_unhandled_request_messages": 0,
+      "observations": []
+    },
+    {
+      "role": "quorum",
+      "unique_unhandled_request_messages": 3,
+      "observations": [
+        {
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "header": "2026-11-16T13:04:32.866597123Z       An unhandled exception has occurred while executing the request.",
+          "context": [
+            "2026-11-16T13:04:32.866596165Z fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+            "2026-11-16T13:04:32.866597123Z       An unhandled exception has occurred while executing the request.",
+            "2026-11-16T13:04:32.866598123Z       Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+            "2026-11-16T13:04:32.866600873Z          at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.Http1ContentLengthMessageBody.TryReadInternal(ReadResult& )",
+            "2026-11-16T13:04:32.866605040Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry.TryConsume()",
+            "2026-11-16T13:04:32.866607582Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntriesReader.System.Collections.Generic.IAsyncEnumerator<DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry>.MoveNextAsync()",
+            "2026-11-16T13:04:32.866613498Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendCoreAsync[TEntry](ILogEntryProducer`1, Int64, Boolean, CancellationToken)",
+            "2026-11-16T13:04:32.866618915Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T13:04:32.866624165Z          at SlimData.DurableWriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T13:04:32.866627540Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T13:04:32.866628207Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T13:04:32.866630623Z          at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16)",
+            "2026-11-16T13:04:32.866635040Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T13:04:32.866635707Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T13:04:32.866636457Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T13:04:32.866637082Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T13:04:32.866638540Z          at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl, HttpContext, Task)",
+            "2026-11-16T13:04:32.866642749Z warn: SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker[1344546002]",
+            "2026-11-16T13:04:32.866643499Z       Watch stream job-pods unavailable (HTTP ): falling back to the legacy polling cadence until the stream is restored. Check that the service account grants the \"watch\" verb on job-pods",
+            "2026-11-16T13:04:32.874364361Z warn: SlimFaas.Database.SlimDataService[82295904]"
+          ],
+          "source_files": [
+            "campaign/absence-quorum-1800s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "campaign/absence-quorum-300s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "campaign/absence-quorum-3600s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "campaign/absence-quorum-900s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-quorum/pod-logs/a1878033-7143-40d8-9bf0-092261d09e74/runtime/0-previous-1794840607364313000.log"
+          ],
+          "window": "absence-quorum-300s",
+          "exception": "Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+          "request_boundary_not_process_fatal": true
+        },
+        {
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "header": "2026-11-16T13:19:38.402719019Z       An unhandled exception has occurred while executing the request.",
+          "context": [
+            "2026-11-16T13:19:38.402668352Z fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+            "2026-11-16T13:19:38.402719019Z       An unhandled exception has occurred while executing the request.",
+            "2026-11-16T13:19:38.402721602Z       Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+            "2026-11-16T13:19:38.402724352Z          at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.Http1ContentLengthMessageBody.TryReadInternal(ReadResult& )",
+            "2026-11-16T13:19:38.402725560Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry.TryConsume()",
+            "2026-11-16T13:19:38.402737019Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntriesReader.System.Collections.Generic.IAsyncEnumerator<DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry>.MoveNextAsync()",
+            "2026-11-16T13:19:38.402740560Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendCoreAsync[TEntry](ILogEntryProducer`1, Int64, Boolean, CancellationToken)",
+            "2026-11-16T13:19:38.402741352Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T13:19:38.402742144Z          at SlimData.DurableWriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T13:19:38.402746144Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T13:19:38.402748810Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T13:19:38.402752727Z          at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16)",
+            "2026-11-16T13:19:38.402756352Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T13:19:38.402757019Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T13:19:38.402757810Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T13:19:38.402758602Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T13:19:38.402759644Z          at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl, HttpContext, Task)",
+            "2026-11-16T13:19:38.402760435Z warn: SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker[1344546002]",
+            "2026-11-16T13:19:38.402761144Z       Watch stream jobs unavailable (HTTP ): falling back to the legacy polling cadence until the stream is restored. Check that the service account grants the \"watch\" verb on jobs",
+            "2026-11-16T13:19:38.402761810Z warn: SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker[1344546002]"
+          ],
+          "source_files": [
+            "campaign/absence-quorum-1800s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "campaign/absence-quorum-3600s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "campaign/absence-quorum-900s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-quorum/pod-logs/a1878033-7143-40d8-9bf0-092261d09e74/runtime/0-previous-1794840607364313000.log"
+          ],
+          "window": "absence-quorum-900s",
+          "exception": "Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+          "request_boundary_not_process_fatal": true
+        },
+        {
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "header": "2026-11-16T13:49:44.177417431Z       An unhandled exception has occurred while executing the request.",
+          "context": [
+            "2026-11-16T13:49:44.177405264Z fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+            "2026-11-16T13:49:44.177417431Z       An unhandled exception has occurred while executing the request.",
+            "2026-11-16T13:49:44.177419431Z       Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+            "2026-11-16T13:49:44.177424389Z          at Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http.Http1ContentLengthMessageBody.TryReadInternal(ReadResult& )",
+            "2026-11-16T13:49:44.177425431Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry.TryConsume()",
+            "2026-11-16T13:49:44.177426973Z          at DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntriesReader.System.Collections.Generic.IAsyncEnumerator<DotNext.Net.Cluster.Consensus.Raft.Http.AppendEntriesMessage.OctetStreamLogEntry>.MoveNextAsync()",
+            "2026-11-16T13:49:44.177428181Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendCoreAsync[TEntry](ILogEntryProducer`1, Int64, Boolean, CancellationToken)",
+            "2026-11-16T13:49:44.177428848Z          at DotNext.Net.Cluster.Consensus.Raft.StateMachine.WriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T13:49:44.177429473Z          at SlimData.DurableWriteAheadLog.AppendAsync[TEntry](ILogEntryProducer`1, Int64, Boolean , CancellationToken )",
+            "2026-11-16T13:49:44.177430348Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T13:49:44.177431014Z          at DotNext.Net.Cluster.Consensus.Raft.RaftCluster`1.AppendEntriesAsync[TEntry](ClusterMemberId, Int64, ILogEntryProducer`1 , Int64, Int64, Int64, Int32, CancellationToken)",
+            "2026-11-16T13:49:44.177435848Z          at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16)",
+            "2026-11-16T13:49:44.177436889Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T13:49:44.177437681Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.AppendEntriesAsync(HttpRequest, HttpResponse, CancellationToken)",
+            "2026-11-16T13:49:44.177438431Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T13:49:44.177439139Z          at DotNext.Net.Cluster.Consensus.Raft.Http.RaftHttpCluster.ProcessRequestAsync(HttpContext context)",
+            "2026-11-16T13:49:44.177439806Z          at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.<Invoke>g__Awaited|10_0(ExceptionHandlerMiddlewareImpl, HttpContext, Task)",
+            "2026-11-16T13:49:45.080912142Z warn: SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker[832163730]",
+            "2026-11-16T13:49:45.080935725Z       Watch stream job-pods received an ERROR event (code 410): reconnecting",
+            "2026-11-16T13:49:45.080937350Z warn: SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker[1344546002]"
+          ],
+          "source_files": [
+            "campaign/absence-quorum-1800s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "campaign/absence-quorum-3600s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+            "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-quorum/pod-logs/a1878033-7143-40d8-9bf0-092261d09e74/runtime/0-previous-1794840607364313000.log"
+          ],
+          "window": "absence-quorum-1800s",
+          "exception": "Microsoft.AspNetCore.Server.Kestrel.Core.BadHttpRequestException: Unexpected end of request content.",
+          "request_boundary_not_process_fatal": true
+        }
+      ]
+    }
+  ],
+  "scope": "All observed unhandled-exception phrases are request-boundary Kestrel BadHttpRequestException during interrupted Raft AppendEntries; this phrase does not itself establish a process-fatal exception. All observed events occur in explicit injected-fault/recovery windows. Original logs/errors retained, no suppression or complete-history/healthy-zero-error claim."
+}

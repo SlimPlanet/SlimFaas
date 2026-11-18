@@ -81,7 +81,7 @@ internal sealed class RatePerBucketNode(MetricSelector selector, TimeSpan window
         value = "";
         var idx = seriesKey.IndexOf('{', StringComparison.Ordinal);
         if (idx < 0) return false;
-        var j = seriesKey.LastIndexOf('}');
+        var j = seriesKey.LastIndexOf('}', StringComparison.Ordinal);
         if (j < idx) return false;
         var content = seriesKey.Substring(idx + 1, j - idx - 1);
         foreach (var part in content.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))

@@ -1,0 +1,201 @@
+{
+  "kind": "bounded diagnostic, not formal performance comparison",
+  "generation": "07",
+  "finished_utc": 1794732531.306605,
+  "variants": {
+    "before": {
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-04",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "b53cd5e070cd6f9e0eca357b62d63fccdbcbb83f2c097977cb3999f33e16e768",
+        "slimdata_dll": "9ea29b40a6ebf144a448ffcb9746072135a594455ebc64ac0595c0e7630e4d54"
+      }
+    },
+    "after": {
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-05",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "bbbfae6e26b7b5ac57b4d0daeaa8a4dcf4330e5498481989f00f07560296bd31",
+        "slimdata_dll": "7924bbea28de8ddaa1caa7513a996f41b9eed9ec937e3e96bf49a3025639ba5d"
+      },
+      "image_config_sha256": "bba7f39dd5e3355e971de40efd4f21df59a347e748402a0a7bcdc83f7bf7c83c"
+    }
+  },
+  "messages": 200,
+  "payload_bytes": 1048576,
+  "concurrency": 16,
+  "runtime_memory_limit_bytes": 1073741824,
+  "wal_chunk_bytes": 4096,
+  "observation_bound_seconds": 180,
+  "normal_probes": true,
+  "fresh_one_shot_bootstrap": true,
+  "notes": [
+    "Missing at the observation bound is not a confirmed permanent loss. Original state/receipts remain retained.",
+    "Current-only container logs can omit earlier incarnations; restart counts and historical stack traces remain separate evidence.",
+    "Log occurrence counts are not distinct exception counts. Kernel OOMKilled and restart counts do not detect all managed OOM."
+  ],
+  "phases": [
+    {
+      "ordinal": 1,
+      "variant": "before",
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 28.383526363002602,
+      "observation_seconds": 180.00067899998976,
+      "not_delivered_at_bound": 176,
+      "extra_deliveries": 0,
+      "repeated_identifiers": 0,
+      "container_restarts_max": 3,
+      "observation_error_counts": {
+        "sampling": 30,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": false,
+      "final_capture_error": null,
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 21,
+          "new_leader_messages": 2
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 36,
+          "new_leader_messages": 2
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-07/slimfaas-pr506-ps07-1-before",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps07-1-before"
+    },
+    {
+      "ordinal": 2,
+      "variant": "after",
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 32.9084717350197,
+      "observation_seconds": 180.00038520697854,
+      "not_delivered_at_bound": 0,
+      "extra_deliveries": 17,
+      "repeated_identifiers": 17,
+      "container_restarts_max": 0,
+      "observation_error_counts": {
+        "sampling": 0,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": false,
+      "final_capture_error": null,
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 2
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 2
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 2
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-07/slimfaas-pr506-ps07-2-after",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps07-2-after"
+    },
+    {
+      "ordinal": 3,
+      "variant": "after",
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 32.13294988300186,
+      "observation_seconds": 180.0008280420152,
+      "not_delivered_at_bound": 0,
+      "extra_deliveries": 71,
+      "repeated_identifiers": 60,
+      "container_restarts_max": 0,
+      "observation_error_counts": {
+        "sampling": 0,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": false,
+      "final_capture_error": null,
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 2
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 2
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 2
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-07/slimfaas-pr506-ps07-3-after",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps07-3-after"
+    },
+    {
+      "ordinal": 4,
+      "variant": "before",
+      "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+      "isolation_valid": true,
+      "accepted": 200,
+      "unknown": 0,
+      "send_seconds": 27.416595785995014,
+      "observation_seconds": 180.00024799801758,
+      "not_delivered_at_bound": 182,
+      "extra_deliveries": 0,
+      "repeated_identifiers": 0,
+      "container_restarts_max": 3,
+      "observation_error_counts": {
+        "sampling": 28,
+        "receipts": 0,
+        "integrity": 0
+      },
+      "passed": false,
+      "final_capture_error": null,
+      "runtime_logs": [
+        {
+          "node": "slimfaas-0-runtime.log",
+          "managed_oom_log_occurrences": 0,
+          "new_leader_messages": 1
+        },
+        {
+          "node": "slimfaas-1-runtime.log",
+          "managed_oom_log_occurrences": 141,
+          "new_leader_messages": 2
+        },
+        {
+          "node": "slimfaas-2-runtime.log",
+          "managed_oom_log_occurrences": 39,
+          "new_leader_messages": 2
+        }
+      ],
+      "local_raw_root": "profiles/producer-session-net11-07/slimfaas-pr506-ps07-4-before",
+      "vm_originals": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-ps07-4-before"
+    }
+  ]
+}

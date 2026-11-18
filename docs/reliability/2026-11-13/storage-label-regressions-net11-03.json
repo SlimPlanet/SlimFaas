@@ -1,0 +1,102 @@
+{
+  "runtime_source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "created_utc": 1794716974.008585,
+  "before_launcher_sha256": "c5ce5d0258783c15c39bc1a7bde63e1117d96dbc5483f7aa939ff86197a80fda",
+  "after_launcher_sha256": "7ff00b5da6bea961ad24a4965df2789d9d149d4f88fb8f8ccc76934bb87c46cc",
+  "after_tests_sha256": "aaa10fdf9ea2382320d1fe19aa3125264452499a3e858c942e0cbb65446a366c",
+  "before": {
+    "tests": 2,
+    "failures": 2,
+    "errors": 0,
+    "log": "unit-before.log",
+    "server_dry_run_exit_code": 1,
+    "api_error": "The PersistentVolume \"slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-0\" is invalid: metadata.labels: Invalid value: \"slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-0\": must be no more than 63 bytes"
+  },
+  "after": {
+    "tests": 27,
+    "passed": 27,
+    "failed": 0,
+    "skipped": 0,
+    "log": "unit-after.log",
+    "server_dry_run_exit_code": 0,
+    "api_result": "persistentvolume/slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-0 created (server dry run)"
+  },
+  "invalid_labels": [
+    {
+      "name": "slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-0",
+      "label": "app",
+      "value": "slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-0",
+      "length": 64
+    },
+    {
+      "name": "slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-1",
+      "label": "app",
+      "value": "slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-1",
+      "length": 64
+    },
+    {
+      "name": "slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-2",
+      "label": "app",
+      "value": "slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after-state-2",
+      "length": 64
+    }
+  ],
+  "failed_readiness_guest": {
+    "namespace": "slimfaas-pr506-net11-kbench-03-set-c48-attempt-1-2-after",
+    "workload_started": false,
+    "driver_terminal": true,
+    "quiescent_collection": 1794716733.812167
+  },
+  "files": {
+    "fixed-pv.json": {
+      "bytes": 760,
+      "sha256": "53a53a9124c046e4b05326d217b2452ef2630037406a3bccaf5bcf1a8141b56d"
+    },
+    "rejected-pv.json": {
+      "bytes": 841,
+      "sha256": "461f285dfe6407c16f255d5871bd99f86903eb4c55034f44ee603b55d3de53b5"
+    },
+    "unit-before-initial-invalid-fixture.log": {
+      "bytes": 1738,
+      "sha256": "f383cec05b4f264124a3d726f8c4e886bee299a0911b9c7d3e38a04b1ce3b94b"
+    },
+    "unit-after.log": {
+      "bytes": 4745,
+      "sha256": "48f6ebf1b762f599e7d234b948421083088e7551e76d8000d632fb03bd24b585"
+    },
+    "run-kubernetes-campaign.before.py": {
+      "bytes": 23887,
+      "sha256": "c5ce5d0258783c15c39bc1a7bde63e1117d96dbc5483f7aa939ff86197a80fda"
+    },
+    "unit-after-initial-skips.log": {
+      "bytes": 4905,
+      "sha256": "3ec2edfeaa58b501807345f26aafc38995f2267adb74ab2eefc9694f26854e77"
+    },
+    "unit-before.log": {
+      "bytes": 3319,
+      "sha256": "ee132880a4963a491bed6d33137549f5da71c6e9585866284267db6b3cbedc33"
+    },
+    "server-dry-run-before.log": {
+      "bytes": 230,
+      "sha256": "962ec443e8ee15a233b03700177515ddcfb6c082cf54c0e5204de44d9b309a25"
+    },
+    "frozen-memorylab-test-input.json": {
+      "bytes": 383,
+      "sha256": "e530d8ba5217db6e0f66cfbec06a9e4b9cce7fefbc28adfc3bca3ccf00aa9d5a"
+    },
+    "server-dry-run-after.log": {
+      "bytes": 107,
+      "sha256": "81f577efaeaed6f5ed22720ee1d73eb9e1013a1fcf5e89b2b4f4788de8b10b27"
+    },
+    "rejected-resources.json": {
+      "bytes": 183690,
+      "sha256": "2cb0663b67c2d4bee856dbb915f1c6491f3baed4d2f3c4da62ec8be1fc062b5b"
+    },
+    "test-platform-validation.before.py": {
+      "bytes": 29232,
+      "sha256": "c0c4e5f49eae5a4fb9f3c87e07a3b7b64019a594c82d61b7fccb9fa85a1be395"
+    }
+  },
+  "reproduction_directory": "${CANDIDATE}/artifacts/pr506/reproductions/kubernetes-pv-label-net11-03",
+  "note": "Only controller resource labels and CLI namespace validation change. All runtime publications/images and workload/compare settings remain frozen. The initial invalid test fixture and first skipped endpoint run remain in the raw evidence but are not counted as the before/after regression result. Two endpoint tests were replayed using the frozen publication, without restore/build or modifying that publication."
+}

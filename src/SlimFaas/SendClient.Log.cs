@@ -3,6 +3,11 @@ namespace SlimFaas
 {
     internal static partial class SendClientLog
     {
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Trace,
+            Message = "Async transport stage={Stage} Function={FunctionName} ElementId={ElementId} TransportEntries={TransportEntries} ReservedTarget={ReservedTarget} ActualUrl={ActualUrl} StatusCode={StatusCode}")]
+        internal static partial void LogAsyncTransportStage(this global::Microsoft.Extensions.Logging.ILogger logger,
+            string stage, string functionName, string elementId, int transportEntries, string? reservedTarget, string? actualUrl, int? statusCode);
+
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}")]
         internal static partial void LogStartSendingSyncRequestTo(this global::Microsoft.Extensions.Logging.ILogger logger, string functionName, string functionPath, string functionQuery);
 

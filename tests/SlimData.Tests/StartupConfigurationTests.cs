@@ -1,14 +1,92 @@
 using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
+using DotNext.IO.Log;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using SlimData.Options;
+using SlimData.ClusterFiles;
 
 namespace SlimData.Tests;
 
 public sealed class StartupConfigurationTests
 {
+    [Fact]
+    public async Task File_transfers_recycle_connections_without_imposing_a_whole_stream_timeout()
+    {
+        IConfiguration configuration = new ConfigurationBuilder().Build();
+        var services = new ServiceCollection();
+        services.AddSingleton(configuration).AddLogging();
+        new Startup(configuration).ConfigureServices(services);
+        SocketsHttpHandler? handler = null;
+        services.Configure<HttpClientFactoryOptions>("ClusterFilesTransfer", options =>
+            options.HttpMessageHandlerBuilderActions.Add(builder =>
+                handler = Assert.IsType<SocketsHttpHandler>(builder.PrimaryHandler)));
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        using HttpClient client = provider.GetRequiredService<IHttpClientFactory>().CreateClient("ClusterFilesTransfer");
+
+        Assert.NotNull(handler);
+        Assert.Equal(TimeSpan.FromMinutes(2), handler.PooledConnectionLifetime);
+        Assert.Equal(Timeout.InfiniteTimeSpan, client.Timeout);
+        Assert.Equal(Timeout.InfiniteTimeSpan, handler.ConnectTimeout);
+        Assert.Equal(TimeSpan.FromMinutes(1), handler.PooledConnectionIdleTimeout);
+        Assert.False(handler.AllowAutoRedirect);
+        Assert.False(handler.UseProxy);
+    }
+
+    [Fact]
+    public async Task Different_node_log_directories_on_one_declared_volume_share_its_storage_identity()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            var identities = new List<string>();
+            foreach (string node in new[] { "node-a", "node-b" })
+            {
+                IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [SlimPersistentState.LogLocation] = Path.Combine(root, node),
+                    ["SlimData:Directory"] = root
+                }).Build();
+                var services = new ServiceCollection(); services.AddSingleton(configuration).AddLogging();
+                new Startup(configuration).ConfigureServices(services);
+                await using ServiceProvider provider = services.BuildServiceProvider();
+                identities.Add(Assert.IsAssignableFrom<IDurableFileRepository>(provider.GetRequiredService<IFileRepository>()).StorageIdentity);
+            }
+            Assert.Equal(identities[0], identities[1]);
+            Assert.True(File.Exists(Path.Combine(root, ".slimfaas-files-storage-identity")));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task All_raft_consumers_share_the_durable_wal_after_snapshot_restoration()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(
+                new Dictionary<string, string?> { [SlimPersistentState.LogLocation] = root }).Build();
+            var services = new ServiceCollection();
+            services.AddSingleton(configuration).AddLogging();
+            new Startup(configuration).ConfigureServices(services);
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            await provider.GetRequiredService<SlimPersistentState>().RestoreAsync();
+            IPersistentState wal = provider.GetRequiredService<IPersistentState>();
+            Assert.IsType<DurableWriteAheadLog>(wal);
+            Assert.Same(wal, provider.GetRequiredService<IAuditTrail<IRaftLogEntry>>());
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Resolving_the_wal_before_snapshot_restore_fails_instead_of_replaying_partial_state()
     {

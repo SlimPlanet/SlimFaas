@@ -40,10 +40,10 @@ public sealed class SlimDataExpirationCleanerTests
         var cleaner = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, new Mock<ILogger<SlimDataExpirationCleaner>>().Object);
         for (int i = 0; i < 4; i++) await cleaner.CleanupOnceAsync(CancellationToken.None);
         db.Verify(value => value.DeleteAsync(It.IsAny<string>()), Times.Never);
-        files.Verify(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        files.Verify(value => value.DeleteVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         payload.Hashsets = payload.Hashsets.Clear();
         for (int i = 0; i < 4; i++) await cleaner.CleanupOnceAsync(CancellationToken.None);
-        files.Verify(value => value.DeleteAsync("offload", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        files.Verify(value => value.DeleteVersionAsync("offload", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     private static async IAsyncEnumerable<FileMetadataEntry> EmptyMeta(
@@ -106,7 +106,7 @@ public sealed class SlimDataExpirationCleanerTests
                      Metadata: new FileMetadata("application/octet-stream", "sha", 10, expiredTicks))
              }));
 
-        files.Setup(f => f.DeleteAsync("abc", It.IsAny<CancellationToken>()))
+        files.Setup(f => f.DeleteVersionAsync("abc", It.IsAny<string>(), It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);
 
         files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
@@ -239,7 +239,7 @@ public sealed class SlimDataExpirationCleanerTests
                  new FileMetadataEntry("file-no-ttl",  new FileMetadata("application/octet-stream", "sha3", 10, null)),
              }));
 
-        files.Setup(f => f.DeleteAsync("file-expired", It.IsAny<CancellationToken>()))
+        files.Setup(f => f.DeleteVersionAsync("file-expired", It.IsAny<string>(), It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);
 
         files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
@@ -253,8 +253,8 @@ public sealed class SlimDataExpirationCleanerTests
         db.VerifyNoOtherCalls();
 
         // must only delete the expired one
-        files.Verify(f => f.DeleteAsync("file-future", It.IsAny<CancellationToken>()), Times.Never);
-        files.Verify(f => f.DeleteAsync("file-no-ttl", It.IsAny<CancellationToken>()), Times.Never);
+        files.Verify(f => f.DeleteVersionAsync("file-future", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        files.Verify(f => f.DeleteVersionAsync("file-no-ttl", It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── helpers ────────────────────────────────────────────────────────────────
@@ -518,7 +518,7 @@ public sealed class SlimDataExpirationCleanerTests
 
         files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
              .Returns(Meta(new[] { new FileMetadataEntry(fileId, diskMeta) }));
-        files.Setup(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        files.Setup(f => f.DeleteVersionAsync(fileId, It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(0);
 
         var sut = new SlimDataExpirationCleaner(
@@ -531,7 +531,7 @@ public sealed class SlimDataExpirationCleanerTests
 
         files.VerifyAll();
         db.VerifyNoOtherCalls();
-        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Once);
+        files.Verify(f => f.DeleteVersionAsync(fileId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -571,7 +571,7 @@ public sealed class SlimDataExpirationCleanerTests
 
         db.VerifyNoOtherCalls();
         files.VerifyAll();
-        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Never);
+        files.Verify(f => f.DeleteVersionAsync(fileId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         files.VerifyNoOtherCalls();
     }
 
@@ -598,7 +598,7 @@ public sealed class SlimDataExpirationCleanerTests
         state.Setup(s => s.Invoke()).Returns(data);
         files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
             .Returns(() => Meta([new FileMetadataEntry(fileId, diskMeta)]));
-        files.Setup(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()))
+        files.Setup(f => f.DeleteVersionAsync(fileId, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
@@ -606,10 +606,10 @@ public sealed class SlimDataExpirationCleanerTests
 
         await sut.CleanupOnceAsync(CancellationToken.None);
         await sut.CleanupOnceAsync(CancellationToken.None);
-        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Never);
+        files.Verify(f => f.DeleteVersionAsync(fileId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
 
         await sut.CleanupOnceAsync(CancellationToken.None);
-        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Once);
+        files.Verify(f => f.DeleteVersionAsync(fileId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         db.VerifyNoOtherCalls();
     }
 
@@ -648,7 +648,7 @@ public sealed class SlimDataExpirationCleanerTests
         await sut.CleanupOnceAsync(CancellationToken.None);
         await sut.CleanupOnceAsync(CancellationToken.None);
 
-        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Never);
+        files.Verify(f => f.DeleteVersionAsync(fileId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         db.VerifyNoOtherCalls();
     }
 }

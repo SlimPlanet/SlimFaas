@@ -278,13 +278,28 @@ and deduplication identity.
 
 `SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
 
-SlimData uses DotNext's `SharedMemory` WAL strategy by default. It keeps WAL chunks in memory-mapped files so the operating system can reclaim their pages under memory pressure. Deployments that explicitly favor maximum write throughput over memory usage can select `PrivateMemory` instead:
+SlimData uses DotNext's `SharedMemory` WAL strategy by default. It keeps WAL chunks
+in memory-mapped files so the operating system can reclaim their pages under
+memory pressure. `PrivateMemory` uses private buffers and asynchronous write-through
+I/O, which can improve throughput but require more RAM for a large retained WAL.
+The [Windows controls](slimdata-reliability-results.md) include both successful and
+failed recovery histories; they do not justify changing the default. Select an
+explicit strategy with:
 
 ```bash
 SlimData__WalMemoryManagement=PrivateMemory
 ```
 
 Only `PrivateMemory` and `SharedMemory` are accepted, case-insensitively. An invalid value prevents startup. Switching strategy does not alter the WAL format and does not require a data migration.
+
+New Windows WAL directories use 64 KiB data chunks to avoid creating and flushing
+hundreds of 4 KiB files for each large message. The `wal/slimdata-chunk-size` file
+records this geometry and must be preserved with the WAL. Existing unmarked WALs
+retain their original system-page chunk size; they are not migrated automatically.
+New Linux and macOS WALs retain their existing defaults. A recorded size is honored
+on every platform, and an invalid marker stops startup. Do not edit or remove it,
+or open a marked WAL with an older runtime that does not understand this marker.
+See the [Windows benchmark investigation](reliability/2026-11-13/windows-benchmark.md).
 
 Streaming state snapshots use a hybrid threshold. A snapshot is requested after 32 MiB of successfully applied WAL entries or 500 successfully applied entries, whichever occurs first. Both positive thresholds can be changed without altering the API:
 
@@ -317,8 +332,8 @@ For backward compatibility, a `warmupRounds` value inside `SlimData__Configurati
 
 ## Raft command protocol
 
-SlimData advertises the `SLDC/5` cluster command contract, which includes
-Raft-backed WebSocket registration and owner leases. The underlying binary
+SlimData advertises the `SLDC/6` cluster command contract, which includes
+Raft-backed WebSocket registration, owner leases and atomic file admissions. The underlying binary
 `SLDC/1` envelope remains unchanged. Legacy payloads, including key/value command
 ID `2` and queue command ID `14`, are skipped without mutating the state; they are
 never converted or rewritten. Every node exposes its protocol and assembly
@@ -328,17 +343,17 @@ Before a mutation is appended to Raft, every SlimData command is serialized into
 
 ```text
 GET /SlimData/protocol
-X-SlimData-Command-Protocol: SLDC/5
+X-SlimData-Command-Protocol: SLDC/6
 X-SlimData-Assembly-Version: <version>
 ```
 
 A node with a missing or incompatible protocol is rejected during membership changes. The assembly version, including the Git commit SHA, is diagnostic only: different builds may coexist during a rolling update as long as both advertise the same command protocol. A temporarily unreachable follower does not make a leader incompatible while the Raft quorum and lease remain valid. A follower still returns `503` from `/ready` and refuses SlimData operations when its leader advertises an incompatible protocol.
 
 Any release that changes the replicated command/result contract must also change
-`SlimDataCommandProtocol.Current`. Upgrading from `SLDC/4` to `SLDC/5` requires a
+`SlimDataCommandProtocol.Current`. Upgrading from `SLDC/5` to `SLDC/6` requires a
 coordinated stop and upgrade of all members; mixed contracts are not ready.
 Existing snapshots and producer receipts remain readable. Releases retaining
-`SLDC/5` support normal one-pod-at-a-time Kubernetes updates.
+`SLDC/6` support normal one-pod-at-a-time Kubernetes updates.
 
 Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
 
@@ -356,7 +371,7 @@ For a complete executable example covering values, expiration and every counter 
 
 ## Live metadata inventory
 
-The built-in dashboard's **Live Stream → Data** tab shows set keys and their TTL without fetching values or documents. Search by prefix, inspect expiration and navigate pages of 100 entries. The inventory updates at the configured status interval; short-lived entries between snapshots may be missed.
+The built-in dashboard's **Views → Data** inventory shows set keys and their TTL without fetching values or documents. Search by prefix, inspect expiration and navigate pages of 100 entries. The inventory updates at the configured status interval; short-lived entries between snapshots may be missed.
 
 Metadata follows the existing data visibility policy unless `SlimFaas__ExposeDataMetadata=true` explicitly enables metadata access for dashboard visitors. This does not grant access to stored contents. See [the dashboard inventory and SSE API](user-interface.md#data-inventory).
 
