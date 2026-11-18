@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "a1ee6bdfeb61e06082a268dfd31e31b7051e2006",
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "include-v-in-tag": false,
+  "draft": true,
+  "force-tag-creation": true,
+  "signoff": "SlimFaas Release Bot <release-bot@slimfaas.dev>",
+  "bump-minor-pre-major": false,
+  "bump-patch-for-minor-pre-major": false,
+  "packages": {
+    ".": {
+      "package-name": "SlimFaas",
+      "extra-files": [
+        { "type": "json", "path": "src/SlimFaasPlanetSaver/package.json", "jsonpath": "$.version" },
+        { "type": "xml", "path": "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.csproj", "xpath": "//Project/PropertyGroup/Version" },
+        { "type": "generic", "path": "client/python/slimfaas-client/pyproject.toml" },
+        { "type": "generic", "path": "client/python/slimfaas-client/uv.lock" }
+      ]
+    }
+  }
+}

@@ -125,7 +125,7 @@ wheels = [
 
 [[package]]
 name = "slimfaas-client"
-version = "0.1.0"
+version = "0.89.0" # x-release-please-version
 source = { editable = "." }
 dependencies = [
     { name = "websockets" },

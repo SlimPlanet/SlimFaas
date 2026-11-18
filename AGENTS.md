@@ -37,4 +37,9 @@ Use BEM for new and modified application styles. Apply base and modifier classes
 - For changes to runtime, routing, data, jobs, queues, configuration or UI, verify the affected native local chain with the local runtime skill. Exercise the relevant performance controls for performance-sensitive changes in line with the requested measurement scope.
 - Keep Kubernetes validation scoped to the intended cluster and namespace. Exercise real replica coordination and preserve persistent data compatibility.
 
+## Release and security documentation
+
+- Follow [the release guide](docs/releasing.md) for versioning, candidate builds, signing, publication and recovery. Validate release changes with `python3 .bin/test-release.py` and actionlint. Pin external actions by commit and release tools by checksum in `.bin/release-tools.json`.
+- Keep [the dependency policy](docs/dependency-management.md), [security policy](SECURITY.md) and [Security Insights manifest](security-insights.yml) aligned with changes to maintenance, reporting and distribution.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution requirements.

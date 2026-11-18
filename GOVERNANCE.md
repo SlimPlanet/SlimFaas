@@ -23,11 +23,7 @@ SlimFaas follows an open governance model based on consensus, with a structure d
 ### 2.1 Contributors
 Anyone can contribute to SlimFaas by submitting pull requests (PRs), issues, or participating in discussions. Contributors must adhere to the project's **Code of Conduct**.
 
-**Version Publishing**:
-- **Alpha Version**: A contributor can trigger an alpha version by including `(alpha)` in the commit message.
-- **Beta Version**: A contributor can trigger a beta version by including `(beta)` in the commit message.
-
-These versions will be generated and published automatically based on the active branch.
+Contributions use Conventional Commit PR titles and DCO-signed commits. Fork PRs run the same credential-free checks and release builds as internal PRs.
 
 ### 2.2 Maintainers
 Maintainers are contributors who have demonstrated sustained commitment and technical expertise in SlimFaas. Their responsibilities include:
@@ -36,10 +32,7 @@ Maintainers are contributors who have demonstrated sustained commitment and tech
 - Ensuring code quality and stability,
 - Assisting new contributors.
 
-**Release Versioning**:
-- A **stable release** can only be published from the `main` branch.
-- The commit must include the keyword `(release)`.
-- Only maintainers can approve and merge a PR into `main`.
+**Release responsibilities**: Maintainers review and merge the automatically prepared release PR. A maintainer can explicitly request an alpha or beta from `main`. Publication credentials are available only to the corresponding protected jobs.
 
 ### 2.3 Technical Steering Committee (TSC)
 The **Technical Steering Committee (TSC)** is responsible for strategic decisions, including:
@@ -53,14 +46,11 @@ The TSC consists of at least three members and makes decisions by consensus. If 
 
 ## 3. Automated Semantic Versioning
 
-When a `(release)` commit is merged into `main`, the **tag versioning** is automatically incremented following **Semantic Versioning (SemVer)** rules:
+Release Please maintains a single release PR containing the common version and changelog. `fix` increments patch, `feat` increments minor, and `!` or a `BREAKING CHANGE:` footer increments major. Other changes do not independently trigger a stable release. Commit keywords never publish releases.
 
-- If the commit message **starts with `fix`**, the **patch version** is incremented (e.g., `1.0.1 → 1.0.2`).
-- If the commit message **starts with `feat`**, the **minor version** is incremented (e.g., `1.0.1 → 1.1.0`).
-- If the commit message **contains `BREAKING`**, the **major version** is incremented (e.g., `1.0.1 → 2.0.0`).
-- If no rule matches, the commit is **considered a fix by default** and increments the patch version.
+Merging the reviewed release PR approves the release. All distributions are built from its fixed merge SHA, tested before publication, signed, and staged in a GitHub draft. Publication reuses these artifacts and finalizes the release only after registry verification. Tags and published assets must not be overwritten. Main requires CI, DCO, FOSSA and maintainer approval; release files have designated CODEOWNERS.
 
-Additionally, a `CHANGELOG.md` is **automatically generated** from commit messages during a release.
+See the [release guide](docs/releasing.md) for activation, previews, verification and recovery. Repository and registry settings must be activated as documented before this process publishes releases.
 
 ---
 
@@ -77,13 +67,7 @@ If a decision remains disputed for a long time, it may be subject to a **formal 
 
 ## 5. Security Restrictions on Pull Requests
 
-- **PRs from a fork**:
-    - For security reasons, a **pull request from a fork** can only run **unit tests**.
-    - Workflows requiring sensitive secrets (e.g., deployment) will not be triggered.
-
-- **PRs from a branch in the main repository**:
-    - A PR from a branch in the main repository can execute the full CI/CD pipeline.
-    - This includes unit tests, integration tests, and deployment conditioned on the defined rules above.
+All PRs, including forks, build and test without publishing credentials. No `pull_request_target` workflow checks out contributor code. Secret-dependent SonarCloud analysis runs on trusted internal PRs; the aggregate CI check accounts for this exception. Publication accepts only reviewed commits on `main` after successful checks, with each registry's credentials confined to its publication environment.
 
 ---
 

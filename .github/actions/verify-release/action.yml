@@ -1,0 +1,26 @@
+name: Load and verify release
+description: Download the original draft assets and verify their signatures, source, and contents.
+inputs:
+  version:
+    required: true
+    description: Canonical release tag
+  source_sha:
+    required: true
+    description: Expected source commit
+runs:
+  using: composite
+  steps:
+    - name: Install pinned verification tools
+      shell: bash
+      run: python3 .bin/install-release-tools.py gh cosign regctl
+    - name: Download original release assets
+      shell: bash
+      env:
+        RELEASE_VERSION: ${{ inputs.version }}
+      run: gh release download "$RELEASE_VERSION" --repo SlimPlanet/SlimFaas --dir artifacts/release
+    - name: Verify signed candidate
+      shell: bash
+      env:
+        RELEASE_VERSION: ${{ inputs.version }}
+        RELEASE_SHA: ${{ inputs.source_sha }}
+      run: python3 .bin/release.py verify
