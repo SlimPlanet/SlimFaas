@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 05:14 CET. Campaign state: **in progress**.
+Updated 2026-11-18 05:14 CET. Campaign state: **application finished**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -180,3 +180,4 @@ Status: **queued**.
 - **http-bounded-abba-20**: FAIL (20 GiB disk reserve).
 - **memory-abba-replay**: INCONCLUSIVE (20 GiB disk reserve).
 - **threshold-512kib-retry**: INCONCLUSIVE (20 GiB disk reserve).
+- **wal-64kib-retry**: deferred (20 GiB disk reserve).
