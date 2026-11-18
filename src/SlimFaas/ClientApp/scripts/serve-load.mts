@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { makeFixtures, fixtureEvents } from '../src/lib/fixtures.ts';
+import { makeObservationFixture, fixtureEvents } from '../src/lib/fixtures.ts';
 
 const root = fileURLToPath(new URL('../../wwwroot/', import.meta.url));
 const port = Number(process.env.DASHBOARD_LOAD_PORT ?? 6011);
@@ -14,8 +14,8 @@ const server = createServer(async (request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store' });
     let sequence = 0;
     const state = () => {
-      const f = makeFixtures(10000, 10000);
-      response.write(`event: state\ndata: ${JSON.stringify({ Functions: f.functions, Jobs: f.jobs,
+      const f = makeObservationFixture(10000, 10000);
+      response.write(`event: state\ndata: ${JSON.stringify({ Functions: f.functions, Jobs: f.jobs, Requests: f.requests,
         Queues: f.queues, SlimFaasNodes: f.slimFaasNodes, SlimFaasReplicas: 3, FrontEnabled: true })}\n\n`);
     };
     state();

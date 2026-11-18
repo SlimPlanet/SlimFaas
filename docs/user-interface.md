@@ -1,8 +1,17 @@
 # SlimFaas User Interface
 
-Open the SlimFaas root address (for example, `http://127.0.0.1:30020/`) to watch live traffic across the cluster. The map fills the browser window. Select an actor to inspect it, or open **Actors** and search by name or replica identifier. **Views** provides the global inventories, including when the cluster has no workloads.
+Open the SlimFaas root address (for example, `http://127.0.0.1:30020/`) to watch live traffic across the cluster. The map fills the browser window. Select an actor to inspect it, or open **Actors** and search by name or replica identifier. **Views** provides the global inventories, including when the cluster has no workloads. The adjacent GitHub link opens the SlimFaas repository.
 
 ![Live Stream home showing a sleeping function and its Wake up button](images/dashboard/traffic-home.png)
+
+Replica circles and job execution squares show their lifecycle. Amber means starting, green means ready or running, purple means terminating or finishing, red indicates a crash or failure, and slate blue marks a successful completion. Gray means the state is unknown. Open **Filters** for the legend, or select an instance in **Actors** to read its state. A scheduled job shows its earliest next run in the browser’s local date, time and time zone, including seconds.
+
+Zoom into a Deployment or StatefulSet to see its total CPU and memory requests, then zoom further to read each replica’s requests. The **Live Stream** bar sums the effective Kubernetes requests of present, nonterminal workload pods, job pods and SlimFaas nodes. During a rollout, both the terminating pod and its replacement count until the old pod reaches a terminal phase or disappears. Filters leave the cluster total intact. A pod with an observed spec and no requests contributes zero. **Unavailable** means the runtime has no pod resource observation, and **partial** identifies a total with missing observations.
+
+The SSE state frame exposes the aggregate as `Requests` with `CpuMillis`, `MemoryBytes`, `KnownPods` and `UnknownPods`. The optional `Lifecycle` and `Requests` fields on pods, SlimFaas nodes and job runs describe each observation. A job run aggregates the active pods owned by that execution.
+
+![Requests on each replica and the Deployment total at detail zoom](images/dashboard/replica-requests.png)
+
 
 ---
 
@@ -451,7 +460,7 @@ The journal records changes in target, application status, trigger/source state 
 
 ### Try a scenario
 
-The playground starts from the current configuration. Change the initial replica count, maximum, `ScaleFromZero`, trigger thresholds/types, configured source selection, PromQL queries or Behavior JSON, then select **Simulate next decision**. An empty simulated-value input uses collected data; entering `0` substitutes a valid zero. The result identifies substituted observations.
+The **Diagnostics** tab shows the live decision and its history. Open the **Playground** tab to simulate a decision. Switching tabs keeps the current function’s draft. The playground starts from the current configuration. Change the initial replica count, maximum, `ScaleFromZero`, trigger thresholds/types, configured source selection, PromQL queries or Behavior JSON, then select **Simulate next decision**. An empty simulated-value input uses collected data; entering `0` substitutes a valid zero. The result identifies substituted observations.
 
 The server compares the current configuration and scenario using the same captured metric points, source health, HTTP/schedule context, dependency readiness and decision histories. For a value of 73, changing the threshold from 10 to 20 changes the raw target from eight to four; existing policy budgets may still hold the final target. Results show their capture time and stay fixed until another simulation. **Reset to current configuration** reloads the form without applying anything.
 

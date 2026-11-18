@@ -7,6 +7,8 @@
   &__connection { display: flex; align-items: center; gap: .45rem; font-size: .76rem; margin-left: auto; }
   &__connection::before { content: ''; width: .5rem; height: .5rem; border-radius: 50%; background: #ffd682; }
   &__connection--live::before { background: #88efbd; }
+  &__github { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 38px; padding: .3rem; color: white; font-weight: 600; text-decoration: none; }
+  &__github:hover { text-decoration: underline; }
   &__menu { position: relative; }
   &__toggle { min-height: 38px; padding: .35rem .7rem; color: white; background: transparent; border: 1px solid #ffffff80; border-radius: 8px; font-weight: 600; }
   &__navigation { position: absolute; top: calc(100% + .5rem); right: 0; min-width: 185px; padding: .4rem; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: 0 8px 24px #19244224; }
@@ -15,7 +17,13 @@
   @media (max-width: 600px) {
     gap: .5rem; padding: .4rem .6rem;
     &__logo { width: 26px; height: 26px; }
-    &__connection span { position: absolute; clip-path: inset(50%); }
-    &__wake { padding-inline: .5rem; }
+    &__connection span, &__github span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    &__connection { flex: 0 0 .5rem; }
+    &__wake-extra { display: none; }
+    .navbar__wake { padding-inline: .5rem; }
+  }
+  @media (max-width: 360px) {
+    &__wake-label { display: none; }
+    .navbar__wake { min-width: 38px; }
   }
 }

@@ -84,6 +84,9 @@ public record PodInformation(
     string ResourceVersion = "",
     string? ServiceName = null)
 {
+    public string? Lifecycle { get; init; }
+    internal string? ObservedLifecycle => Lifecycle ?? (IsTerminating ? "Terminating" : null);
+    public PodRequests? Requests { get; init; }
     public string? Uid { get; init; }
     public bool IsTerminating { get; init; }
     public IDictionary<string, string>? Annotations { get; init; }

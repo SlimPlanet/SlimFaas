@@ -25,6 +25,8 @@ export default function TrafficDetails({ node, title, isolate, onIsolate, onClos
       <h3 className="traffic-details__heading">Details</h3>
       {node ? <>
         <p className="traffic-details__status">{node.status}{node.role ? ` · Raft role: ${node.role}` : ''}</p>
+        {node.requestLabel && <p>Requests · {node.requestLabel}</p>}
+        {node.scheduleLabel && <p>{node.scheduleLabel}</p>}
         <p className="traffic-details__description">{node.detail}</p>
       </> : <p className="traffic-details__status" role="status">The latest snapshot no longer contains this instance. Logs are unavailable.</p>}
     </section>

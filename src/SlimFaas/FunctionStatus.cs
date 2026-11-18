@@ -22,7 +22,12 @@ public record PodStatus(
     string Name,
     string Status,
     bool Ready,
-    string Identity);
+    string Identity)
+{
+    public string? Lifecycle { get; init; }
+    public PodRequests? Requests { get; init; }
+    [JsonIgnore] internal string? Uid { get; init; }
+}
 
 public record FunctionStatusDetailed(
     string Name,

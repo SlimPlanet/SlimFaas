@@ -19,7 +19,57 @@ permissions:
   contents: read
 
 jobs:
+  traffic-e2e:
+    name: Native traffic animations (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DASHBOARD_COVERAGE_DIR: ${{ github.workspace }}/artifacts/dashboard-coverage
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26.13.0'
+          cache: npm
+          cache-dependency-path: src/SlimFaas/ClientApp/package-lock.json
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: Install browser test dependencies
+        working-directory: src/SlimFaas/ClientApp
+        run: |
+          npm ci --ignore-scripts
+          ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Publish native runtime and real function
+        run: |
+          dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r linux-x64 -o artifacts/traffic-e2e/runtime
+          dotnet publish samples/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
+      - name: Test traffic animations on three nodes
+        working-directory: src/SlimFaas/ClientApp
+        run: npm run test:e2e
+      - name: Export dashboard browser and unit coverage
+        working-directory: src/SlimFaas/ClientApp
+        run: |
+          node scripts/report-coverage.mjs
+          cd ../../..
+          node --test --experimental-test-coverage --test-coverage-include='**/SlimFaas/ClientApp/src/**' --test-reporter=lcov src/SlimFaas/ClientApp/scripts/*.test.mts > "$DASHBOARD_COVERAGE_DIR/unit.info"
+          grep -q '^SF:src/SlimFaas/ClientApp/src/' "$DASHBOARD_COVERAGE_DIR/unit.info"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dashboard-coverage
+          path: artifacts/dashboard-coverage/*.info
+          if-no-files-found: error
+      - name: Upload browser and runtime diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: traffic-e2e
+          path: |
+            artifacts/traffic-e2e/results/
+            artifacts/traffic-e2e/report/
+          retention-days: 7
   sonarcloud:
+    needs: traffic-e2e
     name: SonarCloud
     if: github.event_name == 'push' || (github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]')
     runs-on: windows-latest
@@ -33,6 +83,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dashboard-coverage
+          path: artifacts/dashboard-coverage
 
       - name: Cache SonarCloud packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -116,7 +171,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $typescriptConfigurations = python .bin/check-sonar-benchmark-boundary.py --print-tsconfigs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="$benchmarkExclusions" /d:sonar.test.exclusions="$benchmarkExclusions" /d:sonar.typescript.tsconfigPaths="$typescriptConfigurations" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.exclusions="$benchmarkExclusions" /d:sonar.test.exclusions="$benchmarkExclusions" /d:sonar.typescript.tsconfigPaths="$typescriptConfigurations" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths="python-client-coverage.xml" /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,docs/reliability/*/scripts/*.py,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*,client/python/**/tests/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info,artifacts/dashboard-coverage/browser.info,artifacts/dashboard-coverage/unit.info" /d:sonar.javascript.file.suffixes="js,jsx"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet tool install --global dotnet-coverage
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

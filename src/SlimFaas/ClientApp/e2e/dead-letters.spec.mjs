@@ -1,10 +1,11 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, startCoverage, saveCoverage } from './coverage.mjs';
 import { createHash } from 'node:crypto';
 import { startNative } from './native.mjs';
 
 test('durable failures are visible on peers; bounded inert preview and concurrent replay preserve offloaded bytes', async ({ browser, request }, info) => {
   const cluster = await startNative(info.outputPath('dlq-runtime.log'), 'dlq');
   const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
+  await startCoverage(page);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
@@ -62,5 +63,5 @@ test('durable failures are visible on peers; bounded inert preview and concurren
       sha256: createHash('sha256').update(body).digest('hex'), attempt: '0' });
     expect(errors).toEqual([]);
     await page.screenshot({ path: info.outputPath('dead-letters.png'), fullPage: true });
-  } finally { await page.close(); await cluster.close(); }
+  } finally { await saveCoverage(page); await page.close(); await cluster.close(); }
 });

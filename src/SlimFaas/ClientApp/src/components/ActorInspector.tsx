@@ -23,16 +23,16 @@ export default function ActorInspector({ node, workload, liveFunction, wakeUp, c
   const [scale, setScale] = useState(false);
   const [page, setPage] = useState(node.kind === 'stream' ? streamLink(node.label) : '');
   // Preserve ordinary anchor destinations for copying or opening in another tab.
-  function follow(event: MouseEvent<HTMLElement>) {
+  function follow(event: MouseEvent<HTMLAnchorElement>) {
     if (event.defaultPrevented || event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-    const href = (event.target as Element).closest('a')?.getAttribute('href');
+    const href = event.currentTarget.getAttribute('href');
     if (href?.startsWith('#/streams/') || href?.startsWith('#/dead-letters/')) {
       event.preventDefault(); setPage(href);
     }
   }
   const streamActor = node.kind === 'stream';
   if (node.parent) return null;
-  return <div className="traffic-details__inspector" onClick={follow}>
+  return <div className="traffic-details__inspector">
     {workload && <>
       {liveFunction && isOrchestrated(liveFunction) && <div className="traffic-details__actions">
         <button className="button" aria-pressed={!scale} onClick={() => setScale(false)}>Info</button>
@@ -43,12 +43,12 @@ export default function ActorInspector({ node, workload, liveFunction, wakeUp, c
       {scale && liveFunction ? <ScalingExplorer functions={[liveFunction]} functionName={liveFunction.Name} fixed /> : <WorkloadInfo workload={workload} />}
     </>}
     {node.kind === 'queue' && <p>Destination · {isJobQueueName(node.label) ? node.label.slice(4) : node.label}</p>}
-    {deadLetters && <><p>DLQ · {deadLetters.Count} retained · <a href={deadLetterLink(deadLetters.Function)}>Open dead letters</a></p>
-      {page.startsWith('#/dead-letters/') && <DeadLetters route={page} revision={deadLetters.Revision} stale={stale} />}</>}
+    {deadLetters && <><p>DLQ · {deadLetters.Count} retained · <a onClick={follow} href={deadLetterLink(deadLetters.Function)}>Open dead letters</a></p>
+      {page.startsWith('#/dead-letters/') && <DeadLetters onNavigate={follow} route={page} revision={deadLetters.Revision} stale={stale} />}</>}
     {(node.kind === 'sets' || node.kind === 'files') && (dataAvailable
       ? <DataExplorer initialKind={node.kind} /> : <p role="status">Data metadata is unavailable.</p>)}
     {(subscriptions ?? []).filter(item => streamActor ? item.Stream === node.label : node.kind === 'function' && item.Function === node.label).map(item =>
-      <p key={item.Stream + '/' + item.Function}><a href={streamLink(item.Stream, 'functions', item.Function)}>{item.Stream} / {item.Function}</a> · lag {item.Lag} · pending {item.PendingCount} · callbacks {item.WaitingForCallbackCount} · retries {item.RetryScheduledCount} · failed {item.FailedCount} · gaps {item.RetentionGapCount}</p>)}
-    {subscriptions && page.startsWith('#/streams/') && <Streams route={page} revision={streamRevision} stale={stale} />}
+      <p key={item.Stream + '/' + item.Function}><a onClick={follow} href={streamLink(item.Stream, 'functions', item.Function)}>{item.Stream} / {item.Function}</a> · lag {item.Lag} · pending {item.PendingCount} · callbacks {item.WaitingForCallbackCount} · retries {item.RetryScheduledCount} · failed {item.FailedCount} · gaps {item.RetentionGapCount}</p>)}
+    {subscriptions && page.startsWith('#/streams/') && <Streams onNavigate={follow} route={page} revision={streamRevision} stale={stale} />}
   </div>;
 }

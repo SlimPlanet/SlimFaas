@@ -4,6 +4,7 @@ import type { NetworkActivityEvent } from '../types.ts';
 import { selectedEvent, type MapNode, type MapGroup, type Topology } from '../lib/topology.ts';
 
 import { TrafficPlayback, displayPath, markerProgress, type Speed } from '../lib/traffic.ts';
+import { lifecycleColor } from '../lib/podObservation';
 import { compactLabel } from '../lib/dashboard';
 import { drawSymbol } from '../lib/canvasSymbols.ts';
 
@@ -54,6 +55,8 @@ export default function TrafficCanvas(props: Props) {
       success: css.getPropertyValue('--success').trim(), danger: css.getPropertyValue('--danger').trim(), soft: css.getPropertyValue('--soft').trim(),
       line: css.getPropertyValue('--line').trim(), background: css.getPropertyValue('--surface').trim(),
     };
+    const instanceColors = { starting: colors.queue, ready: colors.success, finishing: colors.job,
+      crash: colors.danger, succeeded: css.getPropertyValue('--completed').trim(), unknown: colors.external };
     const messageColor = (kind: string) => kind === 'data' ? colors.sets : kind === 'publication' ? colors.job : kind === 'queue' ? colors.queue : kind === 'reply' ? colors.external : colors.function;
     const stateColor = (state?: string) => state === 'Sleeping' ? colors.external : state === 'Starting' || state === 'Scaling' ? colors.queue : state === 'Error' ? colors.danger : colors.success;
     const zoom = d3.zoom<HTMLCanvasElement, unknown>().scaleExtent([0.001, 12])
@@ -89,7 +92,7 @@ export default function TrafficCanvas(props: Props) {
       if (event.defaultPrevented) return;
       const bounds = canvas.getBoundingClientRect();
       const [x, y] = transform.invert([event.clientX - bounds.left, event.clientY - bounds.top]);
-      const node = transform.k >= 0.48 ? index.find(x, y, 14 / transform.k) : undefined;
+      const node = transform.k >= 0.48 ? index.find(x, y, Math.max(8, 14 / transform.k)) : undefined;
       const group = current.current.topology.groups.find(g => x >= g.x && x <= g.x + g.width && y >= g.y && y <= g.y + g.height);
       if (node || group) canvas.focus({ preventScroll: true });
       if (node) current.current.onSelect(node.id);
@@ -99,8 +102,8 @@ export default function TrafficCanvas(props: Props) {
     const hoverNode = (event: MouseEvent) => {
       const bounds = canvas.getBoundingClientRect();
       const [x, y] = transform.invert([event.clientX - bounds.left, event.clientY - bounds.top]);
-      const node = transform.k >= 0.48 ? index.find(x, y, 14 / transform.k) : undefined;
-      setHover(node ? `${node.label} · ${node.status}` : '');
+      const node = transform.k >= 0.48 ? index.find(x, y, Math.max(8, 14 / transform.k)) : undefined;
+      setHover(node ? [node.label, node.status, node.requestLabel && 'Requests · ' + node.requestLabel].filter(Boolean).join(' · ') : '');
     };
     const clearHover = () => setHover('');
     canvas.addEventListener('mousemove', hoverNode);
@@ -216,6 +219,11 @@ export default function TrafficCanvas(props: Props) {
           const groupLabel = group.kind === 'external' ? 'External callers' : group.label;
           const label = compactLabel(groupLabel, maxChars);
           context.fillText(label, boxX + 12 / k, boxY + (compact ? 30 : 38) / k, boxWidth - 24 / k);
+          const annotation = group.scheduleLabel ?? (k >= 1.35 && group.requestLabel ? 'Requests · ' + group.requestLabel : undefined);
+          if (annotation && boxHeight * k > 95 && boxWidth * k > 155) {
+            context.font = `${11 / k}px system-ui`; context.fillStyle = colors.external;
+            context.fillText(annotation, boxX + 12 / k, boxY + 55 / k, boxWidth - 24 / k);
+          }
           if (boxHeight * k > (compact ? 48 : 65)) {
             context.font = `${11 / k}px system-ui`;
             const footerY = boxY + boxHeight - (compact ? 8 : 12) / k;
@@ -250,11 +258,10 @@ export default function TrafficCanvas(props: Props) {
         if (k < 0.48) continue;
         for (const child of group.children) {
           if (!visible(child.x - 10, child.y - 10, 20, 20)) continue;
-          context.fillStyle = child.role === 'Leader' ? colors.success : child.status === 'Failed' || child.status === 'Error' ? '#bd303e' : colors[group.kind];
-          context.globalAlpha = child.status === 'Pending' ? 0.45 : 1;
+          context.fillStyle = instanceColors[lifecycleColor(child.lifecycle ?? 'Unknown')];
           context.beginPath();
-          if (group.kind === 'job') context.roundRect(child.x - 5, child.y - 5, 10, 10, 2);
-          else context.arc(child.x, child.y, 5, 0, Math.PI * 2);
+          if (group.kind === 'job') context.roundRect(child.x - 7, child.y - 7, 14, 14, 3);
+          else context.arc(child.x, child.y, 7, 0, Math.PI * 2);
           context.fill(); context.globalAlpha = 1;
           if (child.role === 'Leader') {
             context.strokeStyle = colors.success; context.lineWidth = 1.5 / k;
@@ -270,9 +277,18 @@ export default function TrafficCanvas(props: Props) {
             context.strokeStyle = colors.success; context.lineWidth = 2 / k;
             context.beginPath(); context.arc(child.x, child.y, 10, 0, Math.PI * 2); context.stroke();
           }
-          if (k >= 3 && child.role !== 'Leader') {
-            context.fillStyle = colors.ink; context.font = `${10 / k}px system-ui`; context.textAlign = 'center';
-            context.fillText(child.label.length > 14 ? `…${child.label.slice(-13)}` : child.label, child.x, child.y + 14);
+          if (k >= 2.8) {
+            context.fillStyle = colors.ink; context.font = `${11 / k}px system-ui`; context.textAlign = 'center';
+            const baseline = child.y + 7 + 12 / k;
+            if (child.role !== 'Leader') {
+              context.fillText(compactLabel(child.label, 14), child.x, baseline, 32);
+            }
+            if (child.requestLabel) {
+              context.fillStyle = colors.external;
+              const [cpu, memory] = child.requestLabel.split(' · ');
+              context.fillText(cpu, child.x, baseline + 13 / k, 32);
+              if (memory) context.fillText(memory, child.x, baseline + 26 / k, 32);
+            }
             context.textAlign = 'left';
           }
           if (selected === child.id) {

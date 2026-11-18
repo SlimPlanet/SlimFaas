@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './coverage.mjs';
 import { startNative } from './native.mjs';
 import { observeCanvas } from './canvas-observer.mjs';
 import { buildTopology, jobQueues } from '../src/lib/topology.ts';
@@ -100,5 +100,5 @@ test('native Data calls originate at the exact function and job, with ordered tu
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     expect(errors).toEqual([]);
-  } finally { await page.close(); await cluster.close(); }
+  } finally { await cluster.close(); }
 });

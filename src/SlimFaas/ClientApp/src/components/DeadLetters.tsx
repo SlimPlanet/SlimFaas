@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEventHandler } from 'react';
 import { deadLetterLink, deadLetterPath, deadLetterRequest, isDeadLetterMessage, isDeadLetterSummary, isPage, isReplay,
   readDeadLetterPreview, PREVIEW_BYTES, type DeadLetterMessage, type DeadLetterPage, type DeadLetterReplay, type DeadLetterSummary } from '../lib/deadLetters';
 
-interface Props { route: string; revision: number; stale: boolean }
+interface Props { onNavigate?: MouseEventHandler<HTMLAnchorElement>; route: string; revision: number; stale: boolean }
 const reasons = ['RetriesExhausted', 'NonRetryableResponse', 'DeliveryTimeout', 'CallbackError', 'CallbackTimeout', 'TransportError'];
-export default function DeadLetters({ route, revision, stale }: Props) {
+export default function DeadLetters({ route, revision, stale, onNavigate }: Props) {
   const parts = route.split('?')[0].split('/');
   let name: string | undefined, id: string | undefined, invalid = false;
   try { name = parts[2] ? decodeURIComponent(parts[2]) : undefined; id = parts[4] ? decodeURIComponent(parts[4]) : undefined; }
@@ -79,7 +79,7 @@ export default function DeadLetters({ route, revision, stale }: Props) {
   if (invalid) return <p className="notice notice--error">Invalid dead letter route.</p>;
   const page = name ? messages : catalog;
   return <section className="dead-letters" aria-label="Dead Letter Queues">
-    <nav aria-label="Dead letter navigation"><a href="#/dead-letters">All dead letter queues</a>{name && <> / <a href={deadLetterLink(name)}>{name}</a></>}</nav>
+    <nav aria-label="Dead letter navigation"><a href="#/dead-letters">All dead letter queues</a>{name && <> / <a onClick={onNavigate} href={deadLetterLink(name)}>{name}</a></>}</nav>
     <h2>{name ?? 'Functions with dead letter queues'}</h2>
     <p>Retained failures are not dispatched automatically. Opening this page does not wake functions.</p>
     {stale && <p className="notice" role="status">Stream unavailable. The displayed snapshot may be stale.</p>}
@@ -95,10 +95,10 @@ export default function DeadLetters({ route, revision, stale }: Props) {
     </div>
     {summary && <p>{summary.Count} retained / {summary.MaxLength} maximum; {summary.MaxAgeSeconds} seconds retention. Capture {summary.CaptureEnabled ? 'enabled' : 'disabled'}; function {summary.FunctionExists ? 'present' : 'removed'}.</p>}
     {!name && catalog && <div className="table-wrap"><table className="table"><thead><tr>{['Function', 'Capture', 'Function exists', 'Retained', 'Oldest failure', 'Latest failure'].map(label => <th className="table__th" key={label}>{label}</th>)}</tr></thead><tbody>
-      {catalog.Items.map(item => <tr className="table__row" key={item.Function}><td className="table__td"><a href={deadLetterLink(item.Function)}>{item.Function}</a></td><td className="table__td">{item.CaptureEnabled ? 'Enabled' : 'Disabled'}</td><td className="table__td">{item.FunctionExists ? 'Yes' : 'Removed'}</td><td className="table__td">{item.Count}</td><td className="table__td">{item.OldestFailedAt ? new Date(item.OldestFailedAt).toLocaleString() : 'None'}</td><td className="table__td">{item.NewestFailedAt ? new Date(item.NewestFailedAt).toLocaleString() : 'None'}</td></tr>)}
+      {catalog.Items.map(item => <tr className="table__row" key={item.Function}><td className="table__td"><a onClick={onNavigate} href={deadLetterLink(item.Function)}>{item.Function}</a></td><td className="table__td">{item.CaptureEnabled ? 'Enabled' : 'Disabled'}</td><td className="table__td">{item.FunctionExists ? 'Yes' : 'Removed'}</td><td className="table__td">{item.Count}</td><td className="table__td">{item.OldestFailedAt ? new Date(item.OldestFailedAt).toLocaleString() : 'None'}</td><td className="table__td">{item.NewestFailedAt ? new Date(item.NewestFailedAt).toLocaleString() : 'None'}</td></tr>)}
     </tbody></table></div>}
     {name && messages && <div className="table-wrap"><table className="table"><thead><tr>{['Message / original ID', 'Failure / expiration', 'Reason', 'Attempts / status', 'Request / bytes'].map(label => <th className="table__th" key={label}>{label}</th>)}</tr></thead><tbody>
-      {messages.Items.map(item => <tr className="table__row" key={item.Id}><td className="table__td"><a href={deadLetterLink(name, item.Id)}>{item.Id}</a><br />{item.OriginalElementId}</td><td className="table__td">{new Date(item.FailedAt).toLocaleString()}<br />{new Date(item.ExpiresAt).toLocaleString()}</td><td className="table__td">{item.FailureReason}</td><td className="table__td">{item.Attempts} / {item.LastHttpStatus ?? 'Unknown'}</td><td className="table__td">{item.Request.Method} /{item.Request.Path}<br />{item.Request.BodyLength ?? 'Unknown'} bytes</td></tr>)}
+      {messages.Items.map(item => <tr className="table__row" key={item.Id}><td className="table__td"><a onClick={onNavigate} href={deadLetterLink(name, item.Id)}>{item.Id}</a><br />{item.OriginalElementId}</td><td className="table__td">{new Date(item.FailedAt).toLocaleString()}<br />{new Date(item.ExpiresAt).toLocaleString()}</td><td className="table__td">{item.FailureReason}</td><td className="table__td">{item.Attempts} / {item.LastHttpStatus ?? 'Unknown'}</td><td className="table__td">{item.Request.Method} /{item.Request.Path}<br />{item.Request.BodyLength ?? 'Unknown'} bytes</td></tr>)}
     </tbody></table></div>}
     {page && <><p className="dead-letters__snapshot">Snapshot {new Date(page.CapturedAt).toLocaleString()} · revision {page.Revision}{page.Items.length === 0 ? ' · No retained failures on this page.' : ''}</p>
       <div className="toolbar"><button className="button button--quiet" disabled={cursors.length === 1 || loading} onClick={() => setCursors(value => value.slice(0, -1))}>Previous</button><button className="button button--quiet" disabled={!page.NextCursor || loading} onClick={() => setCursors(value => [...value, page.NextCursor])}>Next</button></div></>}

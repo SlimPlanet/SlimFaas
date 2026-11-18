@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { DataSummary, FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types.ts';
+import { requestLabel } from '../lib/podObservation';
+import type { PodRequests, DataSummary, FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types.ts';
 import { buildTopology, eventPath, filterNodes, isJobQueueName, jobQueues, observedFunctions, observedQueues, type ObservedFunction } from '../lib/topology.ts';
 import { paginate } from '../lib/live.ts';
 import { matchesTraffic, SPEEDS, type Speed } from '../lib/traffic.ts';
@@ -15,6 +16,7 @@ import { type StreamSummary, type StreamFunction } from '../lib/streams';
 interface Props {
   loading?: boolean; panelActor?: string | null; wakeUp?: (name: string) => void; coolingDown?: Set<string>;
   deadLettersAccessible?: boolean; deadLettersFrontEnabled?: boolean; actionError?: string | null; error?: string | null;
+  requests?: PodRequests | null;
   dataSummary?: DataSummary | null;
   deadLetters?: DeadLetterSummary[];
   streams?: StreamSummary[]; streamSubscriptions?: StreamFunction[]; streamsTruncated?: boolean; streamsAvailable?: boolean;
@@ -136,6 +138,7 @@ export default function NetworkMap(props: Props) {
       <button className="button" aria-expanded={showJournal} onClick={event => toggle('journal', event.currentTarget)}>Event journal ({activity.length.toLocaleString()})</button>
       <button className="button" aria-expanded={tools === 'filters'} onClick={event => toggle('filters', event.currentTarget)}>Filters</button>
       <button className={`button ${frozen ? 'button--primary' : 'button--quiet'}`} type="button" onClick={() => { setNow(performance.now()); setFrozen(frozen ? null : props); setJournalPage(0); }}>{frozen ? 'Resume live' : 'Pause'}</button>
+      <span className="traffic__requests">Requests · {requestLabel(input.requests)}</span>
       <span className="traffic__stats">{topology.nodes.length.toLocaleString()} actors · {observed.toLocaleString()} events/s</span>
     </div>
     {tools === 'filters' && <div ref={tray} onKeyDown={event => { if (event.key === 'Escape') closeTools(); }} className="traffic__tray traffic__tray--filters" aria-label="Traffic filters">
@@ -165,6 +168,10 @@ export default function NetworkMap(props: Props) {
       <span>Sampling: {((props.samplingRatio ?? 1) * 100).toLocaleString()}% · Stream limit: {props.maxLiveEventsPerSecond ? `${props.maxLiveEventsPerSecond.toLocaleString()} events/s/node` : 'none'}</span>
     </div>
     <div className="traffic__legend" aria-label="Message legend"><span className="traffic__legend-item traffic__legend-item--function">Requests</span><span className="traffic__legend-item traffic__legend-item--publication">Publications</span><span className="traffic__legend-item traffic__legend-item--queue">Queue messages</span><span className="traffic__legend-item traffic__legend-item--reply">Replies</span><span className="traffic__legend-item traffic__legend-item--data">Data access</span></div>
+    <div className="traffic__legend" aria-label="Instance states">{[
+      ['starting', 'Starting'], ['ready', 'Ready / running'], ['finishing', 'Terminating / finishing'],
+      ['crash', 'Crash / failed'], ['succeeded', 'Succeeded'], ['unknown', 'Unknown'],
+    ].map(([color, label]) => <span key={color} className={'traffic__legend-item traffic__legend-item--' + color}>{label}</span>)}</div>
     <p className="traffic__note">Animation speed is independent of request latency. Delivery is best effort; the journal retains up to 5,000 received events.</p>
     {props.streamsTruncated && <p className="traffic__note">Stream snapshot is bounded. Open Streams in Views for the full inventory.</p>}
     </div>}
@@ -200,7 +207,7 @@ export default function NetworkMap(props: Props) {
       </label>
       <div className="table-wrap"><table className="table"><thead className="table__head"><tr><th className="table__th">Actor</th><th className="table__th">Kind</th><th className="table__th">Status</th><th className="table__th">Details</th></tr></thead>
         <tbody>{nodePage.items.map(n => <tr className={`table__row ${selected === n.id ? 'table__row--selected' : ''}`} key={n.id}>
-          <td className="table__td"><button className="table__link" type="button" onClick={() => choose(n.id)}>{n.label}</button></td><td className="table__td">{n.parent ? n.kind === 'job' ? 'Job execution' : 'Replica' : n.kind}</td><td className="table__td">{n.status}</td><td className="table__td table__td--mono">{n.detail}</td></tr>)}</tbody></table></div>
+          <td className="table__td"><button className="table__link" type="button" onClick={() => choose(n.id)}>{n.label}</button></td><td className="table__td">{n.parent ? n.kind === 'job' ? 'Job execution' : 'Replica' : n.kind}</td><td className="table__td">{n.status}</td><td className="table__td table__td--mono">{[n.detail, n.scheduleLabel, n.requestLabel && 'Requests · ' + n.requestLabel].filter(Boolean).join(' · ')}</td></tr>)}</tbody></table></div>
       {nodes.length === 0 && <p className="empty-state">No actors match your search.</p>}
       <Pagination page={nodePage.page} pages={nodePage.pages} total={nodes.length} onPage={setPage} />
     </>}

@@ -553,7 +553,7 @@ public static class FunctionEndpointsHelpers
             else
                 status = "Pending";
 
-            return new PodStatus(p.Name, status, p.Ready is true, p.Ip);
+            return new PodStatus(p.Name, status, p.Ready is true, p.Ip) { Lifecycle = p.ObservedLifecycle, Requests = p.Requests, Uid = p.Uid };
         }).ToList();
 
         return new FunctionStatusDetailed(

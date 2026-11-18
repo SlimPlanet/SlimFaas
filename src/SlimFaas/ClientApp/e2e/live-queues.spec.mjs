@@ -1,9 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './coverage.mjs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { makeFixtures, makeSpeechFunctions } from '../src/lib/fixtures.ts';
+import { makeFixtures, makeObservationFixture, makeSpeechFunctions } from '../src/lib/fixtures.ts';
 import { buildTopology, observedFunctions } from '../src/lib/topology.ts';
 import { observeCanvas } from './canvas-observer.mjs';
 
@@ -245,4 +245,38 @@ test('wake controls share cooldown and show HTTP errors, then follow live state 
   await expect(page.getByRole('dialog').getByRole('button', { name: /wak/i })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(action).toHaveCount(0);
+});
+
+test('the map shows pod requests at detail zoom, local job schedules and a filter-independent total', async ({ page }, info) => {
+  const f = makeObservationFixture();
+  const state = { Functions: f.functions, Jobs: f.jobs, Queues: f.queues, SlimFaasNodes: f.slimFaasNodes,
+    Requests: f.requests, FrontEnabled: true };
+  await viewer(page, state);
+  const total = page.getByText('Requests · 2.8 CPU · 1.4 GiB RAM', { exact: true });
+  await expect(total).toBeVisible();
+  await expect(page.getByRole('link', { name: 'SlimFaas on GitHub' })).toHaveAttribute('href', 'https://github.com/SlimPlanet/SlimFaas');
+  await page.getByRole('button', { name: 'Actors', exact: true }).click();
+  await page.getByRole('button', { name: 'daily-report', exact: true }).first().click();
+  const dialog = page.getByRole('dialog');
+  const scheduled = await page.evaluate(seconds => new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }).format(seconds * 1000),
+    f.jobs[0].Schedules[1].NextExecutionTimestamp);
+  await expect(dialog.getByText('Next run · ' + scheduled)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close details' }).click();
+  await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'function', exact: true }) })
+    .getByRole('button', { name: 'fibonacci1', exact: true }).click();
+  await expect(dialog.getByText('Requests · 1 CPU · 512 MiB RAM')).toBeVisible();
+  await dialog.getByRole('checkbox', { name: 'Isolate selection' }).check();
+  await dialog.getByRole('button', { name: 'Close details' }).click();
+  await page.getByRole('button', { name: 'Close list' }).click();
+  await page.getByRole('button', { name: 'Show replicas' }).click();
+  for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Zoom in' }).click();
+  await expect.poll(() => page.evaluate(() => [...window.__mapLabels])).toEqual(expect.arrayContaining([
+    'Requests · 1 CPU · 512 MiB RAM', '250m CPU', '128 MiB RAM',
+  ]));
+  await expect(total).toBeVisible();
+  await page.screenshot({ path: info.outputPath('replica-requests.png') });
+  await page.setViewportSize({ width: 320, height: 700 });
+  await expect(total).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 });

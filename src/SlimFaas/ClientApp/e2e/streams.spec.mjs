@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, startCoverage, saveCoverage } from './coverage.mjs';
 import { randomUUID } from 'node:crypto';
 import { startNative } from './native.mjs';
 import { fileURLToPath } from 'node:url';
@@ -92,6 +92,7 @@ test('Streams retain history, deliver independently, render inert bodies, and re
     check() {}, async close() {},
   } : await startNative(info.outputPath('streams-runtime.log'), 'streams');
   const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
+  await startCoverage(page);
   const errors = [];
   const sockets = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -212,6 +213,6 @@ test('Streams retain history, deliver independently, render inert bodies, and re
     await page.screenshot({ path: info.outputPath('streams-mobile.png'), fullPage: true });
   } finally {
     for (const socket of sockets) socket.close();
-    await page.close(); await cluster.close();
+    await saveCoverage(page); await page.close(); await cluster.close();
   }
 });
