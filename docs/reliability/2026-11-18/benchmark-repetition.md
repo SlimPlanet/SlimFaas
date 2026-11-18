@@ -1,11 +1,13 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 05:19 CET. Campaign state: **in progress**.
+Updated 2026-11-18 05:58 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
 
 The [previous campaign](supervisor-repair-benchmarks.md) measured the same frozen binaries. Every profile in this repeat starts with fresh state.
+The host reached the shutdown margin during the HTTP confirmation. A reference run in that interrupted attempt recorded 368 of 383 accepted messages within the 180-second delivery window. The incomplete attempt and its reference failure are retained separately. The resumed comparison uses the completed first block and repeats the entire confirmation block.
+
 The disk reserve is 20 GiB, with a 1 GiB margin for stopping active workloads. Timed work is scheduled to stop by 08:45 CET.
 
 This rerun uses fresh state and the repaired supervisor. Omitted arguments run the manifest command without additions. A job whose preparation fails follows its retry policy while other jobs continue.
@@ -19,7 +21,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-unique | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
-| http-bounded-abba-20 | FAIL | 320 | 320 | 0 | 0 |
+| http-bounded-abba-20 | FAIL | 448 | 448 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | memory-abba-replay | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
@@ -181,3 +183,4 @@ Status: **queued**.
 - **memory-abba-replay**: INCONCLUSIVE (20 GiB disk reserve).
 - **threshold-512kib-retry**: INCONCLUSIVE (20 GiB disk reserve).
 - **wal-64kib-retry**: deferred (20 GiB disk reserve).
+- **http-bounded-abba-20-resumed**: FAIL (20 GiB disk reserve).
