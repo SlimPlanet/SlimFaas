@@ -84,7 +84,7 @@ jobs:
         working-directory: ./src/SlimFaasPlanetSaver
 
       - name: Publish coverage in build summary
-        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+        run: cat coveragereport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
         shell: bash
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
