@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-18 01:06 CET. Campaign state: **in progress**.
+Updated 2026-11-18 01:24 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -30,6 +30,7 @@ The original HTTP reference stopped at the disk reserve while testing large bodi
 | memory-abba-replay | FAIL | 20 | 20 | 0 | 0 |
 | memory-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
+| threshold-512kib-bounded | FAIL | 128 | 128 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
@@ -214,6 +215,45 @@ A and B refer to the first and second variants, respectively. For code compariso
 
 </details>
 
+<details><summary>threshold-512kib-bounded / http-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 524287 | 1 | accepted message/s | 23.77 → 22.67 | 17.30 → 15.55 | 65.14 → 68.63 | 91.48 → 91.70 | 590.22 → 616.81 |
+| async | 524287 | 16 | accepted message/s | 29.36 → 28.98 | 23.58 → 22.12 | 966.53 → 945.14 | 68.81 → 67.26 | 1267.97 → 1143.73 |
+| async | 524288 | 1 | accepted message/s | 22.91 → 23.90 | 15.73 → 16.45 | 66.92 → 69.70 | 84.86 → 84.07 | 1003.59 → 922.44 |
+| async | 524288 | 16 | accepted message/s | 29.70 → 29.16 | 22.97 → 24.17 | 881.93 → 862.30 | 64.94 → 64.22 | 1282.48 → 1184.73 |
+| async | 524289 | 1 | accepted message/s | 24.13 → 51.19 | 16.60 → 34.17 | 66.44 → 21.10 | 82.34 → 31.95 | 970.44 → 1153.09 |
+| async | 524289 | 16 | accepted message/s | 27.16 → 380.88 | 21.82 → 255.43 | 911.64 → 55.17 | 72.74 → 16.89 | 1208.50 → 827.69 |
+| async | 1048576 | 1 | accepted message/s | 13.07 → 45.23 | 9.02 → 31.00 | 121.89 → 26.37 | 162.63 → 46.52 | 1016.08 → 629.05 |
+| async | 1048576 | 16 | accepted message/s | 15.03 → 286.49 | 11.39 → 186.46 | 1487.72 → 75.10 | 128.35 → 23.54 | 1713.12 → 576.61 |
+| async | 1048577 | 1 | accepted message/s | 44.50 → 45.05 | 33.45 → 33.54 | 26.74 → 26.99 | 47.73 → 47.51 | 1484.31 → 552.23 |
+| async | 1048577 | 16 | accepted message/s | 284.68 → 284.96 | 211.30 → 190.96 | 76.64 → 73.05 | 21.41 → 23.39 | 1269.09 → 562.03 |
+| async-burst | 4096 | 64 | accepted message/s | 2177.84 → 2179.31 | 541.59 → 629.37 | 58.20 → 49.02 | 1.44 → 1.45 | 1039.50 → 584.05 |
+| async-paced | 4096 | 1 | accepted message/s | 8.97 → 9.00 | 8.24 → 8.00 | 16.14 → 14.82 | 38.50 → 51.08 | 1034.91 → 541.64 |
+| direct | 524287 | 1 | request/s | 1620.34 → 1677.25 | n/a → n/a | 0.80 → 0.76 | 0.05 → 0.05 | 313.66 → 315.84 |
+| direct | 524287 | 16 | request/s | 3537.50 → 3552.44 | n/a → n/a | 4.78 → 4.80 | 0.03 → 0.02 | 589.33 → 606.38 |
+| direct | 524288 | 1 | request/s | 1629.67 → 1626.91 | n/a → n/a | 0.86 → 0.88 | 0.05 → 0.05 | 1204.84 → 1143.86 |
+| direct | 524288 | 16 | request/s | 3565.05 → 3550.06 | n/a → n/a | 4.76 → 4.77 | 0.02 → 0.02 | 773.61 → 731.84 |
+| direct | 524289 | 1 | request/s | 1629.04 → 1610.97 | n/a → n/a | 0.80 → 0.88 | 0.05 → 0.05 | 1283.61 → 1184.77 |
+| direct | 524289 | 16 | request/s | 3556.23 → 3610.10 | n/a → n/a | 4.79 → 4.72 | 0.02 → 0.02 | 809.48 → 941.53 |
+| direct | 1048576 | 1 | request/s | 689.22 → 542.77 | n/a → n/a | 2.03 → 2.18 | 0.14 → 0.16 | 1208.50 → 610.41 |
+| direct | 1048576 | 16 | request/s | 1857.64 → 1871.41 | n/a → n/a | 9.14 → 9.10 | 0.05 → 0.05 | 897.81 → 557.98 |
+| direct | 1048577 | 1 | request/s | 697.22 → 791.93 | n/a → n/a | 2.06 → 1.98 | 0.11 → 0.12 | 1620.05 → 543.03 |
+| direct | 1048577 | 16 | request/s | 1869.14 → 1836.02 | n/a → n/a | 9.11 → 9.28 | 0.04 → 0.08 | 1378.31 → 556.59 |
+| sync | 524287 | 1 | request/s | 702.04 → 707.52 | n/a → n/a | 1.57 → 1.56 | 2.90 → 2.91 | 340.09 → 348.39 |
+| sync | 524287 | 16 | request/s | 873.07 → 873.74 | n/a → n/a | 19.18 → 19.11 | 3.49 → 3.52 | 585.34 → 602.22 |
+| sync | 524288 | 1 | request/s | 706.63 → 705.08 | n/a → n/a | 1.55 → 1.56 | 2.92 → 2.91 | 1214.41 → 1145.36 |
+| sync | 524288 | 16 | request/s | 868.44 → 865.95 | n/a → n/a | 19.18 → 19.21 | 3.56 → 3.55 | 773.30 → 740.59 |
+| sync | 524289 | 1 | request/s | 702.27 → 702.14 | n/a → n/a | 1.57 → 1.56 | 2.93 → 2.95 | 1287.58 → 1186.69 |
+| sync | 524289 | 16 | request/s | 868.20 → 885.32 | n/a → n/a | 19.12 → 18.89 | 3.56 → 3.58 | 806.31 → 992.48 |
+| sync | 1048576 | 1 | request/s | 386.65 → 387.60 | n/a → n/a | 2.79 → 2.79 | 5.28 → 5.23 | 1104.05 → 613.64 |
+| sync | 1048576 | 16 | request/s | 457.11 → 454.25 | n/a → n/a | 36.81 → 36.27 | 6.62 → 6.72 | 897.52 → 555.69 |
+| sync | 1048577 | 1 | request/s | 388.50 → 385.72 | n/a → n/a | 2.77 → 2.81 | 5.29 → 5.29 | 1622.05 → 546.38 |
+| sync | 1048577 | 16 | request/s | 453.61 → 451.99 | n/a → n/a | 36.47 → 36.70 | 6.67 → 6.78 | 1448.17 → 553.89 |
+
+</details>
+
 
 ## Candidate observations
 
@@ -319,3 +359,4 @@ Status: **queued**.
 - **http-bounded-abba**: FAIL (30 GiB disk reserve).
 - **http-bounded-abba-20**: FAIL.
 - **memory-abba-replay**: FAIL.
+- **threshold-512kib-bounded**: FAIL (20 GiB disk reserve).
