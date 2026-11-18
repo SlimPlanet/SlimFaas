@@ -593,16 +593,19 @@ DotNext supports two WAL memory-management strategies. SlimFaas selects the stra
 - `SharedMemory` is the default. It writes directly to memory-mapped WAL files so the operating system can reclaim or flush mapped pages under memory pressure.
 - `PrivateMemory` uses private temporary buffers and asynchronous write-through I/O. It can improve write throughput but consume more RAM, especially when opening a large existing WAL.
 
-Fresh Windows WAL directories use 64 KiB data chunks. Smaller system-page chunks
-can require hundreds of synchronous mapped-file flushes per large Raft entry,
+WAL directories created by SlimData on Windows use 64 KiB data chunks. Smaller
+system-page chunks can require hundreds of synchronous mapped-file flushes per large Raft entry,
 causing repeated RPC cancellation before a healthy majority can acknowledge it.
 The chunk size is persisted in `wal/slimdata-chunk-size` before the first page is
 created and read before opening the WAL, including on other operating systems.
-Existing unmarked WALs keep their historical system-page geometry. New Linux and
-macOS WALs keep their existing defaults. This preserves existing stored addresses;
-it does not migrate old Windows volumes or change acknowledgment durability,
-request deadlines, elections, snapshots or the command protocol. Older binaries
-that ignore the marker must not open a marked WAL. Preserve the marker in backups.
+Existing unmarked WALs keep their historical system-page geometry. New Linux
+and macOS WALs use the host page size, which is 16 KiB on the ARM64 Mac used in
+the benchmark campaigns. The macOS comparison with 64 KiB exceeded the
+non-regression limits in both the
+[initial campaign](reliability/2026-11-18/supervisor-repair-benchmarks.md#comparisons)
+and [repeat](reliability/2026-11-18/benchmark-repetition.md#comparisons).
+Keep the geometry used at creation when reopening an existing WAL. Preserve
+the marker in backups and use a reader that supports it.
 
 Windows strategy controls show faster large publications with explicit
 `PrivateMemory`, but later recovery checks still failed. A trial Windows default

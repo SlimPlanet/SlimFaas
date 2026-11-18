@@ -214,22 +214,29 @@ Review these artifacts before explicitly adding measured rows to this page.
 
 ## Offload, WAL and queue optimization candidates
 
-No performance default is changed by the tooling work. The current async body
-offload threshold remains **strictly greater than 1 MiB**. Existing WAL geometry
-remains immutable; new Windows WALs use 64 KiB, while unmarked Linux/macOS WALs
-use the system page size. A 512 KiB offload threshold and 64 KiB WAL are candidates
-to measure, not proven best defaults. Keep persisted-copy requirements unchanged.
+Use **1 MiB (1,048,576 bytes)** as the general async body offload threshold.
+Bodies larger than the threshold use Files. WAL directories created by
+SlimData on Windows use **64 KiB**. New Linux and macOS WALs use the
+**host page size**. Preserve the stored geometry when reopening an
+existing WAL.
 
-In the 17–18 November macOS campaign, lowering the offload threshold to 512 KiB
-raised the median acceptance rate for 1 MiB async bodies at concurrency 16 from
-13–15 to 278–286 messages/s across two ABBA blocks. The threshold comparison
-failed the aggregate guardrails, including synchronous cases and async burst
-traffic. The benchmark results support keeping the current default.
+In the independent macOS repeat, a 512 KiB threshold increased completed
+throughput for 1 MiB bodies at concurrency 16 from about 12 to 190–199
+messages/s. CPU fell from 124–127 to 22–23 ms per accepted message, and sampled
+peak RAM fell from 1,596–1,643 to 562–618 MiB. The overall threshold comparison
+exceeded the guardrails in all eight reference–candidate pairs, including
+async bursts. The comparison of fresh 64 KiB WALs with the 16 KiB macOS default
+also exceeded at least one guardrail in every pair of both campaigns.
+Keep the defaults above. See the
+[initial campaign](reliability/2026-11-18/supervisor-repair-benchmarks.md#comparisons)
+and [repeat](reliability/2026-11-18/benchmark-repetition.md#comparisons) for the
+full case tables and interrupted attempts.
 
-The WAL comparison measured 64 KiB against the 16 KiB macOS page-size default
-on fresh volumes. All eight pair comparisons exceeded at least one guardrail,
-with the paced async case affected in all eight. Keep the page-size default
-for new macOS WALs.
+In both campaigns, Jobs, Streams and WebSocket recorded all 16,000 expected
+receipts and no missing, duplicate or corrupt receipts. The code comparison
+exceeded HTTP non-regression guardrails. MemoryLab passed Set and mixed at
+concurrency 48 in both campaigns. At concurrency 12, the Set throughput
+failure recurred and the mixed workload passed only in the repeat.
 
 Prepare independent tuning configurations without running them:
 
@@ -261,11 +268,10 @@ The [implementation handoff](reliability/2026-11-17/benchmark-improvements-imple
 records the isolated candidate branches, validation and remaining manual runs.
 
 The [17 November PR #506 handoff](reliability/2026-11-17/pr506-handoff.md)
-records its merge assessment, CPU/RAM evidence, six then-running sourcef2
-long roles and the remaining scope for a follow-up validation PR. It also locates
-the reusable `$slimfaas-benchmarks` Codex skill installed on the campaign Mac.
-Always inspect live ownership/state before resuming; historical source results
-do not validate a later runtime revision.
+records the merge assessment, CPU/RAM evidence and follow-up scope. The
+[repository benchmark skill](../.agents/skills/slimfaas-benchmarks/SKILL.md)
+describes how to check current ownership before resuming and attribute
+results to the measured runtime revision.
 
 The [completed .NET 11 campaign report](reliability/2026-11-13/README.md)
 retains macOS Native AOT and Podman/Kubernetes managed ARM64 comparisons,
