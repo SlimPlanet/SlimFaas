@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 08:02 CET. Campaign state: **in progress**.
+Updated 2026-11-18 08:20 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -30,7 +30,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | threshold-512kib-retry | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | threshold-512kib-retry-resumed | FAIL | 256 | 256 | 0 | 0 |
-| wal-64kib-retry-resumed | INCONCLUSIVE | 78 | 78 | 0 | 0 |
+| wal-64kib-retry-resumed | FAIL | 208 | 208 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
@@ -58,6 +58,10 @@ An observation means that the measured run supplied the expected integrity and r
   - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 1 (6 pair comparisons).
   - Async burst workload guardrail failed at concurrency 64 (6 pair comparisons).
   - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 16 (5 pair comparisons).
+- **wal-64kib-retry-resumed / http**: FAIL. 2 ABBA block(s), pair verdicts FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL.
+  - Sync p95/p99/throughput guardrail failed for 1048576 bytes at concurrency 1 (8 pair comparisons).
+  - Sync p95/p99/throughput guardrail failed for 1048577 bytes at concurrency 1 (7 pair comparisons).
+  - Async p99/throughput/delivery guardrail failed for 4194304 bytes at concurrency 16 (7 pair comparisons).
 
 A and B refer to the first and second variants, respectively. For code comparisons, A is the reference and B is the candidate. For settings comparisons, A uses the current settings and B uses the measured change. Each table includes matched cases with evidence across all four roles of the attempt. The displayed throughput, p95 and CPU are medians across repetitions. RAM is the highest sampled cluster working set. The verdicts above use the comparison criteria for the corresponding profile.
 
@@ -257,6 +261,72 @@ A and B refer to the first and second variants, respectively. For code compariso
 
 </details>
 
+<details><summary>wal-64kib-retry-resumed / http-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 262144 | 1 | accepted message/s | 38.32 → 62.40 | 27.87 → 43.95 | 39.86 → 23.35 | 50.80 → 32.89 | 539.89 → 560.69 |
+| async | 262144 | 16 | accepted message/s | 56.55 → 145.23 | 41.99 → 103.47 | 449.95 → 212.02 | 38.09 → 20.22 | 886.86 → 1006.42 |
+| async | 1048576 | 1 | accepted message/s | 12.37 → 29.25 | 8.80 → 20.08 | 123.32 → 49.43 | 171.65 → 90.58 | 799.95 → 924.17 |
+| async | 1048576 | 16 | accepted message/s | 15.21 → 30.66 | 11.70 → 24.13 | 1472.50 → 848.01 | 128.14 → 67.12 | 1716.69 → 1894.84 |
+| async | 1048577 | 1 | accepted message/s | 47.92 → 45.50 | 32.83 → 33.29 | 25.35 → 26.39 | 43.46 → 45.42 | 1611.16 → 1838.55 |
+| async | 1048577 | 16 | accepted message/s | 285.74 → 243.27 | 195.68 → 167.99 | 76.85 → 95.94 | 22.44 → 22.83 | 1518.98 → 1555.47 |
+| async | 4194304 | 1 | accepted message/s | 35.96 → 36.08 | 23.23 → 26.37 | 31.12 → 32.25 | 99.70 → 99.00 | 953.27 → 1128.25 |
+| async | 4194304 | 16 | accepted message/s | 91.70 → 50.24 | 63.85 → 40.65 | 253.06 → 2500.86 | 68.38 → 87.55 | 842.09 → 1138.69 |
+| async-burst | 4096 | 64 | accepted message/s | 2032.80 → 2992.52 | 672.51 → 541.67 | 52.63 → 36.90 | 1.38 → 1.24 | 877.59 → 1145.55 |
+| async-paced | 4096 | 1 | accepted message/s | 8.62 → 9.13 | 8.01 → 8.46 | 19.29 → 13.13 | 48.32 → 44.07 | 845.94 → 1107.17 |
+| direct | 262144 | 1 | request/s | 2749.61 → 2676.08 | n/a → n/a | 0.43 → 0.47 | 0.03 → 0.03 | 318.91 → 315.58 |
+| direct | 262144 | 16 | request/s | 6015.50 → 6112.59 | n/a → n/a | 2.78 → 2.76 | 0.01 → 0.01 | 525.84 → 548.27 |
+| direct | 1048576 | 1 | request/s | 567.87 → 780.11 | n/a → n/a | 2.13 → 1.68 | 0.15 → 0.10 | 817.92 → 988.33 |
+| direct | 1048576 | 16 | request/s | 1862.89 → 1855.24 | n/a → n/a | 9.19 → 9.26 | 0.04 → 0.04 | 763.27 → 850.45 |
+| direct | 1048577 | 1 | request/s | 548.86 → 722.58 | n/a → n/a | 2.13 → 1.90 | 0.13 → 0.10 | 1635.42 → 1896.16 |
+| direct | 1048577 | 16 | request/s | 1865.56 → 1878.10 | n/a → n/a | 9.14 → 9.19 | 0.04 → 0.04 | 1577.70 → 1640.44 |
+| direct | 4194304 | 1 | request/s | 224.61 → 220.80 | n/a → n/a | 7.22 → 7.32 | 0.39 → 0.43 | 943.62 → 1155.72 |
+| direct | 4194304 | 16 | request/s | 468.36 → 467.98 | n/a → n/a | 36.79 → 36.83 | 0.17 → 0.18 | 950.28 → 1123.38 |
+| sync | 262144 | 1 | request/s | 1207.17 → 1192.42 | n/a → n/a | 0.93 → 0.94 | 1.65 → 1.64 | 347.08 → 335.39 |
+| sync | 262144 | 16 | request/s | 1615.09 → 1591.21 | n/a → n/a | 10.39 → 10.50 | 1.89 → 1.87 | 523.53 → 545.78 |
+| sync | 1048576 | 1 | request/s | 387.13 → 385.06 | n/a → n/a | 2.81 → 2.81 | 5.36 → 5.23 | 822.64 → 991.44 |
+| sync | 1048576 | 16 | request/s | 450.97 → 446.65 | n/a → n/a | 36.67 → 37.10 | 6.73 → 6.66 | 762.19 → 881.16 |
+| sync | 1048577 | 1 | request/s | 388.41 → 385.42 | n/a → n/a | 2.77 → 2.81 | 5.26 → 5.22 | 1647.28 → 1902.06 |
+| sync | 1048577 | 16 | request/s | 453.05 → 446.88 | n/a → n/a | 36.80 → 37.26 | 6.60 → 6.67 | 1574.05 → 1802.17 |
+| sync | 4194304 | 1 | request/s | 105.95 → 105.59 | n/a → n/a | 10.15 → 10.22 | 19.07 → 19.22 | 949.52 → 1118.50 |
+| sync | 4194304 | 16 | request/s | 113.63 → 110.92 | n/a → n/a | 149.25 → 151.10 | 24.82 → 25.76 | 950.28 → 1123.34 |
+
+</details>
+
+<details><summary>wal-64kib-retry-resumed / http-attempt-2 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 262144 | 1 | accepted message/s | 38.00 → 64.60 | 26.82 → 46.87 | 40.36 → 22.61 | 51.65 → 34.27 | 560.25 → 560.52 |
+| async | 262144 | 16 | accepted message/s | 51.54 → 163.40 | 41.10 → 113.00 | 452.73 → 148.72 | 41.64 → 21.00 | 886.58 → 999.28 |
+| async | 1048576 | 1 | accepted message/s | 12.84 → 30.54 | 9.10 → 21.59 | 120.69 → 45.70 | 168.71 → 89.84 | 871.91 → 926.62 |
+| async | 1048576 | 16 | accepted message/s | 14.73 → 44.37 | 11.06 → 31.86 | 1411.20 → 436.74 | 135.49 → 65.22 | 1596.34 → 2132.72 |
+| async | 1048577 | 1 | accepted message/s | 40.44 → 46.19 | 33.57 → 31.64 | 29.83 → 26.00 | 47.77 → 46.74 | 1526.44 → 1857.86 |
+| async | 1048577 | 16 | accepted message/s | 280.30 → 293.50 | 192.79 → 196.52 | 76.70 → 74.52 | 22.74 → 22.75 | 1343.12 → 1585.05 |
+| async | 4194304 | 1 | accepted message/s | 36.47 → 36.65 | 23.58 → 25.11 | 30.33 → 31.19 | 100.57 → 99.26 | 1113.77 → 1309.83 |
+| async | 4194304 | 16 | accepted message/s | 94.87 → 91.20 | 63.80 → 64.67 | 218.96 → 247.14 | 68.24 → 66.62 | 999.19 → 1212.34 |
+| async-burst | 4096 | 64 | accepted message/s | 2067.90 → 3281.58 | 613.11 → 642.65 | 62.23 → 39.82 | 1.43 → 1.30 | 867.08 → 1185.89 |
+| async-paced | 4096 | 1 | accepted message/s | 8.92 → 8.85 | 7.94 → 7.95 | 16.69 → 16.47 | 50.66 → 48.41 | 882.77 → 1185.28 |
+| direct | 262144 | 1 | request/s | 2749.47 → 2745.41 | n/a → n/a | 0.43 → 0.43 | 0.03 → 0.03 | 312.41 → 313.30 |
+| direct | 262144 | 16 | request/s | 6106.17 → 6130.02 | n/a → n/a | 2.75 → 2.74 | 0.01 → 0.01 | 541.98 → 529.41 |
+| direct | 1048576 | 1 | request/s | 522.48 → 563.83 | n/a → n/a | 2.25 → 2.01 | 0.17 → 0.12 | 844.86 → 999.70 |
+| direct | 1048576 | 16 | request/s | 1871.65 → 1862.35 | n/a → n/a | 9.14 → 9.26 | 0.04 → 0.04 | 878.06 → 832.30 |
+| direct | 1048577 | 1 | request/s | 554.75 → 733.04 | n/a → n/a | 2.04 → 1.87 | 0.12 → 0.10 | 1480.81 → 2132.73 |
+| direct | 1048577 | 16 | request/s | 1841.97 → 1845.40 | n/a → n/a | 9.15 → 9.17 | 0.04 → 0.04 | 1473.72 → 1813.72 |
+| direct | 4194304 | 1 | request/s | 218.49 → 219.46 | n/a → n/a | 7.43 → 7.39 | 0.39 → 0.42 | 1111.77 → 1296.28 |
+| direct | 4194304 | 16 | request/s | 469.97 → 468.92 | n/a → n/a | 36.57 → 36.62 | 0.17 → 0.17 | 983.44 → 1308.30 |
+| sync | 262144 | 1 | request/s | 1201.01 → 1195.95 | n/a → n/a | 0.93 → 0.94 | 1.64 → 1.60 | 338.05 → 342.16 |
+| sync | 262144 | 16 | request/s | 1610.39 → 1613.71 | n/a → n/a | 10.45 → 10.39 | 1.89 → 1.86 | 541.83 → 523.86 |
+| sync | 1048576 | 1 | request/s | 387.79 → 387.19 | n/a → n/a | 2.79 → 2.79 | 5.32 → 5.27 | 834.36 → 1006.17 |
+| sync | 1048576 | 16 | request/s | 449.92 → 452.65 | n/a → n/a | 36.81 → 36.62 | 6.76 → 6.63 | 875.73 → 831.36 |
+| sync | 1048577 | 1 | request/s | 386.85 → 385.93 | n/a → n/a | 2.79 → 2.80 | 5.22 → 5.32 | 1485.78 → 2134.20 |
+| sync | 1048577 | 16 | request/s | 453.79 → 454.37 | n/a → n/a | 36.50 → 36.74 | 6.61 → 6.61 | 1471.45 → 1858.41 |
+| sync | 4194304 | 1 | request/s | 106.82 → 106.61 | n/a → n/a | 10.10 → 10.12 | 19.14 → 19.33 | 1107.70 → 1296.25 |
+| sync | 4194304 | 16 | request/s | 112.90 → 111.90 | n/a → n/a | 147.94 → 149.62 | 25.53 → 25.79 | 984.42 → 1307.09 |
+
+</details>
+
 
 ## Candidate observations
 
@@ -363,3 +433,4 @@ Status: **queued**.
 - **wal-64kib-retry-resumed**: INCONCLUSIVE (20 GiB disk reserve).
 - **http-bounded-abba-20-closing-reference**: FAIL.
 - **threshold-512kib-retry-confirmation**: FAIL.
+- **wal-64kib-retry-confirmation**: FAIL.
