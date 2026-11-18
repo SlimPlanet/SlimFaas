@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 04:03 CET. Campaign state: **in progress**.
+Updated 2026-11-18 05:11 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -19,6 +19,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-unique | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
+| http-bounded-abba-20 | FAIL | 320 | 320 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
@@ -36,6 +37,48 @@ An observation means that the measured run supplied the expected integrity and r
 ## Comparisons
 
 ABBA results are pending.
+
+A and B refer to the first and second variants, respectively. For code comparisons, A is the reference and B is the candidate. For settings comparisons, A uses the current settings and B uses the measured change. Each table includes matched cases with evidence across all four roles of the attempt. The displayed throughput, p95 and CPU are medians across repetitions. RAM is the highest sampled cluster working set. The verdicts above use the comparison criteria for the corresponding profile.
+
+<details><summary>http-bounded-abba-20 / http-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 4096 | 1 | accepted message/s | 93.23 → 90.47 | 72.85 → 72.20 | 13.70 → 13.83 | 11.42 → 10.85 | 402.16 → 390.92 |
+| async | 4096 | 16 | accepted message/s | 1092.96 → 1085.92 | 857.56 → 851.79 | 20.42 → 19.87 | 1.82 → 1.77 | 495.25 → 497.80 |
+| async | 262144 | 1 | accepted message/s | 38.46 → 37.54 | 30.20 → 29.47 | 38.52 → 39.08 | 48.46 → 47.68 | 620.75 → 583.66 |
+| async | 262144 | 16 | accepted message/s | 55.57 → 54.37 | 44.03 → 45.01 | 463.50 → 507.83 | 36.54 → 37.22 | 1639.23 → 986.73 |
+| async | 1048576 | 1 | accepted message/s | 12.56 → 12.43 | 10.55 → 9.64 | 124.52 → 126.86 | 154.60 → 163.25 | 1616.39 → 831.44 |
+| async | 1048576 | 16 | accepted message/s | 14.29 → 14.20 | 12.21 → 11.84 | 1546.50 → 1547.70 | 131.38 → 130.82 | 3317.12 → 1820.94 |
+| async | 1048577 | 1 | accepted message/s | 44.76 → 41.85 | 38.09 → 35.61 | 26.31 → 27.79 | 42.13 → 45.63 | 3157.53 → 1752.00 |
+| async | 1048577 | 16 | accepted message/s | 286.16 → 281.19 | 240.63 → 234.58 | 74.82 → 74.17 | 18.04 → 20.21 | 3087.81 → 1132.89 |
+| async | 4194304 | 1 | accepted message/s | 36.31 → 35.63 | 30.70 → 29.27 | 30.23 → 30.56 | 93.07 → 97.18 | 2001.05 → 625.89 |
+| async | 4194304 | 16 | accepted message/s | 95.68 → 96.50 | 79.30 → 79.24 | 214.32 → 215.09 | 63.00 → 64.66 | 1695.31 → 537.83 |
+| async-burst | 4096 | 64 | accepted message/s | 2167.32 → 2075.08 | 1209.02 → 532.73 | 46.70 → 52.16 | 1.17 → 1.50 | 1455.34 → 604.44 |
+| async-paced | 4096 | 1 | accepted message/s | 8.93 → 9.07 | 8.27 → 8.22 | 16.06 → 14.10 | 47.09 → 47.60 | 1443.33 → 582.05 |
+| direct | 4096 | 1 | request/s | 10152.08 → 10265.30 | n/a → n/a | 0.11 → 0.11 | 0.01 → 0.01 | 389.56 → 382.06 |
+| direct | 4096 | 16 | request/s | 23169.90 → 23180.41 | n/a → n/a | 0.74 → 0.74 | 0.00 → 0.00 | 489.59 → 485.62 |
+| direct | 262144 | 1 | request/s | 2706.47 → 2820.69 | n/a → n/a | 0.44 → 0.42 | 0.03 → 0.03 | 604.80 → 572.00 |
+| direct | 262144 | 16 | request/s | 6053.41 → 6055.87 | n/a → n/a | 2.81 → 2.79 | 0.01 → 0.01 | 1419.92 → 875.88 |
+| direct | 1048576 | 1 | request/s | 806.93 → 611.39 | n/a → n/a | 1.71 → 2.08 | 0.10 → 0.13 | 1624.08 → 847.20 |
+| direct | 1048576 | 16 | request/s | 1828.03 → 1850.19 | n/a → n/a | 9.32 → 9.24 | 0.05 → 0.05 | 2850.03 → 1781.75 |
+| direct | 1048577 | 1 | request/s | 574.30 → 554.90 | n/a → n/a | 2.08 → 2.09 | 0.14 → 0.14 | 3118.69 → 1741.31 |
+| direct | 1048577 | 16 | request/s | 1847.58 → 1872.74 | n/a → n/a | 9.21 → 9.21 | 0.05 → 0.05 | 3086.77 → 1354.41 |
+| direct | 4194304 | 1 | request/s | 225.76 → 228.95 | n/a → n/a | 7.08 → 7.02 | 0.39 → 0.39 | 1997.45 → 634.94 |
+| direct | 4194304 | 16 | request/s | 462.38 → 468.33 | n/a → n/a | 38.08 → 36.75 | 0.20 → 0.24 | 1649.27 → 528.09 |
+| sync | 4096 | 1 | request/s | 3052.39 → 3053.92 | n/a → n/a | 0.36 → 0.36 | 0.52 → 0.52 | 389.12 → 383.25 |
+| sync | 4096 | 16 | request/s | 7760.60 → 7821.72 | n/a → n/a | 2.38 → 2.37 | 0.47 → 0.46 | 497.36 → 504.77 |
+| sync | 262144 | 1 | request/s | 1178.68 → 1194.47 | n/a → n/a | 0.95 → 0.93 | 1.67 → 1.64 | 605.09 → 568.75 |
+| sync | 262144 | 16 | request/s | 1612.27 → 1619.23 | n/a → n/a | 10.42 → 10.42 | 1.90 → 1.90 | 1495.23 → 944.05 |
+| sync | 1048576 | 1 | request/s | 386.83 → 389.22 | n/a → n/a | 2.78 → 2.78 | 5.29 → 5.29 | 1634.14 → 811.16 |
+| sync | 1048576 | 16 | request/s | 449.45 → 453.95 | n/a → n/a | 37.04 → 36.63 | 6.74 → 6.65 | 2865.19 → 1779.73 |
+| sync | 1048577 | 1 | request/s | 386.31 → 386.66 | n/a → n/a | 2.79 → 2.79 | 5.20 → 5.16 | 3125.42 → 1745.86 |
+| sync | 1048577 | 16 | request/s | 450.84 → 453.81 | n/a → n/a | 36.83 → 36.70 | 6.77 → 6.69 | 3087.70 → 1355.27 |
+| sync | 4194304 | 1 | request/s | 105.60 → 105.16 | n/a → n/a | 10.20 → 10.22 | 19.50 → 19.21 | 1997.48 → 637.75 |
+| sync | 4194304 | 16 | request/s | 113.29 → 113.33 | n/a → n/a | 151.59 → 147.16 | 25.58 → 25.50 | 1653.11 → 528.31 |
+
+</details>
+
 
 ## Candidate observations
 
@@ -132,3 +175,4 @@ Status: **queued**.
 - **files-bounded-files-download**: OBSERVED.
 - **files-bounded-files**: OBSERVED.
 - **files-bounded-files-unique**: OBSERVED.
+- **http-bounded-abba-20**: FAIL (20 GiB disk reserve).
