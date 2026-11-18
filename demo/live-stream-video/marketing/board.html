@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>SlimFaas — Give your agent tools the night off</title>
+<style>
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { margin: 0; font-family: "Inter", Arial, sans-serif; }
+.film { --paper: #f7f3e9; --ink: #151a32; --accent: #0000ff; --rule: #c5c3b9; background: var(--paper); color: var(--ink); width: 1080px; height: 1350px; padding: 59px 70px; overflow: hidden; position: relative; }
+.film--night { --paper: #161b39; --ink: #fff8e9; --accent: #d9f378; --rule: #5c6178; }
+.film--try { --paper: #2020cd; --ink: #fff8e9; --accent: #d9f378; --rule: #827ffd; }
+.film__header, .film__footer, .film__monitor-head, .film__metrics { display: flex; justify-content: space-between; align-items: center; }
+.film__header { border-bottom: 2px solid var(--rule); padding-bottom: 25px; }
+.film__brand { font-size: 40px; font-weight: 750; letter-spacing: -2px; }
+.film__label, .film__eyebrow, .film__footer, .film__monitor-head, .film__dial-label { font: 600 21px/1.1 "IBM Plex Mono", "Courier New", monospace; text-transform: uppercase; letter-spacing: 1px; }
+.film__eyebrow { margin: 51px 0 21px; color: var(--accent); font-size: 24px; }
+.film__title { margin: 0; font: 500 109px/.97 "Baskervville", Georgia, "Times New Roman", serif; letter-spacing: -5px; }
+.film__title em { color: var(--accent); }
+.film__panel { position: absolute; top: 506px; left: 70px; width: 940px; }
+.film__monitor { border: 2px solid var(--ink); background: #f6f9fb; overflow: hidden; border-radius: 20px; }
+.film__monitor-head { height: 51px; padding: 0 24px; background: var(--ink); color: var(--paper); font-size: 19px; }
+.film__monitor-head b { color: #d9f378; letter-spacing: 0; }
+.film__capture { display: block; width: 936px; height: 435px; object-fit: cover; }
+.film__metrics { justify-content: flex-start; gap: 55px; padding-top: 18px; }
+.film__metric { display: flex; align-items: baseline; gap: 14px; }
+.film__number { font-size: 56px; font-weight: 700; letter-spacing: -3px; color: var(--accent); line-height: 1; }
+.film__unit { font-size: 28px; color: var(--ink); }
+.film__feature { position: absolute; left: 70px; top: 490px; width: 940px; height: 568px; border-top: 2px solid var(--rule); border-bottom: 2px solid var(--rule); display: flex; align-items: center; gap: 35px; }
+.film__art { height: 440px; width: 450px; flex-shrink: 0; }
+.film__dial-label { color: var(--accent); }
+.film__dial-value { display: block; margin: 16px 0 0; font: 500 135px/.95 "Baskervville", Georgia, serif; letter-spacing: -9px; }
+.film__dial-detail { display: block; margin-top: 13px; font-size: 33px; line-height: 1.18; }
+.film__cta { display: inline-block; background: var(--accent); color: #131730; font-size: 34px; border-radius: 100px; padding: 16px 26px; margin-top: 16px; }
+.film__url { display: block; font: 600 22px/1.3 "IBM Plex Mono", "Courier New", monospace; margin-top: 20px; }
+.film__caption { position: absolute; left: 70px; right: 70px; top: 1096px; height: 144px; display: flex; align-items: center; font-size: 40px; line-height: 1.18; letter-spacing: -.7px; }
+.film__footer { position: absolute; bottom: 54px; left: 70px; right: 70px; padding-top: 20px; border-top: 2px solid var(--rule); font-size: 18px; }
+.film__progress { display: flex; gap: 7px; }
+.film__progress i { width: 43px; height: 6px; background: var(--rule); }
+.film__progress i[data-active] { background: var(--accent); }
+</style>
+<main class="film">
+  <header class="film__header"><span class="film__brand">SlimFaas</span><span class="film__label">CNCF Sandbox project</span></header>
+  <p class="film__eyebrow"></p><h1 class="film__title"><span></span><br><em></em></h1>
+  <section class="film__panel">
+    <div class="film__monitor">
+      <div class="film__monitor-head"><span><b>●</b> Live Stream</span><span class="film__source"></span></div>
+      <img alt="Recorded Kubernetes workload" class="film__capture">
+    </div>
+    <div class="film__metrics"></div>
+  </section>
+  <section class="film__feature">
+    <svg class="film__art" viewBox="0 0 400 400" role="img" aria-label="Illustrated alarm clock">
+      <g fill="var(--accent)" stroke="#161b39" stroke-width="5">
+        <path d="M43 114 Q34 74 68 57 Q106 35 139 69 Z M261 69 Q294 36 331 57 Q366 75 357 114 Z"/>
+        <path d="M105 308 L74 364 Q72 372 83 372 L139 331 Z M295 308 L326 364 Q328 372 317 372 L261 331 Z"/>
+      </g>
+      <circle cx="200" cy="200" r="151" fill="#6569ef" stroke="#151a32" stroke-width="5"/>
+      <circle cx="200" cy="200" r="138" fill="#fff7e5" stroke="#151a32" stroke-width="5"/>
+      <g id="ticks" stroke="#161b39" stroke-linecap="round"></g>
+      <g fill="#171b3a" text-anchor="middle" font-family="Georgia,serif" font-size="30" font-style="italic">
+        <text x="200" y="115">12</text><text x="299" y="210">3</text><text x="200" y="308">6</text><text x="103" y="210">9</text>
+      </g>
+      <path id="hour" d="M200 201 V130" stroke="#171b3a" stroke-width="14" stroke-linecap="round"/>
+      <path id="minute" d="M200 203 V104" stroke="#171b3a" stroke-width="8" stroke-linecap="round"/>
+      <path id="second" d="M200 224 V87" stroke="#f05d36" stroke-width="3"/>
+      <circle cx="200" cy="200" r="8" fill="#f05d36" stroke="#171b3a" stroke-width="3"/>
+    </svg>
+    <div><span class="film__dial-label"></span><strong class="film__dial-value"></strong><span class="film__dial-detail"></span>
+      <span class="film__cta">slimfaas.dev ↗</span><span class="film__url">/get-started/local</span></div>
+  </section>
+  <div class="film__caption"></div>
+  <footer class="film__footer"><span>slimfaas.dev</span><div class="film__progress"></div></footer>
+</main>
+</html>

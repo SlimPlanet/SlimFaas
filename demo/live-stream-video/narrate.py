@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 import wave
 
 HERE = Path(__file__).resolve().parent
-WORK = HERE.parents[1] / "artifacts/live-stream-video/voice"
+WORK = HERE.parents[1] / "artifacts/live-stream-video"
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 RATE = 24000
 
@@ -32,12 +32,16 @@ def speech_server(value):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mode", choices=("educational", "marketing"), default="educational")
     parser.add_argument("--speech-url", type=speech_server, help="Optional local Kokoro-compatible /v1/audio/speech endpoint")
     args = parser.parse_args()
-    WORK.mkdir(parents=True, exist_ok=True)
-    master = b"" if args.speech_url else pcm(str(HERE / "narration.flac"))
+    edition = Path("marketing") if args.mode == "marketing" else Path(".")
+    source = HERE / edition
+    destination = WORK / edition / "voice"
+    destination.mkdir(parents=True, exist_ok=True)
+    master = b"" if args.speech_url else pcm(str(source / "narration.flac"))
     offset = 0
-    for scene in json.loads((HERE / "scenes.json").read_text()):
+    for scene in json.loads((source / "scenes.json").read_text()):
         if args.speech_url:
             body = json.dumps({"model": "kokoro", "voice": "af_heart", "speed": 1.055,
                                "input": scene["voice"], "response_format": "wav"}).encode()
@@ -52,7 +56,7 @@ def main():
             if len(audio) != end - offset:
                 raise ValueError("Narration master is shorter than the scene list")
             offset = end
-        with wave.open(str(WORK / (scene["key"] + ".wav")), "wb") as wav:
+        with wave.open(str(destination / (scene["key"] + ".wav")), "wb") as wav:
             wav.setparams((1, 2, RATE, 0, "NONE", "not compressed"))
             wav.writeframes(audio)
     if offset != len(master):
