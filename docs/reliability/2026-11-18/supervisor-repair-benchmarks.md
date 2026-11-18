@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-18 02:32 CET. Campaign state: **final**.
+Updated 2026-11-18 02:36 CET. Campaign state: **final**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -493,7 +493,55 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 
 ## Queue and routing microbenchmarks
 
-Status: **queued**.
+Status: **finished**.
+
+BenchmarkDotNet ShortRun used the in-process .NET 11 JIT. Queue cases compare the current ZLinq implementation, LINQ and a direct loop. Routing cases measure individual operations in the candidate.
+
+<details><summary>QueuePipelineBenchmarks</summary>
+
+| Method       | Count | Retry | Mean           | Error         | StdDev      | Ratio | RatioSD | Rank | Gen0   | Gen1   | Allocated | Alloc Ratio |
+|------------- |------ |------ |---------------:|--------------:|------------:|------:|--------:|-----:|-------:|-------:|----------:|------------:|
+| **CurrentZLinq** | **0**     | **False** |      **2.4268 ns** |     **0.1578 ns** |   **0.0086 ns** |  **1.00** |    **0.00** |    **2** | **0.0029** |      **-** |      **24 B** |        **1.00** |
+| DotNetLinq   | 0     | False |      2.3001 ns |     0.1097 ns |   0.0060 ns |  0.95 |    0.00 |    2 | 0.0038 |      - |      32 B |        1.33 |
+| DirectLoop   | 0     | False |      0.6225 ns |     0.1752 ns |   0.0096 ns |  0.26 |    0.00 |    1 |      - |      - |         - |        0.00 |
+|              |       |       |                |               |             |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **0**     | **True**  |      **2.3286 ns** |     **0.3359 ns** |   **0.0184 ns** |  **1.00** |    **0.01** |    **2** | **0.0029** |      **-** |      **24 B** |        **1.00** |
+| DotNetLinq   | 0     | True  |      2.3132 ns |     0.0907 ns |   0.0050 ns |  0.99 |    0.01 |    2 | 0.0038 |      - |      32 B |        1.33 |
+| DirectLoop   | 0     | True  |      0.5993 ns |     0.1119 ns |   0.0061 ns |  0.26 |    0.00 |    1 |      - |      - |         - |        0.00 |
+|              |       |       |                |               |             |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **200**   | **False** |    **258.2968 ns** |    **54.8942 ns** |   **3.0089 ns** |  **1.00** |    **0.01** |    **1** | **0.0601** |      **-** |     **504 B** |        **1.00** |
+| DotNetLinq   | 200   | False |    291.6467 ns |    53.8530 ns |   2.9519 ns |  1.13 |    0.02 |    1 | 0.0668 |      - |     560 B |        1.11 |
+| DirectLoop   | 200   | False |    556.9356 ns |    89.5965 ns |   4.9111 ns |  2.16 |    0.03 |    2 | 0.1869 |      - |    1568 B |        3.11 |
+|              |       |       |                |               |             |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **200**   | **True**  |    **668.0148 ns** |    **26.6330 ns** |   **1.4598 ns** |  **1.00** |    **0.00** |    **1** | **0.0095** |      **-** |      **80 B** |        **1.00** |
+| DotNetLinq   | 200   | True  |    663.5796 ns |     9.4070 ns |   0.5156 ns |  0.99 |    0.00 |    1 | 0.0162 |      - |     136 B |        1.70 |
+| DirectLoop   | 200   | True  |    685.3893 ns |    53.6242 ns |   2.9393 ns |  1.03 |    0.00 |    1 | 0.0038 |      - |      32 B |        0.40 |
+|              |       |       |                |               |             |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **2000**  | **False** |  **4,724.4447 ns** |   **498.0282 ns** |  **27.2986 ns** |  **1.00** |    **0.01** |    **1** | **0.4883** |      **-** |    **4104 B** |        **1.00** |
+| DotNetLinq   | 2000  | False |  5,147.0590 ns |   454.9031 ns |  24.9348 ns |  1.09 |    0.01 |    1 | 0.4959 |      - |    4160 B |        1.01 |
+| DirectLoop   | 2000  | False |  5,787.8493 ns |   453.9736 ns |  24.8838 ns |  1.23 |    0.01 |    1 | 1.4801 | 0.0153 |   12408 B |        3.02 |
+|              |       |       |                |               |             |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **2000**  | **True**  | **10,305.3716 ns** | **2,443.3136 ns** | **133.9263 ns** |  **1.00** |    **0.02** |    **1** |      **-** |      **-** |      **80 B** |        **1.00** |
+| DotNetLinq   | 2000  | True  | 10,209.5877 ns | 1,984.2768 ns | 108.7649 ns |  0.99 |    0.01 |    1 | 0.0153 |      - |     136 B |        1.70 |
+| DirectLoop   | 2000  | True  | 10,313.5319 ns | 1,898.2038 ns | 104.0470 ns |  1.00 |    0.01 |    1 |      - |      - |      32 B |        0.40 |
+
+</details>
+
+<details><summary>RoutingQueryBenchmarks</summary>
+
+| Method             | FunctionCount | Mean       | Error       | StdDev     | Rank | Gen0   | Allocated |
+|------------------- |-------------- |-----------:|------------:|-----------:|-----:|-------:|----------:|
+| **SearchFunction**     | **2**             |   **3.397 ns** |   **1.7260 ns** |  **0.0946 ns** |    **1** |      **-** |         **-** |
+| FirstReadyPodPorts | 2             |   6.973 ns |   0.1033 ns |  0.0057 ns |    2 |      - |         - |
+| StatusReadyCount   | 2             |  18.107 ns |   2.5745 ns |  0.1411 ns |    3 | 0.0115 |      96 B |
+| **SearchFunction**     | **20**            |  **28.500 ns** |   **8.1625 ns** |  **0.4474 ns** |    **4** |      **-** |         **-** |
+| FirstReadyPodPorts | 20            |  27.341 ns |   8.4366 ns |  0.4624 ns |    4 |      - |         - |
+| StatusReadyCount   | 20            |  18.088 ns |   1.5927 ns |  0.0873 ns |    3 | 0.0115 |      96 B |
+| **SearchFunction**     | **200**           | **278.628 ns** | **312.0698 ns** | **17.1056 ns** |    **5** |      **-** |         **-** |
+| FirstReadyPodPorts | 200           | 258.229 ns | 172.8292 ns |  9.4734 ns |    5 |      - |         - |
+| StatusReadyCount   | 200           |  18.310 ns |   1.4940 ns |  0.0819 ns |    3 | 0.0115 |      96 B |
+
+</details>
 
 ## Run status
 
