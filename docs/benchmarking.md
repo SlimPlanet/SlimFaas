@@ -28,6 +28,44 @@ approximately 1 s platform sampling interval can miss shorter RAM spikes.
 Acceptance throughput must not be relabelled as delivery throughput. Keep
 delivery counts, latencies and drain results beside it.
 
+### Measured macOS Native AOT results
+
+The 17–18 November 2026 campaign ran three SlimFaas Local nodes on an ARM64 Mac
+with .NET 11.0.100. These are selected measurements from the repaired runtime
+at `bbcf2147`. HTTP values come from the two candidate passes in the first
+completed ABBA block under the 20 GiB disk reserve, with two repetitions per
+pass. The other workloads use two repetitions per case. Full source identities,
+cases and comparisons are in the [campaign
+report](reliability/2026-11-18/supervisor-repair-benchmarks.md).
+
+| Workload | Payload | Concurrency | Median throughput | Median completions/s incl. drain | Median CPU ms/op | Peak RAM MiB |
+|---|---:|---:|---:|---:|---:|---:|
+| HTTP sync | 4 KiB | 16 | 7,605.20 req/s | — | 0.47 | 511.75 |
+| HTTP async | 4 KiB | 16 | 1,113.58 accepted/s | 875.75 | 1.74 | 512.97 |
+| HTTP sync | 4 MiB | 16 | 110.74 req/s | — | 25.26 | 638.44 |
+| HTTP async | 4 MiB | 16 | 69.06 accepted/s | 35.31 | 123.95 | 651.45 |
+| Set | 4 KiB | 16 | 142.55 op/s | — | 2.93 | 496.91 |
+| Get | 4 KiB | 16 | 19,815.14 op/s | — | 0.33 | 498.42 |
+| HashSet | 4 KiB | 16 | 126.61 op/s | — | 2.68 | 589.31 |
+| Increment | — | 16 | 104.34 op/s | — | 2.38 | 501.67 |
+| File upload | 1 MiB | 4 | 42.65 op/s | — | 29.18 | 386.11 |
+| File download | 1 MiB | 4 | 466.57 op/s | — | 5.98 | 361.30 |
+| File cross-node | 1 MiB | 4 | 68.29 op/s | — | 33.05 | 393.06 |
+| Streams, one subscriber | 4 KiB | 16 | 796.35 accepted/s | 4.01 | 1.93 | 442.55 |
+| Jobs | — | 16 | 1,246.31 accepted/s | 13.09 | 0.96 | 352.75 |
+| WebSocket .NET sync | 4 KiB | 16 | 118.68 req/s | — | 4.12 | 353.19 |
+| WebSocket .NET async | 4 KiB | 16 | 379.11 accepted/s | 41.03 | 2.32 | 429.84 |
+| WebSocket Python async | 4 KiB | 16 | 945.74 accepted/s | 40.80 | 2.38 | 925.06 |
+
+Peak RAM is the largest sampled aggregate working set across the listed
+repetitions. HTTP async CPU and RAM include drain. Streams, Jobs and WebSocket
+acceptance CPU and RAM cover submission. The Files runs had an explicit
+16 MiB work budget per warmup and load window. Their payload column gives the
+size of each file. These are descriptive results
+from this machine. The full HTTP comparison failed its non-regression
+criteria, with the async case at 1 MiB + 1 byte and concurrency 16 exceeding
+guardrails in seven of eight pair comparisons.
+
 To regenerate the HTTP table from retained results **without starting a runtime,
 target or benchmark**, use the already built driver:
 
@@ -181,6 +219,17 @@ offload threshold remains **strictly greater than 1 MiB**. Existing WAL geometry
 remains immutable; new Windows WALs use 64 KiB, while unmarked Linux/macOS WALs
 use the system page size. A 512 KiB offload threshold and 64 KiB WAL are candidates
 to measure, not proven best defaults. Keep persisted-copy requirements unchanged.
+
+In the 17–18 November macOS campaign, lowering the offload threshold to 512 KiB
+raised the median acceptance rate for 1 MiB async bodies at concurrency 16 from
+13–15 to 278–286 messages/s across two ABBA blocks. The threshold comparison
+failed the aggregate guardrails, including synchronous cases and async burst
+traffic. The benchmark results support keeping the current default.
+
+The WAL comparison measured 64 KiB against the 16 KiB macOS page-size default
+on fresh volumes. All eight pair comparisons exceeded at least one guardrail,
+with the paced async case affected in all eight. Keep the page-size default
+for new macOS WALs.
 
 Prepare independent tuning configurations without running them:
 
