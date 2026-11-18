@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.88.2
+
+- [981b681f](https://github.com/SlimPlanet/SlimFaas/commit/981b681f593beaf3c66a81663f7ac43575294132) - Fix SlimData recovery and validate macOS, Podman and Kubernetes reliability (#506) (release), 2026-11-18 by *Guillaume Chervet*
+
+
+## 0.88.1
+
+
+
 ## v0.88.1
 
 - [6897512d](https://github.com/SlimPlanet/SlimFaas/commit/6897512d6c19ef8234e187ba38d38be3ee5cc5ea) - fix(SlimFaas): wait for stopping nodes on Ctrl+Break and retry bundle cleanup on Windows (#401), 2026-11-14 by *Guillaume Delahaye*
@@ -266,15 +275,6 @@
 
 
 ## 0.82.7
-
-
-
-## v0.82.7
-
-- [ffff804f](https://github.com/SlimPlanet/SlimFaas/commit/ffff804f82f23bdb1cedca3211be9a63b7424084) - fix: release job concurrency slots before TTL cleanup (#337) (release), 2026-09-08 by *Guillaume Chervet*
-
-
-## 0.82.6
 
 
 
