@@ -796,7 +796,7 @@ jobs:
         working-directory: ./src/SlimFaasPlanetSaver
 
       - name: Install an OIDC-compatible npm CLI
-        run: npm install --global npm@12.2.3
+        run: npm install --global --ignore-scripts npm@12.2.3
 
       - name: Git Configuration
         id: gitconfig
