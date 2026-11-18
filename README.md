@@ -171,10 +171,6 @@ Ideal for **agentic workflows** and **real-time ingestion**: upload once, get an
     - AOT-friendly design,
     - minimal dependency surface.
 
-<div align="center">
-  <img src="docs/slim-faas-ram-cpu.png" alt="SlimFaas CPU RAM" />
-</div>
-
 ---
 
 ## Ready to Get Started?
