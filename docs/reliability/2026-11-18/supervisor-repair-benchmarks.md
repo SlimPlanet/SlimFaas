@@ -339,7 +339,9 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 
 ## Queue and routing microbenchmarks
 
-Status: **queued**.
+Status: **deferred**.
+
+Less than 30 minutes or insufficient disk space.
 
 ## Run status
 
