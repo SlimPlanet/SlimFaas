@@ -1,14 +1,16 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 07:34 CET. Campaign state: **in progress**.
+Updated 2026-11-18 07:44 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
 
 The [previous campaign](supervisor-repair-benchmarks.md) measured the same frozen binaries. Every profile in this repeat starts with fresh state.
+Subsequent disk interruptions also affected HTTP, threshold and WAL confirmation. The final continuation retains their earlier complete roles and records the time gaps between roles. All partial runs and original exports remain in the local evidence.
+
 The host reached the shutdown margin during the HTTP confirmation. A reference run in that interrupted attempt recorded 368 of 383 accepted messages within the 180-second delivery window. The incomplete attempt and its reference failure are retained separately. The resumed comparison uses the completed first block and repeats the entire confirmation block.
 
-The disk reserve is 20 GiB, with a 1 GiB margin for stopping active workloads. Timed work is scheduled to stop by 08:45 CET.
+The disk reserve is 20 GiB. The current shutdown margin is 2.5 GiB. Timed work is scheduled to stop by 08:45 CET.
 
 This rerun uses fresh state and the repaired supervisor. Omitted arguments run the manifest command without additions. A job whose preparation fails follows its retry policy while other jobs continue.
 The WebSocket async runner checks refreshed queue totals on all nodes after receipt reconciliation. File scenarios have an explicit byte budget.
@@ -21,7 +23,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-unique | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
-| http-bounded-abba-20 | FAIL | 448 | 448 | 0 | 0 |
+| http-bounded-abba-20 | FAIL | 512 | 512 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | memory-abba-replay | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | memory-abba-replay-resumed | FAIL | 20 | 20 | 0 | 0 |
@@ -43,6 +45,10 @@ An observation means that the measured run supplied the expected integrity and r
 
 ## Comparisons
 
+- **http-bounded-abba-20 / http**: FAIL. 2 ABBA block(s), pair verdicts FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL.
+  - Sync p95/p99/throughput guardrail failed for 4194304 bytes at concurrency 1 (7 pair comparisons).
+  - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 16 (6 pair comparisons).
+  - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 1 (4 pair comparisons).
 - **memory-abba-replay-resumed / set-c12**: FAIL. 2 ABBA block(s), pair verdicts PASS, PASS, FAIL, PASS, PASS, FAIL, PASS, PASS.
   - throughput (2 pair comparisons).
 - **memory-abba-replay-resumed / set-c48**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
@@ -87,6 +93,45 @@ A and B refer to the first and second variants, respectively. For code compariso
 | sync | 1048577 | 16 | request/s | 450.84 → 453.81 | n/a → n/a | 36.83 → 36.70 | 6.77 → 6.69 | 3087.70 → 1355.27 |
 | sync | 4194304 | 1 | request/s | 105.60 → 105.16 | n/a → n/a | 10.20 → 10.22 | 19.50 → 19.21 | 1997.48 → 637.75 |
 | sync | 4194304 | 16 | request/s | 113.29 → 113.33 | n/a → n/a | 151.59 → 147.16 | 25.58 → 25.50 | 1653.11 → 528.31 |
+
+</details>
+
+<details><summary>http-bounded-abba-20 / http-attempt-2 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 4096 | 1 | accepted message/s | 93.57 → 90.54 | 74.60 → 72.26 | 13.79 → 13.93 | 11.14 → 9.75 | 399.58 → 412.02 |
+| async | 4096 | 16 | accepted message/s | 1101.62 → 1098.55 | 863.78 → 861.42 | 20.16 → 19.97 | 1.76 → 1.78 | 480.02 → 517.58 |
+| async | 262144 | 1 | accepted message/s | 37.37 → 38.76 | 29.33 → 29.99 | 40.52 → 39.43 | 56.08 → 50.40 | 668.59 → 643.36 |
+| async | 262144 | 16 | accepted message/s | 51.25 → 54.79 | 41.35 → 43.56 | 523.04 → 499.29 | 36.86 → 37.36 | 1600.94 → 1023.20 |
+| async | 1048576 | 1 | accepted message/s | 12.51 → 12.56 | 11.09 → 10.58 | 125.51 → 122.40 | 150.99 → 164.67 | 1531.39 → 872.03 |
+| async | 1048576 | 16 | accepted message/s | 13.00 → 13.08 | 10.32 → 10.72 | 1821.78 → 1797.61 | 127.94 → 127.76 | 3129.84 → 2078.45 |
+| async | 1048577 | 1 | accepted message/s | 42.87 → 41.03 | 36.49 → 33.75 | 27.46 → 28.37 | 41.46 → 46.65 | 3071.38 → 1891.03 |
+| async | 1048577 | 16 | accepted message/s | 279.09 → 193.73 | 228.54 → 160.84 | 79.93 → 120.28 | 18.57 → 21.85 | 2965.70 → 1474.72 |
+| async | 4194304 | 1 | accepted message/s | 31.93 → 34.97 | 26.60 → 29.00 | 33.90 → 34.56 | 93.47 → 97.90 | 1814.89 → 918.48 |
+| async | 4194304 | 16 | accepted message/s | 74.25 → 74.49 | 58.46 → 57.94 | 336.19 → 429.87 | 63.62 → 68.01 | 1746.86 → 846.59 |
+| async-burst | 4096 | 64 | accepted message/s | 2070.47 → 2029.16 | 502.60 → 816.98 | 50.11 → 50.10 | 1.39 → 1.44 | 1593.47 → 802.36 |
+| async-paced | 4096 | 1 | accepted message/s | 8.72 → 8.89 | 7.92 → 8.25 | 18.70 → 18.45 | 48.23 → 46.45 | 1550.77 → 810.92 |
+| direct | 4096 | 1 | request/s | 10058.06 → 10234.05 | n/a → n/a | 0.11 → 0.11 | 0.01 → 0.01 | 388.83 → 407.58 |
+| direct | 4096 | 16 | request/s | 23224.95 → 23032.91 | n/a → n/a | 0.74 → 0.75 | 0.00 → 0.00 | 496.59 → 472.27 |
+| direct | 262144 | 1 | request/s | 2783.93 → 2810.35 | n/a → n/a | 0.43 → 0.42 | 0.03 → 0.03 | 578.25 → 623.53 |
+| direct | 262144 | 16 | request/s | 6108.85 → 5965.53 | n/a → n/a | 2.76 → 2.83 | 0.01 → 0.01 | 1351.08 → 853.53 |
+| direct | 1048576 | 1 | request/s | 771.76 → 755.55 | n/a → n/a | 1.94 → 1.85 | 0.10 → 0.11 | 1555.89 → 984.73 |
+| direct | 1048576 | 16 | request/s | 1852.12 → 1839.80 | n/a → n/a | 9.25 → 9.28 | 0.05 → 0.05 | 2754.09 → 1875.95 |
+| direct | 1048577 | 1 | request/s | 575.51 → 559.48 | n/a → n/a | 2.09 → 2.09 | 0.13 → 0.13 | 3072.17 → 2078.77 |
+| direct | 1048577 | 16 | request/s | 1866.45 → 1866.03 | n/a → n/a | 9.18 → 9.22 | 0.05 → 0.05 | 2866.67 → 1617.75 |
+| direct | 4194304 | 1 | request/s | 229.35 → 230.62 | n/a → n/a | 6.99 → 6.87 | 0.37 → 0.35 | 1820.77 → 909.66 |
+| direct | 4194304 | 16 | request/s | 466.97 → 465.53 | n/a → n/a | 36.91 → 37.46 | 0.23 → 0.22 | 1714.83 → 840.45 |
+| sync | 4096 | 1 | request/s | 3025.22 → 3040.41 | n/a → n/a | 0.36 → 0.36 | 0.52 → 0.52 | 388.72 → 411.88 |
+| sync | 4096 | 16 | request/s | 7829.27 → 7764.43 | n/a → n/a | 2.36 → 2.38 | 0.47 → 0.47 | 510.55 → 503.69 |
+| sync | 262144 | 1 | request/s | 1202.76 → 1188.06 | n/a → n/a | 0.93 → 0.94 | 1.64 → 1.66 | 577.11 → 617.97 |
+| sync | 262144 | 16 | request/s | 1621.23 → 1608.79 | n/a → n/a | 10.35 → 10.42 | 1.88 → 1.90 | 1415.59 → 951.53 |
+| sync | 1048576 | 1 | request/s | 388.47 → 387.11 | n/a → n/a | 2.78 → 2.80 | 5.26 → 5.29 | 1556.92 → 985.06 |
+| sync | 1048576 | 16 | request/s | 453.33 → 451.03 | n/a → n/a | 36.57 → 36.87 | 6.77 → 6.67 | 2810.62 → 1874.58 |
+| sync | 1048577 | 1 | request/s | 387.24 → 383.79 | n/a → n/a | 2.78 → 2.81 | 5.21 → 5.28 | 3072.33 → 2079.52 |
+| sync | 1048577 | 16 | request/s | 451.84 → 451.19 | n/a → n/a | 36.71 → 37.05 | 6.72 → 6.58 | 2869.86 → 1620.28 |
+| sync | 4194304 | 1 | request/s | 106.21 → 103.68 | n/a → n/a | 10.17 → 10.37 | 19.41 → 19.29 | 1820.77 → 914.97 |
+| sync | 4194304 | 16 | request/s | 112.93 → 112.53 | n/a → n/a | 148.69 → 149.32 | 25.44 → 25.69 | 1716.86 → 843.22 |
 
 </details>
 
@@ -273,3 +318,4 @@ Status: **queued**.
 - **memory-abba-replay-resumed**: FAIL.
 - **threshold-512kib-retry-resumed**: FAIL (20 GiB disk reserve).
 - **wal-64kib-retry-resumed**: INCONCLUSIVE (20 GiB disk reserve).
+- **http-bounded-abba-20-closing-reference**: FAIL.
