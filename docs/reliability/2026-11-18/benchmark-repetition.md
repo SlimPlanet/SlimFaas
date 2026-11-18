@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 04:02 CET. Campaign state: **in progress**.
+Updated 2026-11-18 04:03 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -17,6 +17,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
 | files-bounded-files | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
+| files-bounded-files-unique | OBSERVED | 12 | 12 | 0 | 0 |
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
@@ -72,6 +73,12 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 | files-bounded-files-download | files-download | 1048576 | 4 | 2 | 350.01 | operation/s | n/a | 5.64 | 361.70 |
 | files-bounded-files-download | files-download | 4194304 | 1 | 2 | 75.68 | operation/s | n/a | 16.97 | 363.58 |
 | files-bounded-files-download | files-download | 4194304 | 4 | 2 | 140.52 | operation/s | n/a | 17.97 | 364.19 |
+| files-bounded-files-unique | files-unique | 262144 | 1 | 2 | 137.42 | operation/s | n/a | 15.97 | 330.61 |
+| files-bounded-files-unique | files-unique | 262144 | 4 | 2 | 55.57 | operation/s | n/a | 15.95 | 375.00 |
+| files-bounded-files-unique | files-unique | 1048576 | 1 | 2 | 53.43 | operation/s | n/a | 34.87 | 379.23 |
+| files-bounded-files-unique | files-unique | 1048576 | 4 | 2 | 125.29 | operation/s | n/a | 25.03 | 384.44 |
+| files-bounded-files-unique | files-unique | 4194304 | 1 | 2 | 26.91 | operation/s | n/a | 84.74 | 387.47 |
+| files-bounded-files-unique | files-unique | 4194304 | 4 | 2 | 105.77 | operation/s | n/a | 56.15 | 388.66 |
 | files-bounded-files-upload | files-upload | 262144 | 1 | 2 | 105.64 | operation/s | n/a | 16.03 | 345.84 |
 | files-bounded-files-upload | files-upload | 262144 | 4 | 2 | 39.95 | operation/s | n/a | 17.52 | 382.08 |
 | files-bounded-files-upload | files-upload | 1048576 | 1 | 2 | 89.70 | operation/s | n/a | 31.65 | 385.80 |
@@ -124,3 +131,4 @@ Status: **queued**.
 - **files-bounded-files-upload**: OBSERVED.
 - **files-bounded-files-download**: OBSERVED.
 - **files-bounded-files**: OBSERVED.
+- **files-bounded-files-unique**: OBSERVED.
