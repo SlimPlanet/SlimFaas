@@ -171,9 +171,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  serve>compression: ^1.8.2
-
 importers:
 
   .:
