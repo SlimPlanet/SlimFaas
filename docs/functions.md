@@ -57,25 +57,31 @@ deferred callbacks, and [DLQ capture and replay](async-functions.md#dead-letter-
 
 ### Async body storage threshold
 
-`SlimFaas:AsyncBodyOffloadThresholdBytes` controls when an async body is stored
-in [Files](data-files.md) rather than inside its queue entry. The default is
-1,048,576 bytes, with a strict comparison: exactly 1 MiB remains inline. The
-same boundary applies with `Content-Length` and chunked requests, including the
-root function route. The value must be positive and smaller than `Array.MaxLength`.
+`SlimFaas:AsyncBodyOffloadThresholdBytes` controls where an async body is stored.
+At the default of **1,048,576 bytes (1 MiB)**, bodies up to and including 1 MiB
+stay in the queue entry. Bodies of **1,048,577 bytes** or more use
+[Files](data-files.md). The same boundary applies with `Content-Length` and
+chunked requests, including the root function route. The threshold must be
+positive and smaller than `Array.MaxLength`. The HTTP request size limit is
+configured separately through `Kestrel:Limits:MaxRequestBodySize`.
 
-For example, configure a 512 KiB threshold on each SlimFaas instance:
+To set the recommended threshold explicitly, use this environment variable on
+each SlimFaas instance.
 
 ```yaml
 env:
   - name: SlimFaas__AsyncBodyOffloadThresholdBytes
-    value: "524288"
+    value: "1048576"
 ```
 
 Lowering the threshold moves more bodies out of Raft payloads and adds Files
-storage/transfer work. It does not change retries, the WAL block size or the
-64 KiB queue-decoder optimization boundary. Existing queued entries keep their
-stored representation. No lower default has been selected by the current
-[benchmark investigation](reliability/2026-11-15/README.md).
+storage and transfer work. WAL geometry and the 64 KiB queue-decoder boundary
+are independent of this threshold. Existing queued entries keep their stored
+representation and follow their queue's retry policy. Both macOS campaigns
+found higher throughput for some large bodies at 512 KiB. The overall
+comparisons missed the guardrails. Keep 1 MiB for general workloads. See the
+[initial campaign](reliability/2026-11-18/supervisor-repair-benchmarks.md#comparisons)
+and [repeat](reliability/2026-11-18/benchmark-repetition.md#comparisons).
 
 ## 3. Wake Function
 
