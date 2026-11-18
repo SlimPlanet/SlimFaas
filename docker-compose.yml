@@ -34,7 +34,7 @@ networks:
 services:
 
   kafka:
-    image: apache/kafka:latest
+    image: apache/kafka:4.3.2
     container_name: kafka
     hostname: kafka
     ports:
@@ -287,7 +287,7 @@ services:
       - slimfaas-net
 
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one:1.76.0
     container_name: slimfaas-jaeger
     ports:
       - "16686:16686"  # Jaeger UI

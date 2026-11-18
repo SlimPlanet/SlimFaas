@@ -6,11 +6,11 @@ on:
       node_version:
         required: false
         type: string
-        default: "26.13.0"
+        default: "26.13.1"
       pnpm_version:
         required: false
         type: string
-        default: "12.18.0"
+        default: "12.21.0"
       working_directory:
         required: false
         type: string

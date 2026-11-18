@@ -17,7 +17,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: exporter
-          image: python:3.12-alpine
+          image: python:3.12.16-alpine3.24
           command: [python3, /demo/exporter.py, --host, 0.0.0.0, --port, "9090"]
           ports:
             - containerPort: 9090
@@ -84,7 +84,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: worker
-          image: python:3.12-alpine
+          image: python:3.12.16-alpine3.24
           command: [python3, /demo/exporter.py, --worker, --host, 0.0.0.0, --port, "8080"]
           ports:
             - containerPort: 8080

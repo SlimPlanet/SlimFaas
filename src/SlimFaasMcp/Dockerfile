@@ -1,6 +1,6 @@
 ARG TARGETARCH
 
-FROM --platform=$BUILDPLATFORM node:26.13.0-alpine3.24 AS clientapp
+FROM --platform=$BUILDPLATFORM node:26.13.1-alpine3.24 AS clientapp
 WORKDIR /clientapp
 COPY src/SlimFaasMcp/ClientApp/package.json src/SlimFaasMcp/ClientApp/package-lock.json ./
 RUN npm ci --ignore-scripts
