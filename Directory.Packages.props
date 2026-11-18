@@ -17,9 +17,9 @@
 
   <!-- Test stack -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-    <PackageVersion Include="Microsoft.CodeCoverage" Version="18.11.0" />
-    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.12.0" />
+    <PackageVersion Include="Microsoft.CodeCoverage" Version="18.12.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
     <PackageVersion Include="Moq" Version="4.21.0" />
@@ -38,13 +38,13 @@
 
   <!-- OpenTelemetry -->
   <ItemGroup>
-    <PackageVersion Include="OpenTelemetry" Version="1.20.1" />
-    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.20.1" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.1" />
+    <PackageVersion Include="OpenTelemetry" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.21.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.20.1-beta.1" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.2" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.20.2" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.21.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.21.0" />
   </ItemGroup>
 
   <!-- Prometheus -->
@@ -60,15 +60,15 @@
 
   <!-- Swagger / OpenAPI -->
   <ItemGroup>
-    <PackageVersion Include="Swashbuckle.AspNetCore" Version="11.0.0" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="11.0.1" />
   </ItemGroup>
 
   <!-- Serialization -->
   <ItemGroup>
-    <PackageVersion Include="MemoryPack" Version="1.21.4" />
+    <PackageVersion Include="MemoryPack" Version="1.22.0" />
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="18.1.0" />
-    <PackageVersion Include="Yaml2JsonNode" Version="3.0.2" />
+    <PackageVersion Include="Yaml2JsonNode" Version="3.1.0" />
     <PackageVersion Include="NodaTime" Version="3.3.7" />
   </ItemGroup>
 
@@ -84,7 +84,7 @@
 
   <!-- Raft / DotNext -->
   <ItemGroup>
-    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.12.1" />
+    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.12.2" />
   </ItemGroup>
 
   <!-- Samples -->
