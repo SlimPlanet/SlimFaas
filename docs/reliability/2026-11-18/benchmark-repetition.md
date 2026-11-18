@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 03:42 CET. Campaign state: **in progress**.
+Updated 2026-11-18 03:48 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -15,6 +15,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | Profile | Evidence status | Rows | Observed | Failed | Incomplete |
 |---|---|---:|---:|---:|---:|
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
+| streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
 
 An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
@@ -24,6 +25,7 @@ An observation means that the measured run supplied the expected integrity and r
 | Profile | Requests | Expected receipts | Completions | Missing | Duplicates | Corrupt |
 |---|---:|---:|---:|---:|---:|---:|
 | jobs-rerun | 800 | 800 | 800 | 0 | 0 | 0 |
+| streams-rerun | 1600 | 2400 | 2400 | 0 | 0 | 0 |
 | websocket-rerun | 9600 | 12800 | 12800 | 0 | 0 | 0 |
 
 ## Comparisons
@@ -38,6 +40,10 @@ Throughput and CPU are medians across the listed repetitions. RAM is the highest
 |---|---|---:|---:|---:|---:|---|---:|---:|---:|
 | jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 140.98 | accepted job/s | 13.15 | 5.29 | 338.91 |
 | jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1403.81 | accepted job/s | 13.16 | 1.00 | 341.44 |
+| streams-rerun | streams/http/fanout-1 | 4096 | 1 | 2 | 122.96 | accepted message/s | 4.01 | 7.62 | 378.91 |
+| streams-rerun | streams/http/fanout-1 | 4096 | 16 | 2 | 606.54 | accepted message/s | 4.00 | 2.03 | 443.02 |
+| streams-rerun | streams/http/fanout-2 | 4096 | 1 | 2 | 94.94 | accepted message/s | 7.99 | 9.18 | 467.08 |
+| streams-rerun | streams/http/fanout-2 | 4096 | 16 | 2 | 570.47 | accepted message/s | 7.99 | 2.10 | 485.27 |
 | websocket-rerun | ws-async/dotnet/fanout-1 | 4096 | 1 | 2 | 94.83 | accepted message/s | 37.03 | 7.52 | 401.88 |
 | websocket-rerun | ws-async/dotnet/fanout-1 | 4096 | 16 | 2 | 450.29 | accepted message/s | 40.89 | 1.80 | 428.92 |
 | websocket-rerun | ws-async/dotnet/fanout-1 | 262144 | 1 | 2 | 34.29 | accepted message/s | 20.12 | 44.44 | 538.75 |
@@ -73,3 +79,4 @@ Status: **queued**.
 
 - **jobs-rerun**: OBSERVED.
 - **websocket-rerun**: OBSERVED.
+- **streams-rerun**: OBSERVED.
