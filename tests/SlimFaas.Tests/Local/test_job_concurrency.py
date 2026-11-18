@@ -115,9 +115,9 @@ def exercise_slot_reuse(base_url, process):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", type=Path,
-                        default=ROOT / "src/SlimFaas/bin/Debug/net10.0/SlimFaas.dll")
+                        default=ROOT / "src/SlimFaas/bin/Debug/net11.0/SlimFaas.dll")
     parser.add_argument("--batch", type=Path,
-                        default=ROOT / "samples/FibonacciBatch/bin/Debug/net10.0/FibonacciBatch.dll")
+                        default=ROOT / "samples/FibonacciBatch/bin/Debug/net11.0/FibonacciBatch.dll")
     args = parser.parse_args()
     runtime, batch = args.runtime.resolve(), args.batch.resolve()
     for path in (runtime, batch):

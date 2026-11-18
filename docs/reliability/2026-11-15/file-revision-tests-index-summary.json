@@ -1,0 +1,7 @@
+{
+  "file": "file-revision-tests-index.json.gz",
+  "compressed_sha256": "100aa2405e47691a8e5c4d640c6bb91c48e99d27b0e3a6b6d0418aa752506af2",
+  "expanded_sha256": "44ac228c975555e01e42ee456c7df4d9c1e53a88e5d61a6aa953142dd39711d0",
+  "files": 36,
+  "scope": "Closed revision/lifetime regressions through 0e98ed08, including failed original tests, temporary restored legacy-cleaner overlays, intermediate failures and three closed full-suite runs. The subsequent merge with remotely published main changes requires separate revalidation and is excluded."
+}

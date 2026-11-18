@@ -1,0 +1,572 @@
+{
+  "baseline_runtime_source": "358539344c76220d6872737cb3f5e20de12b6e15",
+  "scope": "Mock queue-boundary scheduling race and regression; not yet proof of the seven historical healthy duplicates. Real per-ID Kubernetes trace, application performance and affected long endurance required.",
+  "fix": "Keep local delivery ownership. Coalesce a terminal result; retain a newer reserved retry until a nonterminal prior exchange settles. Do not apply the old failure to the newer reservation, start retries on followers, send to an unavailable function or extend expired reservations.",
+  "unchanged_wire_storage": "No SlimData command, MemoryPack queue payload, retry configuration or SDK wire format changed. QueueElementId is an additive optional benchmark JSON field.",
+  "reproduction_patch": {
+    "path": "async-reservation-reproduction.patch",
+    "sha256": "97166ed41ffccdaaaa80e486b3729d85c6806cb37ae0ea9225d2694a279aa4b8",
+    "instruction": "Apply to a clean source35853934 checkout; run AsyncQueueWorkerTests. The new boundary tests fail on the old dispatcher; do not apply the final runtime correction for that reproduction."
+  },
+  "full_dotnet": {
+    "passed": 2477,
+    "failed": 0,
+    "skipped": 0
+  },
+  "python": {
+    "routing": 12,
+    "platform": 47,
+    "chaos": 32,
+    "sonar_boundary": 7,
+    "official_sdk": 37,
+    "failed": 0,
+    "skipped": 0
+  },
+  "validation": {
+    "pid": 86521,
+    "started": 1794880948.332196,
+    "phase": "closed",
+    "passed": true,
+    "source": "358539344c76220d6872737cb3f5e20de12b6e15",
+    "changed_file_sha256": {
+      "docs/reliability/2026-11-16/sonar-completed-scope-358.json": "35562be0c3d5b823b8d630a9e7c80f92a8f83d63458cc0e2f1290048a5fe40ca",
+      "src/SlimFaas/Endpoints/AsyncFunctionEndpoints.Log.cs": "8bad6d5e77267ffddbe8ee872f67e74c8ec98b1d432db46570b65c95a1705cee",
+      "tests/SlimData.Tests/SlimPersistentStateTests.Trace.cs": "e6f543b263b7b949ac5150103741923e48dae775315946b3754f8f0a891cbd41",
+      "tests/SlimFaas.Tests/Database/SlimDataRecoveryTests.Trace.cs": "5bbfa10fe80e329b7ebc8fedbd2e0d5acd386ce32f849deee914c56d15ead7ed",
+      "tests/SlimFaas.Tests/SendClientDeliveryTraceTests.cs": "026fca9467dfe0b77f2738dbb95e7b61547936fe26cb41d0e64dd02a86b1cb0e",
+      ".bin/run-kubernetes-routing.py": "2cbf8f234c3ad94422bf23cc9f9c79bb194a64d1aeeaed9154e7dde8c795432e",
+      ".bin/test-kubernetes-routing.py": "8d4cd4e086cf6cb245355c40aabd015bf6c02278e366a276c15d21373adec396",
+      "benchmarks/Common/RequestJournal.cs": "1eed54cb392d63fe3d91c9e3be84b122d923a2cb7a2c8a4d3b99b91d66f8eb47",
+      "docs/benchmarking.md": "ce0a667e28ee3a328ae5e4e50344f45c6794592e716452774416925a2bc7a511",
+      "docs/functions.md": "f80a18073ef18d279d9d3fd5eb9a7047c698f609efb7ca6f8e574c652e87afd9",
+      "docs/reliability/2026-11-16/http-client-audit.md": "39a2c08697690a637adc42af89b600f7193cd59596a875e12241f3860d9ba695",
+      "docs/reliability/2026-11-16/sonar-analysis-boundary.md": "feeb6f948e7154c0f00bcc826cbe1b2c90fbfede8e5c3e3328798101208f3282",
+      "src/SlimData/SlimPersistentState.Log.cs": "896354c98a5bc0e7dd3aef9b29209b33ac34451b3cf5360e48b23d20882e890e",
+      "src/SlimData/SlimPersistentState.cs": "3fad6f06276a622d925409e1fd1229cc79bb4dbc92542a458303368463f9b6c5",
+      "src/SlimFaas/Database/SlimDataService.Log.cs": "bfa9f914243ebd15004fa95ab03e6f85f392b81d17b416d17d31caeeb49f8b58",
+      "src/SlimFaas/Database/SlimDataService.cs": "ab8a3c47f85a9872b4558040823d9dc0ae43e3ed2bea1069f4415ee5f7e56741",
+      "src/SlimFaas/Endpoints/AsyncFunctionEndpoints.cs": "c59312f4b9f4d78e4875e34d53a0eaf85341df50f9f96e093ff54c6284446cd4",
+      "src/SlimFaas/SendClient.Log.cs": "7233a84f95322391bff67764972663f979908724d62f2aa0d59a1e9f0765863d",
+      "src/SlimFaas/SendClient.cs": "c285c58ea2e25af0427ee059e7f09338524ddd962edab1f213c6c70a4e8ab65d",
+      "src/SlimFaas/Workers/SlimQueuesWorker.Log.cs": "a24a6e161ea964c4e127c86c5f112418e646dc3c1e1eba0ae998b5fab99b11ee",
+      "src/SlimFaas/Workers/SlimQueuesWorker.cs": "a4c375ed30a3f03967bb463178349174838e037e86041a2e75068875fd8330b6",
+      "tests/SlimData.Tests/SlimPersistentStateTests.cs": "da0b9e6cee76f0d409ec3b8750204d1b89476fec620761cb5fedd17f85278241",
+      "tests/SlimFaas.Tests/Benchmark/RequestJournalTests.cs": "2491b14bb596ed02f63bf03f8ef6d07d0a0e8473be4f24b3372260996f575c8d",
+      "tests/SlimFaas.Tests/Database/SlimDataRecoveryTests.cs": "e78f7b4aeb68b1889e95142d2ab5e6dc58298f93ad213b087e059f1dbd9a47ca",
+      "tests/SlimFaas.Tests/Workers/AsyncQueueWorkerTests.cs": "c251090e49ba38aecc5145c739670286f22b14399aeb7bb9938638ace71797ab"
+    },
+    "commands": [
+      {
+        "name": "memorylab-build",
+        "argv": [
+          "dotnet",
+          "build",
+          "tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj",
+          "-c",
+          "Release",
+          "-p:SkipClientAppBuild=true",
+          "-nr:false"
+        ],
+        "started": 1794880948.3521438,
+        "exit_code": 0,
+        "finished": 1794880964.182543
+      },
+      {
+        "name": "solution",
+        "argv": [
+          "dotnet",
+          "test",
+          "-c",
+          "Release",
+          "-p:SkipClientAppBuild=true",
+          "-nr:false",
+          "--logger",
+          "trx;LogFilePrefix=routing-validation-04",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/tests/routing-validation-04"
+        ],
+        "started": 1794880964.183846,
+        "exit_code": 0,
+        "finished": 1794881061.021218
+      },
+      {
+        "name": "routing",
+        "argv": [
+          "python3",
+          ".bin/test-kubernetes-routing.py"
+        ],
+        "started": 1794881061.026337,
+        "exit_code": 0,
+        "finished": 1794881061.5451
+      },
+      {
+        "name": "platform",
+        "argv": [
+          "python3",
+          ".bin/test-platform-validation.py"
+        ],
+        "started": 1794881061.5463948,
+        "exit_code": 0,
+        "finished": 1794881064.6861749
+      },
+      {
+        "name": "chaos",
+        "argv": [
+          "python3",
+          ".bin/test-local-chaos-harness.py"
+        ],
+        "started": 1794881064.688874,
+        "exit_code": 0,
+        "finished": 1794881066.027105
+      },
+      {
+        "name": "sonar-boundary",
+        "argv": [
+          "python3",
+          ".bin/test-sonar-benchmark-boundary.py"
+        ],
+        "started": 1794881066.029244,
+        "exit_code": 0,
+        "finished": 1794881066.515645
+      },
+      {
+        "name": "python-sdk-sync",
+        "argv": [
+          "uv",
+          "sync",
+          "--project",
+          "client/python/slimfaas-client",
+          "--frozen",
+          "--extra",
+          "dev",
+          "--no-build",
+          "--no-install-project"
+        ],
+        "started": 1794881066.517642,
+        "exit_code": 0,
+        "finished": 1794881067.008259
+      },
+      {
+        "name": "python-sdk",
+        "argv": [
+          "uv",
+          "run",
+          "--project",
+          "client/python/slimfaas-client",
+          "--no-sync",
+          "--no-build",
+          "python",
+          ".bin/test-python-client.py",
+          "--coverage",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/tests/routing-validation-04/python-client-coverage.xml"
+        ],
+        "started": 1794881067.0106912,
+        "exit_code": 0,
+        "finished": 1794881069.092364
+      },
+      {
+        "name": "diff-check",
+        "argv": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "started": 1794881069.093872,
+        "exit_code": 0,
+        "finished": 1794881069.5326731
+      }
+    ],
+    "finished": 1794881069.543661
+  },
+  "test_phases": {
+    "post-headless-diagnostics-05": [
+      {
+        "path": "artifacts/pr506/tests/post-headless-diagnostics-05/post-headless-diagnostics-05_net11.0_20261117015834.trx",
+        "sha256": "ac31fcf3ee2ffcb40ccb06c425111421c6f2d483f80845c815713837aac1c0c9",
+        "counters": {
+          "total": "10",
+          "executed": "10",
+          "passed": "8",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimFaas.Tests.Workers.AsyncQueueWorkerTests.Reservation_expiring_after_snapshot_does_not_replace_a_locally_owned_delivery(completedDuringDequeue: True)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2"
+          },
+          {
+            "name": "SlimFaas.Tests.Workers.AsyncQueueWorkerTests.Reservation_expiring_after_snapshot_does_not_replace_a_locally_owned_delivery(completedDuringDequeue: False)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2"
+          }
+        ]
+      }
+    ],
+    "reserved-retry-policy-red-01": [
+      {
+        "path": "artifacts/pr506/tests/reserved-retry-policy-red-01/reserved-retry-policy-red-01_net11.0_20261117021147.trx",
+        "sha256": "1b8997e12185c459d00014eb1005d306d847527ec99a84bed9680a5de67cc314",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "0",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimFaas.Tests.Workers.AsyncQueueWorkerTests.A_reserved_retry_waits_for_the_owned_exchange_and_keeps_its_attempt_after_a_nonterminal_result(firstStatus: 202)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2"
+          },
+          {
+            "name": "SlimFaas.Tests.Workers.AsyncQueueWorkerTests.A_reserved_retry_waits_for_the_owned_exchange_and_keeps_its_attempt_after_a_nonterminal_result(firstStatus: 500)",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2"
+          }
+        ]
+      }
+    ],
+    "reserved-retry-readiness-red-01": [
+      {
+        "path": "artifacts/pr506/tests/reserved-retry-readiness-red-01/reserved-retry-readiness-red-01_net11.0_20261117024713.trx",
+        "sha256": "4076e220d2f8a8ac664a778c29d3659d6b23d9939e0c4a8747e2a011071ce55d",
+        "counters": {
+          "total": "3",
+          "executed": "3",
+          "passed": "0",
+          "failed": "3",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimFaas.Tests.Workers.AsyncQueueWorkerTests.Held_retry_respects_function_readiness_and_the_existing_reservation_deadline(mode: \"zero\")",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2"
+          },
+          {
+            "name": "SlimFaas.Tests.Workers.AsyncQueueWorkerTests.Held_retry_respects_function_readiness_and_the_existing_reservation_deadline(mode: \"not-ready\")",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2"
+          },
+          {
+            "name": "SlimFaas.Tests.Workers.AsyncQueueWorkerTests.Held_retry_respects_function_readiness_and_the_existing_reservation_deadline(mode: \"expired\")",
+            "message": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2"
+          }
+        ]
+      }
+    ],
+    "reservation-coalescing-green-01": [
+      {
+        "path": "artifacts/pr506/tests/reservation-coalescing-green-01/reservation-coalescing-green-01_net11.0_20261117021659.trx",
+        "sha256": "0be1d0196ecc0d95fbf2264a6a32f8ef7d5dd8a97a72e6a6bc984a66ff60b1b2",
+        "counters": {
+          "total": "35",
+          "executed": "35",
+          "passed": "35",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ],
+    "reservation-coalescing-green-02": [
+      {
+        "path": "artifacts/pr506/tests/reservation-coalescing-green-02/reservation-coalescing-green-02_net11.0_20261117022216.trx",
+        "sha256": "e7d71d105ac4279ffa2c20217f0c4ed529813934faf104ef43b8a8deef9c7f1f",
+        "counters": {
+          "total": "37",
+          "executed": "37",
+          "passed": "37",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ],
+    "reservation-coalescing-green-03": [
+      {
+        "path": "artifacts/pr506/tests/reservation-coalescing-green-03/reservation-coalescing-green-03_net11.0_20261117025049.trx",
+        "sha256": "186ef794e9fcbb1c841b670bf638c90e0213f293cf016bbabaa38692ad46b890",
+        "counters": {
+          "total": "42",
+          "executed": "42",
+          "passed": "42",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ],
+    "queue-trace-mapping-01": [
+      {
+        "path": "artifacts/pr506/tests/queue-trace-mapping-01/queue-trace-mapping-01_net11.0_20261117022540.trx",
+        "sha256": "1d87436a5f3f252c76a58329a548cdb0db459f8543cfe8e46636e959cf61bb84",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "2",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ],
+    "raft-trace-mapping-01": [
+      {
+        "path": "artifacts/pr506/tests/raft-trace-mapping-01/raft-trace-mapping-01_net11.0_20261117022937.trx",
+        "sha256": "a759e2447b5ccafce176cdd504a576c443909d86d5cc32e30f992bbc893df892",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "0",
+          "failed": "2",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": [
+          {
+            "name": "SlimData.Tests.SlimPersistentStateTests.Committed_batch_trace_preserves_operation_identity_and_duplicate_replay(enabled: True)",
+            "message": "System.Collections.Generic.KeyNotFoundException : The given key 'Queue:function' was not present in the dictionary."
+          },
+          {
+            "name": "SlimData.Tests.SlimPersistentStateTests.Committed_batch_trace_preserves_operation_identity_and_duplicate_replay(enabled: False)",
+            "message": "System.Collections.Generic.KeyNotFoundException : The given key 'Queue:function' was not present in the dictionary."
+          }
+        ]
+      }
+    ],
+    "raft-trace-mapping-02": [
+      {
+        "path": "artifacts/pr506/tests/raft-trace-mapping-02/raft-trace-mapping-02_net11.0_20261117023157.trx",
+        "sha256": "7006df53a699b460773b5da613d329526e4f0d5b58c5dd0d0a43f364af667514",
+        "counters": {
+          "total": "2",
+          "executed": "2",
+          "passed": "2",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ],
+    "routing-validation-04": [
+      {
+        "path": "artifacts/pr506/tests/routing-validation-04/routing-validation-04_net11.0_20261117030250.trx",
+        "sha256": "907fa362bdbd9b0c41ef74b885a9470f8657a6fd043f9e8bf572bdbc19492024",
+        "counters": {
+          "total": "11",
+          "executed": "11",
+          "passed": "11",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-04/routing-validation-04_net11.0_20261117030251.trx",
+        "sha256": "e2c40cd2fa14395073e03e57b55283baaca2ff4bb2b4a006c8ebf9493808562a",
+        "counters": {
+          "total": "52",
+          "executed": "52",
+          "passed": "52",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-04/routing-validation-04_net11.0_20261117030252.trx",
+        "sha256": "ea6ebef0d00baded1bfca3861c7819b89a6d8237553012b0e87205e0d0b5d6fa",
+        "counters": {
+          "total": "109",
+          "executed": "109",
+          "passed": "109",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-04/routing-validation-04_net11.0_20261117030320.trx",
+        "sha256": "de9f35cb24b93d66422a17104a98fa49dfa549cebea48f9ce51947f3669529cd",
+        "counters": {
+          "total": "469",
+          "executed": "469",
+          "passed": "469",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      },
+      {
+        "path": "artifacts/pr506/tests/routing-validation-04/routing-validation-04_net11.0_20261117030420.trx",
+        "sha256": "b0ac58438a2f8fefc5b3c8a1910ba7e00e097b629d3086a4a29c8658aab7e4e0",
+        "counters": {
+          "total": "1836",
+          "executed": "1836",
+          "passed": "1836",
+          "failed": "0",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        },
+        "failures": []
+      }
+    ]
+  },
+  "notes": [
+    "The initial Raft trace test read the reopened WAL before initialization/application; the corrected bounded wait passes without changing runtime persistence.",
+    "Compiler CA1873 was resolved by guarding Trace argument evaluation; a missing test namespace import was corrected. No analyzer/audit was disabled.",
+    "Logging is opt-in, not durable proof by itself. Actual local Raft contexts map operation IDs to committed index/term; followers/replay require retained WAL.",
+    "A transport entry does not prove transmission/execution; network errors converted by existing code to synthetic500 remain distinguishable from real response headers.",
+    "No source-final publication, measured non-regression, real replacement or new endurance acceptance is claimed by these unit tests."
+  ]
+}

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using SlimFaas.Kubernetes;
 using SlimFaas.WebSocket;
+using ZLinq;
 
 namespace SlimFaas.Endpoints;
 
@@ -15,12 +16,6 @@ public sealed class FunctionStatusCache
         _webSocketFunctionRepository = webSocketFunctionRepository;
     }
 
-    private IEnumerable<DeploymentInformation> AllFunctions(IReplicasService replicasService)
-    {
-        return replicasService.Deployments.Functions
-            .Concat(_webSocketFunctionRepository.GetVirtualDeployments());
-    }
-
     public IReadOnlyList<FunctionStatus> GetAll(IReplicasService replicasService)
     {
         // Cache très court : protège CPU en cas de polling agressif
@@ -28,7 +23,8 @@ public sealed class FunctionStatusCache
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(300);
 
-            return AllFunctions(replicasService)
+            return replicasService.Deployments.Functions.AsValueEnumerable()
+                .Concat(_webSocketFunctionRepository.GetVirtualDeployments())
                 .Select(FunctionEndpointsHelpers.MapToFunctionStatus)
                 .ToList();
         })!;
@@ -39,7 +35,8 @@ public sealed class FunctionStatusCache
         return _cache.GetOrCreate("status-all-detailed", entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(300);
-            return AllFunctions(replicasService)
+            return replicasService.Deployments.Functions.AsValueEnumerable()
+                .Concat(_webSocketFunctionRepository.GetVirtualDeployments())
                 .Select(FunctionEndpointsHelpers.MapToFunctionStatusDetailed)
                 .ToList();
         })!;
@@ -52,8 +49,9 @@ public sealed class FunctionStatusCache
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(1000);
 
-            return AllFunctions(replicasService).ToDictionary(
-                f => f.Deployment,
+            return replicasService.Deployments.Functions.AsValueEnumerable()
+                .Concat(_webSocketFunctionRepository.GetVirtualDeployments()).ToDictionary(
+                static f => f.Deployment,
                 FunctionEndpointsHelpers.MapToFunctionStatus,
                 StringComparer.Ordinal
             );

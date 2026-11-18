@@ -1,0 +1,18 @@
+{
+  "observed": 1794863795.3616052,
+  "head": "d0cd0d2f7f673a7fecb7edcaab6ed6a87de19a0c",
+  "red": {
+    "failed": 1,
+    "passed": 0,
+    "log": "logs/terminating-pod-red-01.log",
+    "sha256": "6c939e7cf80d95d2279f666f9d6d9e48f4c483d08ec5283e7252b9b04a0573af"
+  },
+  "mapping_before_sha256": "1c84c8890b3c53d2a291f62457db32c2ee4dd986bef3560c3c28eac264c39a20",
+  "scope": "Real Kubernetes client against deterministic typed fake API: deletionTimestamp is set while container/pod readiness remains true; existing mapping keeps it routable. No retry or timeout modification.",
+  "green": {
+    "passed": 16,
+    "failed": 0,
+    "log": "logs/terminating-pod-green-01.log",
+    "sha256": "2aa91afe1588ca842298e0566494701db47a8ac18ed038f65c7db7353d00e258"
+  }
+}

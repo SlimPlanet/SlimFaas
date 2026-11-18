@@ -1,0 +1,147 @@
+{
+  "case": "smoke-02",
+  "namespace": "slimfaas-pr506-routing-smoke-02",
+  "runtime_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+  "tools_source": "1b5552b8956adea7107385f24d7850ae2cb76337",
+  "controller_source": "76e6e6257fe1a8ed6582d577f8726c9c782ca80f",
+  "runtime_mode": "Linux ARM64 managed/trimmed",
+  "driver_success": true,
+  "intents": 136,
+  "operation_completed": 136,
+  "no_response_unknown_ids": [],
+  "headers_without_operation_completion_ids": [],
+  "http_status_counts": {
+    "200": 136
+  },
+  "successful_receipts": 136,
+  "confirmed_missing": [],
+  "duplicate_successes": {},
+  "corrupt_receipts": [],
+  "protocol_versions": {
+    "1.1": 136
+  },
+  "serving_pod_counts": {
+    "2bade329-e667-498e-b990-00d2a44d8e22": 84,
+    "d8646570-1e59-4c7b-8d2f-46dd37c53870": 52
+  },
+  "old_pod": {
+    "uid": "d8646570-1e59-4c7b-8d2f-46dd37c53870",
+    "ip": "10.244.1.188",
+    "name": "memory-function-669bd78784-tkjl6"
+  },
+  "new_pod": {
+    "uid": "2bade329-e667-498e-b990-00d2a44d8e22",
+    "ip": "10.244.5.238"
+  },
+  "deletion_requested_utc": 1794869308.124636,
+  "replacement_ready_after_seconds": 2.2010750770568848,
+  "first_new_success_after_seconds": 3.417567729949951,
+  "last_old_success_after_seconds": 0.1965339183807373,
+  "old_successes_after_15s": 0,
+  "observed_connections": 6,
+  "csharp_report": {
+    "Scenario": "sync",
+    "DurationSeconds": 30,
+    "Concurrency": 1,
+    "PayloadBytes": 4096,
+    "KeysPerWorker": 16,
+    "KeyPrefix": "slimfaas-pr506-routing-smoke-02",
+    "TargetRequestsPerSecond": 5,
+    "TargetRequestsPerReplica": 1.6666666666666667,
+    "ElapsedSeconds": 30.0069646,
+    "Completed": 136,
+    "Failed": 0,
+    "Rate": 4.532281149156953,
+    "Operations": [
+      {
+        "Operation": "All",
+        "Completed": 136,
+        "Failed": 0,
+        "RatePerSecond": 4.532281149156953,
+        "P50Milliseconds": 2.98865,
+        "P95Milliseconds": 7.6832,
+        "P99Milliseconds": 56.52199500000027,
+        "MaxMilliseconds": 3023.9836
+      },
+      {
+        "Operation": "Sync",
+        "Completed": 136,
+        "Failed": 0,
+        "RatePerSecond": 4.532281149156953,
+        "P50Milliseconds": 2.98865,
+        "P95Milliseconds": 7.6832,
+        "P99Milliseconds": 56.52199500000027,
+        "MaxMilliseconds": 3023.9836
+      }
+    ]
+  },
+  "clock_diagnostic_after_case": {
+    "estimated_vm_minus_host_seconds": 0.14665007591247559,
+    "round_trip_uncertainty_seconds": 0.11887848377227783,
+    "scope": "Post-case diagnostic only; no pre-case alignment captured for this smoke."
+  },
+  "raw_archive_sha256": "228996146800403da58d0646b3ae87469056545a8fa4e2de856dce169d66df24",
+  "scope": "Independent per-ID integrity/routing smoke reconciliation. C# owns reported latency/rate. No performance comparison, long-pool/DNS or runtime-internal-health acceptance is implied.",
+  "integrity_passed": true,
+  "raw_file_count": 25,
+  "runtime_health": {
+    "passed": true,
+    "runtime_log_coverage_complete": true,
+    "missing_instances": [],
+    "workload_window_utc": [
+      1794869297.0,
+      1794869331.588066
+    ],
+    "instances": [
+      {
+        "pod": "slimfaas-0",
+        "pod_uid": "f9988ca1-9b9c-4f3c-93c8-66860f130b78",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://10984313200e275528331ae2a81be06e94648329bc64de9f69bb6c517da32a22",
+        "captured_utc": 1794869331.99708,
+        "path": "pod-logs/f9988ca1-9b9c-4f3c-93c8-66860f130b78/runtime/0-current-1794869331917686000.log",
+        "bytes": 23273,
+        "sha256": "b07a3b841836362f4e7a13ad4708dd9e14196e6f84628c8084e13a69cb9a6126",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": []
+      },
+      {
+        "pod": "slimfaas-1",
+        "pod_uid": "574b5686-4855-4605-bfd9-8259ed61584e",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://b94bd560a80726fe7a16cac31d9223fbe34d9ead964316b704ffdcfdfd15854d",
+        "captured_utc": 1794869332.142091,
+        "path": "pod-logs/574b5686-4855-4605-bfd9-8259ed61584e/runtime/0-current-1794869332071160000.log",
+        "bytes": 23297,
+        "sha256": "40c60bf0991dbaa63a4d0ca3b30606745da5d702632d55ad96d061078a9119ac",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": []
+      },
+      {
+        "pod": "slimfaas-2",
+        "pod_uid": "3a1ad2e1-1946-4889-aa82-1e52e249be75",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://3b6925c31bcf5b485d5a8c837143a56802fc26a4db5a7dc03ee4b7b92c98b97e",
+        "captured_utc": 1794869332.2943711,
+        "path": "pod-logs/3a1ad2e1-1946-4889-aa82-1e52e249be75/runtime/0-current-1794869332219907000.log",
+        "bytes": 24114,
+        "sha256": "47eacb8c9cfeb5ee0cdb48ebe03004624bbc6ad2d4c30198aa57bca5bbe33b14",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": []
+      }
+    ],
+    "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+  }
+}

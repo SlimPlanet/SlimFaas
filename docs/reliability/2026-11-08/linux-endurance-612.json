@@ -1,0 +1,820 @@
+{
+  "schema": 1,
+  "run_url": "https://github.com/SlimPlanet/SlimFaas/actions/runs/42515548844",
+  "note": "Original archives retained locally; source predates transactional snapshot and Local job fixes.",
+  "campaigns": [
+    {
+      "id": 13635535368,
+      "name": "slimdata-local-endurance-leader",
+      "bytes": 15774374,
+      "sha256": "00d8ceed4de213fdbcbc8f199371ff1faa47a06194f478e677ae605fbea0f445",
+      "records": {
+        "endurance/parameters.json": {
+          "started_utc": 1794166446.5455055,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+          "runtime_sha256": "2745c642888e3d91efec13a7463a7668974f1f5254ac920f893cc5f61ad67ce7",
+          "slimdata_sha256": "779f156b1a672cd66f70e0c66a6916679183e81d69ef9013b34c5dae3920106e",
+          "harness_sha256": "082ebaac403afffce1ae2dfcbc48c3578c84636b0b2450f7b84f9020f30aa224",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/endurance",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "leader",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "07c281d2d2f54ed482af16e35d0d5514",
+              "seconds": 0.40222967800001186,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "2629c0089e214061a7d7421f2e3a6fa5",
+              "seconds": 0.4064929099999972,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "44eb7593ebf2429e8888745d3f960939",
+              "seconds": 0.4093004289999982,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "4c1abe12a4bd47e7b23a8bd81dfbcc8b",
+              "seconds": 0.41391566199999374,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "69b30fe2a2a54bdd8e84c49111b4c120",
+              "seconds": 0.6888545989999955,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "3eb98ec87ea94648b41c3a888b813b1c",
+              "seconds": 0.6954001929999976,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "b602cde5365846779a5f8b1c020ff47f",
+              "seconds": 0.711805499999997,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "d0fd1f93e3384a26a027e77b60352aee",
+              "seconds": 0.7245572380000027,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "b04663d72d28496f9298fd4912b16d38",
+              "seconds": 0.2753987959999904,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "b53d80518f104b4e9c537d478803d4e7",
+              "seconds": 0.29047699699999896,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "43c539a7ff4840f7990d4a5fe11a60be",
+              "seconds": 0.28991874799999096,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "002dbdef51154aacac244b4959d7358c",
+              "seconds": 0.30173625199999776,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "bd6dfd16a076436fb964ced8d283d0a2",
+                "838e5163522c481ea40d125db9ee6cdc",
+                "c12612d8de61430581da87ebb9b48a78"
+              ],
+              "dlq_id": "dlq-ff9a883c-9bd3-4dab-abad-191ebd8645da"
+            },
+            {
+              "phase": "absence-leader-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                2
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.000117077,
+              "new_leader_observed_seconds": 4.853616477000003,
+              "ready_after_resume_seconds": 1.1100865589999955,
+              "full_recovery_seconds": 2.216890965999994,
+              "accepted": 132,
+              "unknown": 8,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.00011811500002,
+              "new_leader_observed_seconds": 4.246255841000021,
+              "ready_after_resume_seconds": 1.2494585859999745,
+              "full_recovery_seconds": 2.07019932999998,
+              "accepted": 167,
+              "unknown": 30,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.00013002,
+              "new_leader_observed_seconds": 4.8509473279999895,
+              "ready_after_resume_seconds": 0.27111632499997995,
+              "full_recovery_seconds": 1.554671055999961,
+              "accepted": 895,
+              "unknown": 72,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.00023049,
+              "new_leader_observed_seconds": 4.444986878999998,
+              "ready_after_resume_seconds": 0.2718883459999688,
+              "full_recovery_seconds": 4.450155701999847,
+              "accepted": 3693,
+              "unknown": 115,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.0001057629997,
+              "new_leader_observed_seconds": 4.849843310999859,
+              "ready_after_resume_seconds": 1.0485480450001887,
+              "full_recovery_seconds": 11.704395081000257,
+              "accepted": 9595,
+              "unknown": 157,
+              "passed": true
+            },
+            {
+              "phase": "absence-leader-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                0
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.000210496,
+              "new_leader_observed_seconds": 4.244970505999845,
+              "ready_after_resume_seconds": 0.6703555969997979,
+              "full_recovery_seconds": 24.831959740000457,
+              "accepted": 21750,
+              "unknown": 200,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 21792,
+          "unknown": 212,
+          "missing": [],
+          "finished_utc": 1794173323.613466
+        }
+      },
+      "artifact_url": "https://github.com/SlimPlanet/SlimFaas/actions/runs/42515548844/artifacts/13635535368"
+    },
+    {
+      "id": 13635027832,
+      "name": "slimdata-local-endurance-follower",
+      "bytes": 16601250,
+      "sha256": "4174ff05e63c8903643afba3561ee661dbd2ec85cc572caa9306e0e3e719175e",
+      "records": {
+        "endurance/parameters.json": {
+          "started_utc": 1794166427.8974597,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+          "runtime_sha256": "d1b504db7769b531e0445acc6320d71a9b3ffcd7842da811990bbd8806627b4b",
+          "slimdata_sha256": "779f156b1a672cd66f70e0c66a6916679183e81d69ef9013b34c5dae3920106e",
+          "harness_sha256": "082ebaac403afffce1ae2dfcbc48c3578c84636b0b2450f7b84f9020f30aa224",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/endurance",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "follower",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "c0e171f5199943f78ccd76307fd71188",
+              "seconds": 0.37671226100000865,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "956b0b03a19c417eb44415a0836122d1",
+              "seconds": 0.377793705000002,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "15ef93099b1f4c338c214b9d9fdb89b9",
+              "seconds": 0.380396869000009,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "375f631db618485b811e832197f9fcbb",
+              "seconds": 0.43519218000000137,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "bca2946c402c4f15bc00e32a0a2751e5",
+              "seconds": 0.7001673219999986,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "e4bd045bb58e4c6fb167222ade456b74",
+              "seconds": 0.7002580159999923,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "4515c7a8569c4d5d8acc4665e9f7f1fa",
+              "seconds": 0.7499550770000099,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "e199c80b8e8640d5b77a6c98f7aca7cd",
+              "seconds": 0.7048878619999925,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "3f17df62915244c5aa6de9dd39a1fdc2",
+              "seconds": 0.2777144340000035,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "e387d3758d8d4fb494cd61759e88d78c",
+              "seconds": 0.3690775649999978,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "6472d41c46e34d2d88f5ef4ecbc09a89",
+              "seconds": 0.32711264900000003,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "cf9a74fd4d41427e81a2256bba495491",
+              "seconds": 0.4181358029999984,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "a7ab648bfe284e63b0467d6a8c2f64d6",
+                "6ca0f441f28946c78276d0cbb070d4fb",
+                "7f02c35a310247d98ab9bab7f8c040f4"
+              ],
+              "dlq_id": "dlq-f04c7612-8273-4117-bd41-3221b7aecf53"
+            },
+            {
+              "phase": "absence-follower-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.00011212599999,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 1.0299947130000078,
+              "full_recovery_seconds": 1.3629145680000079,
+              "accepted": 200,
+              "unknown": 2,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.000105295,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.16451809700001263,
+              "full_recovery_seconds": 1.0539835920000087,
+              "accepted": 396,
+              "unknown": 4,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.000085796,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.46638716100005695,
+              "full_recovery_seconds": 1.9610204509999676,
+              "accepted": 1395,
+              "unknown": 7,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.000101279,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 1.0258797369999684,
+              "full_recovery_seconds": 5.300051723000024,
+              "accepted": 4433,
+              "unknown": 10,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.0001104749997,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.4806554920000963,
+              "full_recovery_seconds": 10.936603493000348,
+              "accepted": 10609,
+              "unknown": 13,
+              "passed": true
+            },
+            {
+              "phase": "absence-follower-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                1
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.000088246,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.8670719330002612,
+              "full_recovery_seconds": 22.925666209000156,
+              "accepted": 22997,
+              "unknown": 15,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 23036,
+          "unknown": 28,
+          "missing": [],
+          "finished_utc": 1794173293.2294302
+        }
+      },
+      "artifact_url": "https://github.com/SlimPlanet/SlimFaas/actions/runs/42515548844/artifacts/13635027832"
+    },
+    {
+      "id": 13634982691,
+      "name": "slimdata-local-endurance-quorum",
+      "bytes": 5322360,
+      "sha256": "dade849b2e486f32d14ca4e6629a6fec802f0aa0fa658f4d8b04f74eb8b42f80",
+      "records": {
+        "endurance/parameters.json": {
+          "started_utc": 1794166422.161546,
+          "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+          "python": "3.11.18 (main, Oct 26 2026, 02:48:29) [GCC 15.2.0]",
+          "commit": "bc343f05e1421b4aa49c256efbcafad809edc23d",
+          "runtime_sha256": "93878bd01c751dc3dacf8474107430f7f7609bbfac36fcaf2d9d04dea7cc0edc",
+          "slimdata_sha256": "779f156b1a672cd66f70e0c66a6916679183e81d69ef9013b34c5dae3920106e",
+          "harness_sha256": "082ebaac403afffce1ae2dfcbc48c3578c84636b0b2450f7b84f9020f30aa224",
+          "arguments": {
+            "runtime": "/home/runner/work/SlimFaas/SlimFaas/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll",
+            "dotnet": "dotnet",
+            "source_commit": null,
+            "output": "artifacts/local-chaos/endurance",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 15,
+            "recovery_timeout": 300.0,
+            "scenarios": "payloads,api,files,retries,chaos,restarts",
+            "durations": [
+              30.0,
+              60.0,
+              300.0,
+              900.0,
+              1800.0,
+              3600.0
+            ],
+            "roles": "quorum",
+            "traffic_interval": 2.0
+          }
+        },
+        "endurance/report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": false,
+              "id": "994512fdf0424a22a5f25f4cec189762",
+              "seconds": 0.44712111000001187,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 262144,
+              "chunked": true,
+              "id": "ff6d48d283b346c78714661ae20dcc46",
+              "seconds": 0.44410602099998187,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": true,
+              "id": "f6e6adeb39694afe9d6921e3e5a4d9b6",
+              "seconds": 0.4889630259999649,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 65536,
+              "chunked": false,
+              "id": "4a13daff9f3e4237b140fe272a6b4901",
+              "seconds": 0.49503554400001804,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": false,
+              "id": "c17a23df366f4f939d98d4986026aba7",
+              "seconds": 0.676552307999998,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 1048576,
+              "chunked": true,
+              "id": "e0843384555245e98ff1504bfe2e6e01",
+              "seconds": 0.701929344000007,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": false,
+              "id": "d076c39a18db45489d75f835e06f4f64",
+              "seconds": 0.6754869239999834,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2000000,
+              "chunked": true,
+              "id": "da46e21c7d6645eeba7f66b7a2a4b1f0",
+              "seconds": 0.6966833650000126,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": false,
+              "id": "5c78638365204a30b6e70357318a833c",
+              "seconds": 0.25165456299998823,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 2097152,
+              "chunked": true,
+              "id": "65a2f54c6ef2450ebbda1e83894cd75e",
+              "seconds": 0.29108611300000575,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": false,
+              "id": "522b93fccab449a7aebf5759ec6e966d",
+              "seconds": 0.38293063999998367,
+              "passed": true
+            },
+            {
+              "phase": "payloads",
+              "bytes": 4194304,
+              "chunked": true,
+              "id": "3226e49e9d0e41c0971b7d98df03469d",
+              "seconds": 0.37043139500002553,
+              "passed": true
+            },
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "file-boundaries",
+              "passed": true
+            },
+            {
+              "phase": "retries-dlq-jobs",
+              "passed": true,
+              "job_ids": [
+                "c3981812c82b4171a2f467c38f7176a5",
+                "6677b89bc81749f09dedc31ee3f8d4ad",
+                "61c60c81d0724e9eb1bd996a13fa0f26"
+              ],
+              "dlq_id": "dlq-72e7019e-76ec-449c-8a3a-bf38aeea2549"
+            },
+            {
+              "phase": "absence-quorum-30s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                1
+              ],
+              "requested_absence_seconds": 30.0,
+              "actual_absence_seconds": 30.000130989000013,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.258060709999995,
+              "full_recovery_seconds": 3.5468423869999697,
+              "accepted": 112,
+              "unknown": 64,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-60s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 60.0,
+              "actual_absence_seconds": 60.00012376000001,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.392848344000015,
+              "full_recovery_seconds": 0.8074079330000359,
+              "accepted": 113,
+              "unknown": 248,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-300s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 300.0,
+              "actual_absence_seconds": 300.00010897400006,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 3.0393853030000173,
+              "full_recovery_seconds": 4.212627607999934,
+              "accepted": 113,
+              "unknown": 1393,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-900s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 900.0,
+              "actual_absence_seconds": 900.0000818970001,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 2.0663771429999542,
+              "full_recovery_seconds": 5.153633252999953,
+              "accepted": 114,
+              "unknown": 4936,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-1800s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 1800.0,
+              "actual_absence_seconds": 1800.000150668,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 2.066770092999832,
+              "full_recovery_seconds": 15.111991966000005,
+              "accepted": 114,
+              "unknown": 12073,
+              "passed": true
+            },
+            {
+              "phase": "absence-quorum-3600s",
+              "fault": "process-suspension",
+              "nodes": [
+                0,
+                2
+              ],
+              "requested_absence_seconds": 3600.0,
+              "actual_absence_seconds": 3600.0001185109995,
+              "new_leader_observed_seconds": null,
+              "ready_after_resume_seconds": 0.9404519839999921,
+              "full_recovery_seconds": 15.36466008700063,
+              "accepted": 115,
+              "unknown": 26401,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 147,
+          "unknown": 26413,
+          "missing": [],
+          "finished_utc": 1794173209.6111555
+        }
+      },
+      "artifact_url": "https://github.com/SlimPlanet/SlimFaas/actions/runs/42515548844/artifacts/13634982691"
+    }
+  ]
+}

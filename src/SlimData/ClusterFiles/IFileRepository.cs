@@ -16,17 +16,34 @@ public interface IFileRepository
         long? expireAtUtcTicks,
         CancellationToken ct,
         IDictionary<string, string>? tags = null);
-    
+
+    /// <summary>
+    /// Replaces a file only after the temporary body matches the expected length and hash.
+    /// A failed transfer leaves the previous version intact.
+    /// </summary>
+    Task<FilePutResult> SaveVerifiedAsync(
+        string id,
+        Stream content,
+        FilePutResult expected,
+        long? expireAtUtcTicks,
+        CancellationToken ct,
+        IDictionary<string, string>? tags = null);
 
     Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct);
 
     Task<FileMetadata?> TryGetMetadataAsync(string id, CancellationToken ct);
+
+    Task<FileMetadata?> TryGetVersionMetadataAsync(string id, string sha256Hex, CancellationToken ct);
     
     IAsyncEnumerable<FileMetadataEntry> EnumerateAllMetadataAsync(CancellationToken ct);
     
     Task DeleteAsync(string id, CancellationToken ct);
 
+    Task DeleteVersionAsync(string id, string sha256Hex, CancellationToken ct);
+
     Task<Stream> OpenReadAsync(string id, CancellationToken ct);
+
+    Task<Stream> OpenReadVersionAsync(string id, string sha256Hex, CancellationToken ct);
 
     /// <summary>
     /// Deletes orphan .tmp files (interrupted uploads) that have not been modified for more than 10 minutes.

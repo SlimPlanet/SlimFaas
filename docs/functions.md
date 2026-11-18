@@ -55,6 +55,34 @@ deferred callbacks, and [DLQ capture and replay](async-functions.md#dead-letter-
 
 ---
 
+### Async body storage threshold
+
+`SlimFaas:AsyncBodyOffloadThresholdBytes` controls where an async body is stored.
+At the default of **1,048,576 bytes (1 MiB)**, bodies up to and including 1 MiB
+stay in the queue entry. Bodies of **1,048,577 bytes** or more use
+[Files](data-files.md). The same boundary applies with `Content-Length` and
+chunked requests, including the root function route. The threshold must be
+positive and smaller than `Array.MaxLength`. The HTTP request size limit is
+configured separately through `Kestrel:Limits:MaxRequestBodySize`.
+
+To set the recommended threshold explicitly, use this environment variable on
+each SlimFaas instance.
+
+```yaml
+env:
+  - name: SlimFaas__AsyncBodyOffloadThresholdBytes
+    value: "1048576"
+```
+
+Lowering the threshold moves more bodies out of Raft payloads and adds Files
+storage and transfer work. WAL geometry and the 64 KiB queue-decoder boundary
+are independent of this threshold. Existing queued entries keep their stored
+representation and follow their queue's retry policy. Both macOS campaigns
+found higher throughput for some large bodies at 512 KiB. The overall
+comparisons missed the guardrails. Keep 1 MiB for general workloads. See the
+[initial campaign](reliability/2026-11-18/supervisor-repair-benchmarks.md#comparisons)
+and [repeat](reliability/2026-11-18/benchmark-repetition.md#comparisons).
+
 ## 3. Wake Function
 
 You can explicitly “wake up” a function without invoking a specific route:
@@ -147,19 +175,37 @@ You can configure the synchronous HTTP timeout and the retry policies used by as
   "DefaultAsync": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
-    "HttpStatusRetries": [500,502,503]
+    "HttpStatusRetries": [500,502,503,504]
   },
   "DefaultPublish": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
-    "HttpStatusRetries": [500,502,503]
+    "HttpStatusRetries": [500,502,503,504]
   }
 }
 ```
 
 Synchronous calls make exactly one HTTP request and never retry. `DefaultSync` therefore supports only `HttpTimeout`.
+Connections from SlimFaas to function pods are recycled after five minutes when the current request finishes.
+This connection lifetime is independent of `HttpTimeout` and does not retry failed requests.
+Pod selection uses the latest published destination cache, including when the
+request captured its function configuration earlier. Connection recycling and
+destination-cache updates address separate parts of routing.
+With direct pod routing, observing a Kubernetes deletion timestamp removes that
+pod from new ready-target selections even if its readiness conditions still say
+true during graceful termination. Already active requests retain their configured
+timeouts. If Kubernetes discovery is unavailable, SlimFaas retains its last known
+snapshot until synchronization succeeds again.
 
 `TimeoutRetries` defines the delays in seconds between attempts for asynchronous and publish calls. `HttpStatusRetries` lists the HTTP statuses that trigger those retries.
+
+The default retry statuses include `504`. An expired worker reservation or a
+WebSocket delivery timeout can produce that status without the function having
+received the message. Explicit status lists remain authoritative: include `504`
+when those failures should use the bounded retry budget. Enable the
+[DLQ](dead-letter-queues.md) to retain terminal failures after that budget.
+Queue entries keep their acceptance-time policy; upgrading does not change old
+entries or reconstruct messages already evicted under a previous policy.
 
 Every section is optional. When a section or property is omitted, SlimFaas applies its defaults. For example, the following configuration customizes only publish calls; sync and async keep their default 120-second timeout, and async keeps its default retry policy:
 
@@ -281,3 +327,29 @@ metadata:
 ## 10. Asynchronous Function Execution: Control Callback Mode
 
 See [deferred completion callbacks](async-functions.md#deferred-completion-callbacks) for execution headers, timeout handling, and HTTP/WebSocket completion. A callback never sends a later response on the original caller connection.
+
+Function HTTP connections have a maximum pooled age of five minutes. Expiry
+retires a connection after its active request/response finishes; it does not add
+an invocation retry. SlimData batch, file-transfer and cached cluster-peer pools
+use two minutes. Request deadlines and TLS opt-in settings keep their existing
+behavior. A pool lifetime bounds connection reuse, while Kubernetes readiness
+and destination-cache updates determine which pod address is selected. See the
+[connection audit](reliability/2026-11-16/http-client-audit.md) for policies and
+validation limits.
+
+For Deployment and StatefulSet functions, cached destinations are invalidated by
+pod identity and resource-version changes as well as controller changes. A
+StatefulSet pod replacement or a single NotReady/terminating pod in a ready pool
+must not retain the previous destination list. During Kubernetes API outages the
+last successful snapshot remains available; successful LIST/watch recovery
+reconciles it with current pods. Connection expiry does not replace this refresh.
+
+The async worker also retains local ownership when a later dequeue returns a
+newer reservation for an ID whose HTTP exchange is still in flight. It waits for
+that exchange rather than starting a parallel delivery. A terminal response
+completes the ID once; a nonterminal response can use the already-reserved retry
+without consuming it through an older failure callback. That retry waits for a
+ready function and keeps its original deadline. Expired reservations remain
+subject to the existing retry/DLQ policy, and a follower does not start them.
+This does not provide exactly-once execution after an unknown network outcome or
+leader failure. Sync invocation remains one application-level send.

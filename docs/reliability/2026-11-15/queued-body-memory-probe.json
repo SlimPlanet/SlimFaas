@@ -1,0 +1,39 @@
+{
+  "rows": [
+    {
+      "label": "legacy-unbounded",
+      "mode": "legacy",
+      "heap_limit_bytes": null,
+      "exit_code": 0,
+      "output": "bytes=201326592;sha256=99AABDE3D1EA67D0E617D1E311E9CD44D37C2B640A8B4F98B31171089637FA43;heap=407230472\n",
+      "stderr": "",
+      "log": "logs/queued-body-memory-03-legacy-unbounded.log",
+      "started": 1794740597.957078,
+      "finished": 1794740598.223606
+    },
+    {
+      "label": "legacy-320mib",
+      "mode": "legacy",
+      "heap_limit_bytes": 335544320,
+      "exit_code": 3,
+      "output": "OutOfMemoryException\n",
+      "stderr": "",
+      "log": "logs/queued-body-memory-03-legacy-320mib.log",
+      "started": 1794740598.2244601,
+      "finished": 1794740598.3246772
+    },
+    {
+      "label": "borrow-320mib",
+      "mode": "borrow",
+      "heap_limit_bytes": 335544320,
+      "exit_code": 0,
+      "output": "bytes=201326592;sha256=99AABDE3D1EA67D0E617D1E311E9CD44D37C2B640A8B4F98B31171089637FA43;heap=205918024\n",
+      "stderr": "",
+      "log": "logs/queued-body-memory-03-borrow-320mib.log",
+      "started": 1794740598.3260102,
+      "finished": 1794740598.496247
+    }
+  ],
+  "complete": true,
+  "note": "Isolated managed request preparation probe. Legacy calls the original API in the same probe, not an unmodified full runtime. Heap readings are not peak RSS or a throughput benchmark."
+}

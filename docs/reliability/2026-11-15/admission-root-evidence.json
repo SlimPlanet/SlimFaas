@@ -1,0 +1,4597 @@
+{
+  "correction_base": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+  "validation": {
+    "started": 1794782485.5481758,
+    "base": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+    "phases": [
+      {
+        "name": "targeted-replay",
+        "command": [
+          "dotnet",
+          "test",
+          "tests/SlimData.Tests/SlimData.Tests.csproj",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~MemoryPackReplayTests",
+          "--logger",
+          "trx",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/reproductions/admission-root-registration-net11-67/green-server"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-targeted-replay.log",
+        "sha256": "3e9791e42cb300c87920c89807ed3e91ab40229527dcfa9518b14526f8a5f144"
+      },
+      {
+        "name": "full-solution",
+        "command": [
+          "dotnet",
+          "test",
+          "-nr:false",
+          "--logger",
+          "trx",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/reproductions/admission-root-registration-net11-67/full-solution"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-full-solution.log",
+        "sha256": "71a290e98443dbe8f45490a772ecb9df011033e27be55ba3f01e57dccbf912b1"
+      },
+      {
+        "name": "memorylab-release-build",
+        "command": [
+          "dotnet",
+          "build",
+          "tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj",
+          "-c",
+          "Release",
+          "-p:SkipClientAppBuild=true",
+          "-nr:false"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-memorylab-release-build.log",
+        "sha256": "55ec3f098bb284a5399b367f25d258ac09775e545b0fe4e54ceb0af4464f26ed"
+      },
+      {
+        "name": "python-client",
+        "command": [
+          "uv",
+          "run",
+          "--frozen",
+          "--extra",
+          "dev",
+          "pytest"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-python-client.log",
+        "sha256": "2b1a52910b45ba2dc9afe7e059019ba09fd46e3e064c6b2ac53910aebfed7895"
+      },
+      {
+        "name": "chaos-harness",
+        "command": [
+          "python3",
+          ".bin/test-local-chaos-harness.py"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-chaos-harness.log",
+        "sha256": "0727b1e180b6990ebc91056b0c44c0ab902a3a4e4d0ab980e8ba4e15950d2ebc"
+      },
+      {
+        "name": "memorylab-comparer",
+        "command": [
+          "python3",
+          ".bin/test-memory-lab-report.py"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-memorylab-comparer.log",
+        "sha256": "029593fc3c62ae5ab2d4e36acf46daf3f3d0861c21870a9cc07d4f6e27485537"
+      },
+      {
+        "name": "platform-harness",
+        "command": [
+          "python3",
+          ".bin/test-platform-validation.py"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-platform-harness.log",
+        "sha256": "f6d1d6a2de6fe258f2aa911206d0d72643eea89da5b1082f96fe0f5be8b4438e"
+      },
+      {
+        "name": "documentation-build",
+        "command": [
+          "pnpm",
+          "build"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-68-documentation-build.log",
+        "sha256": "baa2e019ebc2f9ac513b82b078fc7b31fb765c451f33830e503346420b6a6435"
+      }
+    ],
+    "phase": "closed",
+    "source_hashes": {
+      "src/SlimFaas/Database/SlimDataService.cs": "4d531540447538fcbee3e0f2d25185ed12f62c94b89b3fceaa360e9120218681",
+      "src/SlimData/SlimDataInterpreter.cs": "de4434ab6567a82a0ed410977262a54632a56589d5ea780527d426a256b0cadc",
+      "src/SlimData/SlimData.csproj": "3cbc9c0a3ea9b7b0c2feaef3f43cca8c376ff6c48910b3af56e41f8d0ebfa944",
+      "tests/SlimFaas.Tests/Database/SlimDataRecoveryTests.cs": "036a056f217dd879e47655a6e8d82988664e5b67865fad009cedf17a1c2b7d82",
+      "tests/SlimFaas.Tests/Database/SlimDataRecoveryTests.MemoryPack.cs": "fea2db3c15ae9d8d934fa9ddf55f61ad05225c22a14bef994d691d63b2f0caeb",
+      "tests/SlimData.Tests/MemoryPackReplayTests.cs": "5ee1cfcfbbcb3f2046fdc8a52e105ad33f0f8aa6cf3a30fa1011e31880c3604c"
+    },
+    "passed": true,
+    "finished": 1794782754.764673,
+    "generated_build_cache": {
+      "path": "reproductions/admission-root-registration-net11-67/generated-tsconfig.tsbuildinfo",
+      "sha256": "0667e146254d9fd518d3949d80f0abc0fb67c84ace1ed29d85a3b4a5df90926b",
+      "restored_original_sha256": "dafedb3fdaf894d3e6ec377648ccfdc44c426de4c75dc130fb330b146797f7f5"
+    }
+  },
+  "test_results": [
+    {
+      "path": "reproductions/admission-root-registration-net11-67/full-solution/_a115vcCX1PXQ575D_2026-11-15_23_44_05_net11.0.trx",
+      "sha256": "1952b86805ffc374193c6974f46c7dc1382903d24726ef8046de68757ad61715",
+      "counters": {
+        "total": "52",
+        "executed": "52",
+        "passed": "52",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/full-solution/_a115vcCX1PXQ575D_2026-11-15_23_44_06_net11.0.trx",
+      "sha256": "df5baa1609ed2c90b28cd036cb48e115d27001208cd004e086e1ecd1b4153f5f",
+      "counters": {
+        "total": "11",
+        "executed": "11",
+        "passed": "11",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/full-solution/_a115vcCX1PXQ575D_2026-11-15_23_44_06_net11.0[1].trx",
+      "sha256": "d9210ec0200f94882b6e9af6d29d6bd093b4f0a4a3a976139e7ae22f80a282a1",
+      "counters": {
+        "total": "466",
+        "executed": "466",
+        "passed": "466",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/full-solution/_a115vcCX1PXQ575D_2026-11-15_23_44_07_net11.0.trx",
+      "sha256": "cb537d416880197e30638298ae06e5d00cad97189e34ec9016f05abc5afed528",
+      "counters": {
+        "total": "1783",
+        "executed": "1783",
+        "passed": "1783",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/full-solution/_a115vcCX1PXQ575D_2026-11-15_23_44_45_net11.0.trx",
+      "sha256": "0623dbebd3d684a8b7836002a82bbd6044bc66e9628cda2c2d3e28d2cbda0186",
+      "counters": {
+        "total": "109",
+        "executed": "109",
+        "passed": "109",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/green-client/_a115vcCX1PXQ575D_2026-11-15_23_37_53_net11.0.trx",
+      "sha256": "4cb8ff76b35e787fffd10a8c2320b91af1fb4e1e94f50afb85ecf8a449979b5b",
+      "counters": {
+        "total": "14",
+        "executed": "14",
+        "passed": "14",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/green-server/_a115vcCX1PXQ575D_2026-11-15_23_41_31_net11.0.trx",
+      "sha256": "93f6d749a67fecac9a9c170a60ac5b0b946ab19e40dc0462bd25850d9a288d0b",
+      "counters": {
+        "total": "7",
+        "executed": "7",
+        "passed": "7",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/red-client-02/_a115vcCX1PXQ575D_2026-11-15_23_34_38_net11.0.trx",
+      "sha256": "b7336b3046dbdbe77033bd7378b3a7e77df3e8df738a1ba26938f94a17f0e707",
+      "counters": {
+        "total": "14",
+        "executed": "14",
+        "passed": "0",
+        "failed": "14",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/admission-root-registration-net11-67/red-server/_a115vcCX1PXQ575D_2026-11-15_23_36_02_net11.0.trx",
+      "sha256": "b9d0c1f42f396c501f7f2e18fc2960a5fd735ceb4c784311f0a5fd09a3856248",
+      "counters": {
+        "total": "1",
+        "executed": "1",
+        "passed": "0",
+        "failed": "1",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ],
+  "kubernetes": [
+    {
+      "state": {
+        "started": 1794780572.356315,
+        "namespace": "slimfaas-pr506-fa51-follower-async-01",
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-50",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "endurance",
+        "fault_case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "async",
+        "updated": 1794780795.866656,
+        "phase": "closed",
+        "job_uid": "633cf6a8-92ff-4a15-92e4-d41631654112",
+        "job_status": {
+          "completionTime": "2026-11-15T22:13:09Z",
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T22:13:09Z",
+              "lastTransitionTime": "2026-11-15T22:13:09Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "SuccessCriteriaMet"
+            },
+            {
+              "lastProbeTime": "2026-11-15T22:13:09Z",
+              "lastTransitionTime": "2026-11-15T22:13:09Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "Complete"
+            }
+          ],
+          "ready": 0,
+          "startTime": "2026-11-15T22:09:34Z",
+          "succeeded": 1,
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 32040161280,
+        "finished": 1794780805.2727811,
+        "passed": true,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa51-follower-async-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794780575.630216,
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "async",
+        "passed": true,
+        "workload_started": true,
+        "injected_fault": true,
+        "actual_target_requests": 1,
+        "actual_concurrency": 1,
+        "scope": "Single owned runtime killed; its complete data-PV contents moved outside active mounts and never restored. Other data volumes retained. A paused third runtime is killed and returns without its in-memory announcements. Source rejoins with fresh storage. All kind workers share their VM; this is logical PV-content loss, not independent-host hardware proof.",
+        "events": [
+          {
+            "utc": 1794780590.2174642,
+            "event": "function-gated"
+          },
+          {
+            "utc": 1794780590.2319,
+            "event": "third-node-suspended-before-upload",
+            "node": 2,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 2,
+              "pid": 34,
+              "pod_uid": "d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656",
+              "started": "18054586"
+            }
+          },
+          {
+            "utc": 1794780592.839343,
+            "event": "accepted-with-two-declared-volume-copies",
+            "status": 202,
+            "ingress_storage_identity": "17514313c4f845d6aa7394085ed28010",
+            "survivor_storage_identity": "a7d4423ef31548c4b6e9ef51f0322418"
+          },
+          {
+            "utc": 1794780592.8503082,
+            "event": "ingress-runtime-killed",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 34,
+              "pod_uid": "3b53e625-43e7-4109-b55b-bbd1676aca3f",
+              "started": "18054625"
+            }
+          },
+          {
+            "utc": 1794780592.855111,
+            "event": "data-volume-contents-permanently-removed",
+            "node": 1,
+            "quarantine": "/evidence/runs/slimfaas-pr506-fa51-follower-async-01/volume-quarantine/slimfaas-1-1794780592853773494",
+            "retained_entries": [
+              {
+                "name": "backup",
+                "device": 64772,
+                "inode": 369136716
+              },
+              {
+                "name": "slimfaas-1",
+                "device": 64772,
+                "inode": 239431728
+              },
+              {
+                "name": ".slimfaas-files-storage-identity",
+                "device": 64772,
+                "inode": 919562
+              }
+            ],
+            "initialization": {
+              "node": "slimfaas-1",
+              "chunk_bytes": 65536,
+              "existing_wal": false,
+              "fresh_bootstrap_permission": false
+            }
+          },
+          {
+            "utc": 1794780592.8588798,
+            "event": "absent-runtime-killed-without-consuming-historical-announcements",
+            "node": 2
+          },
+          {
+            "utc": 1794780595.3529153,
+            "event": "returned-node-ready",
+            "node": 2,
+            "body_already_local": false,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 2,
+              "pid": 95,
+              "pod_uid": "d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656",
+              "started": "18056288"
+            }
+          },
+          {
+            "utc": 1794780605.1042194,
+            "event": "fresh-ingress-repaired-without-bootstrap",
+            "node": 1,
+            "original_storage_identity": "17514313c4f845d6aa7394085ed28010",
+            "fresh_storage_identity": "c9e59b3f981b4a48882ff8824d536f6f",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 93,
+              "pod_uid": "3b53e625-43e7-4109-b55b-bbd1676aca3f",
+              "started": "18056326"
+            }
+          }
+        ],
+        "post_delivery_observation_seconds": 180,
+        "ready_utc": 1794780583.2887492,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 33,
+            "pod_uid": "f65119e4-6f92-4d00-84d2-f4c17d3a5fa0",
+            "started": "18054571"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 34,
+            "pod_uid": "3b53e625-43e7-4109-b55b-bbd1676aca3f",
+            "started": "18054625"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 34,
+            "pod_uid": "d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656",
+            "started": "18054586"
+          }
+        ],
+        "driver_sha256": "3b65a8906c3bcdc91afdb617dff20c7b34d12d77f48a4b4b0f5fd821c2819f1a",
+        "ingress_node": 1,
+        "absent_node": 2,
+        "survivor_node": 0,
+        "identifier": "9b032b5109cf4a119355e5fb8090a2dd",
+        "physical_id": "sf-internal-1a935cf5f7bf46d28fa35525a5c02dd5-internal",
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+        "payload_bytes": 1048576,
+        "acceptance_seconds": 2.6006543829862494,
+        "healthy_majority_recovery_seconds": 1.01103411798249,
+        "absent_node_catchup_after_ready_seconds": 3.8724400997161865,
+        "fresh_ingress_catchup_after_ready_seconds": 4.0652759075164795,
+        "observed_after_delivery_seconds": 180.1357415529783,
+        "accounting": {
+          "accepted": 1,
+          "unknown": [],
+          "completed_deliveries": 1,
+          "distinct_delivered_ids": 1,
+          "repeated_deliveries": {},
+          "successful_delivery_attempts": 1,
+          "failed_delivery_attempts": 0,
+          "successful_id_functions": [
+            {
+              "id": "9b032b5109cf4a119355e5fb8090a2dd",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            }
+          ],
+          "repeated_successful_id_functions": [],
+          "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "accepted": 1,
+        "unknown_count": 0,
+        "missing_confirmed": [],
+        "verified_public_file_nodes": [],
+        "final_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 33,
+            "pod_uid": "f65119e4-6f92-4d00-84d2-f4c17d3a5fa0",
+            "started": "18054571"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 93,
+            "pod_uid": "3b53e625-43e7-4109-b55b-bbd1676aca3f",
+            "started": "18056326"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 95,
+            "pod_uid": "d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656",
+            "started": "18056288"
+          }
+        ],
+        "finished_utc": 1794780786.8596146
+      },
+      "runtime_log_audit": {
+        "passed": false,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794780583.2887492,
+          1794780786.8596146
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "3b53e625-43e7-4109-b55b-bbd1676aca3f",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://bdf5e5f987542f63a6a544b7601903a12ca15da9dca78f1ccb81fb3b7bbf74e8",
+            "captured_utc": 1794780593.7641642,
+            "path": "pod-logs/3b53e625-43e7-4109-b55b-bbd1676aca3f/runtime/0-previous-1794780593716667000.log",
+            "bytes": 10481,
+            "sha256": "6f8ed1a3097f30789f28e131573320aace2364fdc8b4f9dd8c958a0748e59722",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://26101181eeacbd5223f937991cc918fd3b7046e2172b115f303ded5e16eafd2f",
+            "captured_utc": 1794780593.846622,
+            "path": "pod-logs/d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656/runtime/0-previous-1794780593765155000.log",
+            "bytes": 6899,
+            "sha256": "70609dab08785c527bbc28dd066865b7ca6229647cb5168d53f712296206fa68",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "f65119e4-6f92-4d00-84d2-f4c17d3a5fa0",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://b2496b6ee357b89d6edc980710c9dbb5428e0761cb93bfd200f1f0d402898bd1",
+            "captured_utc": 1794780796.68821,
+            "path": "pod-logs/f65119e4-6f92-4d00-84d2-f4c17d3a5fa0/runtime/0-current-1794780796614214000.log",
+            "bytes": 216109,
+            "sha256": "60023b84f131fc7a3572aa73d79016db54d29665d421774aed41623e8053f16d",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:09:55.039304848Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "3b53e625-43e7-4109-b55b-bbd1676aca3f",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://d13eab7288dccc24564cbe3687fedcba33d241371f4bf77cc46efed807bbef95",
+            "captured_utc": 1794780796.839075,
+            "path": "pod-logs/3b53e625-43e7-4109-b55b-bbd1676aca3f/runtime/1-current-1794780796763085000.log",
+            "bytes": 2692,
+            "sha256": "01bdbc9c95b4fc23cc86dbcf6637791053873799114e2b9639a1f2a303a23d0e",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:10:00.989127612Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://a64e3ada57deaea5630b25a455559c0c67e0f1bb4a485296d63d766f9e4b7921",
+            "captured_utc": 1794780796.9870238,
+            "path": "pod-logs/d2b1ae26-3a3e-4e95-baa8-7a1ad6a05656/runtime/1-current-1794780796913738000.log",
+            "bytes": 3440,
+            "sha256": "4fb48de9cf0cea651afe4e67da59b4e895ced2edab086a38496e12ef6fc9927d",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:09:55.122802830Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      }
+    },
+    {
+      "state": {
+        "started": 1794780124.829598,
+        "namespace": "slimfaas-pr506-fa51-follower-file-01",
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-50",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "endurance",
+        "fault_case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "file",
+        "updated": 1794780338.287981,
+        "phase": "closed",
+        "job_uid": "2c5c6ac0-b517-4be4-80a7-89a575f5f1a5",
+        "job_status": {
+          "completionTime": "2026-11-15T22:05:34Z",
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T22:05:34Z",
+              "lastTransitionTime": "2026-11-15T22:05:34Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "SuccessCriteriaMet"
+            },
+            {
+              "lastProbeTime": "2026-11-15T22:05:34Z",
+              "lastTransitionTime": "2026-11-15T22:05:34Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "Complete"
+            }
+          ],
+          "ready": 0,
+          "startTime": "2026-11-15T22:02:06Z",
+          "succeeded": 1,
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 31462334464,
+        "finished": 1794780348.563476,
+        "passed": true,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa51-follower-file-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794780127.954712,
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "case": "volume-loss",
+        "ingress_role": "follower",
+        "kind": "file",
+        "passed": true,
+        "workload_started": true,
+        "injected_fault": true,
+        "actual_target_requests": 1,
+        "actual_concurrency": 1,
+        "scope": "Single owned runtime killed; its complete data-PV contents moved outside active mounts and never restored. Other data volumes retained. A paused third runtime is killed and returns without its in-memory announcements. Source rejoins with fresh storage. All kind workers share their VM; this is logical PV-content loss, not independent-host hardware proof.",
+        "events": [
+          {
+            "utc": 1794780137.2987924,
+            "event": "third-node-suspended-before-upload",
+            "node": 2,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 2,
+              "pid": 33,
+              "pod_uid": "dc2e1fa8-af77-4cf1-b67b-2147d551dc7a",
+              "started": "18009785"
+            }
+          },
+          {
+            "utc": 1794780139.905996,
+            "event": "accepted-with-two-declared-volume-copies",
+            "status": 200,
+            "ingress_storage_identity": "699293c9ed4f40caa31056307ea4e441",
+            "survivor_storage_identity": "b11ebae2ef704cfaacd600acdae57519"
+          },
+          {
+            "utc": 1794780139.9174378,
+            "event": "ingress-runtime-killed",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 34,
+              "pod_uid": "ea577825-28f3-4a63-85db-ccc21407f713",
+              "started": "18009823"
+            }
+          },
+          {
+            "utc": 1794780139.9226365,
+            "event": "data-volume-contents-permanently-removed",
+            "node": 1,
+            "quarantine": "/evidence/runs/slimfaas-pr506-fa51-follower-file-01/volume-quarantine/slimfaas-1-1794780139920969757",
+            "retained_entries": [
+              {
+                "name": "backup",
+                "device": 64772,
+                "inode": 285251235
+              },
+              {
+                "name": "slimfaas-1",
+                "device": 64772,
+                "inode": 407420065
+              },
+              {
+                "name": ".slimfaas-files-storage-identity",
+                "device": 64772,
+                "inode": 222481843
+              }
+            ],
+            "initialization": {
+              "node": "slimfaas-1",
+              "chunk_bytes": 65536,
+              "existing_wal": false,
+              "fresh_bootstrap_permission": false
+            }
+          },
+          {
+            "utc": 1794780139.92703,
+            "event": "absent-runtime-killed-without-consuming-historical-announcements",
+            "node": 2
+          },
+          {
+            "utc": 1794780143.1760864,
+            "event": "returned-node-ready",
+            "node": 2,
+            "body_already_local": false,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 2,
+              "pid": 94,
+              "pod_uid": "dc2e1fa8-af77-4cf1-b67b-2147d551dc7a",
+              "started": "18010986"
+            }
+          },
+          {
+            "utc": 1794780152.3277194,
+            "event": "fresh-ingress-repaired-without-bootstrap",
+            "node": 1,
+            "original_storage_identity": "699293c9ed4f40caa31056307ea4e441",
+            "fresh_storage_identity": "a1383bddfbb746ca802201989a4c9467",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 94,
+              "pod_uid": "ea577825-28f3-4a63-85db-ccc21407f713",
+              "started": "18011024"
+            }
+          }
+        ],
+        "post_delivery_observation_seconds": 180,
+        "ready_utc": 1794780137.2678194,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 34,
+            "pod_uid": "0ef47fd3-3951-428c-ae3a-4aa9638f9c0e",
+            "started": "18009864"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 34,
+            "pod_uid": "ea577825-28f3-4a63-85db-ccc21407f713",
+            "started": "18009823"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 33,
+            "pod_uid": "dc2e1fa8-af77-4cf1-b67b-2147d551dc7a",
+            "started": "18009785"
+          }
+        ],
+        "driver_sha256": "3b65a8906c3bcdc91afdb617dff20c7b34d12d77f48a4b4b0f5fd821c2819f1a",
+        "ingress_node": 1,
+        "absent_node": 2,
+        "survivor_node": 0,
+        "identifier": "7f27f51d3e514096a91d815c206d8b24",
+        "physical_id": "sf-internal-a0a7f2f7926044a4a57e72f19d42291a-internal",
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+        "payload_bytes": 1048576,
+        "acceptance_seconds": 2.5969483270018827,
+        "healthy_majority_recovery_seconds": 1.8202761799911968,
+        "absent_node_catchup_after_ready_seconds": 3.0625686645507812,
+        "fresh_ingress_catchup_after_ready_seconds": 4.066674709320068,
+        "observed_after_delivery_seconds": 180.22564126798534,
+        "accounting": {
+          "accepted": 1,
+          "unknown": [],
+          "completed_deliveries": 0,
+          "distinct_delivered_ids": 0,
+          "repeated_deliveries": {},
+          "successful_delivery_attempts": 0,
+          "failed_delivery_attempts": 0,
+          "successful_id_functions": [],
+          "repeated_successful_id_functions": [],
+          "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "accepted": 1,
+        "unknown_count": 0,
+        "missing_confirmed": [],
+        "verified_public_file_nodes": [
+          0,
+          1,
+          2
+        ],
+        "final_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 34,
+            "pod_uid": "0ef47fd3-3951-428c-ae3a-4aa9638f9c0e",
+            "started": "18009864"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 94,
+            "pod_uid": "ea577825-28f3-4a63-85db-ccc21407f713",
+            "started": "18011024"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 94,
+            "pod_uid": "dc2e1fa8-af77-4cf1-b67b-2147d551dc7a",
+            "started": "18010986"
+          }
+        ],
+        "finished_utc": 1794780332.8195817
+      },
+      "runtime_log_audit": {
+        "passed": false,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794780137.2678194,
+          1794780332.8195817
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "ea577825-28f3-4a63-85db-ccc21407f713",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://5fe5696efdf10dcea12f2d8fa7644d9fd0d32a7d61c95f28f2ab73a21f101dfc",
+            "captured_utc": 1794780146.2951522,
+            "path": "pod-logs/ea577825-28f3-4a63-85db-ccc21407f713/runtime/0-previous-1794780146225620000.log",
+            "bytes": 10014,
+            "sha256": "31ad9e94b64302ff20beac3aa338665a421dd69682889d1b9da3f85746ce7e6c",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "dc2e1fa8-af77-4cf1-b67b-2147d551dc7a",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://79b67e5ee2928e855a2a30532d31e260235c700f5547fc4d118e0dce9442a58b",
+            "captured_utc": 1794780146.384601,
+            "path": "pod-logs/dc2e1fa8-af77-4cf1-b67b-2147d551dc7a/runtime/0-previous-1794780146296630000.log",
+            "bytes": 8179,
+            "sha256": "5a40c642b81784da4ad66c81ae04e39d64cb95f279007c70a17be71636c79866",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "0ef47fd3-3951-428c-ae3a-4aa9638f9c0e",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://95fd9bc2af7c7a3f808763b3d862404b1a382d392e85dac35c3720596280becb",
+            "captured_utc": 1794780339.0644789,
+            "path": "pod-logs/0ef47fd3-3951-428c-ae3a-4aa9638f9c0e/runtime/0-current-1794780338986675000.log",
+            "bytes": 180213,
+            "sha256": "e96c0fdb9144499730d0a3e494f5b75cfbae187a4a01b32f38a8d9059dc36211",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:02:22.904951132Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "ea577825-28f3-4a63-85db-ccc21407f713",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://e5ca279b8eb62bb6058019728b56e5d1037b2b83ad646f7547346329978f7423",
+            "captured_utc": 1794780339.2229629,
+            "path": "pod-logs/ea577825-28f3-4a63-85db-ccc21407f713/runtime/1-current-1794780339141269000.log",
+            "bytes": 2691,
+            "sha256": "551c68ac9243477c069a89ea65c55d4edfe632d4c6b3eb6093c8703915de2c44",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:02:28.096271984Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "dc2e1fa8-af77-4cf1-b67b-2147d551dc7a",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://94f916f1b9fbb512b7d539866365b79e7ec2657c800c8ab9454b37e1cc3b93dd",
+            "captured_utc": 1794780339.373944,
+            "path": "pod-logs/dc2e1fa8-af77-4cf1-b67b-2147d551dc7a/runtime/1-current-1794780339299210000.log",
+            "bytes": 4223,
+            "sha256": "44423b7e31740c4676e5764d673a508e7a2543fc41d669a598197c91651b36a5",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:02:23.095888938Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      }
+    },
+    {
+      "state": {
+        "started": 1794780805.7045949,
+        "namespace": "slimfaas-pr506-fa51-leader-async-01",
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-50",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "endurance",
+        "fault_case": "volume-loss",
+        "ingress_role": "leader",
+        "kind": "async",
+        "updated": 1794781029.283312,
+        "phase": "closed",
+        "job_uid": "0e9f64eb-e193-4825-a372-0cf3e9073529",
+        "job_status": {
+          "completionTime": "2026-11-15T22:17:05Z",
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T22:17:05Z",
+              "lastTransitionTime": "2026-11-15T22:17:05Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "SuccessCriteriaMet"
+            },
+            {
+              "lastProbeTime": "2026-11-15T22:17:05Z",
+              "lastTransitionTime": "2026-11-15T22:17:05Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "Complete"
+            }
+          ],
+          "ready": 0,
+          "startTime": "2026-11-15T22:13:27Z",
+          "succeeded": 1,
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 32010170368,
+        "finished": 1794781038.754411,
+        "passed": true,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa51-leader-async-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794780809.04026,
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "case": "volume-loss",
+        "ingress_role": "leader",
+        "kind": "async",
+        "passed": true,
+        "workload_started": true,
+        "injected_fault": true,
+        "actual_target_requests": 1,
+        "actual_concurrency": 1,
+        "scope": "Single owned runtime killed; its complete data-PV contents moved outside active mounts and never restored. Other data volumes retained. A paused third runtime is killed and returns without its in-memory announcements. Source rejoins with fresh storage. All kind workers share their VM; this is logical PV-content loss, not independent-host hardware proof.",
+        "events": [
+          {
+            "utc": 1794780823.344341,
+            "event": "function-gated"
+          },
+          {
+            "utc": 1794780823.3569145,
+            "event": "third-node-suspended-before-upload",
+            "node": 1,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 34,
+              "pod_uid": "f1653507-083e-4a79-92ad-1fcd08103c5b",
+              "started": "18077879"
+            }
+          },
+          {
+            "utc": 1794780828.4830496,
+            "event": "accepted-with-two-declared-volume-copies",
+            "status": 202,
+            "ingress_storage_identity": "311d426a2de14bbdaab8de6d53a6d5e7",
+            "survivor_storage_identity": "ad8af441378849868105c241b4d3d2ac"
+          },
+          {
+            "utc": 1794780828.4946477,
+            "event": "ingress-runtime-killed",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 0,
+              "pid": 34,
+              "pod_uid": "8c98a835-dca6-4d2d-b748-b61cad5b6b09",
+              "started": "18077938"
+            }
+          },
+          {
+            "utc": 1794780828.5005074,
+            "event": "data-volume-contents-permanently-removed",
+            "node": 0,
+            "quarantine": "/evidence/runs/slimfaas-pr506-fa51-leader-async-01/volume-quarantine/slimfaas-0-1794780828499077596",
+            "retained_entries": [
+              {
+                "name": "backup",
+                "device": 64772,
+                "inode": 386356812
+              },
+              {
+                "name": "slimfaas-0",
+                "device": 64772,
+                "inode": 130534589
+              },
+              {
+                "name": ".profile-bootstrap-consumed",
+                "device": 64772,
+                "inode": 919566
+              },
+              {
+                "name": ".slimfaas-files-storage-identity",
+                "device": 64772,
+                "inode": 919571
+              }
+            ],
+            "initialization": {
+              "node": "slimfaas-0",
+              "chunk_bytes": 65536,
+              "existing_wal": false,
+              "fresh_bootstrap_permission": false
+            }
+          },
+          {
+            "utc": 1794780828.5046146,
+            "event": "absent-runtime-killed-without-consuming-historical-announcements",
+            "node": 1
+          },
+          {
+            "utc": 1794780831.6014326,
+            "event": "returned-node-ready",
+            "node": 1,
+            "body_already_local": false,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 97,
+              "pod_uid": "f1653507-083e-4a79-92ad-1fcd08103c5b",
+              "started": "18079882"
+            }
+          },
+          {
+            "utc": 1794780841.200243,
+            "event": "fresh-ingress-repaired-without-bootstrap",
+            "node": 0,
+            "original_storage_identity": "311d426a2de14bbdaab8de6d53a6d5e7",
+            "fresh_storage_identity": "2814e7bb36b24a4cb7aaa3c43651b06c",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 0,
+              "pid": 94,
+              "pod_uid": "8c98a835-dca6-4d2d-b748-b61cad5b6b09",
+              "started": "18079840"
+            }
+          }
+        ],
+        "post_delivery_observation_seconds": 180,
+        "ready_utc": 1794780816.818961,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 34,
+            "pod_uid": "8c98a835-dca6-4d2d-b748-b61cad5b6b09",
+            "started": "18077938"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 34,
+            "pod_uid": "f1653507-083e-4a79-92ad-1fcd08103c5b",
+            "started": "18077879"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 34,
+            "pod_uid": "31c74d7f-d6ed-4c69-8434-30372c3c54f9",
+            "started": "18077926"
+          }
+        ],
+        "driver_sha256": "3b65a8906c3bcdc91afdb617dff20c7b34d12d77f48a4b4b0f5fd821c2819f1a",
+        "ingress_node": 0,
+        "absent_node": 1,
+        "survivor_node": 2,
+        "identifier": "bd62aeb735534256b0dc836b57f19b42",
+        "physical_id": "sf-internal-ba5a187e4b5f45c5b336df3659735d24-internal",
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+        "payload_bytes": 1048576,
+        "acceptance_seconds": 5.114903895999305,
+        "healthy_majority_recovery_seconds": 1.4178615309938323,
+        "absent_node_catchup_after_ready_seconds": 3.667870283126831,
+        "fresh_ingress_catchup_after_ready_seconds": 4.061979532241821,
+        "observed_after_delivery_seconds": 180.12973919700016,
+        "accounting": {
+          "accepted": 1,
+          "unknown": [],
+          "completed_deliveries": 1,
+          "distinct_delivered_ids": 1,
+          "repeated_deliveries": {},
+          "successful_delivery_attempts": 1,
+          "failed_delivery_attempts": 0,
+          "successful_id_functions": [
+            {
+              "id": "bd62aeb735534256b0dc836b57f19b42",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            }
+          ],
+          "repeated_successful_id_functions": [],
+          "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "accepted": 1,
+        "unknown_count": 0,
+        "missing_confirmed": [],
+        "verified_public_file_nodes": [],
+        "final_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 94,
+            "pod_uid": "8c98a835-dca6-4d2d-b748-b61cad5b6b09",
+            "started": "18079840"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 97,
+            "pod_uid": "f1653507-083e-4a79-92ad-1fcd08103c5b",
+            "started": "18079882"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 34,
+            "pod_uid": "31c74d7f-d6ed-4c69-8434-30372c3c54f9",
+            "started": "18077926"
+          }
+        ],
+        "finished_utc": 1794781022.3364866
+      },
+      "runtime_log_audit": {
+        "passed": false,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794780816.818961,
+          1794781022.3364866
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "8c98a835-dca6-4d2d-b748-b61cad5b6b09",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://2443016fb113396f805b5f03097ed3cdaf3ae7ff84cb7cc1d359fb45a3d5d9f0",
+            "captured_utc": 1794780837.233687,
+            "path": "pod-logs/8c98a835-dca6-4d2d-b748-b61cad5b6b09/runtime/0-previous-1794780837159257000.log",
+            "bytes": 33080,
+            "sha256": "179ca2032779e053ccd93c3e7ea37d3970a1a5796195aae0bba29a8caae7962e",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "f1653507-083e-4a79-92ad-1fcd08103c5b",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://8a1a31310319e120cd41cef2dcab05a6169f01f7922da234a2572a995e000333",
+            "captured_utc": 1794780837.311539,
+            "path": "pod-logs/f1653507-083e-4a79-92ad-1fcd08103c5b/runtime/0-previous-1794780837235062000.log",
+            "bytes": 5826,
+            "sha256": "451d06c4cf8ed9a08edf8dc5a85a9cdb5b9fcb3a31919cabad6659c19f2b6f3f",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "8c98a835-dca6-4d2d-b748-b61cad5b6b09",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://3efa13739336d64a408701ef69b3dcc37f82fd0a07979073a02cd2c7daa3f459",
+            "captured_utc": 1794781030.120726,
+            "path": "pod-logs/8c98a835-dca6-4d2d-b748-b61cad5b6b09/runtime/1-current-1794781030047230000.log",
+            "bytes": 3015,
+            "sha256": "20857833f88f4c1e19544577f4c10123ff690d7812351ec9cf6a14f5e0cc2c2f",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:13:57.054429095Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "f1653507-083e-4a79-92ad-1fcd08103c5b",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://87127a60e93af898f8b2e9b469302b007ae44da0e3f551343cb87778473cf110",
+            "captured_utc": 1794781030.273484,
+            "path": "pod-logs/f1653507-083e-4a79-92ad-1fcd08103c5b/runtime/1-current-1794781030192901000.log",
+            "bytes": 3438,
+            "sha256": "d8566d0b427360e5656cd5e4fad5feac0338d0326f54f073a1ae9712204e3dcf",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:13:51.034099480Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "31c74d7f-d6ed-4c69-8434-30372c3c54f9",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://3884afe739c66a273be72d1d9c757ce7dec511ef0afe743e2e4de81fa3addc13",
+            "captured_utc": 1794781030.405476,
+            "path": "pod-logs/31c74d7f-d6ed-4c69-8434-30372c3c54f9/runtime/0-current-1794781030319920000.log",
+            "bytes": 149668,
+            "sha256": "0b759d56d01f11ad600a4ea3280627e48245b4314a9e0bc9be106eeefe2c1a48",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:13:48.744010523Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:13:49.533946012Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:13:49.745162311Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:13:50.516627564Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:13:50.534984883Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:13:50.745458763Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:13:51.517277725Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:13:51.536130672Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      }
+    },
+    {
+      "state": {
+        "started": 1794780348.9937332,
+        "namespace": "slimfaas-pr506-fa51-leader-file-01",
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-50",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "endurance",
+        "fault_case": "volume-loss",
+        "ingress_role": "leader",
+        "kind": "file",
+        "updated": 1794780562.4065971,
+        "phase": "closed",
+        "job_uid": "1feba598-7662-4535-9e68-e5e9d53b884a",
+        "job_status": {
+          "completionTime": "2026-11-15T22:09:20Z",
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T22:09:20Z",
+              "lastTransitionTime": "2026-11-15T22:09:20Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "SuccessCriteriaMet"
+            },
+            {
+              "lastProbeTime": "2026-11-15T22:09:20Z",
+              "lastTransitionTime": "2026-11-15T22:09:20Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "Complete"
+            }
+          ],
+          "ready": 0,
+          "startTime": "2026-11-15T22:05:50Z",
+          "succeeded": 1,
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 32049803264,
+        "finished": 1794780571.916119,
+        "passed": true,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa51-leader-file-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794780352.2755437,
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "case": "volume-loss",
+        "ingress_role": "leader",
+        "kind": "file",
+        "passed": true,
+        "workload_started": true,
+        "injected_fault": true,
+        "actual_target_requests": 1,
+        "actual_concurrency": 1,
+        "scope": "Single owned runtime killed; its complete data-PV contents moved outside active mounts and never restored. Other data volumes retained. A paused third runtime is killed and returns without its in-memory announcements. Source rejoins with fresh storage. All kind workers share their VM; this is logical PV-content loss, not independent-host hardware proof.",
+        "events": [
+          {
+            "utc": 1794780359.8127944,
+            "event": "third-node-suspended-before-upload",
+            "node": 1,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 34,
+              "pod_uid": "ed759948-570e-4047-9e51-fd16d8331755",
+              "started": "18032273"
+            }
+          },
+          {
+            "utc": 1794780364.9354932,
+            "event": "accepted-with-two-declared-volume-copies",
+            "status": 200,
+            "ingress_storage_identity": "a1a2770e3ea247c38cd2a2b138e347f0",
+            "survivor_storage_identity": "422e26d60843437db320cffc4e6d6566"
+          },
+          {
+            "utc": 1794780364.9471264,
+            "event": "ingress-runtime-killed",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 0,
+              "pid": 33,
+              "pod_uid": "1da7bc44-79bf-43d6-967c-263715933259",
+              "started": "18032214"
+            }
+          },
+          {
+            "utc": 1794780364.9524567,
+            "event": "data-volume-contents-permanently-removed",
+            "node": 0,
+            "quarantine": "/evidence/runs/slimfaas-pr506-fa51-leader-file-01/volume-quarantine/slimfaas-0-1794780364950744023",
+            "retained_entries": [
+              {
+                "name": "backup",
+                "device": 64772,
+                "inode": 365217326
+              },
+              {
+                "name": "slimfaas-0",
+                "device": 64772,
+                "inode": 163984044
+              },
+              {
+                "name": ".profile-bootstrap-consumed",
+                "device": 64772,
+                "inode": 71602580
+              },
+              {
+                "name": ".slimfaas-files-storage-identity",
+                "device": 64772,
+                "inode": 71602587
+              }
+            ],
+            "initialization": {
+              "node": "slimfaas-0",
+              "chunk_bytes": 65536,
+              "existing_wal": false,
+              "fresh_bootstrap_permission": false
+            }
+          },
+          {
+            "utc": 1794780364.957067,
+            "event": "absent-runtime-killed-without-consuming-historical-announcements",
+            "node": 1
+          },
+          {
+            "utc": 1794780367.8062344,
+            "event": "returned-node-ready",
+            "node": 1,
+            "body_already_local": false,
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 1,
+              "pid": 95,
+              "pod_uid": "ed759948-570e-4047-9e51-fd16d8331755",
+              "started": "18033473"
+            }
+          },
+          {
+            "utc": 1794780377.1742027,
+            "event": "fresh-ingress-repaired-without-bootstrap",
+            "node": 0,
+            "original_storage_identity": "a1a2770e3ea247c38cd2a2b138e347f0",
+            "fresh_storage_identity": "371d85c3822241cf8c1faf1d37b50347",
+            "identity": {
+              "binaries_sha256": {
+                "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+                "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+                "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+                "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+              },
+              "node": 0,
+              "pid": 95,
+              "pod_uid": "1da7bc44-79bf-43d6-967c-263715933259",
+              "started": "18033516"
+            }
+          }
+        ],
+        "post_delivery_observation_seconds": 180,
+        "ready_utc": 1794780359.7803183,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 33,
+            "pod_uid": "1da7bc44-79bf-43d6-967c-263715933259",
+            "started": "18032214"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 34,
+            "pod_uid": "ed759948-570e-4047-9e51-fd16d8331755",
+            "started": "18032273"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 34,
+            "pod_uid": "886882f8-42b7-4054-9244-0bf3ef5cd3b4",
+            "started": "18032237"
+          }
+        ],
+        "driver_sha256": "3b65a8906c3bcdc91afdb617dff20c7b34d12d77f48a4b4b0f5fd821c2819f1a",
+        "ingress_node": 0,
+        "absent_node": 1,
+        "survivor_node": 2,
+        "identifier": "81f3ae0521064824a4cab98e97c256d3",
+        "physical_id": "sf-internal-42b6a43e75a04f369b95e6bf37a9deb6-internal",
+        "sha256": "631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769",
+        "payload_bytes": 1048576,
+        "acceptance_seconds": 5.112914097990142,
+        "healthy_majority_recovery_seconds": 1.6178248299984261,
+        "absent_node_catchup_after_ready_seconds": 3.2599215507507324,
+        "fresh_ingress_catchup_after_ready_seconds": 4.060520648956299,
+        "observed_after_delivery_seconds": 180.2453103000007,
+        "accounting": {
+          "accepted": 1,
+          "unknown": [],
+          "completed_deliveries": 0,
+          "distinct_delivered_ids": 0,
+          "repeated_deliveries": {},
+          "successful_delivery_attempts": 0,
+          "failed_delivery_attempts": 0,
+          "successful_id_functions": [],
+          "repeated_successful_id_functions": [],
+          "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "accepted": 1,
+        "unknown_count": 0,
+        "missing_confirmed": [],
+        "verified_public_file_nodes": [
+          0,
+          1,
+          2
+        ],
+        "final_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 95,
+            "pod_uid": "1da7bc44-79bf-43d6-967c-263715933259",
+            "started": "18033516"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 95,
+            "pod_uid": "ed759948-570e-4047-9e51-fd16d8331755",
+            "started": "18033473"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 34,
+            "pod_uid": "886882f8-42b7-4054-9244-0bf3ef5cd3b4",
+            "started": "18032237"
+          }
+        ],
+        "finished_utc": 1794780557.6731114
+      },
+      "runtime_log_audit": {
+        "passed": false,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794780359.7803183,
+          1794780557.6731114
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "1da7bc44-79bf-43d6-967c-263715933259",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://8113c2c166565d2596f33dc569f8c933e9ee66479985b74ea67e29000c8332e1",
+            "captured_utc": 1794780370.362428,
+            "path": "pod-logs/1da7bc44-79bf-43d6-967c-263715933259/runtime/0-previous-1794780370286812000.log",
+            "bytes": 32728,
+            "sha256": "b32931c92f936cd85b5ec626d7e276072c37691cbc67c828a3072395bb6243cf",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "ed759948-570e-4047-9e51-fd16d8331755",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": true,
+            "exit_code": 0,
+            "container_id": "containerd://9cc8374cfa77d767d90ef7d3c9381ddae6083aaf91508b56eb180e0cc785ac3e",
+            "captured_utc": 1794780370.430877,
+            "path": "pod-logs/ed759948-570e-4047-9e51-fd16d8331755/runtime/0-previous-1794780370363464000.log",
+            "bytes": 5041,
+            "sha256": "40e2afbff3331603f25087b23a53f057b940787f1a5a2ea1fccf2bab3f76bf81",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "1da7bc44-79bf-43d6-967c-263715933259",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://65605008eb3d55eac1e2e48ee6f66bf11e5a0316b63651ec0539efcc405d0b37",
+            "captured_utc": 1794780563.2326772,
+            "path": "pod-logs/1da7bc44-79bf-43d6-967c-263715933259/runtime/1-current-1794780563159822000.log",
+            "bytes": 2689,
+            "sha256": "53cd2c3cb34e67ff2896fe4b578449a81fc0ed271ed34cffb17421e2d965c6db",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:06:12.927808417Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "ed759948-570e-4047-9e51-fd16d8331755",
+            "container": "runtime",
+            "restart_index": 1,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://b6940f5b4cff9f2ac028636e6b5be084892a9f58c31d7a7c3808edd50f0f6832",
+            "captured_utc": 1794780563.376579,
+            "path": "pod-logs/ed759948-570e-4047-9e51-fd16d8331755/runtime/1-current-1794780563305960000.log",
+            "bytes": 7398,
+            "sha256": "1e0b1babc9bddc50c3d0e5916be241c859d5160a84e3a572098f96c74e860814",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:06:06.962062550Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "886882f8-42b7-4054-9244-0bf3ef5cd3b4",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://df90928dd072fd87e4c4fb023a2d3cecee261b2986bbf3aaf2845c9507694c86",
+            "captured_utc": 1794780563.530047,
+            "path": "pod-logs/886882f8-42b7-4054-9244-0bf3ef5cd3b4/runtime/0-current-1794780563451630000.log",
+            "bytes": 127812,
+            "sha256": "13a7a37a837b0e01876951b5b8715bc23474a756fcc5709c3b5b523b2dc4ad7f",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:06:05.232860340Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:06:06.234061712Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:06:06.651141541Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:06:07.234954958Z fail: SlimFaas.Database.SlimDataService[870726782]",
+              "2026-11-15T22:06:07.651615701Z fail: SlimFaas.Database.SlimDataService[870726782]"
+            ]
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      }
+    },
+    {
+      "state": {
+        "started": 1794781252.202566,
+        "namespace": "slimfaas-pr506-fa52-abba-1-before",
+        "source": "511630668ffad507f14d6ce7d42c941bb224ad84",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-33",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "before",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "normal",
+        "fault_case": "none",
+        "ingress_role": "follower",
+        "kind": "async",
+        "updated": 1794781455.3640032,
+        "phase": "closed",
+        "job_uid": "abf2b8cd-2339-41ea-9e24-f078ffabf195",
+        "job_status": {
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T22:24:07Z",
+              "lastTransitionTime": "2026-11-15T22:24:07Z",
+              "message": "Job has reached the specified backoff limit",
+              "reason": "BackoffLimitExceeded",
+              "status": "True",
+              "type": "FailureTarget"
+            },
+            {
+              "lastProbeTime": "2026-11-15T22:24:07Z",
+              "lastTransitionTime": "2026-11-15T22:24:07Z",
+              "message": "Job has reached the specified backoff limit",
+              "reason": "BackoffLimitExceeded",
+              "status": "True",
+              "type": "Failed"
+            }
+          ],
+          "failed": 1,
+          "ready": 0,
+          "startTime": "2026-11-15T22:20:53Z",
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 31247114240,
+        "finished": 1794781464.7997398,
+        "passed": false,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa52-abba-1-before",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794781254.7915258,
+        "source": "511630668ffad507f14d6ce7d42c941bb224ad84",
+        "chunk_size_marker_requested": 65536,
+        "ready_only": false,
+        "workload_started": true,
+        "passed": false,
+        "mode": "Linux ARM64 managed/trimmed .NET 11, bounded diagnostic, not formal performance acceptance",
+        "messages_requested": 200,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "offload_threshold_bytes": 524288,
+        "chunked": false,
+        "post_send_observation_seconds": 180,
+        "request_timeout_seconds": 15,
+        "fixture_note": "Existing chaos function/client journals fsync every record; this instrumentation differs from the aggregate-only HTTP target.",
+        "runtime_sha256": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll_sha256": "93e94bb596d5db7dec864209389852b7a198db255749fe2af7d22cbcf4bafb04",
+        "slimdata_dll_sha256": "bcc65b7f81475181c47c51b85a48aba1ecb9e5152e92d79f28e12fd217e1c5a8",
+        "harness_sha256": "ebc3c3b2090fed78ba60edaaee81cf42b19d47aa03419499edfe8ff161014eb4",
+        "driver_sha256": "efd2b13c911f39c086ce3766989af1e353ed86ddf8ec0acdbff30a4f4f3c7e80",
+        "ready_utc": 1794781263.221869,
+        "markers": [
+          {
+            "node": 0,
+            "path": "/evidence/runs/slimfaas-pr506-fa52-abba-1-before/state/data/slimfaas-0/slimfaas-0/wal/slimdata-chunk-size",
+            "value": "65536"
+          },
+          {
+            "node": 1,
+            "path": "/evidence/runs/slimfaas-pr506-fa52-abba-1-before/state/data/slimfaas-1/slimfaas-1/wal/slimdata-chunk-size",
+            "value": "65536"
+          },
+          {
+            "node": 2,
+            "path": "/evidence/runs/slimfaas-pr506-fa52-abba-1-before/state/data/slimfaas-2/slimfaas-2/wal/slimdata-chunk-size",
+            "value": "65536"
+          }
+        ],
+        "send_seconds": 1.3511603210063186,
+        "accepted": 199,
+        "unknown_count": 1,
+        "unexpected_http_statuses": [
+          500
+        ],
+        "accepted_per_second": 147.2808199783343,
+        "observation_errors": {
+          "sampling": [],
+          "receipts": [],
+          "integrity": []
+        },
+        "observed_after_send_seconds": 180.00040870797238,
+        "missing_confirmed": [],
+        "bounded_repeated_deliveries": {},
+        "accounting": {
+          "accepted": 199,
+          "unknown": [
+            {
+              "id": "7fd37883032142c99ffabe026ed19d2e",
+              "kind": "async",
+              "outcome": "unresolved"
+            }
+          ],
+          "completed_deliveries": 199,
+          "distinct_delivered_ids": 199,
+          "repeated_deliveries": {},
+          "successful_delivery_attempts": 199,
+          "failed_delivery_attempts": 0,
+          "successful_id_functions": [
+            {
+              "id": "566f1a49bce1497487a0629566fc486b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "34af0457d39f4c7889299cd6d825efe9",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "4d9139860f3641668e74464eb0fa0c56",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c81a0e6b62f246c1a40dd938988ee116",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "35c0391fee8c4aadb954fcac57d27eb1",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "0c767e321b64424980e5506138ee4d2c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "2e3c756b6c5346e191127e161c7399ca",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c9474e73720547a49da985e5c453db53",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "4ff5557218414802b48367b86a6539e8",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "94a34ef670154d85863787ce1a34068c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "29dd63d5c7d849a8af2b3137e573a88b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c2c60372c7844771aa6f6ee4aae83ed4",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7e21e16b9c614ba99a5a5ac69eb561ce",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "0d6a2ddb81e74ceeb28121d0378c266f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9535aa969c0e47d88b4cc31e0c6c0c54",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c984698abf7f412bb4063c3bffb7c174",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "db163b9db40645ddafca2746ff3ebe4f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "cb70f798bca6497080786dc4b16f2b19",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "cb716373c6c444caa14a2e629448e424",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "4c77ba45607e48da8453ce4edb52500e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "1e5a95acfd0c43d4aa19e61940c0901f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b07cf36c864d446d968f9d2729450fe0",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c304da34bcb94bb1ac7e0abc69284db4",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "23ae5b8861014225a6f8d5ee76b47c2c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7016089cb9394c0ba29eaba13aa560ae",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "632cb71613c648ac863fb40a4adde9c0",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "e6dccd90009c48b687cdd007c1c5d1db",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "db7405a350534753a30c3a08837a51a6",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7d452a3dbddf48a3a8d084f2f5fe81a6",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "40f24991b97f45c78dd5b4b7d570361d",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "cf89315b284c42f78038ff2933e703fb",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "4ba669ca82f146b188860af3c4896fc4",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "89b870ea2ed741db9360773d6d10669b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f8ffbe06b5954d2b83103c1450f8d031",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "fd4e34814ca245c094ac6a7b2dbb5fea",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "77d5d28f27b04f3f8b4bb7f21308b534",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "94036224faab474b8b9b66a641654604",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f9828f8d979c4c828dbd62029332a564",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7c198ee6388148cda8ae99cba93df715",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "3fe22c2b066740b09ba57afefd8473a9",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f877794d407e4c719794b79253789d5e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "53c957dd594641578afeb06127179552",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7fb1560a1b1c4c43897a85c0400e5947",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "02ad3deccf264c409ffcd6af756f5b7c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "1f3e80318fb24c0da1bc5ee0b1e1135c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "450f1e23e2cf4abebd438d0ed8306dca",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "952f2e898034433a88c0c84bb4037e07",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "32f3f20318ef49f8a5ad76fa4f3ec8a8",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "e863929424ec40d49521c2d8e11261c3",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "0e0e9dadedc9431e97da29ed6f5b7e42",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "91ca923bc50f495591a44e300dfa7c7c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "28adc26d131d467893e5f5816296a417",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "32904f90cd3e4bb98bcbd6d136e7091c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "8e260c20499d4bb8a55e3c6e56360733",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "09ac22329cca461dbc56a4be0bc93202",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "72bd66925eea4a9c98dc55d14556e75c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "da00a5e43a3449e18485682e5273d1d7",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "012c982e5b934345ae685699299891e2",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "99b60c78c7ab4f9fa9fa9b0742615ac4",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "014df6713919477d8b2d090b048199d1",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "73f88d2fa8f34ee19b767979e5e1797d",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "464919168bd544cf975fdb14e55cd070",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "537f5f9d6e3d4cb7b9ad7d3bf5a75d1e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "e4ab9fd5ed344317afd081312ebef39f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a4ab9fa9a1b94193975f944f4c599369",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c894aee4b0674e94b7d49e105c021184",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9ad6bc93f3ae4be59c7c67c4b3a294b3",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "5b4c8b72c9614d848a6da8a3378fa263",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "37d369c7f1b14c51b3f8e5dbbebfa264",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "ac9034bb4b714e8183a9f48b9e1d4c34",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7fd6305c769642bab82df2f53540fde9",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "8398b5ad8aa6440fb26745ec73506198",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "3482d2e417b344e4b1e73af625023b64",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a66ba31f567a4021a8accc362ae5832a",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "6d96f374837341f2b169078a04a080e6",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "06145141ea784a42abc64af3128c2c7f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "86b1e764aa244bd6929c26d587220a0e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "12a648646e384c4cb9394f7e22ddc533",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "31ba6bfce9e245a1a925eda21ee39fd9",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "413cd8a209de47bab1d164fad57c5850",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9f3820a06eb947eea7ac1a81b1738070",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "02768e8272f64b7cabc40f06df706eee",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b93801dcaaee44aab974625f37ea6117",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "be043ff9f2ec41629b6160a90c12ed36",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c5c5548805b44d72affea8b9e57d4597",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f0990d70203345c591c728833f0d691c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a94f4e05ec6e489998c2b708f05e4c6f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f34bcbd3192e44c299ab3ab44f83d6c3",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "d5eaf93418a14f008d75efee109c94c7",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "580633df0d9f410aa49303fc6d0278af",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "cf5f663d04b14564923f90224a06557e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7f1cca8cc878441499424714db908241",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "e65672b1bd20420c874067537093fd15",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "bdd6d8b508404c2cb7ca8b5dc0e125f7",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "fbc50a539c604ed3855b7efddcdbb263",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "fd938820d72b4e2aac831954e052d20e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "0bf6e309c08f449793afdaf5085679ca",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "0990eee452a54c03b09f9f367fcd72b1",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "733541b6174041a5af4e0221fe6505f8",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "90cd7248fbe847f4b45f4e6718e58d81",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "62ce00e235e84b8d9726e2e9af85a331",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "bcd601a60ce34327988780b7279d7a8d",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "ebe3925bc09243f4ac5719fb5ac1442d",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b9ee7ec17c07437088fd750601b0a222",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c85263a7467f4b83bcfbe975322b0c96",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "eeea9fd5e32e4c3683ecc051fc3746a3",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "d0831201124446b184318f5fea2fba43",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c7f57c0cb00d42099d22b8be7d0c7e3f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "10467ff239fe4aa2bc4d72f77386b48b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a95d89268a524796bda380b4775abfb3",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "466cc135946b4a458354dc8e3e33a6d7",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9d29d13a91874077a8e5ccd3f8f1359c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "e3d88c0c3f7f498facc17bed1ce0444b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c37fc26ffcac4da39751df830000938c",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "60cd9b531db544a695e5e8dd7b4ee619",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "bae9c43ef24347009c5bdef9996431da",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "398aca33d028427dac241cb1200bc61e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a81821fbd7684c278b177832f144738a",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "e56e67c8e5644fcd8c3701a4378d2ec3",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "384881c8a8464e2d8281e25261a0d60b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9e14747c97dc46b08d0e08d8f6759146",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "3da573a10c004b64865f114fb1ced6d2",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "358d3fc5b2ea4d1580334d6167d5eacf",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a597b5167bb34730b6be4af2f6b20985",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "181fc9ddce854c8b80d348b4741abcb7",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "cb171c8ae29f466aba059d2b2724a742",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "2f6133c9f4134ce2b8f47eb790ae5f5b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "2a3d6483f6d04d2aa9bb92caaaee3847",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b7031a7ea6a64e1f92566a544a2fc5aa",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b76450cc44724058850a51b228663b16",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "60fd76fe2a5d45dd9b88b90df4057a74",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "49dfedb22df84d6f9fed1ed72e4ecf52",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "5b26548ae75e490687c94aae25c9f207",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "d713c70869e94ae18d5def142cf7cef6",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "d61a4ba2f0c24d4899136cf370123bd9",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "fd2cf593c0144c55bb7d5cfe1ad759f4",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b3668c3115414ade84ea9a66b0e80853",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "6a686fb9cd574188ba29327cd2cdedc9",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "2078542cc26144bd950dd096d3649f99",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7c7a80d749514831823d9d431292a769",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "30f9408ab9e14207ae11951c68d01759",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "fc9b08266f044406b0c305e6a07a3a86",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9397b4d8a01f4be8afa42086f08b8cff",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f73ad3c5b0ae45cdb545f9a458698786",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "13a1513b558e4607a3ae14f02cbb275b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "74f3e4c7458444fda24142404d7af224",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "c398efffbe284d40ba4af2c0d998664d",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "539822930c73402d84fd390f9dfb924d",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "2b487cb6c8fc4329a88d8f2786378d62",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "aebdfd4241394b06b3eb31b7db2cf972",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a0f523f66ff24fed93caacff5e1f0d9f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "7a0a653adc53463f95a1de64f7ea0b1a",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "877981bb4e9149119ab264149aff1049",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a804ed1f2ae64395b4fa48401dc75b3b",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "1ddaa44c67584632ac9f619aadda0ed5",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "a2718c8c57244f5a81093eeda46533aa",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "0425631264474bbba4e1564a1751eeba",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "69bdca47814145ddba4cf20372943c50",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "0735935f60f44bf89adac4f1dd83a70f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "d96f43d4056f43f6944037f1048277af",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9742739313284696bc2afe9945f099ae",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9e09cf449d024434b460bead84c45aed",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "5bdbdd1872464e63a0621283c3ab85a7",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "2489a41094f94a3695a8f05b880dd4d0",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "3ec1ddefd01e405593ec530e28f9930f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "5655b31884ce4a4a9956dc6b3a2525dc",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "dc9b02993930459aa69e06237289628a",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "1e1192f5b37249a094be90e91b7dba2f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "3efbc05b81784f1fb1736634110f87a6",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f1cd40d87c2c475d965058effbbc0a87",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "39880b34d3064f72a322861a93eb6c53",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b77fd073bb6b40aa9373915834d7b36a",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "83001150a9f6481781a16b6878f3d254",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "2c158208ac3241c5b1a902a1469eb4aa",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "b2c8b2bcb60342eba6f419a6e00f4c67",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f60b93173740473e8cb600c3d944f892",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "e7e621bb34974918bd588582201a8da2",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "28115023728a4b72b7ef09fe44480ff5",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "68d306b698ab40299331c0a4b44b5619",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "071c24695a8a4ef0b10496c715df1949",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f22bb8bfb8fc45e9bf42c63c13d0b783",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "1dfb4a7269f2424a86c57c7c1293ca36",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "8e265ffe7db842b8b51fc1d891bc6e2e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "d54996f8d79346bca9bfd087b1b358c3",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "4d67cf0fe9154c64abe44826752d1151",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f739991eb9a841e78dadfe999d1a390e",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "84ca836622c045bc8db7c984edeb9f5f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "9a1ba03a1fc94752838ce255911a1a39",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "cdfdf1b64264417ab45aa1ea7a15ccad",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "1582937b494e4db689f9b670afa34809",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "877ec1b596e04f53a9411710fc58e8cc",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "1bdcb291ef764f3ea76ddd132f3c4d0f",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "378308deb6ee45b8bd2cbe42b8296f44",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "05371c2c80364a7e8418f065223ecd9d",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "55b0a581e7b24fcc9c611657facd2112",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "3b6cbebb7fdd4adc8a7095ca9a1aa2a2",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "76a74a44c0154be7967e3f6c178e05cb",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "86c8ad27a0714216981ba24aa94600cd",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            },
+            {
+              "id": "f61f2a7be34f4ff1ba98ef1faa3f7c10",
+              "function": "chaos",
+              "successful_deliveries": 1,
+              "acceptance": "confirmed"
+            }
+          ],
+          "repeated_successful_id_functions": [],
+          "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "max_observed_container_restarts": 0,
+        "latencies": {
+          "confirmed": 199,
+          "unknown": 1,
+          "confirmed_delivered": 199,
+          "acceptance_http_seconds": {
+            "count": 199,
+            "mean": 0.08848938547676176,
+            "p50": 0.07858783900155686,
+            "p95": 0.20599228850333018,
+            "p99": 0.24279600762645717
+          },
+          "delivery_intent_to_first_success_seconds": {
+            "count": 199,
+            "mean": 0.8801833217467495,
+            "p50": 0.9801740646362305,
+            "p95": 1.518592071533203,
+            "p99": 1.5568860292434692
+          },
+          "delivery_rate_per_second": 77.15830965583443,
+          "all_confirmed_delivered": true,
+          "scope": "Acceptance uses client HTTP elapsed time. Delivery starts at the fsynced client intent timestamp and ends at the first successful handler completion record, before receipt fsync. All pods share the same VM UTC clock. Unknown outcomes stay separate even if delivered; extra deliveries are evaluated independently."
+        },
+        "resources": {
+          "scopes": {
+            "after-send": {
+              "total_all_three_runtime_processes": {
+                "cpu_seconds": 4.988975,
+                "allocated_bytes": 366575464.0,
+                "gc_gen0": 37.0,
+                "gc_gen1": 36.0,
+                "gc_gen2": 36.0
+              },
+              "per_confirmed_message": {
+                "cpu_seconds": 0.025070226130653267,
+                "allocated_bytes": 1842087.7587939699,
+                "gc_gen0": 0.18592964824120603,
+                "gc_gen1": 0.18090452261306533,
+                "gc_gen2": 0.18090452261306533
+              },
+              "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+              "utc_window": [
+                1794781263.5427182,
+                1794781264.97649
+              ],
+              "runtime_io_delta": [
+                {
+                  "rchar": 511557324,
+                  "wchar": 208761217,
+                  "syscr": 6344,
+                  "syscw": 2008,
+                  "read_bytes": 376012800,
+                  "write_bytes": 211607552,
+                  "cancelled_write_bytes": 0
+                },
+                {
+                  "rchar": 486243082,
+                  "wchar": 208764157,
+                  "syscr": 5851,
+                  "syscw": 2019,
+                  "read_bytes": 311259136,
+                  "write_bytes": 211607552,
+                  "cancelled_write_bytes": 0
+                },
+                {
+                  "rchar": 217487171,
+                  "wchar": 208761200,
+                  "syscr": 2802,
+                  "syscw": 2000,
+                  "read_bytes": 133431296,
+                  "write_bytes": 211619840,
+                  "cancelled_write_bytes": 0
+                }
+              ],
+              "pod_network_delta": [
+                {
+                  "eth0": {
+                    "rx_bytes": 210698165,
+                    "tx_bytes": 225143212
+                  }
+                },
+                {
+                  "eth0": {
+                    "rx_bytes": 211967641,
+                    "tx_bytes": 137991425
+                  }
+                },
+                {
+                  "eth0": {
+                    "rx_bytes": 210401593,
+                    "tx_bytes": 146320235
+                  }
+                }
+              ]
+            },
+            "after-drain": {
+              "total_all_three_runtime_processes": {
+                "cpu_seconds": 11.177988000000001,
+                "allocated_bytes": 471851216.0,
+                "gc_gen0": 40.0,
+                "gc_gen1": 37.0,
+                "gc_gen2": 37.0
+              },
+              "per_confirmed_message": {
+                "cpu_seconds": 0.05617079396984925,
+                "allocated_bytes": 2371111.638190955,
+                "gc_gen0": 0.20100502512562815,
+                "gc_gen1": 0.18592964824120603,
+                "gc_gen2": 0.18592964824120603
+              },
+              "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+              "utc_window": [
+                1794781263.5427182,
+                1794781270.0531402
+              ],
+              "runtime_io_delta": [
+                {
+                  "rchar": 759375294,
+                  "wchar": 208768332,
+                  "syscr": 9709,
+                  "syscw": 2370,
+                  "read_bytes": 605650944,
+                  "write_bytes": 214564864,
+                  "cancelled_write_bytes": 0
+                },
+                {
+                  "rchar": 486365467,
+                  "wchar": 208771177,
+                  "syscr": 6518,
+                  "syscw": 2370,
+                  "read_bytes": 311259136,
+                  "write_bytes": 214548480,
+                  "cancelled_write_bytes": 0
+                },
+                {
+                  "rchar": 217605493,
+                  "wchar": 208768180,
+                  "syscr": 3439,
+                  "syscw": 2349,
+                  "read_bytes": 133431296,
+                  "write_bytes": 214544384,
+                  "cancelled_write_bytes": 0
+                }
+              ],
+              "pod_network_delta": [
+                {
+                  "eth0": {
+                    "rx_bytes": 211259399,
+                    "tx_bytes": 352267033
+                  }
+                },
+                {
+                  "eth0": {
+                    "rx_bytes": 212430333,
+                    "tx_bytes": 138979964
+                  }
+                },
+                {
+                  "eth0": {
+                    "rx_bytes": 210863127,
+                    "tx_bytes": 147300402
+                  }
+                }
+              ]
+            },
+            "final": {
+              "total_all_three_runtime_processes": {
+                "cpu_seconds": 50.85630499999999,
+                "allocated_bytes": 1156139096.0,
+                "gc_gen0": 77.0,
+                "gc_gen1": 41.0,
+                "gc_gen2": 38.0
+              },
+              "per_confirmed_message": {
+                "cpu_seconds": 0.2555593216080402,
+                "allocated_bytes": 5809744.201005025,
+                "gc_gen0": 0.3869346733668342,
+                "gc_gen1": 0.20603015075376885,
+                "gc_gen2": 0.19095477386934673
+              },
+              "scope": "Runtime processes only, including Raft/Files/proxy/telemetry. Excludes generator, agents and functions. Cumulative allocated bytes differ from retained managed heap or RSS.",
+              "utc_window": [
+                1794781263.5427182,
+                1794781445.0074277
+              ],
+              "runtime_io_delta": [
+                {
+                  "rchar": 763002670,
+                  "wchar": 209641123,
+                  "syscr": 28650,
+                  "syscw": 7024,
+                  "read_bytes": 605650944,
+                  "write_bytes": 254464000,
+                  "cancelled_write_bytes": 282624
+                },
+                {
+                  "rchar": 489902996,
+                  "wchar": 209644077,
+                  "syscr": 24988,
+                  "syscw": 7038,
+                  "read_bytes": 311259136,
+                  "write_bytes": 254373888,
+                  "cancelled_write_bytes": 0
+                },
+                {
+                  "rchar": 220915074,
+                  "wchar": 209641047,
+                  "syscr": 20475,
+                  "syscw": 7013,
+                  "read_bytes": 133431296,
+                  "write_bytes": 254369792,
+                  "cancelled_write_bytes": 532480
+                }
+              ],
+              "pod_network_delta": [
+                {
+                  "eth0": {
+                    "rx_bytes": 217169434,
+                    "tx_bytes": 392250398
+                  }
+                },
+                {
+                  "eth0": {
+                    "rx_bytes": 218068067,
+                    "tx_bytes": 167964217
+                  }
+                },
+                {
+                  "eth0": {
+                    "rx_bytes": 216523235,
+                    "tx_bytes": 176155843
+                  }
+                }
+              ]
+            }
+          },
+          "sampling_interval_seconds": 1,
+          "sampling_errors": [],
+          "sampled_peak_aggregate_runtime_rss_bytes": 621821952,
+          "sampled_peak_aggregate_wal_logical_bytes": 2343098,
+          "sampled_peak_aggregate_wal_file_count": 56,
+          "sampled_peak_aggregate_files_logical_bytes": 626271507,
+          "scope": "All three runtime processes; network includes probes/measurement/function traffic. Kernel I/O is not attributed to WAL vs Files. Inventories/peak RSS are sampled, not continuous maxima. The after-drain sample is within observer cadence of the first all-confirmed reconciliation, while the full 180-second window still runs."
+        },
+        "finished_utc": 1794781445.115319
+      },
+      "runtime_log_audit": {
+        "passed": false,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794781263.221869,
+          1794781445.115319
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "270800ef-104d-4da9-be5c-98744d3bd912",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://2dbb158546e2569b7689f59ec434133d5687d0a5fa2f9872e780a18dedd95a05",
+            "captured_utc": 1794781456.176384,
+            "path": "pod-logs/270800ef-104d-4da9-be5c-98744d3bd912/runtime/0-current-1794781456102763000.log",
+            "bytes": 4714,
+            "sha256": "c9d076549c43435e7a09ea8b698ead422e060c55f9de877d5150279b62a81682",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "b460953d-9729-46f8-877a-20b92190d2dd",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://ba7954eaaf357792724bc5413ed2d113f90d103914726307e890a09e1130ff59",
+            "captured_utc": 1794781456.271036,
+            "path": "pod-logs/b460953d-9729-46f8-877a-20b92190d2dd/runtime/0-current-1794781456224642000.log",
+            "bytes": 8727,
+            "sha256": "bfc921f947e8528d82edf24b7060bcaa2bcb33d2715a649a6160081c0c698f46",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": [
+              "2026-11-15T22:21:03.671852588Z fail: Microsoft.AspNetCore.Server.Kestrel[13]"
+            ]
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "e8630540-0daf-4683-8ddd-c4843c0f7b22",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://dfade1ef6aaa8ba82ca97c9f1cfd77d4d975842581836d8e880fbbc87c435c42",
+            "captured_utc": 1794781456.361577,
+            "path": "pod-logs/e8630540-0daf-4683-8ddd-c4843c0f7b22/runtime/0-current-1794781456317614000.log",
+            "bytes": 6608,
+            "sha256": "cd0ede1d958019d2dc14ecc561d6d7c155097d0e9e0ff95043c2c2b93255c2f3",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      }
+    },
+    {
+      "state": {
+        "started": 1794781039.194803,
+        "namespace": "slimfaas-pr506-fa53-no-remote-01",
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "image": "localhost/slimfaas-pr506:after-tools-net11-50",
+        "chunk_size": 65536,
+        "ready_only": false,
+        "variant": "after",
+        "offload_threshold_bytes": 524288,
+        "payload_bytes": 1048576,
+        "concurrency": 16,
+        "messages": 200,
+        "chunked": false,
+        "required_copies": 2,
+        "probes": "normal",
+        "fault_case": "no-remote",
+        "ingress_role": "follower",
+        "kind": "async",
+        "updated": 1794781242.3467178,
+        "phase": "closed",
+        "job_uid": "08a8bf4b-279f-44ed-a403-c33e8b63acbc",
+        "job_status": {
+          "completionTime": "2026-11-15T22:20:33Z",
+          "conditions": [
+            {
+              "lastProbeTime": "2026-11-15T22:20:33Z",
+              "lastTransitionTime": "2026-11-15T22:20:33Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "SuccessCriteriaMet"
+            },
+            {
+              "lastProbeTime": "2026-11-15T22:20:33Z",
+              "lastTransitionTime": "2026-11-15T22:20:33Z",
+              "message": "Reached expected number of succeeded pods",
+              "reason": "CompletionsReached",
+              "status": "True",
+              "type": "Complete"
+            }
+          ],
+          "ready": 0,
+          "startTime": "2026-11-15T22:17:20Z",
+          "succeeded": 1,
+          "terminating": 0,
+          "uncountedTerminatedPods": {}
+        },
+        "mac_free_bytes": 32005328896,
+        "finished": 1794781251.7705758,
+        "passed": true,
+        "workload_started": true,
+        "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa53-no-remote-01",
+        "quiescent_originals_indexed": true
+      },
+      "report": {
+        "started_utc": 1794781042.4875205,
+        "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+        "case": "no-remote",
+        "passed": true,
+        "workload_started": true,
+        "events": [
+          {
+            "event": "remote-files-writes-denied",
+            "utc": 1794781050.3394997,
+            "ingress": 0,
+            "directories": [
+              "/evidence/runs/slimfaas-pr506-fa53-no-remote-01/state/data/slimfaas-1/slimfaas-1/files",
+              "/evidence/runs/slimfaas-pr506-fa53-no-remote-01/state/data/slimfaas-2/slimfaas-2/files"
+            ]
+          },
+          {
+            "event": "both-body-publications-unconfirmed",
+            "utc": 1794781050.479891,
+            "attempts": [
+              {
+                "kind": "async",
+                "status": 503,
+                "id": "e68c2a56891340ab8fa6b18b6cc5a8f9"
+              },
+              {
+                "kind": "file",
+                "status": 503,
+                "id": "df781ae0fdc54104a4db74cf52b2fb38"
+              }
+            ],
+            "raft_write_succeeded": true
+          },
+          {
+            "event": "remote-files-permissions-restored",
+            "utc": 1794781050.480152
+          }
+        ],
+        "post_send_observation_seconds": 180,
+        "scope": "Both remote Files directories are read-only for the UID1000 runtimes; their WAL directories remain writable. No process interruption or quorum loss is injected. HTTP 5xx remain unknown outcomes in the original ledger.",
+        "ready_utc": 1794781050.3188195,
+        "initial_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 34,
+            "pod_uid": "9ecebd2c-7cfb-4fb8-8e46-3ace87b084a0",
+            "started": "18101229"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 33,
+            "pod_uid": "029f720e-b181-4d31-a528-aa135d12e826",
+            "started": "18101192"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 34,
+            "pod_uid": "ba8cc1df-65be-422d-abdc-b9507434d8ee",
+            "started": "18101284"
+          }
+        ],
+        "attempts": [
+          {
+            "kind": "async",
+            "status": 503,
+            "id": "e68c2a56891340ab8fa6b18b6cc5a8f9"
+          },
+          {
+            "kind": "file",
+            "status": 503,
+            "id": "df781ae0fdc54104a4db74cf52b2fb38"
+          }
+        ],
+        "observed_after_send_seconds": 180.03069448898896,
+        "remaining_local_bodies": {
+          "0": [],
+          "1": [],
+          "2": []
+        },
+        "accounting": {
+          "accepted": 1,
+          "unknown": [
+            {
+              "id": "e68c2a56891340ab8fa6b18b6cc5a8f9",
+              "kind": "async",
+              "outcome": "unresolved"
+            },
+            {
+              "id": "df781ae0fdc54104a4db74cf52b2fb38",
+              "kind": "file",
+              "outcome": "absent-at-final-observation"
+            }
+          ],
+          "completed_deliveries": 0,
+          "distinct_delivered_ids": 0,
+          "repeated_deliveries": {},
+          "successful_delivery_attempts": 0,
+          "failed_delivery_attempts": 0,
+          "successful_id_functions": [],
+          "repeated_successful_id_functions": [],
+          "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+          "job_executions": {},
+          "repeated_job_executions": {}
+        },
+        "accepted": 1,
+        "unknown_count": 2,
+        "final_identities": [
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 0,
+            "pid": 34,
+            "pod_uid": "9ecebd2c-7cfb-4fb8-8e46-3ace87b084a0",
+            "started": "18101229"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 1,
+            "pid": 33,
+            "pod_uid": "029f720e-b181-4d31-a528-aa135d12e826",
+            "started": "18101192"
+          },
+          {
+            "binaries_sha256": {
+              "DotNext.Net.Cluster.dll": "df580f63ae6b1d9875f90aee1fbb2a037633a89646da706f52e197bea62b3cc7",
+              "SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+              "SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+              "SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06"
+            },
+            "node": 2,
+            "pid": 34,
+            "pod_uid": "ba8cc1df-65be-422d-abdc-b9507434d8ee",
+            "started": "18101284"
+          }
+        ],
+        "finished_utc": 1794781230.7389965
+      },
+      "runtime_log_audit": {
+        "passed": true,
+        "runtime_log_coverage_complete": true,
+        "missing_instances": [],
+        "workload_window_utc": [
+          1794781050.3188195,
+          1794781230.7389965
+        ],
+        "instances": [
+          {
+            "pod": "slimfaas-0",
+            "pod_uid": "9ecebd2c-7cfb-4fb8-8e46-3ace87b084a0",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://8fc3f80a46c41aff7f05509047e5c6d2b5263e2202dc1d789e3f5c13293c32f9",
+            "captured_utc": 1794781243.14565,
+            "path": "pod-logs/9ecebd2c-7cfb-4fb8-8e46-3ace87b084a0/runtime/0-current-1794781243075710000.log",
+            "bytes": 5417,
+            "sha256": "cf61248d0700a347c6b72e89143aa456b3d9ceda086a96f5d6e2a81eb9018e32",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-1",
+            "pod_uid": "029f720e-b181-4d31-a528-aa135d12e826",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://877b8291d8adae246be6e0fbe7714b324d3b48a9a2276b8612862da556fb7431",
+            "captured_utc": 1794781243.306478,
+            "path": "pod-logs/029f720e-b181-4d31-a528-aa135d12e826/runtime/0-current-1794781243225501000.log",
+            "bytes": 18639,
+            "sha256": "712a233eae6cf5aa0bb5fd13a34c858fe557e11829bc4584343197f28fd796cf",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          },
+          {
+            "pod": "slimfaas-2",
+            "pod_uid": "ba8cc1df-65be-422d-abdc-b9507434d8ee",
+            "container": "runtime",
+            "restart_index": 0,
+            "previous": false,
+            "exit_code": 0,
+            "container_id": "containerd://fb655ab9e1d2db8aa4a76c6638a8906c0611c2ef40e3440d8e17bb172113a21f",
+            "captured_utc": 1794781243.468089,
+            "path": "pod-logs/ba8cc1df-65be-422d-abdc-b9507434d8ee/runtime/0-current-1794781243389957000.log",
+            "bytes": 19423,
+            "sha256": "36c706086889197ed2bc75e2b59def41c26bf4d28ade99f57926b8a73b3f0a2d",
+            "hash_matches_capture": true,
+            "managed_oom_log_occurrences": 0,
+            "runtime_errors_during_workload": []
+          }
+        ],
+        "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+      }
+    }
+  ],
+  "native_publication": {
+    "started": 1794778215.468995,
+    "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+    "phases": [
+      {
+        "name": "publish-native-slimfaas",
+        "exit_code": 0,
+        "finished": 1794778281.040768,
+        "log": "logs/net11-49-publish-native-slimfaas.log",
+        "sha256": "9456cbb6df724e0abd7e73382e81716a525f0f80e9153a10bce4491374eda848"
+      },
+      {
+        "name": "publish-native-slimdata",
+        "exit_code": 0,
+        "finished": 1794778291.537351,
+        "log": "logs/net11-49-publish-native-slimdata.log",
+        "sha256": "542ec669358e1ebdec89f976d70eb2ec41e462a6100165ec52af0d8b82edd1a8"
+      },
+      {
+        "name": "publish-native-slimfaasmcp",
+        "exit_code": 0,
+        "finished": 1794778306.498104,
+        "log": "logs/net11-49-publish-native-slimfaasmcp.log",
+        "sha256": "379ad80c545fac935e15aeb846dd0723a78aa78d6b6ee05ad5073d6426ee5bfd"
+      },
+      {
+        "name": "build-memorylab-release",
+        "exit_code": 0,
+        "finished": 1794778312.556399,
+        "log": "logs/net11-49-build-memorylab-release.log",
+        "sha256": "d0a8d11cdc63fcd45f532c12bfcd2dcd2e5473e5355147a4bfbe5434a3f1572c"
+      },
+      {
+        "name": "build-benchmark-release",
+        "exit_code": 0,
+        "finished": 1794778314.6555688,
+        "log": "logs/net11-49-build-benchmark-release.log",
+        "sha256": "6b17bed1f9eaca3c0556ed0eef56b0492de3228699d0b4786999c70ea4924189"
+      },
+      {
+        "name": "native-correctness-controls",
+        "exit_code": 0,
+        "finished": 1794778398.7393541,
+        "log": "logs/net11-49-native-correctness-controls.log",
+        "sha256": "7e2bc91c5190120febe4647dccb3f3a72e0c37f82ab0d2646a14d06053d1a69e"
+      }
+    ],
+    "runtime_environment_overrides": {
+      "SlimData__Files__RequiredDurableCopies": "1",
+      "SlimFaas__AsyncBodyOffloadThresholdBytes": "524288"
+    },
+    "full_dotnet_tests": 2406,
+    "scope": "Native AOT publication and correctness controls; dedicated permanent volume loss and comparative durability cost are separate pending phases",
+    "diagnostic_build_option": "IlcGenerateDgmlFile=false: omit regenerable dependency graph XML to avoid 4 GiB of temporary files; code generation, analyzers and mstat stay enabled.",
+    "phase": "closed",
+    "publications": [
+      {
+        "path": "builds/candidate-osx-net11-49/SlimFaas",
+        "sha256": "eb958db1b89148ba6bd5212671eb6e32977023bb30199c904bd478dfcb9cd968",
+        "bytes": 57693288,
+        "mode": "Native AOT osx-arm64"
+      },
+      {
+        "path": "builds/slimdata-osx-net11-49/SlimData",
+        "sha256": "e153228e08407ce1cb6c8749df4cf95933caf552afe20e8b124d10b3e8be68a5",
+        "bytes": 70576520,
+        "mode": "Native AOT osx-arm64"
+      },
+      {
+        "path": "builds/mcp-osx-net11-49/SlimFaasMcp",
+        "sha256": "f9f45e9cb71913e0091c15c14f372f459be86613632c9e7fa5730bf71563ff36",
+        "bytes": 18185784,
+        "mode": "Native AOT osx-arm64"
+      }
+    ],
+    "finished": 1794778398.7401972,
+    "passed": true,
+    "formal_performance_acceptance": false
+  },
+  "native_report": {
+    "passed": true,
+    "error": null,
+    "results": [
+      {
+        "phase": "protocol-probe-with-silent-follower",
+        "passed": true,
+        "suspended_follower": 1,
+        "restarted_leader": 0,
+        "ready_and_write_seconds": 3.903638333984418,
+        "restart_to_listener_seconds": 2.072320291015785
+      },
+      {
+        "phase": "job-during-node-stop",
+        "passed": true,
+        "follower": 0,
+        "job_id": "3fdf34754b9147518ec78fabb70daf51",
+        "seconds": 1.2302234579983633
+      },
+      {
+        "phase": "leader-lease-burst",
+        "leader": 2,
+        "silent_follower": 0,
+        "healthy_writes": 27,
+        "silent_writes": 27,
+        "probe_seconds": 0.014029707992449403,
+        "probe_budget_seconds": 15,
+        "passed": true
+      },
+      {
+        "phase": "stale-leader-http-route",
+        "ingress_node": 0,
+        "old_leader": 2,
+        "seconds": 6.364863916998729,
+        "passed": true
+      },
+      {
+        "phase": "api-smoke",
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 65536,
+        "chunked": true,
+        "id": "cdc296bd2d124ecfb044483e7a7d75ce",
+        "seconds": 0.22463445900939405,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 65536,
+        "chunked": false,
+        "id": "cb342916cf9747c09df1ded85cf50ff8",
+        "seconds": 0.2282238340121694,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 262144,
+        "chunked": false,
+        "id": "3f53c54d201f40999b13cd79768a1629",
+        "seconds": 0.29310262500075623,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 262144,
+        "chunked": true,
+        "id": "874054a0762d4de68cfc16a31841548a",
+        "seconds": 0.29307600000174716,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 1048576,
+        "chunked": false,
+        "id": "65317cd5f0a540e99813879693bd2f36",
+        "seconds": 0.25708258399390616,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 1048576,
+        "chunked": true,
+        "id": "bca44e4b6f13418b937d4df595f5e70a",
+        "seconds": 0.2926493749837391,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2000000,
+        "chunked": false,
+        "id": "a5fdfaefe45c4720a6ea5d384dfd2fef",
+        "seconds": 0.2713311659754254,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2000000,
+        "chunked": true,
+        "id": "9c60f293fca14a45979a612f698bec1d",
+        "seconds": 0.27873558399733156,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2097152,
+        "chunked": false,
+        "id": "7270b4b55c064812a6cafbd4d3143c3d",
+        "seconds": 0.274203375010984,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 2097152,
+        "chunked": true,
+        "id": "92e7306e7e33409e952503a199e70959",
+        "seconds": 0.2769653750001453,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 4194304,
+        "chunked": false,
+        "id": "357ff214cb0d4554ac400df94bfa8bb9",
+        "seconds": 0.2599705000175163,
+        "passed": true
+      },
+      {
+        "phase": "payloads",
+        "bytes": 4194304,
+        "chunked": true,
+        "id": "14b4dd7871504cb899f2e6bb8a874fc6",
+        "seconds": 0.30143966601463035,
+        "passed": true
+      },
+      {
+        "phase": "file-boundaries",
+        "passed": true
+      },
+      {
+        "phase": "retries-dlq-jobs",
+        "passed": true,
+        "job_ids": [
+          "9ddfb4277e3e4878b88cfc8f6bd95dd0",
+          "48e457ffc1634285b1cf2faf6e064e66",
+          "bb48afedf0d14c448d3a583110bcc11e"
+        ],
+        "dlq_id": "dlq-72747427-3137-4375-9a0f-b23a929469ec"
+      },
+      {
+        "phase": "stream-fanout-retention",
+        "passed": true,
+        "initial_append_order": [
+          "50674c05b69b4141850d03b7e58eb507_00000000000000000001",
+          "50674c05b69b4141850d03b7e58eb507_00000000000000000002",
+          "50674c05b69b4141850d03b7e58eb507_00000000000000000003"
+        ],
+        "retention_gap_summaries": {
+          "chaos-fanout-a": {
+            "Stream": "chaos-bounded",
+            "Function": "chaos-fanout-a",
+            "Active": true,
+            "Generation": "94165f84b2674fb38579190d5e1e625b",
+            "StartSequence": 0,
+            "AcknowledgedThrough": 6,
+            "LastAcknowledged": 6,
+            "RetentionGapCount": 1,
+            "Lag": 0,
+            "PendingCount": 0,
+            "WaitingForCallbackCount": 0,
+            "RetryScheduledCount": 0,
+            "FailedCount": 0,
+            "RunnableCount": 0,
+            "LastStatus": 200,
+            "CapturedAt": "2026-11-15T21:32:54.109978+00:00",
+            "Revision": 39
+          },
+          "chaos-fanout-b": {
+            "Stream": "chaos-bounded",
+            "Function": "chaos-fanout-b",
+            "Active": true,
+            "Generation": "7cba257fcab6455e8412629b3cd06ee0",
+            "StartSequence": 0,
+            "AcknowledgedThrough": 6,
+            "LastAcknowledged": 6,
+            "RetentionGapCount": 1,
+            "Lag": 0,
+            "PendingCount": 0,
+            "WaitingForCallbackCount": 0,
+            "RetryScheduledCount": 0,
+            "FailedCount": 0,
+            "RunnableCount": 0,
+            "LastStatus": 200,
+            "CapturedAt": "2026-11-15T21:32:54.111273+00:00",
+            "Revision": 39
+          }
+        },
+        "functions": [
+          "chaos-fanout-a",
+          "chaos-fanout-b"
+        ]
+      },
+      {
+        "phase": "full-persistent-restart",
+        "passed": true
+      }
+    ],
+    "accepted": 201,
+    "unknown": 15,
+    "missing": [],
+    "finished_utc": 1794778398.7274182
+  },
+  "native_accounting": {
+    "accepted": 201,
+    "unknown": [
+      {
+        "id": "54754bbfeeb34f718030fa840691e66b",
+        "kind": "async",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "3d7e90a03edb49199da5b4f5d5b52600",
+        "kind": "file",
+        "outcome": "absent-at-final-observation"
+      },
+      {
+        "id": "e21b5b0f7866459aa19c2c81e6b4c081",
+        "kind": "counter",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "84b246668a024fb0ab7dae99381d5c32",
+        "kind": "async",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "c3e12d4e11014d11ad6d32312bc9e67e",
+        "kind": "file",
+        "outcome": "absent-at-final-observation"
+      },
+      {
+        "id": "981dd3cb311241bdb87c222456e93c49",
+        "kind": "stream",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "460a43bb7c624b38b175912bd1cd08e8",
+        "kind": "counter",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "a8dbdf97b54b47c79ccf36a32f11fad0",
+        "kind": "stream",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "9d9361e7c82744df809d6fe0d18ae326",
+        "kind": "file",
+        "outcome": "absent-at-final-observation"
+      },
+      {
+        "id": "8608dc3dea894293af7c27b96cd28dd6",
+        "kind": "counter",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "7fd923afa20549e6841d039267407f30",
+        "kind": "async",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "dee720bc6c1243db87e43e04ccc506b7",
+        "kind": "sync",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "bc27bfd0cd9c42f8ae92a7d5773c44a1",
+        "kind": "async",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "3dc72f01c5ab41b6938dd582c9b87762",
+        "kind": "stream",
+        "outcome": "unresolved"
+      },
+      {
+        "id": "36a687e583594b3cb8047c441f21a80a",
+        "kind": "counter",
+        "outcome": "unresolved"
+      }
+    ],
+    "completed_deliveries": 47,
+    "distinct_delivered_ids": 34,
+    "repeated_deliveries": {
+      "a4efdf8599c34c718535c4f45e9e4833": 3,
+      "019eee05636e4c0a83437128ad5346cf": 4,
+      "01af09a52c1e4054bf6de576421f76cd": 2,
+      "991f8da4e76b4a50b7d74951ce1e6fd8": 2,
+      "179b1f239ffa424bae9e68742d917c95": 2,
+      "b9c234afd38c4556b3902c212cf764b3": 2,
+      "5a350e8bb9e848fb83ec19fc643afdb1": 2,
+      "22376ec07b5a4a54a63b2111a06536c8": 2,
+      "900bd35f06b64d0cacc4c6d27373e27e": 2,
+      "4f99d30742754bc680cbbc8ba82e54b8": 2
+    },
+    "successful_delivery_attempts": 42,
+    "failed_delivery_attempts": 5,
+    "successful_id_functions": [
+      {
+        "id": "2935a09866344ac38d9590c6aaaefd84",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "454c95b1a908491f93bc3f0f7f314980",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "cb342916cf9747c09df1ded85cf50ff8",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "cdc296bd2d124ecfb044483e7a7d75ce",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "3f53c54d201f40999b13cd79768a1629",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "874054a0762d4de68cfc16a31841548a",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "65317cd5f0a540e99813879693bd2f36",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "bca44e4b6f13418b937d4df595f5e70a",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "a5fdfaefe45c4720a6ea5d384dfd2fef",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "9c60f293fca14a45979a612f698bec1d",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "7270b4b55c064812a6cafbd4d3143c3d",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "92e7306e7e33409e952503a199e70959",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "357ff214cb0d4554ac400df94bfa8bb9",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "14b4dd7871504cb899f2e6bb8a874fc6",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "a4efdf8599c34c718535c4f45e9e4833",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "019eee05636e4c0a83437128ad5346cf",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "01af09a52c1e4054bf6de576421f76cd",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "01af09a52c1e4054bf6de576421f76cd",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "991f8da4e76b4a50b7d74951ce1e6fd8",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "991f8da4e76b4a50b7d74951ce1e6fd8",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "179b1f239ffa424bae9e68742d917c95",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "179b1f239ffa424bae9e68742d917c95",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "b9c234afd38c4556b3902c212cf764b3",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "b9c234afd38c4556b3902c212cf764b3",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "5a350e8bb9e848fb83ec19fc643afdb1",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "5a350e8bb9e848fb83ec19fc643afdb1",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "22376ec07b5a4a54a63b2111a06536c8",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "22376ec07b5a4a54a63b2111a06536c8",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "900bd35f06b64d0cacc4c6d27373e27e",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "900bd35f06b64d0cacc4c6d27373e27e",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "4f99d30742754bc680cbbc8ba82e54b8",
+        "function": "chaos-fanout-a",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "4f99d30742754bc680cbbc8ba82e54b8",
+        "function": "chaos-fanout-b",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "f4569df1b7de4b789504ee63dd38a2ff",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "473a057179724555b8e487d2e14d81f7",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "2faa4d43dacd4f8eaf3e62f24c994c0b",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "5909d127818c4cdd8702e365f3e4a5f6",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "4b57d761f6ce468988fb4e3506fbb4a6",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "d717a813243045109c500e20b28668f1",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "925b4789630647aa8a34f6fb32c1aeae",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "4f1a193f86c04c2b9e50e8ef30e0901b",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "3d454acfbdff4ab48eb8ea015be98cdc",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      },
+      {
+        "id": "a740845c44454c18801f129cb7ca2d33",
+        "function": "",
+        "successful_deliveries": 1,
+        "acceptance": "confirmed"
+      }
+    ],
+    "repeated_successful_id_functions": [],
+    "delivery_accounting_scope": "Legacy completed/repeated_deliveries include failed attempts and multiple fanout subscribers. Successful repetitions group by ID and function; a null function means target metadata is missing. Unknown acceptance stays distinct even when delivery succeeds.",
+    "job_executions": {
+      "bbbf4ddc11fe440eba431511d4fba6a5": 1,
+      "c468c1c5ed6d4c64be2626676afb2e4a": 1,
+      "8d82d162ba5a458681f144bcc6196df3": 1,
+      "807922bdb2f049479f8465276e8ebd9c": 1,
+      "9b10fc6c87194392bc42dc8f26e00ab9": 1,
+      "b5c6408978154dbab831aef10498babc": 1,
+      "4548f565a5c4434dab13d2916676f5eb": 1,
+      "3abb61acdd1e41a9b74ac5dba4ccba96": 1,
+      "c3b90324863c498096df4d3683a73598": 1
+    },
+    "repeated_job_executions": {}
+  },
+  "linux_import_completion": {
+    "started": 1794780107.708661,
+    "source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+    "phase": "ready-for-bounded-diagnostic",
+    "passed": true,
+    "imports": [
+      {
+        "node": "slimfaas-pr506-control-plane",
+        "image_id": "sha256:940bf98cff2fe22302ead7434a75e782588a3614c5893897d52081c2f4cd23b8",
+        "finished": 1794780111.421291
+      },
+      {
+        "node": "slimfaas-pr506-worker",
+        "image_id": "sha256:940bf98cff2fe22302ead7434a75e782588a3614c5893897d52081c2f4cd23b8",
+        "finished": 1794780114.554604
+      },
+      {
+        "node": "slimfaas-pr506-worker2",
+        "image_id": "sha256:940bf98cff2fe22302ead7434a75e782588a3614c5893897d52081c2f4cd23b8",
+        "finished": 1794780117.665568
+      },
+      {
+        "node": "slimfaas-pr506-worker3",
+        "image_id": "sha256:940bf98cff2fe22302ead7434a75e782588a3614c5893897d52081c2f4cd23b8",
+        "finished": 1794780120.741138
+      }
+    ],
+    "compilation_mode": "Linux musl ARM64 self-contained managed/trimmed; original image from build50, no recompilation; common pilots inherited from after-tools-net11-08.",
+    "original_failed_proof": {
+      "path": "preflight/net11-50-file-admission-build-01.json",
+      "sha256": "f1157f052e7fbad54f0f95ff891970b19acb748461f5a11938ac03fbe7c5c674"
+    },
+    "images": {
+      "localhost/slimfaas-pr506:after-tools-net11-50": "940bf98cff2fe22302ead7434a75e782588a3614c5893897d52081c2f4cd23b8"
+    },
+    "hashes": {
+      "/app/SlimFaas": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "/app/SlimFaas.dll": "a27ad66a46d8984a78ecc433e7e8b7833cc038f832bb9768855d7b5f127fac06",
+      "/app/SlimData.dll": "a8682256a72e46594b9c73181b325dd08f5728b66746712bb28acaaf330f8d85",
+      "/tools/benchmark/SlimFaasBenchmark.dll": "27bd59006990477be10a5d8d5f023b8185c584d1ace2245d387e51767591f28f",
+      "/tools/memorylab/SlimFaas.MemoryLab.dll": "a075c1d8b0e6e5d9904b76e35d6cdd10c0bc22cf536719d06bf2638afe5d3f07"
+    },
+    "archive": "/var/home/core/slimfaas-pr506/images/after-tools-net11-50.tar",
+    "archive_config": {
+      "config_sha256": "sha256:940bf98cff2fe22302ead7434a75e782588a3614c5893897d52081c2f4cd23b8",
+      "tags": [
+        "localhost/slimfaas-pr506:after-tools-net11-50"
+      ]
+    },
+    "fixture_sha256": "02e152b18c345539835b869b013f9fd12c36b7dcf17724a1600b040f61126b48",
+    "fixture_source": "f13e8a60ad3f02b987eda45e1459787418a4999c",
+    "finished": 1794780120.74242
+  },
+  "formatter_source": {
+    "package": "MemoryPack.Core/1.21.4",
+    "repository_commit": "0f2fe0827907940768293b7bb81b9605a7d8cba8",
+    "source_url": "https://github.com/Cysharp/MemoryPack/blob/0f2fe0827907940768293b7bb81b9605a7d8cba8/src/MemoryPack.Core/MemoryPackFormatterProvider.cs",
+    "source_blob_sha": "cc762251eb467e26aa021b33cf1b2373f4b80d92",
+    "root_cause_source_lines": [
+      47,
+      52,
+      199,
+      210
+    ],
+    "finding": "Register<T> sets Check<T>.registered before assigning Cache<T>.formatter; the cache initializer can return early after observing that flag. A concurrent first generic root read/write can observe a null formatter. Existing generated ReadPackable/WritePackable dispatch bypasses this root formatter lookup.",
+    "deterministic_model": "With parallel execution disabled for the collection, retain the valid formatter, register a null root formatter to model the published-flag/pending-assignment window, invoke the production client path against a generated-dispatch fake peer, and restore in finally. Both Global and PartitionedByKey paths are exercised. Root request/response, file mutation/result, Streams and DLQ fail before the fix.",
+    "real_reproduction": "Frozen source511 managed image33, Kubernetes fa52-abba-1-before: 199/200 confirmed, one unknown HTTP500, zero confirmed missing/repeated deliveries after full180s; healthy Kestrel NullReferenceException at generic Deserialize<FileAdmissionResult>. This observation is not relabeled as a permanent loss or an accepted performance reference.",
+    "wire_contract": "The intended correction uses the existing generated codec and retains the same bytes. The server regression compares the exact serialized FileAdmissionResult bytes against the existing format."
+  },
+  "raw_index": {
+    "file": "admission-root-application-index-03.json.gz",
+    "compressed_sha256": "70a14537321858121cfcc65d652c81b7af9b3756ab83ce89c3de373afbcaf9b8",
+    "expanded_sha256": "0523b17b2d56cec9d5f60022e1333111a0771d653d767180d46a7895d9149074",
+    "local_files": 500,
+    "vm_roots": 6
+  },
+  "per_id_ledgers": {
+    "file": "admission-root-per-id-ledgers-03.json.gz",
+    "compressed_sha256": "e14da01db86f334b0d96d0d15d29b7f789e679d9694c3f1f95d66f4a6dbde1a5",
+    "expanded_sha256": "a1c887f65d8f3d6787c3ff72abf70426901e4c50110e5d8ccbdf2510eafd9c0c",
+    "rows": 1510,
+    "original_sources": 25
+  },
+  "reproducer": {
+    "file": "admission-root-reproducer.tar.gz",
+    "sha256": "11b36ce6997811a0e3caecd0c12d69c33f989da478fd42863a46c9f65c97ab1e"
+  },
+  "performance_verdict": "INCONCLUSIVE: first reference has one unknown HTTP500 and a healthy-workload unhandled exception; later ordinals did not run.",
+  "pending": "Corrected-source native/image publication, application replays, final formal comparisons/long endurance and remaining fault/geometry/threshold work. No merge or LTS acceptance."
+}

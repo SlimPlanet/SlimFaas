@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
+using MemoryPack;
 using Prometheus;
 using SlimData;
 using SlimData.Commands;
@@ -42,6 +43,17 @@ if (localCommandExitCode.HasValue)
     Environment.ExitCode = localCommandExitCode.Value;
     return;
 }
+
+// Collection element formatters may first be used while decoding another
+// node's persisted jobs. Root the generated implementations for Native AOT.
+MemoryPackFormatterProvider.Register<EnvVarInput>();
+MemoryPackFormatterProvider.Register<SecretRef>();
+MemoryPackFormatterProvider.Register<ConfigMapRef>();
+MemoryPackFormatterProvider.Register<FieldRef>();
+MemoryPackFormatterProvider.Register<ResourceFieldRef>();
+MemoryPackFormatterProvider.Register<CreateJobResources>();
+MemoryPackFormatterProvider.Register<ScheduleCreateJob>();
+MemoryPackFormatterProvider.Register<SlimfaasJob>();
 
 // Load configuration early
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -193,7 +205,7 @@ switch (envOrConfig)
         {
             bool useKubeConfig = bool.Parse(configurationRoot["UseKubeConfig"] ?? "false");
             return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig,
-                slimFaasOptions.KubernetesSkipTlsVerify);
+                slimFaasOptions.KubernetesSkipTlsVerify, slimFaasOptions.BaseSlimDataUrl);
         });
         isKubernetesOrchestrator = true;
         break;
@@ -237,6 +249,13 @@ serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 #pragma warning restore ASP0000
 IReplicasService replicasService = serviceProviderStarter.GetRequiredService<IReplicasService>();
+
+if (envOrConfig == "Process")
+{
+    IJobConfiguration initialJobs = serviceProviderStarter.GetRequiredService<IJobConfiguration>();
+    if (!await initialJobs.SyncJobsConfigurationAsync())
+        throw new InvalidOperationException("Local job configuration is unavailable; the node cannot start safely.");
+}
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 builder.WebHost.UseStaticWebAssets();
@@ -283,6 +302,8 @@ serviceCollectionSlimFaas.AddSingleton<IScalerProvider>(sp =>
 serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
+serviceCollectionSlimFaas.AddSingleton<IFileAdmissionService, FileAdmissionService>();
+serviceCollectionSlimFaas.AddHostedService<FileAdmissionReconciler>();
 serviceCollectionSlimFaas.AddSingleton<DeadLetterService>();
 serviceCollectionSlimFaas.AddSingleton<IStreamService, StreamService>();
 serviceCollectionSlimFaas.AddSingleton(sp => serviceProviderStarter.GetRequiredService<StreamDemandStore>());
@@ -335,6 +356,8 @@ serviceCollectionSlimFaas.AddSingleton<ScalingLeaderClient>();
 serviceCollectionSlimFaas.AddSingleton<IScalingLeaderClient>(sp => sp.GetRequiredService<ScalingLeaderClient>());
 serviceCollectionSlimFaas.AddHttpClient(ScalingLeaderClient.HttpClientName)
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseProxy = false });
+serviceCollectionSlimFaas.AddHttpClient("ActivitySync")
+    .ConfigurePrimaryHttpMessageHandler(() => InternalHttpClientHandler.CreateForClusterPeers(allowUnsecureSsl: false));
 serviceCollectionSlimFaas.AddSingleton<IInstanceLogProvider>(sp =>
 {
     var orchestrator = sp.GetRequiredService<IKubernetesService>();
@@ -369,7 +392,7 @@ serviceCollectionSlimFaas.AddHttpClient(ClusterWebSocketSendClient.HttpClientNam
     .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(() =>
     {
-        var handler = InternalHttpClientHandler.Create(slimFaasOptions.AllowUnsecureSsl);
+        var handler = InternalHttpClientHandler.CreateForClusterPeers(slimFaasOptions.AllowUnsecureSsl);
         handler.AllowAutoRedirect = false;
         return handler;
     });
@@ -512,28 +535,26 @@ serviceCollectionSlimFaas.AddHostedService<ScheduleJobBackupWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
 serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>
     {
         client.DefaultRequestVersion = HttpVersion.Version11;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
-        InternalHttpClientHandler.Create(allowUnsecureSSL));
+        InternalHttpClientHandler.CreateForSlimData(allowUnsecureSSL));
 // Export metrics from all HTTP clients registered in services
 builder.Services.UseHttpClientMetrics(BoundedHttpClientMetrics.Create());
 
 serviceCollectionSlimFaas.AddSingleton<IMasterService, MasterSlimDataService>();
 
 serviceCollectionSlimFaas.AddHttpClient(SendClient.HttpClientName)
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>
     {
         client.DefaultRequestVersion = HttpVersion.Version20;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
-        InternalHttpClientHandler.Create(allowUnsecureSSL));
+        InternalHttpClientHandler.CreateForFunctions(allowUnsecureSSL));
 serviceCollectionSlimFaas.AddSingleton<ISendClient>(sp => new SendClient(
     sp.GetRequiredService<IHttpClientFactory>().CreateClient(SendClient.HttpClientName),
     sp.GetRequiredService<ILogger<SendClient>>(),
@@ -543,6 +564,7 @@ serviceCollectionSlimFaas.AddSingleton<ISendClient>(sp => new SendClient(
 
 if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 {
+    builder.Configuration[$"{SlimDataOptions.SectionName}:Directory"] = slimDataDirectory;
     builder.Configuration[SlimPersistentState.LogLocation] = podDataDirectoryPersistantStorage;
 	builder.Configuration[SlimPersistentState.UsePersistentConfigurationStorage] = usePersistentConfigurationStorage.ToString();
 } else {
@@ -640,7 +662,7 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
 
 WebApplication app = builder.Build();
 // DotNext requires snapshot restoration before any service constructs the Raft WAL.
-await app.RestoreStateAsync<SlimPersistentState>();
+await app.Services.GetRequiredService<SlimPersistentState>().RestoreAsync();
 
 // X-Forwarded-For is ignored unless the operator declares the proxies allowed to set it.
 // Must run first so that every later caller classification sees the real client address.

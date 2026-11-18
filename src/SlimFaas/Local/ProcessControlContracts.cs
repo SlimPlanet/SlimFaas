@@ -33,6 +33,7 @@ public sealed record LocalStateMetadata(
 [JsonSerializable(typeof(SlimFaasJobConfiguration))]
 [JsonSerializable(typeof(List<Job>))]
 [JsonSerializable(typeof(LocalStateMetadata))]
+[JsonSerializable(typeof(LocalJobState))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

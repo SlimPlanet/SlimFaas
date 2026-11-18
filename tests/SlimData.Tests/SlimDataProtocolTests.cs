@@ -12,7 +12,7 @@ using SlimData.Options;
 
 namespace SlimData.Tests;
 
-public sealed class SlimDataProtocolTests
+public sealed partial class SlimDataProtocolTests
 {
     [Fact]
     public async Task Protocol_endpoint_returns_the_current_protocol_and_assembly_version()

@@ -3,6 +3,12 @@ namespace SlimData
 {
     internal static partial class SlimPersistentStateLog
     {
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Trace,
+            Message = "Committed queue/batch operation applied Index={Index} Term={Term} Producer={ProducerId} Sequence={Sequence} BatchRequestId={BatchRequestId} OperationRequestId={OperationRequestId} Kind={Kind} Applied={Applied} DuplicateBatch={DuplicateBatch}")]
+        internal static partial void LogCommandBatchOperationApplied(this global::Microsoft.Extensions.Logging.ILogger logger,
+            long index, long term, string producerId, long sequence, string batchRequestId, string operationRequestId,
+            global::SlimData.SlimDataBatchOperationKind kind, bool applied, bool duplicateBatch);
+
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "Recovered zero-prefixed SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, OriginalLength={OriginalLength}, DiscardedPrefixBytes={DiscardedPrefixBytes}")]
         internal static partial void LogRecoveredZeroPrefixedSlimDataRaftLog(this global::Microsoft.Extensions.Logging.ILogger logger, long index, long term, int? commandId, long? originalLength, int discardedPrefixBytes);
 

@@ -1,0 +1,159 @@
+{
+  "recorded": 1794770245.0633311,
+  "base": "70201a732ccaf8eaec929d712b7314dcf3404e1d",
+  "scope": "Integrate the declared volume root rather than the per-node log location into storage identity. The new Startup regression fails before correction with two different UUIDs for one declared volume.",
+  "passed": 2389,
+  "failed": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "path": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_48_net11.0.trx",
+      "sha256": "c05e6c792086738994e7fb595d8332650016759125752d0b3e7f5acd773a1be1",
+      "counters": {
+        "total": "11",
+        "executed": "11",
+        "passed": "11",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_48_net11.0[1].trx",
+      "sha256": "df754d1564a79bc1529257c287dfda3c87355366a8abac5a39e12388a3a176dc",
+      "counters": {
+        "total": "52",
+        "executed": "52",
+        "passed": "52",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_52_net11.0.trx",
+      "sha256": "38f03bce446a8f5e6a26069d9fed4571a5ccbdc010c2cdafbeae38bb4c49f067",
+      "counters": {
+        "total": "448",
+        "executed": "448",
+        "passed": "448",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_14_54_net11.0.trx",
+      "sha256": "adc5e2ae3e21b9f9baf65eb584a8a2c9e7c8af3883cd78d2dbe8332abfd2be65",
+      "counters": {
+        "total": "1769",
+        "executed": "1769",
+        "passed": "1769",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "reproductions/file-storage-root-net11-24/full-solution/_a115vcCX1PXQ575D_2026-11-15_20_15_05_net11.0.trx",
+      "sha256": "8125a603fcbcf49ad7c2842315851bacf70acf80ea0649722dc539f27f803093",
+      "counters": {
+        "total": "109",
+        "executed": "109",
+        "passed": "109",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/SlimData/Startup.cs",
+      "sha256": "eff5b8c55ee995e6527ee756f919a1985be3b54271e7d147fc889f9106339eb0"
+    },
+    {
+      "path": "src/SlimFaas/Program.cs",
+      "sha256": "943deee51ca663f89f2b7484f8ffee82af60325a0e5c19a9ce8fa5e388d3ec62"
+    },
+    {
+      "path": "tests/SlimData.Tests/StartupConfigurationTests.cs",
+      "sha256": "7de0bfa370d4ee5ce23fcc77789416e49d364a3aacf94741ac246ff658f75a96"
+    }
+  ],
+  "aborted_fixture_recovery": {
+    "started": 1794770013.1506503,
+    "passed": true,
+    "purpose": "Recover the one confirmed operation from a fixture-aborted run; original state was copied and all hashes verified before mutation. This is not a permanent-volume-loss verdict.",
+    "accounting": {
+      "accepted": 1,
+      "unknown": [],
+      "completed_deliveries": 1,
+      "distinct_delivered_ids": 1,
+      "repeated_deliveries": {},
+      "job_executions": {},
+      "repeated_job_executions": {}
+    },
+    "missing": [],
+    "source": "70201a732ccaf8eaec929d712b7314dcf3404e1d",
+    "finished": 1794770021.7623408
+  },
+  "original_state_backup": {
+    "recorded": 1794769601.9319406,
+    "original_root": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-fa23-follower-async-01",
+    "verified_backup": "/var/home/core/slimfaas-pr506/recoveries/slimfaas-pr506-fa23-follower-async-01-before-01",
+    "files": 36,
+    "all_original_and_backup_hashes_match_closed_index": true
+  },
+  "new_source_native_and_volume_loss_validation": "Pending; 70201a73 publications precede this root-scope correction."
+}

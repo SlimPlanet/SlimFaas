@@ -20,6 +20,7 @@ public sealed class FakeKubernetesCluster
     private long _resourceVersion;
 
     private readonly List<V1Deployment> _deployments = new();
+    private readonly List<V1ReplicaSet> _replicaSets = new();
     private readonly List<V1Pod> _pods = new();
     private readonly List<V1StatefulSet> _statefulSets = new();
     private readonly List<V1Job> _jobs = new();
@@ -28,6 +29,8 @@ public sealed class FakeKubernetesCluster
     private readonly ConcurrentDictionary<string, List<WatchStreamContent>> _watchStreams = new();
     private readonly ConcurrentDictionary<string, int> _listCounts = new();
     private readonly ConcurrentDictionary<string, int> _watchConnectionCounts = new();
+    private bool _listAvailable = true;
+    private bool _watchAvailable = true;
 
     public FakeKubernetesCluster(string kubeNamespace)
     {
@@ -45,6 +48,45 @@ public sealed class FakeKubernetesCluster
 
     public IReadOnlyDictionary<string, int> ListCounts => _listCounts;
 
+    public void SetApiAvailability(bool listAvailable, bool watchAvailable)
+    {
+        lock (_gate)
+        {
+            _listAvailable = listAvailable;
+            _watchAvailable = watchAvailable;
+            if (!watchAvailable)
+            {
+                foreach (List<WatchStreamContent> streams in _watchStreams.Values)
+                {
+                    lock (streams)
+                    {
+                        foreach (WatchStreamContent stream in streams)
+                            stream.Complete();
+                        streams.Clear();
+                    }
+                }
+            }
+        }
+    }
+
+    public void ExpirePodWatches()
+    {
+        lock (_gate)
+        {
+            if (!_watchStreams.TryGetValue("pods", out List<WatchStreamContent>? streams))
+                return;
+            lock (streams)
+            {
+                foreach (WatchStreamContent stream in streams)
+                {
+                    stream.WriteLine("{\"type\":\"ERROR\",\"object\":{\"kind\":\"Status\",\"apiVersion\":\"v1\",\"code\":410,\"reason\":\"Expired\"}}");
+                    stream.Complete();
+                }
+                streams.Clear();
+            }
+        }
+    }
+
     // ── Mutations (each bumps the resourceVersion and emits a watch event) ───────
 
     public void AddFunctionDeployment(string name, int replicas)
@@ -56,6 +98,7 @@ public sealed class FakeKubernetesCluster
                 Metadata = new V1ObjectMeta
                 {
                     Name = name,
+                    Uid = name + "-uid",
                     NamespaceProperty = _namespace,
                     ResourceVersion = NextResourceVersion()
                 },
@@ -72,6 +115,14 @@ public sealed class FakeKubernetesCluster
                 }
             };
             _deployments.Add(deployment);
+            _replicaSets.Add(new V1ReplicaSet
+            {
+                Metadata = new V1ObjectMeta
+                {
+                    Name = name + "-replicaset", Uid = name + "-replicaset-uid", NamespaceProperty = _namespace,
+                    OwnerReferences = [new V1OwnerReference { Kind = "Deployment", Name = name, Uid = name + "-uid", Controller = true }]
+                }
+            });
             Emit("deployments", "ADDED", deployment);
         }
     }
@@ -87,12 +138,45 @@ public sealed class FakeKubernetesCluster
         }
     }
 
-    public void AddFunctionPod(string deploymentName, string podName, string ip, bool ready = true)
+    public void AddFunctionStatefulSet(string name, int replicas)
+    {
+        lock (_gate)
+        {
+            var statefulSet = new V1StatefulSet
+            {
+                Metadata = new V1ObjectMeta
+                {
+                    Name = name, Uid = name + "-uid", NamespaceProperty = _namespace,
+                    ResourceVersion = NextResourceVersion()
+                },
+                Spec = new V1StatefulSetSpec
+                {
+                    Replicas = replicas,
+                    ServiceName = name,
+                    Selector = new V1LabelSelector { MatchLabels = new Dictionary<string, string> { ["app"] = name } },
+                    Template = new V1PodTemplateSpec
+                    {
+                        Metadata = new V1ObjectMeta
+                        {
+                            Annotations = new Dictionary<string, string> { ["SlimFaas/Function"] = "true" }
+                        }
+                    }
+                }
+            };
+            _statefulSets.Add(statefulSet);
+            Emit("statefulsets", "ADDED", statefulSet);
+        }
+    }
+
+    public void AddFunctionPod(string deploymentName, string podName, string ip, bool ready = true, bool statefulSet = false)
     {
         lock (_gate)
         {
             var pod = BuildPod(podName, ip, ready);
-            pod.Metadata.OwnerReferences = [new V1OwnerReference { Name = $"{deploymentName}-replicaset", Kind = "ReplicaSet" }];
+            pod.Metadata.OwnerReferences = statefulSet
+                ? [new V1OwnerReference { Name = deploymentName, Kind = "StatefulSet", Uid = deploymentName + "-uid", Controller = true }]
+                : [new V1OwnerReference { Name = $"{deploymentName}-replicaset", Kind = "ReplicaSet",
+                    Uid = deploymentName + "-replicaset-uid", Controller = true }];
             _pods.Add(pod);
             Emit("pods", "ADDED", pod);
         }
@@ -106,6 +190,28 @@ public sealed class FakeKubernetesCluster
             ApplyReadyState(pod, ready);
             pod.Metadata.ResourceVersion = NextResourceVersion();
             Emit("pods", "MODIFIED", pod);
+        }
+    }
+
+    public void SetPodTerminating(string podName)
+    {
+        lock (_gate)
+        {
+            V1Pod pod = _pods.Single(p => p.Metadata.Name == podName);
+            pod.Metadata.DeletionTimestamp = DateTime.UtcNow;
+            pod.Metadata.ResourceVersion = NextResourceVersion();
+            Emit("pods", "MODIFIED", pod);
+        }
+    }
+
+    public void DeletePod(string podName)
+    {
+        lock (_gate)
+        {
+            V1Pod pod = _pods.Single(p => p.Metadata.Name == podName);
+            _pods.Remove(pod);
+            pod.Metadata.ResourceVersion = NextResourceVersion();
+            Emit("pods", "DELETED", pod);
         }
     }
 
@@ -216,14 +322,15 @@ public sealed class FakeKubernetesCluster
 
     // ── Internals ────────────────────────────────────────────────────────────────
 
-    private static V1Pod BuildPod(string podName, string ip, bool ready)
+    private V1Pod BuildPod(string podName, string ip, bool ready)
     {
         var pod = new V1Pod
         {
             Metadata = new V1ObjectMeta
             {
                 Name = podName,
-                ResourceVersion = "1"
+                Uid = Guid.NewGuid().ToString("D"),
+                ResourceVersion = NextResourceVersion()
             },
             Spec = new V1PodSpec
             {
@@ -314,6 +421,7 @@ public sealed class FakeKubernetesCluster
     private IEnumerable<IKubernetesObject> CurrentObjectsOf(string resource) => resource switch
     {
         "deployments" => _deployments,
+        "replicasets" => _replicaSets,
         "statefulsets" => _statefulSets,
         "cronjobs" => _cronJobs,
         "jobs" => _jobs,
@@ -326,6 +434,7 @@ public sealed class FakeKubernetesCluster
         if (path.Contains("/cronjobs", StringComparison.Ordinal)) return "cronjobs";
         if (path.Contains("/jobs", StringComparison.Ordinal)) return "jobs";
         if (path.Contains("/deployments", StringComparison.Ordinal)) return "deployments";
+        if (path.Contains("/replicasets", StringComparison.Ordinal)) return "replicasets";
         if (path.Contains("/statefulsets", StringComparison.Ordinal)) return "statefulsets";
         if (path.Contains("/services", StringComparison.Ordinal)) return "services";
         if (path.Contains("/pods", StringComparison.Ordinal)) return "pods";
@@ -344,6 +453,11 @@ public sealed class FakeKubernetesCluster
             List<WatchStreamContent> streams = _watchStreams.GetOrAdd(resource, static _ => new List<WatchStreamContent>());
             lock (_gate)
             {
+                if (!_watchAvailable)
+                {
+                    content.Dispose();
+                    return Unavailable(request);
+                }
                 lock (streams)
                 {
                     streams.Add(content);
@@ -372,9 +486,12 @@ public sealed class FakeKubernetesCluster
         string json;
         lock (_gate)
         {
+            if (!_listAvailable)
+                return Unavailable(request);
             json = resource switch
             {
                 "deployments" => KubernetesJson.Serialize(new V1DeploymentList { Items = _deployments.ToList() }),
+                "replicasets" => KubernetesJson.Serialize(new V1ReplicaSetList { Items = _replicaSets.ToList() }),
                 "statefulsets" => KubernetesJson.Serialize(new V1StatefulSetList { Items = _statefulSets.ToList() }),
                 "services" => KubernetesJson.Serialize(new V1ServiceList { Items = [] }),
                 "cronjobs" => KubernetesJson.Serialize(new V1CronJobList { Items = _cronJobs.ToList() }),
@@ -390,6 +507,12 @@ public sealed class FakeKubernetesCluster
             RequestMessage = request
         };
     }
+
+    private static HttpResponseMessage Unavailable(HttpRequestMessage request) => new(HttpStatusCode.ServiceUnavailable)
+    {
+        Content = new StringContent("{\"kind\":\"Status\",\"code\":503}", Encoding.UTF8, "application/json"),
+        RequestMessage = request
+    };
 
     private List<V1Pod> FilterPods(string path)
     {
@@ -426,6 +549,8 @@ public sealed class FakeKubernetesCluster
             byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
             _ = _pipe.Writer.WriteAsync(bytes).AsTask();
         }
+
+        public void Complete() => _pipe.Writer.Complete();
 
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
             => _pipe.Reader.CopyToAsync(stream);

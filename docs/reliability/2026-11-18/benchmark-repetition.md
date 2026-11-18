@@ -1,0 +1,484 @@
+# Independent repeat of the bounded macOS benchmark campaign
+
+Updated 2026-11-18 08:24 CET. Campaign state: **final**.
+
+Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
+Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
+
+The [previous campaign](supervisor-repair-benchmarks.md) measured the same frozen binaries. Every profile in this repeat starts with fresh state.
+Subsequent disk interruptions also affected HTTP, threshold and WAL confirmation. The final continuation retains their earlier complete roles and records the time gaps between roles. All partial runs and original exports remain in the local evidence.
+
+The host reached the shutdown margin during the HTTP confirmation. A reference run in that interrupted attempt recorded 368 of 383 accepted messages within the 180-second delivery window. The incomplete attempt and its reference failure are retained separately. The resumed comparison uses the completed first block and repeats the entire confirmation block.
+
+The disk reserve is 20 GiB. The current shutdown margin is 2.5 GiB. Timed work is scheduled to stop by 08:45 CET.
+
+This rerun uses fresh state and the repaired supervisor. Omitted arguments run the manifest command without additions. A job whose preparation fails follows its retry policy while other jobs continue.
+The WebSocket async runner checks refreshed queue totals on all nodes after receipt reconciliation. File scenarios have an explicit byte budget.
+The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two repetitions, concurrency 1/16, and five payload sizes from 4 KiB through 4 MiB. It supplies a shorter ABBA comparison. Quiescent offload files are transparently compressed between roles, with their bytes and SHA-256 preserved.
+
+| Profile | Evidence status | Rows | Observed | Failed | Incomplete |
+|---|---|---:|---:|---:|---:|
+| data-rerun | OBSERVED | 36 | 36 | 0 | 0 |
+| files-bounded-files | OBSERVED | 12 | 12 | 0 | 0 |
+| files-bounded-files-download | OBSERVED | 12 | 12 | 0 | 0 |
+| files-bounded-files-unique | OBSERVED | 12 | 12 | 0 | 0 |
+| files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
+| http-bounded-abba-20 | FAIL | 512 | 512 | 0 | 0 |
+| jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
+| memory-abba-replay | INCONCLUSIVE | 0 | 0 | 0 | 0 |
+| memory-abba-replay-resumed | FAIL | 20 | 20 | 0 | 0 |
+| streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
+| threshold-512kib-retry | INCONCLUSIVE | 0 | 0 | 0 | 0 |
+| threshold-512kib-retry-resumed | FAIL | 256 | 256 | 0 | 0 |
+| wal-64kib-retry-resumed | FAIL | 208 | 208 | 0 | 0 |
+| websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
+
+An observation means that the measured run supplied the expected integrity and resource evidence. Comparative acceptance comes from the ABBA verdicts.
+
+## Receiver reconciliation
+
+| Profile | Requests | Expected receipts | Completions | Missing | Duplicates | Corrupt |
+|---|---:|---:|---:|---:|---:|---:|
+| jobs-rerun | 800 | 800 | 800 | 0 | 0 | 0 |
+| streams-rerun | 1600 | 2400 | 2400 | 0 | 0 | 0 |
+| websocket-rerun | 9600 | 12800 | 12800 | 0 | 0 | 0 |
+
+## Comparisons
+
+- **http-bounded-abba-20 / http**: FAIL. 2 ABBA block(s), pair verdicts FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL.
+  - Sync p95/p99/throughput guardrail failed for 4194304 bytes at concurrency 1 (7 pair comparisons).
+  - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 16 (6 pair comparisons).
+  - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 1 (4 pair comparisons).
+- **memory-abba-replay-resumed / set-c12**: FAIL. 2 ABBA block(s), pair verdicts PASS, PASS, FAIL, PASS, PASS, FAIL, PASS, PASS.
+  - throughput (2 pair comparisons).
+- **memory-abba-replay-resumed / set-c48**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
+- **memory-abba-replay-resumed / mixed-c12**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
+- **memory-abba-replay-resumed / mixed-c48**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
+- **threshold-512kib-retry-resumed / http**: FAIL. 2 ABBA block(s), pair verdicts FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL.
+  - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 1 (6 pair comparisons).
+  - Async burst workload guardrail failed at concurrency 64 (6 pair comparisons).
+  - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 16 (5 pair comparisons).
+- **wal-64kib-retry-resumed / http**: FAIL. 2 ABBA block(s), pair verdicts FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL.
+  - Sync p95/p99/throughput guardrail failed for 1048576 bytes at concurrency 1 (8 pair comparisons).
+  - Sync p95/p99/throughput guardrail failed for 1048577 bytes at concurrency 1 (7 pair comparisons).
+  - Async p99/throughput/delivery guardrail failed for 4194304 bytes at concurrency 16 (7 pair comparisons).
+
+A and B refer to the first and second variants, respectively. For code comparisons, A is the reference and B is the candidate. For settings comparisons, A uses the current settings and B uses the measured change. Each table includes matched cases with evidence across all four roles of the attempt. The displayed throughput, p95 and CPU are medians across repetitions. RAM is the highest sampled cluster working set. The verdicts above use the comparison criteria for the corresponding profile.
+
+<details><summary>http-bounded-abba-20 / http-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 4096 | 1 | accepted message/s | 93.23 → 90.47 | 72.85 → 72.20 | 13.70 → 13.83 | 11.42 → 10.85 | 402.16 → 390.92 |
+| async | 4096 | 16 | accepted message/s | 1092.96 → 1085.92 | 857.56 → 851.79 | 20.42 → 19.87 | 1.82 → 1.77 | 495.25 → 497.80 |
+| async | 262144 | 1 | accepted message/s | 38.46 → 37.54 | 30.20 → 29.47 | 38.52 → 39.08 | 48.46 → 47.68 | 620.75 → 583.66 |
+| async | 262144 | 16 | accepted message/s | 55.57 → 54.37 | 44.03 → 45.01 | 463.50 → 507.83 | 36.54 → 37.22 | 1639.23 → 986.73 |
+| async | 1048576 | 1 | accepted message/s | 12.56 → 12.43 | 10.55 → 9.64 | 124.52 → 126.86 | 154.60 → 163.25 | 1616.39 → 831.44 |
+| async | 1048576 | 16 | accepted message/s | 14.29 → 14.20 | 12.21 → 11.84 | 1546.50 → 1547.70 | 131.38 → 130.82 | 3317.12 → 1820.94 |
+| async | 1048577 | 1 | accepted message/s | 44.76 → 41.85 | 38.09 → 35.61 | 26.31 → 27.79 | 42.13 → 45.63 | 3157.53 → 1752.00 |
+| async | 1048577 | 16 | accepted message/s | 286.16 → 281.19 | 240.63 → 234.58 | 74.82 → 74.17 | 18.04 → 20.21 | 3087.81 → 1132.89 |
+| async | 4194304 | 1 | accepted message/s | 36.31 → 35.63 | 30.70 → 29.27 | 30.23 → 30.56 | 93.07 → 97.18 | 2001.05 → 625.89 |
+| async | 4194304 | 16 | accepted message/s | 95.68 → 96.50 | 79.30 → 79.24 | 214.32 → 215.09 | 63.00 → 64.66 | 1695.31 → 537.83 |
+| async-burst | 4096 | 64 | accepted message/s | 2167.32 → 2075.08 | 1209.02 → 532.73 | 46.70 → 52.16 | 1.17 → 1.50 | 1455.34 → 604.44 |
+| async-paced | 4096 | 1 | accepted message/s | 8.93 → 9.07 | 8.27 → 8.22 | 16.06 → 14.10 | 47.09 → 47.60 | 1443.33 → 582.05 |
+| direct | 4096 | 1 | request/s | 10152.08 → 10265.30 | n/a → n/a | 0.11 → 0.11 | 0.01 → 0.01 | 389.56 → 382.06 |
+| direct | 4096 | 16 | request/s | 23169.90 → 23180.41 | n/a → n/a | 0.74 → 0.74 | 0.00 → 0.00 | 489.59 → 485.62 |
+| direct | 262144 | 1 | request/s | 2706.47 → 2820.69 | n/a → n/a | 0.44 → 0.42 | 0.03 → 0.03 | 604.80 → 572.00 |
+| direct | 262144 | 16 | request/s | 6053.41 → 6055.87 | n/a → n/a | 2.81 → 2.79 | 0.01 → 0.01 | 1419.92 → 875.88 |
+| direct | 1048576 | 1 | request/s | 806.93 → 611.39 | n/a → n/a | 1.71 → 2.08 | 0.10 → 0.13 | 1624.08 → 847.20 |
+| direct | 1048576 | 16 | request/s | 1828.03 → 1850.19 | n/a → n/a | 9.32 → 9.24 | 0.05 → 0.05 | 2850.03 → 1781.75 |
+| direct | 1048577 | 1 | request/s | 574.30 → 554.90 | n/a → n/a | 2.08 → 2.09 | 0.14 → 0.14 | 3118.69 → 1741.31 |
+| direct | 1048577 | 16 | request/s | 1847.58 → 1872.74 | n/a → n/a | 9.21 → 9.21 | 0.05 → 0.05 | 3086.77 → 1354.41 |
+| direct | 4194304 | 1 | request/s | 225.76 → 228.95 | n/a → n/a | 7.08 → 7.02 | 0.39 → 0.39 | 1997.45 → 634.94 |
+| direct | 4194304 | 16 | request/s | 462.38 → 468.33 | n/a → n/a | 38.08 → 36.75 | 0.20 → 0.24 | 1649.27 → 528.09 |
+| sync | 4096 | 1 | request/s | 3052.39 → 3053.92 | n/a → n/a | 0.36 → 0.36 | 0.52 → 0.52 | 389.12 → 383.25 |
+| sync | 4096 | 16 | request/s | 7760.60 → 7821.72 | n/a → n/a | 2.38 → 2.37 | 0.47 → 0.46 | 497.36 → 504.77 |
+| sync | 262144 | 1 | request/s | 1178.68 → 1194.47 | n/a → n/a | 0.95 → 0.93 | 1.67 → 1.64 | 605.09 → 568.75 |
+| sync | 262144 | 16 | request/s | 1612.27 → 1619.23 | n/a → n/a | 10.42 → 10.42 | 1.90 → 1.90 | 1495.23 → 944.05 |
+| sync | 1048576 | 1 | request/s | 386.83 → 389.22 | n/a → n/a | 2.78 → 2.78 | 5.29 → 5.29 | 1634.14 → 811.16 |
+| sync | 1048576 | 16 | request/s | 449.45 → 453.95 | n/a → n/a | 37.04 → 36.63 | 6.74 → 6.65 | 2865.19 → 1779.73 |
+| sync | 1048577 | 1 | request/s | 386.31 → 386.66 | n/a → n/a | 2.79 → 2.79 | 5.20 → 5.16 | 3125.42 → 1745.86 |
+| sync | 1048577 | 16 | request/s | 450.84 → 453.81 | n/a → n/a | 36.83 → 36.70 | 6.77 → 6.69 | 3087.70 → 1355.27 |
+| sync | 4194304 | 1 | request/s | 105.60 → 105.16 | n/a → n/a | 10.20 → 10.22 | 19.50 → 19.21 | 1997.48 → 637.75 |
+| sync | 4194304 | 16 | request/s | 113.29 → 113.33 | n/a → n/a | 151.59 → 147.16 | 25.58 → 25.50 | 1653.11 → 528.31 |
+
+</details>
+
+<details><summary>http-bounded-abba-20 / http-attempt-2 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 4096 | 1 | accepted message/s | 93.57 → 90.54 | 74.60 → 72.26 | 13.79 → 13.93 | 11.14 → 9.75 | 399.58 → 412.02 |
+| async | 4096 | 16 | accepted message/s | 1101.62 → 1098.55 | 863.78 → 861.42 | 20.16 → 19.97 | 1.76 → 1.78 | 480.02 → 517.58 |
+| async | 262144 | 1 | accepted message/s | 37.37 → 38.76 | 29.33 → 29.99 | 40.52 → 39.43 | 56.08 → 50.40 | 668.59 → 643.36 |
+| async | 262144 | 16 | accepted message/s | 51.25 → 54.79 | 41.35 → 43.56 | 523.04 → 499.29 | 36.86 → 37.36 | 1600.94 → 1023.20 |
+| async | 1048576 | 1 | accepted message/s | 12.51 → 12.56 | 11.09 → 10.58 | 125.51 → 122.40 | 150.99 → 164.67 | 1531.39 → 872.03 |
+| async | 1048576 | 16 | accepted message/s | 13.00 → 13.08 | 10.32 → 10.72 | 1821.78 → 1797.61 | 127.94 → 127.76 | 3129.84 → 2078.45 |
+| async | 1048577 | 1 | accepted message/s | 42.87 → 41.03 | 36.49 → 33.75 | 27.46 → 28.37 | 41.46 → 46.65 | 3071.38 → 1891.03 |
+| async | 1048577 | 16 | accepted message/s | 279.09 → 193.73 | 228.54 → 160.84 | 79.93 → 120.28 | 18.57 → 21.85 | 2965.70 → 1474.72 |
+| async | 4194304 | 1 | accepted message/s | 31.93 → 34.97 | 26.60 → 29.00 | 33.90 → 34.56 | 93.47 → 97.90 | 1814.89 → 918.48 |
+| async | 4194304 | 16 | accepted message/s | 74.25 → 74.49 | 58.46 → 57.94 | 336.19 → 429.87 | 63.62 → 68.01 | 1746.86 → 846.59 |
+| async-burst | 4096 | 64 | accepted message/s | 2070.47 → 2029.16 | 502.60 → 816.98 | 50.11 → 50.10 | 1.39 → 1.44 | 1593.47 → 802.36 |
+| async-paced | 4096 | 1 | accepted message/s | 8.72 → 8.89 | 7.92 → 8.25 | 18.70 → 18.45 | 48.23 → 46.45 | 1550.77 → 810.92 |
+| direct | 4096 | 1 | request/s | 10058.06 → 10234.05 | n/a → n/a | 0.11 → 0.11 | 0.01 → 0.01 | 388.83 → 407.58 |
+| direct | 4096 | 16 | request/s | 23224.95 → 23032.91 | n/a → n/a | 0.74 → 0.75 | 0.00 → 0.00 | 496.59 → 472.27 |
+| direct | 262144 | 1 | request/s | 2783.93 → 2810.35 | n/a → n/a | 0.43 → 0.42 | 0.03 → 0.03 | 578.25 → 623.53 |
+| direct | 262144 | 16 | request/s | 6108.85 → 5965.53 | n/a → n/a | 2.76 → 2.83 | 0.01 → 0.01 | 1351.08 → 853.53 |
+| direct | 1048576 | 1 | request/s | 771.76 → 755.55 | n/a → n/a | 1.94 → 1.85 | 0.10 → 0.11 | 1555.89 → 984.73 |
+| direct | 1048576 | 16 | request/s | 1852.12 → 1839.80 | n/a → n/a | 9.25 → 9.28 | 0.05 → 0.05 | 2754.09 → 1875.95 |
+| direct | 1048577 | 1 | request/s | 575.51 → 559.48 | n/a → n/a | 2.09 → 2.09 | 0.13 → 0.13 | 3072.17 → 2078.77 |
+| direct | 1048577 | 16 | request/s | 1866.45 → 1866.03 | n/a → n/a | 9.18 → 9.22 | 0.05 → 0.05 | 2866.67 → 1617.75 |
+| direct | 4194304 | 1 | request/s | 229.35 → 230.62 | n/a → n/a | 6.99 → 6.87 | 0.37 → 0.35 | 1820.77 → 909.66 |
+| direct | 4194304 | 16 | request/s | 466.97 → 465.53 | n/a → n/a | 36.91 → 37.46 | 0.23 → 0.22 | 1714.83 → 840.45 |
+| sync | 4096 | 1 | request/s | 3025.22 → 3040.41 | n/a → n/a | 0.36 → 0.36 | 0.52 → 0.52 | 388.72 → 411.88 |
+| sync | 4096 | 16 | request/s | 7829.27 → 7764.43 | n/a → n/a | 2.36 → 2.38 | 0.47 → 0.47 | 510.55 → 503.69 |
+| sync | 262144 | 1 | request/s | 1202.76 → 1188.06 | n/a → n/a | 0.93 → 0.94 | 1.64 → 1.66 | 577.11 → 617.97 |
+| sync | 262144 | 16 | request/s | 1621.23 → 1608.79 | n/a → n/a | 10.35 → 10.42 | 1.88 → 1.90 | 1415.59 → 951.53 |
+| sync | 1048576 | 1 | request/s | 388.47 → 387.11 | n/a → n/a | 2.78 → 2.80 | 5.26 → 5.29 | 1556.92 → 985.06 |
+| sync | 1048576 | 16 | request/s | 453.33 → 451.03 | n/a → n/a | 36.57 → 36.87 | 6.77 → 6.67 | 2810.62 → 1874.58 |
+| sync | 1048577 | 1 | request/s | 387.24 → 383.79 | n/a → n/a | 2.78 → 2.81 | 5.21 → 5.28 | 3072.33 → 2079.52 |
+| sync | 1048577 | 16 | request/s | 451.84 → 451.19 | n/a → n/a | 36.71 → 37.05 | 6.72 → 6.58 | 2869.86 → 1620.28 |
+| sync | 4194304 | 1 | request/s | 106.21 → 103.68 | n/a → n/a | 10.17 → 10.37 | 19.41 → 19.29 | 1820.77 → 914.97 |
+| sync | 4194304 | 16 | request/s | 112.93 → 112.53 | n/a → n/a | 148.69 → 149.32 | 25.44 → 25.69 | 1716.86 → 843.22 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / mixed-c12-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-mixed | n/a | 12 | operation/s | 438.37 → 441.61 | n/a → n/a | 92.19 → 90.94 | 1.68 → 1.71 | 416.42 → 447.38 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / mixed-c48-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-mixed | n/a | 48 | operation/s | 2665.47 → 2592.87 | n/a → n/a | 26.10 → 26.21 | 0.85 → 0.83 | 576.56 → 595.88 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / set-c12-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 12 | operation/s | 103.06 → 105.33 | n/a → n/a | 249.39 → 249.36 | 3.72 → 3.58 | 497.14 → 502.92 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / set-c12-attempt-2 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 12 | operation/s | 114.88 → 114.15 | n/a → n/a | 244.32 → 247.72 | 3.57 → 3.49 | 503.64 → 499.50 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / set-c48-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 48 | operation/s | 1035.30 → 1046.75 | n/a → n/a | 95.89 → 91.82 | 1.15 → 1.07 | 491.72 → 507.75 |
+
+</details>
+
+<details><summary>threshold-512kib-retry-resumed / http-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 524287 | 1 | accepted message/s | 23.46 → 24.19 | 16.58 → 17.08 | 66.71 → 64.78 | 92.10 → 88.32 | 579.14 → 576.62 |
+| async | 524287 | 16 | accepted message/s | 29.38 → 29.56 | 22.80 → 23.49 | 863.46 → 858.07 | 65.81 → 65.04 | 1255.83 → 1194.73 |
+| async | 524288 | 1 | accepted message/s | 23.45 → 23.56 | 16.10 → 16.21 | 69.21 → 66.89 | 87.68 → 80.74 | 1003.12 → 968.39 |
+| async | 524288 | 16 | accepted message/s | 29.54 → 30.58 | 22.98 → 23.71 | 885.99 → 886.49 | 65.37 → 64.18 | 1250.98 → 1242.77 |
+| async | 524289 | 1 | accepted message/s | 24.30 → 50.20 | 16.75 → 33.51 | 68.17 → 21.44 | 84.42 → 32.82 | 1042.06 → 1125.72 |
+| async | 524289 | 16 | accepted message/s | 27.14 → 379.18 | 22.00 → 260.89 | 937.87 → 55.99 | 73.83 → 17.00 | 1255.39 → 876.27 |
+| async | 1048576 | 1 | accepted message/s | 13.07 → 43.67 | 8.49 → 29.15 | 121.69 → 26.48 | 163.56 → 49.17 | 1122.41 → 691.34 |
+| async | 1048576 | 16 | accepted message/s | 15.42 → 291.54 | 11.59 → 189.66 | 1577.79 → 72.51 | 127.43 → 23.10 | 1642.66 → 561.52 |
+| async | 1048577 | 1 | accepted message/s | 43.02 → 42.16 | 35.71 → 34.98 | 27.31 → 27.95 | 46.28 → 48.63 | 1501.27 → 554.95 |
+| async | 1048577 | 16 | accepted message/s | 290.37 → 280.32 | 220.63 → 192.93 | 72.37 → 77.35 | 21.27 → 23.15 | 1276.20 → 542.17 |
+| async-burst | 4096 | 64 | accepted message/s | 2264.55 → 2274.64 | 548.13 → 595.02 | 43.88 → 46.29 | 1.37 → 1.56 | 1064.16 → 578.69 |
+| async-paced | 4096 | 1 | accepted message/s | 8.96 → 9.12 | 8.23 → 8.28 | 14.50 → 13.41 | 40.18 → 38.33 | 1057.23 → 542.34 |
+| direct | 524287 | 1 | request/s | 1571.31 → 1438.56 | n/a → n/a | 0.97 → 1.10 | 0.05 → 0.06 | 316.03 → 315.33 |
+| direct | 524287 | 16 | request/s | 3549.34 → 3545.53 | n/a → n/a | 4.81 → 4.81 | 0.02 → 0.02 | 600.44 → 569.69 |
+| direct | 524288 | 1 | request/s | 1614.80 → 1601.86 | n/a → n/a | 0.83 → 0.81 | 0.05 → 0.06 | 1230.62 → 1194.83 |
+| direct | 524288 | 16 | request/s | 3534.82 → 3586.73 | n/a → n/a | 4.81 → 4.77 | 0.02 → 0.02 | 789.50 → 749.89 |
+| direct | 524289 | 1 | request/s | 1604.42 → 1588.93 | n/a → n/a | 0.87 → 0.90 | 0.05 → 0.06 | 1250.64 → 1242.78 |
+| direct | 524289 | 16 | request/s | 3573.75 → 3565.26 | n/a → n/a | 4.79 → 4.79 | 0.02 → 0.03 | 802.05 → 1027.41 |
+| direct | 1048576 | 1 | request/s | 527.33 → 552.05 | n/a → n/a | 2.23 → 2.18 | 0.17 → 0.16 | 1256.08 → 746.56 |
+| direct | 1048576 | 16 | request/s | 1841.84 → 1847.02 | n/a → n/a | 9.20 → 9.21 | 0.05 → 0.05 | 908.14 → 612.38 |
+| direct | 1048577 | 1 | request/s | 565.32 → 695.67 | n/a → n/a | 2.14 → 2.04 | 0.13 → 0.13 | 1589.83 → 524.66 |
+| direct | 1048577 | 16 | request/s | 1868.98 → 1876.52 | n/a → n/a | 9.11 → 9.10 | 0.05 → 0.05 | 1409.78 → 537.62 |
+| sync | 524287 | 1 | request/s | 702.73 → 697.75 | n/a → n/a | 1.56 → 1.59 | 2.93 → 2.84 | 344.62 → 343.75 |
+| sync | 524287 | 16 | request/s | 864.81 → 872.35 | n/a → n/a | 19.42 → 19.14 | 3.54 → 3.58 | 596.14 → 566.20 |
+| sync | 524288 | 1 | request/s | 702.52 → 697.88 | n/a → n/a | 1.56 → 1.58 | 2.92 → 2.94 | 1232.34 → 1207.06 |
+| sync | 524288 | 16 | request/s | 860.07 → 870.16 | n/a → n/a | 19.34 → 19.14 | 3.56 → 3.58 | 788.16 → 747.77 |
+| sync | 524289 | 1 | request/s | 698.66 → 696.67 | n/a → n/a | 1.57 → 1.58 | 2.91 → 2.95 | 1259.30 → 1159.53 |
+| sync | 524289 | 16 | request/s | 862.99 → 883.39 | n/a → n/a | 19.44 → 18.91 | 3.57 → 3.57 | 798.56 → 1096.91 |
+| sync | 1048576 | 1 | request/s | 383.75 → 386.89 | n/a → n/a | 2.84 → 2.81 | 5.26 → 5.37 | 1257.66 → 746.62 |
+| sync | 1048576 | 16 | request/s | 451.48 → 452.97 | n/a → n/a | 36.84 → 36.58 | 6.75 → 6.84 | 907.45 → 611.84 |
+| sync | 1048577 | 1 | request/s | 385.54 → 386.20 | n/a → n/a | 2.81 → 2.81 | 5.38 → 5.31 | 1596.53 → 535.86 |
+| sync | 1048577 | 16 | request/s | 459.53 → 451.76 | n/a → n/a | 36.43 → 36.73 | 6.76 → 6.79 | 1485.05 → 537.56 |
+
+</details>
+
+<details><summary>threshold-512kib-retry-resumed / http-attempt-2 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 524287 | 1 | accepted message/s | 21.61 → 23.11 | 15.26 → 16.81 | 69.62 → 65.80 | 88.16 → 85.46 | 557.31 → 548.48 |
+| async | 524287 | 16 | accepted message/s | 29.89 → 30.07 | 23.85 → 24.05 | 955.43 → 860.31 | 61.74 → 60.74 | 1169.67 → 1255.41 |
+| async | 524288 | 1 | accepted message/s | 23.33 → 23.66 | 16.08 → 16.26 | 66.25 → 67.13 | 86.44 → 79.96 | 980.52 → 1067.55 |
+| async | 524288 | 16 | accepted message/s | 28.94 → 29.87 | 23.92 → 24.81 | 849.89 → 888.27 | 66.38 → 61.36 | 1272.42 → 1257.45 |
+| async | 524289 | 1 | accepted message/s | 23.37 → 49.19 | 16.10 → 33.73 | 67.27 → 24.05 | 80.15 → 32.04 | 989.39 → 1248.05 |
+| async | 524289 | 16 | accepted message/s | 30.07 → 387.08 | 24.07 → 266.12 | 832.22 → 54.92 | 62.22 → 16.50 | 1267.91 → 1018.33 |
+| async | 1048576 | 1 | accepted message/s | 13.12 → 41.96 | 9.02 → 31.79 | 119.19 → 28.04 | 145.35 → 46.74 | 1069.33 → 727.47 |
+| async | 1048576 | 16 | accepted message/s | 15.51 → 289.29 | 12.28 → 199.26 | 1467.52 → 72.62 | 124.22 → 22.30 | 1595.88 → 618.09 |
+| async | 1048577 | 1 | accepted message/s | 46.88 → 41.78 | 35.83 → 27.84 | 25.75 → 27.14 | 44.41 → 48.81 | 1538.62 → 565.58 |
+| async | 1048577 | 16 | accepted message/s | 285.85 → 289.40 | 191.27 → 193.86 | 77.15 → 73.95 | 22.24 → 22.90 | 1354.66 → 558.73 |
+| async-burst | 4096 | 64 | accepted message/s | 2224.16 → 2084.75 | 631.97 → 621.05 | 50.14 → 53.56 | 1.39 → 1.42 | 939.23 → 591.72 |
+| async-paced | 4096 | 1 | accepted message/s | 8.82 → 8.82 | 7.85 → 7.93 | 17.56 → 17.01 | 50.76 → 50.43 | 925.75 → 557.17 |
+| direct | 524287 | 1 | request/s | 1645.74 → 1690.84 | n/a → n/a | 0.78 → 0.77 | 0.05 → 0.04 | 314.66 → 314.41 |
+| direct | 524287 | 16 | request/s | 3550.88 → 3557.98 | n/a → n/a | 4.80 → 4.78 | 0.02 → 0.02 | 520.27 → 572.44 |
+| direct | 524288 | 1 | request/s | 1668.06 → 1642.15 | n/a → n/a | 0.77 → 0.79 | 0.05 → 0.05 | 1170.17 → 1255.45 |
+| direct | 524288 | 16 | request/s | 3566.81 → 3571.82 | n/a → n/a | 4.76 → 4.79 | 0.02 → 0.02 | 682.52 → 757.05 |
+| direct | 524289 | 1 | request/s | 1632.81 → 1618.18 | n/a → n/a | 0.80 → 0.84 | 0.05 → 0.05 | 1272.47 → 1257.53 |
+| direct | 524289 | 16 | request/s | 3589.93 → 3611.16 | n/a → n/a | 4.75 → 4.73 | 0.02 → 0.02 | 757.67 → 1147.91 |
+| direct | 1048576 | 1 | request/s | 536.88 → 567.22 | n/a → n/a | 2.15 → 2.18 | 0.15 → 0.15 | 1267.95 → 712.80 |
+| direct | 1048576 | 16 | request/s | 1854.26 → 1835.85 | n/a → n/a | 9.24 → 9.41 | 0.05 → 0.05 | 873.00 → 616.41 |
+| direct | 1048577 | 1 | request/s | 693.84 → 671.46 | n/a → n/a | 1.97 → 2.05 | 0.12 → 0.15 | 1505.31 → 553.89 |
+| direct | 1048577 | 16 | request/s | 1886.07 → 1861.68 | n/a → n/a | 9.11 → 9.13 | 0.04 → 0.06 | 1497.78 → 559.03 |
+| sync | 524287 | 1 | request/s | 699.97 → 711.37 | n/a → n/a | 1.59 → 1.57 | 2.85 → 2.82 | 337.52 → 329.12 |
+| sync | 524287 | 16 | request/s | 870.67 → 872.25 | n/a → n/a | 19.21 → 19.17 | 3.45 → 3.46 | 521.12 → 565.69 |
+| sync | 524288 | 1 | request/s | 709.87 → 707.45 | n/a → n/a | 1.54 → 1.54 | 2.89 → 2.91 | 1181.08 → 1271.88 |
+| sync | 524288 | 16 | request/s | 873.00 → 869.74 | n/a → n/a | 19.27 → 19.17 | 3.54 → 3.50 | 679.47 → 752.22 |
+| sync | 524289 | 1 | request/s | 699.60 → 707.29 | n/a → n/a | 1.58 → 1.55 | 2.90 → 2.91 | 1272.41 → 1262.66 |
+| sync | 524289 | 16 | request/s | 863.04 → 882.29 | n/a → n/a | 19.37 → 18.99 | 3.51 → 3.48 | 756.30 → 1212.02 |
+| sync | 1048576 | 1 | request/s | 386.15 → 385.64 | n/a → n/a | 2.79 → 2.80 | 5.25 → 5.21 | 1191.20 → 720.89 |
+| sync | 1048576 | 16 | request/s | 446.11 → 455.57 | n/a → n/a | 36.99 → 36.77 | 6.76 → 6.55 | 870.58 → 615.44 |
+| sync | 1048577 | 1 | request/s | 389.93 → 384.78 | n/a → n/a | 2.77 → 2.80 | 5.24 → 5.25 | 1523.39 → 562.42 |
+| sync | 1048577 | 16 | request/s | 453.08 → 452.53 | n/a → n/a | 36.51 → 36.55 | 6.61 → 6.63 | 1497.48 → 556.97 |
+
+</details>
+
+<details><summary>wal-64kib-retry-resumed / http-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 262144 | 1 | accepted message/s | 38.32 → 62.40 | 27.87 → 43.95 | 39.86 → 23.35 | 50.80 → 32.89 | 539.89 → 560.69 |
+| async | 262144 | 16 | accepted message/s | 56.55 → 145.23 | 41.99 → 103.47 | 449.95 → 212.02 | 38.09 → 20.22 | 886.86 → 1006.42 |
+| async | 1048576 | 1 | accepted message/s | 12.37 → 29.25 | 8.80 → 20.08 | 123.32 → 49.43 | 171.65 → 90.58 | 799.95 → 924.17 |
+| async | 1048576 | 16 | accepted message/s | 15.21 → 30.66 | 11.70 → 24.13 | 1472.50 → 848.01 | 128.14 → 67.12 | 1716.69 → 1894.84 |
+| async | 1048577 | 1 | accepted message/s | 47.92 → 45.50 | 32.83 → 33.29 | 25.35 → 26.39 | 43.46 → 45.42 | 1611.16 → 1838.55 |
+| async | 1048577 | 16 | accepted message/s | 285.74 → 243.27 | 195.68 → 167.99 | 76.85 → 95.94 | 22.44 → 22.83 | 1518.98 → 1555.47 |
+| async | 4194304 | 1 | accepted message/s | 35.96 → 36.08 | 23.23 → 26.37 | 31.12 → 32.25 | 99.70 → 99.00 | 953.27 → 1128.25 |
+| async | 4194304 | 16 | accepted message/s | 91.70 → 50.24 | 63.85 → 40.65 | 253.06 → 2500.86 | 68.38 → 87.55 | 842.09 → 1138.69 |
+| async-burst | 4096 | 64 | accepted message/s | 2032.80 → 2992.52 | 672.51 → 541.67 | 52.63 → 36.90 | 1.38 → 1.24 | 877.59 → 1145.55 |
+| async-paced | 4096 | 1 | accepted message/s | 8.62 → 9.13 | 8.01 → 8.46 | 19.29 → 13.13 | 48.32 → 44.07 | 845.94 → 1107.17 |
+| direct | 262144 | 1 | request/s | 2749.61 → 2676.08 | n/a → n/a | 0.43 → 0.47 | 0.03 → 0.03 | 318.91 → 315.58 |
+| direct | 262144 | 16 | request/s | 6015.50 → 6112.59 | n/a → n/a | 2.78 → 2.76 | 0.01 → 0.01 | 525.84 → 548.27 |
+| direct | 1048576 | 1 | request/s | 567.87 → 780.11 | n/a → n/a | 2.13 → 1.68 | 0.15 → 0.10 | 817.92 → 988.33 |
+| direct | 1048576 | 16 | request/s | 1862.89 → 1855.24 | n/a → n/a | 9.19 → 9.26 | 0.04 → 0.04 | 763.27 → 850.45 |
+| direct | 1048577 | 1 | request/s | 548.86 → 722.58 | n/a → n/a | 2.13 → 1.90 | 0.13 → 0.10 | 1635.42 → 1896.16 |
+| direct | 1048577 | 16 | request/s | 1865.56 → 1878.10 | n/a → n/a | 9.14 → 9.19 | 0.04 → 0.04 | 1577.70 → 1640.44 |
+| direct | 4194304 | 1 | request/s | 224.61 → 220.80 | n/a → n/a | 7.22 → 7.32 | 0.39 → 0.43 | 943.62 → 1155.72 |
+| direct | 4194304 | 16 | request/s | 468.36 → 467.98 | n/a → n/a | 36.79 → 36.83 | 0.17 → 0.18 | 950.28 → 1123.38 |
+| sync | 262144 | 1 | request/s | 1207.17 → 1192.42 | n/a → n/a | 0.93 → 0.94 | 1.65 → 1.64 | 347.08 → 335.39 |
+| sync | 262144 | 16 | request/s | 1615.09 → 1591.21 | n/a → n/a | 10.39 → 10.50 | 1.89 → 1.87 | 523.53 → 545.78 |
+| sync | 1048576 | 1 | request/s | 387.13 → 385.06 | n/a → n/a | 2.81 → 2.81 | 5.36 → 5.23 | 822.64 → 991.44 |
+| sync | 1048576 | 16 | request/s | 450.97 → 446.65 | n/a → n/a | 36.67 → 37.10 | 6.73 → 6.66 | 762.19 → 881.16 |
+| sync | 1048577 | 1 | request/s | 388.41 → 385.42 | n/a → n/a | 2.77 → 2.81 | 5.26 → 5.22 | 1647.28 → 1902.06 |
+| sync | 1048577 | 16 | request/s | 453.05 → 446.88 | n/a → n/a | 36.80 → 37.26 | 6.60 → 6.67 | 1574.05 → 1802.17 |
+| sync | 4194304 | 1 | request/s | 105.95 → 105.59 | n/a → n/a | 10.15 → 10.22 | 19.07 → 19.22 | 949.52 → 1118.50 |
+| sync | 4194304 | 16 | request/s | 113.63 → 110.92 | n/a → n/a | 149.25 → 151.10 | 24.82 → 25.76 | 950.28 → 1123.34 |
+
+</details>
+
+<details><summary>wal-64kib-retry-resumed / http-attempt-2 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| async | 262144 | 1 | accepted message/s | 38.00 → 64.60 | 26.82 → 46.87 | 40.36 → 22.61 | 51.65 → 34.27 | 560.25 → 560.52 |
+| async | 262144 | 16 | accepted message/s | 51.54 → 163.40 | 41.10 → 113.00 | 452.73 → 148.72 | 41.64 → 21.00 | 886.58 → 999.28 |
+| async | 1048576 | 1 | accepted message/s | 12.84 → 30.54 | 9.10 → 21.59 | 120.69 → 45.70 | 168.71 → 89.84 | 871.91 → 926.62 |
+| async | 1048576 | 16 | accepted message/s | 14.73 → 44.37 | 11.06 → 31.86 | 1411.20 → 436.74 | 135.49 → 65.22 | 1596.34 → 2132.72 |
+| async | 1048577 | 1 | accepted message/s | 40.44 → 46.19 | 33.57 → 31.64 | 29.83 → 26.00 | 47.77 → 46.74 | 1526.44 → 1857.86 |
+| async | 1048577 | 16 | accepted message/s | 280.30 → 293.50 | 192.79 → 196.52 | 76.70 → 74.52 | 22.74 → 22.75 | 1343.12 → 1585.05 |
+| async | 4194304 | 1 | accepted message/s | 36.47 → 36.65 | 23.58 → 25.11 | 30.33 → 31.19 | 100.57 → 99.26 | 1113.77 → 1309.83 |
+| async | 4194304 | 16 | accepted message/s | 94.87 → 91.20 | 63.80 → 64.67 | 218.96 → 247.14 | 68.24 → 66.62 | 999.19 → 1212.34 |
+| async-burst | 4096 | 64 | accepted message/s | 2067.90 → 3281.58 | 613.11 → 642.65 | 62.23 → 39.82 | 1.43 → 1.30 | 867.08 → 1185.89 |
+| async-paced | 4096 | 1 | accepted message/s | 8.92 → 8.85 | 7.94 → 7.95 | 16.69 → 16.47 | 50.66 → 48.41 | 882.77 → 1185.28 |
+| direct | 262144 | 1 | request/s | 2749.47 → 2745.41 | n/a → n/a | 0.43 → 0.43 | 0.03 → 0.03 | 312.41 → 313.30 |
+| direct | 262144 | 16 | request/s | 6106.17 → 6130.02 | n/a → n/a | 2.75 → 2.74 | 0.01 → 0.01 | 541.98 → 529.41 |
+| direct | 1048576 | 1 | request/s | 522.48 → 563.83 | n/a → n/a | 2.25 → 2.01 | 0.17 → 0.12 | 844.86 → 999.70 |
+| direct | 1048576 | 16 | request/s | 1871.65 → 1862.35 | n/a → n/a | 9.14 → 9.26 | 0.04 → 0.04 | 878.06 → 832.30 |
+| direct | 1048577 | 1 | request/s | 554.75 → 733.04 | n/a → n/a | 2.04 → 1.87 | 0.12 → 0.10 | 1480.81 → 2132.73 |
+| direct | 1048577 | 16 | request/s | 1841.97 → 1845.40 | n/a → n/a | 9.15 → 9.17 | 0.04 → 0.04 | 1473.72 → 1813.72 |
+| direct | 4194304 | 1 | request/s | 218.49 → 219.46 | n/a → n/a | 7.43 → 7.39 | 0.39 → 0.42 | 1111.77 → 1296.28 |
+| direct | 4194304 | 16 | request/s | 469.97 → 468.92 | n/a → n/a | 36.57 → 36.62 | 0.17 → 0.17 | 983.44 → 1308.30 |
+| sync | 262144 | 1 | request/s | 1201.01 → 1195.95 | n/a → n/a | 0.93 → 0.94 | 1.64 → 1.60 | 338.05 → 342.16 |
+| sync | 262144 | 16 | request/s | 1610.39 → 1613.71 | n/a → n/a | 10.45 → 10.39 | 1.89 → 1.86 | 541.83 → 523.86 |
+| sync | 1048576 | 1 | request/s | 387.79 → 387.19 | n/a → n/a | 2.79 → 2.79 | 5.32 → 5.27 | 834.36 → 1006.17 |
+| sync | 1048576 | 16 | request/s | 449.92 → 452.65 | n/a → n/a | 36.81 → 36.62 | 6.76 → 6.63 | 875.73 → 831.36 |
+| sync | 1048577 | 1 | request/s | 386.85 → 385.93 | n/a → n/a | 2.79 → 2.80 | 5.22 → 5.32 | 1485.78 → 2134.20 |
+| sync | 1048577 | 16 | request/s | 453.79 → 454.37 | n/a → n/a | 36.50 → 36.74 | 6.61 → 6.61 | 1471.45 → 1858.41 |
+| sync | 4194304 | 1 | request/s | 106.82 → 106.61 | n/a → n/a | 10.10 → 10.12 | 19.14 → 19.33 | 1107.70 → 1296.25 |
+| sync | 4194304 | 16 | request/s | 112.90 → 111.90 | n/a → n/a | 147.94 → 149.62 | 25.53 → 25.79 | 984.42 → 1307.09 |
+
+</details>
+
+
+## Candidate observations
+
+Throughput and CPU are medians across the listed repetitions. RAM is the highest sampled cluster working set among those repetitions during the load window. For Streams and Jobs, accepted throughput covers submission and completed throughput covers submission and drain. The table CPU and RAM values cover submission. Drain resources remain in the raw reports.
+
+| Profile | Scenario | Bytes | C | Runs | Median rate | Unit | Completed/s incl. drain | CPU ms/op | Peak MiB |
+|---|---|---:|---:|---:|---:|---|---:|---:|---:|
+| data-rerun | decrement | n/a | 1 | 2 | 39.37 | operation/s | n/a | 8.63 | 498.02 |
+| data-rerun | decrement | n/a | 16 | 2 | 119.77 | operation/s | n/a | 2.13 | 502.88 |
+| data-rerun | delete | 4096 | 1 | 2 | 212.27 | operation/s | n/a | 4.73 | 503.02 |
+| data-rerun | delete | 4096 | 16 | 2 | 129.52 | operation/s | n/a | 2.06 | 492.94 |
+| data-rerun | get | 4096 | 1 | 2 | 4813.39 | operation/s | n/a | 0.55 | 452.92 |
+| data-rerun | get | 4096 | 16 | 2 | 19991.84 | operation/s | n/a | 0.33 | 485.30 |
+| data-rerun | hashdelete | 4096 | 1 | 2 | 218.22 | operation/s | n/a | 4.46 | 415.66 |
+| data-rerun | hashdelete | 4096 | 16 | 2 | 158.37 | operation/s | n/a | 1.85 | 473.05 |
+| data-rerun | hashget | 4096 | 1 | 2 | 4924.99 | operation/s | n/a | 0.53 | 587.12 |
+| data-rerun | hashget | 4096 | 16 | 2 | 19633.99 | operation/s | n/a | 0.31 | 456.59 |
+| data-rerun | hashset | 4096 | 1 | 2 | 40.43 | operation/s | n/a | 8.74 | 503.42 |
+| data-rerun | hashset | 4096 | 16 | 2 | 98.23 | operation/s | n/a | 3.12 | 531.50 |
+| data-rerun | increment | n/a | 1 | 2 | 39.88 | operation/s | n/a | 8.42 | 474.44 |
+| data-rerun | increment | n/a | 16 | 2 | 105.50 | operation/s | n/a | 2.24 | 486.45 |
+| data-rerun | set | 4096 | 1 | 2 | 34.41 | operation/s | n/a | 11.38 | 473.94 |
+| data-rerun | set | 4096 | 16 | 2 | 140.08 | operation/s | n/a | 3.43 | 496.80 |
+| data-rerun | slimdata-set | 4096 | 1 | 2 | 12.88 | operation/s | n/a | 16.69 | 358.52 |
+| data-rerun | slimdata-set | 4096 | 16 | 2 | 112.42 | operation/s | n/a | 2.92 | 447.27 |
+| files-bounded-files | files | 262144 | 1 | 2 | 71.10 | operation/s | n/a | 21.86 | 337.91 |
+| files-bounded-files | files | 262144 | 4 | 2 | 49.90 | operation/s | n/a | 18.45 | 378.23 |
+| files-bounded-files | files | 1048576 | 1 | 2 | 39.07 | operation/s | n/a | 46.29 | 388.94 |
+| files-bounded-files | files | 1048576 | 4 | 2 | 132.96 | operation/s | n/a | 30.99 | 397.94 |
+| files-bounded-files | files | 4194304 | 1 | 2 | 21.37 | operation/s | n/a | 100.82 | 401.73 |
+| files-bounded-files | files | 4194304 | 4 | 2 | 44.26 | operation/s | n/a | 92.33 | 401.47 |
+| files-bounded-files-download | files-download | 262144 | 1 | 2 | 534.73 | operation/s | n/a | 2.91 | 336.72 |
+| files-bounded-files-download | files-download | 262144 | 4 | 2 | 1132.54 | operation/s | n/a | 2.36 | 356.34 |
+| files-bounded-files-download | files-download | 1048576 | 1 | 2 | 267.66 | operation/s | n/a | 5.31 | 360.69 |
+| files-bounded-files-download | files-download | 1048576 | 4 | 2 | 350.01 | operation/s | n/a | 5.64 | 361.70 |
+| files-bounded-files-download | files-download | 4194304 | 1 | 2 | 75.68 | operation/s | n/a | 16.97 | 363.58 |
+| files-bounded-files-download | files-download | 4194304 | 4 | 2 | 140.52 | operation/s | n/a | 17.97 | 364.19 |
+| files-bounded-files-unique | files-unique | 262144 | 1 | 2 | 137.42 | operation/s | n/a | 15.97 | 330.61 |
+| files-bounded-files-unique | files-unique | 262144 | 4 | 2 | 55.57 | operation/s | n/a | 15.95 | 375.00 |
+| files-bounded-files-unique | files-unique | 1048576 | 1 | 2 | 53.43 | operation/s | n/a | 34.87 | 379.23 |
+| files-bounded-files-unique | files-unique | 1048576 | 4 | 2 | 125.29 | operation/s | n/a | 25.03 | 384.44 |
+| files-bounded-files-unique | files-unique | 4194304 | 1 | 2 | 26.91 | operation/s | n/a | 84.74 | 387.47 |
+| files-bounded-files-unique | files-unique | 4194304 | 4 | 2 | 105.77 | operation/s | n/a | 56.15 | 388.66 |
+| files-bounded-files-upload | files-upload | 262144 | 1 | 2 | 105.64 | operation/s | n/a | 16.03 | 345.84 |
+| files-bounded-files-upload | files-upload | 262144 | 4 | 2 | 39.95 | operation/s | n/a | 17.52 | 382.08 |
+| files-bounded-files-upload | files-upload | 1048576 | 1 | 2 | 89.70 | operation/s | n/a | 31.65 | 385.80 |
+| files-bounded-files-upload | files-upload | 1048576 | 4 | 2 | 43.08 | operation/s | n/a | 30.05 | 396.59 |
+| files-bounded-files-upload | files-upload | 4194304 | 1 | 2 | 41.77 | operation/s | n/a | 80.41 | 398.56 |
+| files-bounded-files-upload | files-upload | 4194304 | 4 | 2 | 94.89 | operation/s | n/a | 64.15 | 399.81 |
+| jobs-rerun | jobs/http/fanout-1 | n/a | 1 | 2 | 140.98 | accepted job/s | 13.15 | 5.29 | 338.91 |
+| jobs-rerun | jobs/http/fanout-1 | n/a | 16 | 2 | 1403.81 | accepted job/s | 13.16 | 1.00 | 341.44 |
+| streams-rerun | streams/http/fanout-1 | 4096 | 1 | 2 | 122.96 | accepted message/s | 4.01 | 7.62 | 378.91 |
+| streams-rerun | streams/http/fanout-1 | 4096 | 16 | 2 | 606.54 | accepted message/s | 4.00 | 2.03 | 443.02 |
+| streams-rerun | streams/http/fanout-2 | 4096 | 1 | 2 | 94.94 | accepted message/s | 7.99 | 9.18 | 467.08 |
+| streams-rerun | streams/http/fanout-2 | 4096 | 16 | 2 | 570.47 | accepted message/s | 7.99 | 2.10 | 485.27 |
+| websocket-rerun | ws-async/dotnet/fanout-1 | 4096 | 1 | 2 | 94.83 | accepted message/s | 37.03 | 7.52 | 401.88 |
+| websocket-rerun | ws-async/dotnet/fanout-1 | 4096 | 16 | 2 | 450.29 | accepted message/s | 40.89 | 1.80 | 428.92 |
+| websocket-rerun | ws-async/dotnet/fanout-1 | 262144 | 1 | 2 | 34.29 | accepted message/s | 20.12 | 44.44 | 538.75 |
+| websocket-rerun | ws-async/dotnet/fanout-1 | 262144 | 16 | 2 | 45.86 | accepted message/s | 20.18 | 34.20 | 868.25 |
+| websocket-rerun | ws-async/python/fanout-1 | 4096 | 1 | 2 | 114.15 | accepted message/s | 41.04 | 8.38 | 936.48 |
+| websocket-rerun | ws-async/python/fanout-1 | 4096 | 16 | 2 | 1004.53 | accepted message/s | 40.83 | 1.63 | 917.94 |
+| websocket-rerun | ws-async/python/fanout-1 | 262144 | 1 | 2 | 42.46 | accepted message/s | 20.10 | 50.22 | 967.78 |
+| websocket-rerun | ws-async/python/fanout-1 | 262144 | 16 | 2 | 60.58 | accepted message/s | 41.77 | 38.41 | 1108.94 |
+| websocket-rerun | ws-events/dotnet/fanout-2 | 4096 | 1 | 2 | 222.05 | accepted message/s | 125.28 | 2.54 | 862.78 |
+| websocket-rerun | ws-events/dotnet/fanout-2 | 4096 | 16 | 2 | 688.43 | accepted message/s | 128.02 | 1.94 | 885.69 |
+| websocket-rerun | ws-events/dotnet/fanout-2 | 262144 | 1 | 2 | 127.35 | accepted message/s | 127.89 | 12.83 | 885.67 |
+| websocket-rerun | ws-events/dotnet/fanout-2 | 262144 | 16 | 2 | 436.58 | accepted message/s | 127.97 | 11.42 | 850.42 |
+| websocket-rerun | ws-events/python/fanout-2 | 4096 | 1 | 2 | 1307.98 | accepted message/s | 1798.63 | 2.10 | 1038.88 |
+| websocket-rerun | ws-events/python/fanout-2 | 4096 | 16 | 2 | 3026.69 | accepted message/s | 1362.94 | 1.59 | 982.02 |
+| websocket-rerun | ws-events/python/fanout-2 | 262144 | 1 | 2 | 204.67 | accepted message/s | 374.83 | 17.39 | 900.48 |
+| websocket-rerun | ws-events/python/fanout-2 | 262144 | 16 | 2 | 814.51 | accepted message/s | 817.22 | 10.08 | 1368.23 |
+| websocket-rerun | ws-sync/dotnet/fanout-1 | 4096 | 1 | 2 | 121.48 | request/s | n/a | 3.97 | 333.31 |
+| websocket-rerun | ws-sync/dotnet/fanout-1 | 4096 | 16 | 2 | 128.71 | request/s | n/a | 4.15 | 339.31 |
+| websocket-rerun | ws-sync/dotnet/fanout-1 | 262144 | 1 | 2 | 113.73 | request/s | n/a | 11.51 | 349.28 |
+| websocket-rerun | ws-sync/dotnet/fanout-1 | 262144 | 16 | 2 | 129.20 | request/s | n/a | 11.31 | 408.27 |
+| websocket-rerun | ws-sync/python/fanout-1 | 4096 | 1 | 2 | 781.26 | request/s | n/a | 2.85 | 891.94 |
+| websocket-rerun | ws-sync/python/fanout-1 | 4096 | 16 | 2 | 1422.17 | request/s | n/a | 2.65 | 913.81 |
+| websocket-rerun | ws-sync/python/fanout-1 | 262144 | 1 | 2 | 410.40 | request/s | n/a | 10.91 | 913.98 |
+| websocket-rerun | ws-sync/python/fanout-1 | 262144 | 16 | 2 | 609.77 | request/s | n/a | 9.88 | 925.80 |
+
+Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local campaign directory. The final report includes completed comparisons and identifies profiles that did not finish.
+
+## Queue and routing microbenchmarks
+
+Status: **finished**.
+
+BenchmarkDotNet ShortRun used the in-process .NET 11 JIT. Queue cases compare the current ZLinq implementation, LINQ and a direct loop. Routing cases measure individual operations in the candidate.
+
+<details><summary>QueuePipelineBenchmarks</summary>
+
+| Method       | Count | Retry | Mean           | Error         | StdDev     | Ratio | RatioSD | Rank | Gen0   | Gen1   | Allocated | Alloc Ratio |
+|------------- |------ |------ |---------------:|--------------:|-----------:|------:|--------:|-----:|-------:|-------:|----------:|------------:|
+| **CurrentZLinq** | **0**     | **False** |      **2.4235 ns** |     **0.1703 ns** |  **0.0093 ns** |  **1.00** |    **0.00** |    **2** | **0.0029** |      **-** |      **24 B** |        **1.00** |
+| DotNetLinq   | 0     | False |      2.3540 ns |     0.4008 ns |  0.0220 ns |  0.97 |    0.01 |    2 | 0.0038 |      - |      32 B |        1.33 |
+| DirectLoop   | 0     | False |      0.5833 ns |     0.1564 ns |  0.0086 ns |  0.24 |    0.00 |    1 |      - |      - |         - |        0.00 |
+|              |       |       |                |               |            |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **0**     | **True**  |      **2.3453 ns** |     **0.2249 ns** |  **0.0123 ns** |  **1.00** |    **0.01** |    **2** | **0.0029** |      **-** |      **24 B** |        **1.00** |
+| DotNetLinq   | 0     | True  |      2.3208 ns |     0.2804 ns |  0.0154 ns |  0.99 |    0.01 |    2 | 0.0038 |      - |      32 B |        1.33 |
+| DirectLoop   | 0     | True  |      0.5822 ns |     0.0755 ns |  0.0041 ns |  0.25 |    0.00 |    1 |      - |      - |         - |        0.00 |
+|              |       |       |                |               |            |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **200**   | **False** |    **254.2481 ns** |    **56.8603 ns** |  **3.1167 ns** |  **1.00** |    **0.02** |    **1** | **0.0601** |      **-** |     **504 B** |        **1.00** |
+| DotNetLinq   | 200   | False |    282.5983 ns |    47.4917 ns |  2.6032 ns |  1.11 |    0.01 |    1 | 0.0668 |      - |     560 B |        1.11 |
+| DirectLoop   | 200   | False |    503.9877 ns |     5.2310 ns |  0.2867 ns |  1.98 |    0.02 |    2 | 0.1869 |      - |    1568 B |        3.11 |
+|              |       |       |                |               |            |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **200**   | **True**  |    **668.4573 ns** |    **53.9759 ns** |  **2.9586 ns** |  **1.00** |    **0.01** |    **1** | **0.0095** |      **-** |      **80 B** |        **1.00** |
+| DotNetLinq   | 200   | True  |    656.3691 ns |    18.3266 ns |  1.0045 ns |  0.98 |    0.00 |    1 | 0.0162 |      - |     136 B |        1.70 |
+| DirectLoop   | 200   | True  |    685.2232 ns |    15.0329 ns |  0.8240 ns |  1.03 |    0.00 |    1 | 0.0038 |      - |      32 B |        0.40 |
+|              |       |       |                |               |            |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **2000**  | **False** |  **4,397.0106 ns** |   **605.7441 ns** | **33.2029 ns** |  **1.00** |    **0.01** |    **1** | **0.4883** |      **-** |    **4104 B** |        **1.00** |
+| DotNetLinq   | 2000  | False |  4,583.5337 ns | 1,814.6857 ns | 99.4690 ns |  1.04 |    0.02 |    1 | 0.4959 |      - |    4160 B |        1.01 |
+| DirectLoop   | 2000  | False |  5,831.2485 ns |   284.8329 ns | 15.6127 ns |  1.33 |    0.01 |    2 | 1.4801 | 0.0153 |   12408 B |        3.02 |
+|              |       |       |                |               |            |       |         |      |        |        |           |             |
+| **CurrentZLinq** | **2000**  | **True**  | **10,248.0850 ns** | **1,298.6627 ns** | **71.1841 ns** |  **1.00** |    **0.01** |    **1** |      **-** |      **-** |      **80 B** |        **1.00** |
+| DotNetLinq   | 2000  | True  | 10,169.7636 ns | 1,266.4399 ns | 69.4178 ns |  0.99 |    0.01 |    1 | 0.0153 |      - |     136 B |        1.70 |
+| DirectLoop   | 2000  | True  | 10,073.0337 ns |    92.0832 ns |  5.0474 ns |  0.98 |    0.01 |    1 |      - |      - |      32 B |        0.40 |
+
+</details>
+
+<details><summary>RoutingQueryBenchmarks</summary>
+
+| Method             | FunctionCount | Mean       | Error      | StdDev    | Rank | Gen0   | Allocated |
+|------------------- |-------------- |-----------:|-----------:|----------:|-----:|-------:|----------:|
+| **SearchFunction**     | **2**             |   **3.516 ns** |  **0.0312 ns** | **0.0017 ns** |    **1** |      **-** |         **-** |
+| FirstReadyPodPorts | 2             |   6.944 ns |  0.6181 ns | 0.0339 ns |    2 |      - |         - |
+| StatusReadyCount   | 2             |  19.091 ns |  2.8825 ns | 0.1580 ns |    3 | 0.0115 |      96 B |
+| **SearchFunction**     | **20**            |  **29.299 ns** |  **1.4230 ns** | **0.0780 ns** |    **4** |      **-** |         **-** |
+| FirstReadyPodPorts | 20            |  28.455 ns |  5.5423 ns | 0.3038 ns |    4 |      - |         - |
+| StatusReadyCount   | 20            |  19.096 ns |  1.9416 ns | 0.1064 ns |    3 | 0.0115 |      96 B |
+| **SearchFunction**     | **200**           | **283.094 ns** | **25.7005 ns** | **1.4087 ns** |    **5** |      **-** |         **-** |
+| FirstReadyPodPorts | 200           | 265.047 ns | 46.2824 ns | 2.5369 ns |    5 |      - |         - |
+| StatusReadyCount   | 200           |  18.886 ns |  0.6155 ns | 0.0337 ns |    3 | 0.0115 |      96 B |
+
+</details>
+
+## Run status
+
+- **jobs-rerun**: OBSERVED.
+- **websocket-rerun**: OBSERVED.
+- **streams-rerun**: OBSERVED.
+- **data-rerun**: OBSERVED.
+- **files-bounded-files-upload**: OBSERVED.
+- **files-bounded-files-download**: OBSERVED.
+- **files-bounded-files**: OBSERVED.
+- **files-bounded-files-unique**: OBSERVED.
+- **http-bounded-abba-20**: FAIL (20 GiB disk reserve).
+- **memory-abba-replay**: INCONCLUSIVE (20 GiB disk reserve).
+- **threshold-512kib-retry**: INCONCLUSIVE (20 GiB disk reserve).
+- **wal-64kib-retry**: deferred (20 GiB disk reserve).
+- **http-bounded-abba-20-resumed**: FAIL (20 GiB disk reserve).
+- **memory-abba-replay-resumed**: FAIL.
+- **threshold-512kib-retry-resumed**: FAIL (20 GiB disk reserve).
+- **wal-64kib-retry-resumed**: INCONCLUSIVE (20 GiB disk reserve).
+- **http-bounded-abba-20-closing-reference**: FAIL.
+- **threshold-512kib-retry-confirmation**: FAIL.
+- **wal-64kib-retry-confirmation**: FAIL.

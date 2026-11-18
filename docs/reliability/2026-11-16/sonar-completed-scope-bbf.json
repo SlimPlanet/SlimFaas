@@ -1,0 +1,122 @@
+{
+  "source": "bbf19e8ec15f80b94e142b1be55d5f1b2336892a",
+  "run": 43978923840,
+  "job": 133690013097,
+  "artifact": 14283182427,
+  "task": {
+    "id": "AaHmt1VjQTYjdua-nA4Z",
+    "type": "REPORT",
+    "componentId": "AaG7Vz5R2NabkLtq81dP",
+    "componentKey": "SlimPlanet_SlimFaas",
+    "componentName": "SlimFaas",
+    "componentQualifier": "TRK",
+    "analysisId": "8ecc69e4-0fc5-483f-bb5d-e507fcacc093",
+    "status": "SUCCESS",
+    "submittedAt": "2026-11-16T23:35:37+0000",
+    "submitterLogin": "guillaume-chervet@github",
+    "startedAt": "2026-11-16T23:35:37+0000",
+    "executedAt": "2026-11-16T23:35:44+0000",
+    "executionTimeMs": 7154,
+    "logs": false,
+    "hasScannerContext": true,
+    "organization": "slimplanet",
+    "pullRequest": "506",
+    "warningCount": 2,
+    "warnings": []
+  },
+  "scope_boundary_passed": true,
+  "analyzed_pr_files": 356,
+  "main_pr_files": 274,
+  "coverage": {
+    "src/SlimData/QueueElementExtensions.cs": {
+      "coverage": "99.3",
+      "lines_to_cover": "144",
+      "uncovered_lines": "1"
+    },
+    "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.cs": {
+      "scope": "Unchanged file omitted by the PR API; project submission checked separately"
+    },
+    "client/python/slimfaas-client/src/slimfaas_client/_client.py": {
+      "coverage": "69.3",
+      "lines_to_cover": "322",
+      "uncovered_lines": "99"
+    }
+  },
+  "excluded_projects": [
+    "benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj",
+    "benchmarks/SlimFaas.CollectionProbe/SlimFaas.CollectionProbe.csproj",
+    "tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj",
+    "docs/reliability/2026-11-12/socket-memory-probe/SocketMemoryProbe.csproj"
+  ],
+  "submitted_projects": {
+    "src/SlimFaasKafka/SlimFaasKafka.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimFaasMcp/SlimFaasMcp.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaas.Tests/SlimFaas.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimData/SlimData.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaasKafka.Tests/SlimFaasKafka.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "client/dotnet/SlimFaasClient/tests/SlimFaasClient.Tests/SlimFaasClient.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimFaasMcp.Tests/SlimFaasMcp.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "src/SlimFaas/SlimFaas.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "tests/SlimData.Tests/SlimData.Tests.csproj": {
+      "ProjectType": "Test",
+      "IsTest": null,
+      "IsExcluded": "false"
+    },
+    "benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj": {
+      "ProjectType": "Product",
+      "IsTest": null,
+      "IsExcluded": "true"
+    }
+  },
+  "artifact_zip_sha256": "68fe88af2b7aaab12f6a942a6f19c6d052fd3e1ef2724789dc05e8b5343da02b",
+  "artifact_file_sha256": {
+    "scanner-end.log": "7e8241efb783df5cb0e37f8501bfd4aaf79b5a4624918a8a955496f00ec620dd",
+    "submitted-projects.json": "837ae8deaeb917e9e8336cfee0041dae7e048dbb528908d0f154eff8c4e8b0ed",
+    "inventory.json": "32c4130ff85a6847d73e0650204412115d7fabaac57039f62e576372e3bb3bbc",
+    "completed-scan.json": "4122cb64cab7c4c65786417706ec3e87e122629f325453cfccfe0f92107a0d56"
+  },
+  "windows_tests": {
+    "passed": 2450,
+    "failed": 2,
+    "skipped": 0,
+    "failure": "RequestJournalTests live readers opened with FileShare.Read, which excludes the existing writer on Windows; source correction pending execution and CI verification."
+  },
+  "quality_gate": "Independent from processed scope; not cleared by successful analysis submission or boundary verification."
+}

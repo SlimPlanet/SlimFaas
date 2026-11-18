@@ -1,0 +1,24 @@
+{
+  "observed": 1794861362.91563,
+  "runtime_source": "29daa097fd4562c39e4b362646c16ddd5f1cf7c0",
+  "proxy_source_sha256": "80eab185ee022fdab6811e9c0e3bed6ff254ca328fdadb0cb46997e42dda5f4e",
+  "red_cases": 3,
+  "scope": "Deterministic selection regressions reproduce stale synchronous Proxy snapshots after replacement/deletion/wakeup. This does not establish the cause of the separately observed async NoPort errors; async Proxy already reads the live cache.",
+  "files": [
+    {
+      "path": "logs/proxy-freshness-red-01.log",
+      "sha256": "55a2b5f7e13d354a4e1161842e551bc138ba413f539475e6d96cf98d01c81565"
+    },
+    {
+      "path": "logs/function-pool-467-tests-01.log",
+      "sha256": "99c5cdd7f6aa4ec2d87999a4174d7f72120efc0eab2f105f81c3ea7d316de047"
+    }
+  ],
+  "green": {
+    "passed": 34,
+    "failed": 0,
+    "skipped": 0,
+    "log": "logs/proxy-freshness-green-01.log",
+    "sha256": "6ec55e6fc8b136fa88f51ca6d3dd01e176df6b9f1c1b37741cf5680188462643"
+  }
+}

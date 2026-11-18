@@ -1,0 +1,208 @@
+{
+  "created": 1794778085.4033542,
+  "base": "511630668ffad507f14d6ce7d42c941bb224ad84",
+  "scope": "Reuse cleared pooled128KiB read blocks for full-body SHA256 verification in availability checks and persistence receipts. Independent microprobes measure allocation/CPU improvements; application/non-regression validation remains pending. Flush barriers, length/hash checks, WAL geometry and offload defaults are unchanged.",
+  "sources": [
+    {
+      "path": "src/SlimData/ClusterFiles/FileContentHash.cs",
+      "sha256": "0661153d075d4624ced926c14ff6216d14bc82d916c5661adeb142164c9f1200"
+    },
+    {
+      "path": "src/SlimData/ClusterFiles/DiskFileRepository.cs",
+      "sha256": "d65876d8dd227636f2be1d1147cbdcdd88372166176951efd776799aacdaf289"
+    },
+    {
+      "path": "tests/SlimData.Tests/ClusterFiles/FileContentHashTests.cs",
+      "sha256": "ccf80f6c6ac3c2fe8b1e12adda2ff2c06dcba0ef0d53ab2adfa839817c4e53a8"
+    }
+  ],
+  "results": [
+    {
+      "phase": "targeted",
+      "path": "reproductions/pooled-file-hash-net11-48/targeted/_a115vcCX1PXQ575D_2026-11-15_22_20_39_net11.0.trx",
+      "sha256": "3a81e1c42875430672c6e77bfcc0dc3c4d46f97c9786f3977cdc39df9bbefd46",
+      "counters": {
+        "total": "117",
+        "executed": "117",
+        "passed": "117",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/pooled-file-hash-net11-48/full-solution/_a115vcCX1PXQ575D_2026-11-15_22_22_39_net11.0.trx",
+      "sha256": "0d24cd93088b62701b8ba0ce729671580e51dd58c6a839fe883a452bb3603507",
+      "counters": {
+        "total": "11",
+        "executed": "11",
+        "passed": "11",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/pooled-file-hash-net11-48/full-solution/_a115vcCX1PXQ575D_2026-11-15_22_22_39_net11.0[1].trx",
+      "sha256": "56801b984ef09fbe507a133a276326fa9d69f4679d1395af841722a1173daab3",
+      "counters": {
+        "total": "52",
+        "executed": "52",
+        "passed": "52",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/pooled-file-hash-net11-48/full-solution/_a115vcCX1PXQ575D_2026-11-15_22_22_41_net11.0.trx",
+      "sha256": "264a43dfe66f9abad6ba49b407731d5129762553a0601c4957b5e0848ab3383f",
+      "counters": {
+        "total": "465",
+        "executed": "465",
+        "passed": "465",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/pooled-file-hash-net11-48/full-solution/_a115vcCX1PXQ575D_2026-11-15_22_22_46_net11.0.trx",
+      "sha256": "53d4431d3eb7360ef0ab57146f693879470d44bd6f508cbf37cefdd1a9550e8d",
+      "counters": {
+        "total": "1769",
+        "executed": "1769",
+        "passed": "1769",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "phase": "full-solution",
+      "path": "reproductions/pooled-file-hash-net11-48/full-solution/_a115vcCX1PXQ575D_2026-11-15_22_22_56_net11.0.trx",
+      "sha256": "02357e0d75f52c2ee002b75d4c685e9cf2772378ff1ede2cc8984b04fb19e1c8",
+      "counters": {
+        "total": "109",
+        "executed": "109",
+        "passed": "109",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ],
+  "validation": {
+    "started": 1794777754.073745,
+    "base": "511630668ffad507f14d6ce7d42c941bb224ad84",
+    "phases": [
+      {
+        "name": "full-solution",
+        "command": [
+          "dotnet",
+          "test",
+          "-nr:false",
+          "--logger",
+          "trx",
+          "--results-directory",
+          "/Users/a115vc/Desktop/github/SlimFaas-pr506/artifacts/pr506/reproductions/pooled-file-hash-net11-48/full-solution"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-48-full-solution.log",
+        "sha256": "73174f18245f964743af03c3c51047fafa332ea452278ffaabfa599f85bf1309"
+      },
+      {
+        "name": "platform-harness",
+        "command": [
+          "python3",
+          ".bin/test-platform-validation.py"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-48-platform-harness.log",
+        "sha256": "67c7183127ad13f621c8a6267edab9ccbdcecc7eec579a04ff9041c58aa0042b"
+      },
+      {
+        "name": "documentation-build",
+        "command": [
+          "pnpm",
+          "build"
+        ],
+        "exit_code": 0,
+        "log": "logs/net11-48-documentation-build.log",
+        "sha256": "8e84e88746e1bfc49045a9bb0fedba022392729c1db9a94166d0c01ea8e1fd3d"
+      }
+    ],
+    "phase": "closed",
+    "passed": true,
+    "finished": 1794777853.425142,
+    "generated_build_cache": {
+      "path": "reproductions/pooled-file-hash-net11-48/generated-tsconfig.tsbuildinfo",
+      "sha256": "0667e146254d9fd518d3949d80f0abc0fb67c84ace1ed29d85a3b4a5df90926b",
+      "restored_original_sha256": "dafedb3fdaf894d3e6ec377648ccfdc44c426de4c75dc130fb330b146797f7f5"
+    }
+  }
+}

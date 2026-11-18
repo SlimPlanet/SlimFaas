@@ -8,7 +8,7 @@ namespace SlimData.Commands;
 
 public static class SlimDataCommandProtocol
 {
-    public const string Current = "SLDC/5";
+    public const string Current = "SLDC/6";
     public const string HeaderName = "X-SlimData-Command-Protocol";
     public const string AssemblyVersionHeaderName = "X-SlimData-Assembly-Version";
 
@@ -164,7 +164,7 @@ internal static class SlimDataCommandCodec
         return offset;
     }
 
-    private static void EnsureDestination(Span<byte> destination, int required, string fieldName)
+    private static void EnsureDestination(ReadOnlySpan<byte> destination, int required, string fieldName)
     {
         if (destination.Length < required)
         {

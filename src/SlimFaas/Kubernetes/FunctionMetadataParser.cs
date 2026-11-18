@@ -158,7 +158,7 @@ public static class FunctionMetadataParser
         {
             DeadLetterQueue = deadLetters,
             TimeoutRetries = configuration.TimeoutRetries ?? [2, 4, 8],
-            HttpStatusRetries = configuration.HttpStatusRetries ?? [500, 502, 503]
+            HttpStatusRetries = configuration.HttpStatusRetries ?? [500, 502, 503, 504]
         };
     }
 

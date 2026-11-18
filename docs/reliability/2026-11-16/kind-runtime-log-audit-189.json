@@ -1,0 +1,2486 @@
+{
+  "created_utc": 1794845508.411189,
+  "runtime_source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "roles": [
+    {
+      "role": "follower",
+      "namespace": "slimfaas-pr506-n189-p113-endurance-follower",
+      "archive_sha256": "eb61c60c73d419536c31d74f8ff623e8226b0f5ae03ce712ddb329e514f3ab4a",
+      "initial_ready_utc": 1794818232.3590577,
+      "fault_recovery_windows": [
+        {
+          "start": 1794818232.595884,
+          "end": 1794818435.3821526,
+          "label": "protocol"
+        },
+        {
+          "start": 1794818457.5677764,
+          "end": 1794818488.153678,
+          "label": "absence-follower-30s"
+        },
+        {
+          "start": 1794818488.1750417,
+          "end": 1794818549.1498997,
+          "label": "absence-follower-60s"
+        },
+        {
+          "start": 1794818549.1706147,
+          "end": 1794818851.8526437,
+          "label": "absence-follower-300s"
+        },
+        {
+          "start": 1794818851.878137,
+          "end": 1794819758.8764014,
+          "label": "absence-follower-900s"
+        },
+        {
+          "start": 1794819758.904231,
+          "end": 1794821575.1862051,
+          "label": "absence-follower-1800s"
+        },
+        {
+          "start": 1794821575.2323716,
+          "end": 1794825229.8791277,
+          "label": "absence-follower-3600s"
+        },
+        {
+          "start": 1794825229.9436777,
+          "end": 1794825386.9397185,
+          "label": "crashes-and-restart"
+        }
+      ],
+      "unique_observed_error_headers": 592,
+      "header_categories": {
+        "startup": 3,
+        "protocol": 546,
+        "absence-follower-30s": 2,
+        "absence-follower-60s": 1,
+        "absence-follower-300s": 2,
+        "absence-follower-1800s": 2,
+        "absence-follower-3600s": 3,
+        "crashes-and-restart": 33
+      },
+      "outside_recorded_windows": [],
+      "unique_header_set_sha256": "f7b1256452c929de4b20d7e514a3c71b804e35bbbf1a8d4cf55f640a15d3a2c8",
+      "indexed_log_files": [
+        {
+          "path": "campaign/absence-follower-1800s-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+              "snapshot": "campaign/absence-follower-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 673190,
+          "sha256": "dc8eb6086ed492eb3f5e108ae2d5d87388177a546f5faf0f537d38e40e71d9dd",
+          "earliest_log_utc": 1794821436.684244,
+          "latest_log_utc": 1794821559.4634,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-1800s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/absence-follower-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 76448,
+          "sha256": "2729d392adfdd63f2e5a9e5534f2977c10bc056964c3ba19caab4e80c92ed16f",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794821559.884525,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 2,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-1800s-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/absence-follower-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2067772,
+          "sha256": "0344c87910e38b8125908a5119021427fbd47dcc7d07e544fd5bd517290d3e75",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794821552.715321,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-300s-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+              "snapshot": "campaign/absence-follower-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 3855238,
+          "sha256": "0aac06a642412fe0579e1f5c68ce16482631f653ca6721fa89c2fa3571c59de6",
+          "earliest_log_utc": 1794818234.448192,
+          "latest_log_utc": 1794818849.224682,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-300s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/absence-follower-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 53636,
+          "sha256": "0d1fa11145e53029fb32169ba1a1de964805d3d07b9ea4b046032410053d0295",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794818850.306418,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 2,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-300s-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/absence-follower-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 970706,
+          "sha256": "df722eb9c7f3769ee15509ff513cb981785e942c0da46af7fb6ea74f06a96ff8",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794818838.248324,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-30s-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+              "snapshot": "campaign/absence-follower-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1475516,
+          "sha256": "13a87e99061b61faccd19fff0aa0a393bc7dc10560e3ddc09cd8448be9feba59",
+          "earliest_log_utc": 1794818234.448192,
+          "latest_log_utc": 1794818486.747858,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-30s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/absence-follower-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 31344,
+          "sha256": "344720bbd5166b733e0ab6a4324b285a7d065d504aa4785567b852b7acf5ac3e",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794818487.587783,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 1,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-30s-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/absence-follower-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 668449,
+          "sha256": "2ecec7a47a6e163232c947a2a5e01d9624883231a7c8e2a1a528b37831fb948c",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794818487.908758,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-3600s-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+              "snapshot": "campaign/absence-follower-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2024213,
+          "sha256": "d4225e52ad5f0ea8b2f41a441d26a30c9b88d1b433f4b2d0a75800d96000dcba",
+          "earliest_log_utc": 1794824809.807015,
+          "latest_log_utc": 1794825175.431323,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-3600s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/absence-follower-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 96112,
+          "sha256": "8c7cdd3c333cbcfb38ea433c0a8360ce93a42f781c4c2e523aa4651013165b9d",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794825176.286067,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 3,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-3600s-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/absence-follower-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 3214265,
+          "sha256": "ec25c143332ccafc4439e41f1836867d541933f76e913312aa6aeae926f32051",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794825165.295232,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-60s-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+              "snapshot": "campaign/absence-follower-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1834892,
+          "sha256": "a7e7b0f9cd26bda85a3c6073a6efadce49c4890bde0bfadeedc557ed86851fab",
+          "earliest_log_utc": 1794818234.448192,
+          "latest_log_utc": 1794818548.197414,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-60s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/absence-follower-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 39475,
+          "sha256": "7d9ac800f8166a90aaed11e657fc2d65c45bfaa7b5d7b048c021a3023ce668fc",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794818548.192386,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 2,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-60s-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/absence-follower-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 719679,
+          "sha256": "9b07a29eae1d7a40459a3d18f5f95bfa8df325a87f8e7e943586b463d4b14dca",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794818542.325704,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-900s-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+              "snapshot": "campaign/absence-follower-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 9211267,
+          "sha256": "4c73d0f68a855310ba7c39450006f555e247639effda7cbfeca667f51b86b224",
+          "earliest_log_utc": 1794818234.448192,
+          "latest_log_utc": 1794819752.00288,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-900s-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/absence-follower-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 59721,
+          "sha256": "848856e90285ac898988d0bc8fa76479c348c18b9a8d9f88b6a29e92e5bdf10e",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794819752.917677,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 2,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-follower-900s-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/absence-follower-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1401362,
+          "sha256": "2afb44ad8d3ba88a9a1a4f654b82ff95788aec110cc6f52210308c4d7cd9e8f7",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794819752.023431,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 10076,
+          "sha256": "7c1f8b37f32b7a0df70d9428769c9c92df2b739ea5167ce5096fc5fc3641e40f",
+          "earliest_log_utc": 1794825281.827064,
+          "latest_log_utc": 1794825325.619393,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 165651,
+          "sha256": "63f456735008d73e445c4d793e065f84efca43a5d204bcb7980ce46f5d2b30a2",
+          "earliest_log_utc": 1794825233.102662,
+          "latest_log_utc": 1794825328.55346,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 3923,
+          "sha256": "63f4f07256f52a3bfbc98b1afab434044815cadd3c4843051274388ecb9231aa",
+          "earliest_log_utc": 1794825328.508516,
+          "latest_log_utc": 1794825329.457033,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-0-cc6f3419-e244-46c1-88a2-543d4045242c-runtime.log",
+          "pod_uid": "cc6f3419-e244-46c1-88a2-543d4045242c",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 5593,
+          "sha256": "219c40625276a34183b157ee0cbe541d1f9816913821dfee81468a12daf61883",
+          "earliest_log_utc": 1794825384.298744,
+          "latest_log_utc": 1794825387.536027,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-1-fd06f0fa-9fdf-452e-a926-6e899ec3dd11-runtime.log",
+          "pod_uid": "fd06f0fa-9fdf-452e-a926-6e899ec3dd11",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 6565,
+          "sha256": "630ec0b73c3397431f92dc30266549572354b9126e57abf2c6e09c45b24784b4",
+          "earliest_log_utc": 1794825383.528631,
+          "latest_log_utc": 1794825385.646614,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-2-a2a8df7c-90d7-4803-9eb2-e98d92632d94-runtime.log",
+          "pod_uid": "a2a8df7c-90d7-4803-9eb2-e98d92632d94",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 5080,
+          "sha256": "f37de17a312a92db75f314935a0f5ff1015f9ddbd1a0bbe96b8e879c5a175bc0",
+          "earliest_log_utc": 1794825384.522492,
+          "latest_log_utc": 1794825389.506532,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-0-cc6f3419-e244-46c1-88a2-543d4045242c-runtime.log",
+          "pod_uid": "cc6f3419-e244-46c1-88a2-543d4045242c",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://b3784fff1c3bb7c5ce94412705dacf83a49ea99f9484c14edfb6f6af001fe715",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5593,
+          "sha256": "219c40625276a34183b157ee0cbe541d1f9816913821dfee81468a12daf61883",
+          "earliest_log_utc": 1794825384.298744,
+          "latest_log_utc": 1794825387.536027,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-1-fd06f0fa-9fdf-452e-a926-6e899ec3dd11-runtime.log",
+          "pod_uid": "fd06f0fa-9fdf-452e-a926-6e899ec3dd11",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://72e6a9ddd0219d32b34b25c197aae54f1f9beda8478208c3c6cd7bdbd96dfaac",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6565,
+          "sha256": "630ec0b73c3397431f92dc30266549572354b9126e57abf2c6e09c45b24784b4",
+          "earliest_log_utc": 1794825383.528631,
+          "latest_log_utc": 1794825385.646614,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-2-a2a8df7c-90d7-4803-9eb2-e98d92632d94-runtime.log",
+          "pod_uid": "a2a8df7c-90d7-4803-9eb2-e98d92632d94",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d5fc99e32e513d202b4212aa2ba58033e4cd66478e1c1eb88f5a844d4c46c976",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5080,
+          "sha256": "f37de17a312a92db75f314935a0f5ff1015f9ddbd1a0bbe96b8e879c5a175bc0",
+          "earliest_log_utc": 1794825384.522492,
+          "latest_log_utc": 1794825389.506532,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://bf8d0aa0684e29314fb15053849301c218f934110da7249ddc216ce0e8e8947b",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 4804,
+          "sha256": "7e75c8c095bb184dfa2e8f0d056420ba62f7c0c766be78d47862477b11232703",
+          "earliest_log_utc": 1794818225.520407,
+          "latest_log_utc": 1794818231.406927,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5050,
+          "sha256": "c03a971a40a7943158cf9ef04c0ba75abba007a6cc163e04a1bcd8050793296d",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794818230.099007,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6618,
+          "sha256": "2b0c3e39f0b35ef55057dde13980b9f36fe6954a105459c6e85ceef4fef9a469",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794818232.128694,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1322412,
+          "sha256": "d397d2aeccefb09547741890d8eddb90ae381a652a63906cb5ea642b59a3e361",
+          "earliest_log_utc": 1794818234.448192,
+          "latest_log_utc": 1794818435.183424,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 19931,
+          "sha256": "15d82f9e06aeff9d47995be642df7068cd8509c01eb4a3a93eadb106574d51a7",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794818435.185935,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 652673,
+          "sha256": "42dd0f06a8402d2f0ba4fef9e70dbe3fe181bee576b3b1ab71d953c7992aba5c",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794818434.750507,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-follower/pod-logs/6fc15fac-22f5-4f68-82e4-ac2ad55a194b/runtime/0-previous-1794818436737614000.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://bf8d0aa0684e29314fb15053849301c218f934110da7249ddc216ce0e8e8947b",
+            "captured_utc": 1794818436.82136
+          },
+          "bytes": 4804,
+          "sha256": "7e75c8c095bb184dfa2e8f0d056420ba62f7c0c766be78d47862477b11232703",
+          "earliest_log_utc": 1794818225.520407,
+          "latest_log_utc": 1794818231.406927,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-follower/pod-logs/3c9da9c6-45ac-4057-9c6d-1d582ca52eb5/runtime/0-previous-1794825231236726000.log",
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://d8ceebe517aaf62c16abae69048aaaa9e6ae35e44ef9224055e9883bcb13226f",
+            "captured_utc": 1794825231.3100748
+          },
+          "bytes": 96112,
+          "sha256": "8c7cdd3c333cbcfb38ea433c0a8360ce93a42f781c4c2e523aa4651013165b9d",
+          "earliest_log_utc": 1794818226.115759,
+          "latest_log_utc": 1794825176.286067,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 3,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-follower/pod-logs/6fc15fac-22f5-4f68-82e4-ac2ad55a194b/runtime/1-previous-1794825282275415000.log",
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 1,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://aabfce0321e2b184bf758006fa012d9c633242b5501396b334ebaa301f911eda",
+            "captured_utc": 1794825282.450567
+          },
+          "bytes": 2135704,
+          "sha256": "141d441eba47284898711880a69ddc31936071361f4d2b3c28da11b7f2f71c8c",
+          "earliest_log_utc": 1794824809.807015,
+          "latest_log_utc": 1794825233.083042,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-follower/pod-logs/4c84776b-607d-49c5-9aa7-f60adcb7b209/runtime/0-previous-1794825333383389000.log",
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://17f3db70b58d9e518bfa94c35b78460d49cde3973befda35fb2631f674ddff33",
+            "captured_utc": 1794825333.609212
+          },
+          "bytes": 3245706,
+          "sha256": "2a7a7782ad2a6d775ce97373771a3899a136c10d4d0912db60b79230bed33456",
+          "earliest_log_utc": 1794818226.162221,
+          "latest_log_utc": 1794825282.083682,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        }
+      ],
+      "observed_runtime_generation_count": 10,
+      "metadata_mapped_generation_count": 7,
+      "generations_without_strictly_indexed_capture": [
+        {
+          "pod_uid": "3c9da9c6-45ac-4057-9c6d-1d582ca52eb5",
+          "restart_index": 1
+        },
+        {
+          "pod_uid": "4c84776b-607d-49c5-9aa7-f60adcb7b209",
+          "restart_index": 1
+        },
+        {
+          "pod_uid": "6fc15fac-22f5-4f68-82e4-ac2ad55a194b",
+          "restart_index": 2
+        }
+      ],
+      "before_stop_uid_only_files": [
+        "campaign/before-stop-1-slimfaas-0-6fc15fac-22f5-4f68-82e4-ac2ad55a194b-runtime.log",
+        "campaign/before-stop-1-slimfaas-1-3c9da9c6-45ac-4057-9c6d-1d582ca52eb5-runtime.log",
+        "campaign/before-stop-1-slimfaas-2-4c84776b-607d-49c5-9aa7-f60adcb7b209-runtime.log",
+        "campaign/before-stop-2-slimfaas-0-cc6f3419-e244-46c1-88a2-543d4045242c-runtime.log",
+        "campaign/before-stop-2-slimfaas-1-fd06f0fa-9fdf-452e-a926-6e899ec3dd11-runtime.log",
+        "campaign/before-stop-2-slimfaas-2-a2a8df7c-90d7-4803-9eb2-e98d92632d94-runtime.log"
+      ],
+      "supplementary_manifest_sha256": "2e0df46f674cd985331eb340ed5fe58ee649aff76b43f5925fa2ad0c0860436f",
+      "history_completeness": "INCONCLUSIVE: retired/rotated log history and before-stop restart metadata are not fully demonstrated. A represented generation is not proof of complete lifetime capture.",
+      "healthy_window_verdict": "No observed error headers outside the explicit initialization/fault/recovery intervals; complete healthy-window absence remains INCONCLUSIVE because log-history coverage is incomplete."
+    },
+    {
+      "role": "leader",
+      "namespace": "slimfaas-pr506-n189-p113-endurance-leader",
+      "archive_sha256": "5c62b68ae1f7a61a3c62c99c4d6ccc778b39b525987f84b8d866c83b6a59aebd",
+      "initial_ready_utc": 1794826321.979028,
+      "fault_recovery_windows": [
+        {
+          "start": 1794826322.2644966,
+          "end": 1794826524.7395117,
+          "label": "protocol"
+        },
+        {
+          "start": 1794826545.487173,
+          "end": 1794826576.2697043,
+          "label": "absence-leader-30s"
+        },
+        {
+          "start": 1794826576.297996,
+          "end": 1794826637.3290052,
+          "label": "absence-leader-60s"
+        },
+        {
+          "start": 1794826637.3561718,
+          "end": 1794826939.9602103,
+          "label": "absence-leader-300s"
+        },
+        {
+          "start": 1794826939.982871,
+          "end": 1794827846.9939084,
+          "label": "absence-leader-900s"
+        },
+        {
+          "start": 1794827847.021667,
+          "end": 1794829662.6862094,
+          "label": "absence-leader-1800s"
+        },
+        {
+          "start": 1794829662.72996,
+          "end": 1794833307.111534,
+          "label": "absence-leader-3600s"
+        },
+        {
+          "start": 1794833307.1493123,
+          "end": 1794833431.5364096,
+          "label": "crashes-and-restart"
+        }
+      ],
+      "unique_observed_error_headers": 691,
+      "header_categories": {
+        "protocol": 543,
+        "absence-leader-30s": 16,
+        "absence-leader-60s": 27,
+        "absence-leader-300s": 17,
+        "absence-leader-900s": 29,
+        "absence-leader-1800s": 13,
+        "startup": 3,
+        "absence-leader-3600s": 5,
+        "crashes-and-restart": 38
+      },
+      "outside_recorded_windows": [],
+      "unique_header_set_sha256": "95257f48027c94d0c6596432cee3269023fbb12726cd3a0020246042e9e40e12",
+      "indexed_log_files": [
+        {
+          "path": "campaign/absence-leader-1800s-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+              "snapshot": "campaign/absence-leader-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2784233,
+          "sha256": "c0123930f98dd77233bc52aeac4da1c644e0ec10857bbdae31f2c73d3d43e431",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794829645.967804,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-1800s-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/absence-leader-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5715822,
+          "sha256": "c97372ee1733644202e891c8c9a7236f0aa18b9954743f2ef06aaed67249899b",
+          "earliest_log_utc": 1794826315.728382,
+          "latest_log_utc": 1794829648.157037,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-1800s-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/absence-leader-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 4236547,
+          "sha256": "60d44b65c8a39e5c6c833b78581b784dca37036f9f38cad2d4eb29b5925642ea",
+          "earliest_log_utc": 1794828864.687631,
+          "latest_log_utc": 1794829647.399622,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-300s-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+              "snapshot": "campaign/absence-leader-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1661295,
+          "sha256": "9d5dc4cc2abf0bcd136eb518db0f6785a86071d7d76d5cfa654d8250b155a5c5",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794826935.804544,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-300s-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/absence-leader-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 424047,
+          "sha256": "ca6d66b3895af07eb69e811e69614db92f142cb8e7be9d0951bad2d65995763c",
+          "earliest_log_utc": 1794826315.728382,
+          "latest_log_utc": 1794826938.425122,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-300s-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/absence-leader-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2930634,
+          "sha256": "256b4a33f81d89fbf6cc348e0fe686ab6dafb703ee327cd92e74106230470c25",
+          "earliest_log_utc": 1794826315.841656,
+          "latest_log_utc": 1794826937.46889,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-30s-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+              "snapshot": "campaign/absence-leader-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1328164,
+          "sha256": "1d51ead29443ee7c5169070f6c739fc9c73053a41db22b2c0351e73537e5904d",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794826575.539831,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-30s-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/absence-leader-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 47340,
+          "sha256": "85ad54de2ecd8b60a581584a3074ff225f407e6a1bbd5c9dc8d003f2b45db16a",
+          "earliest_log_utc": 1794826315.728382,
+          "latest_log_utc": 1794826574.283599,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-30s-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/absence-leader-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 831480,
+          "sha256": "11afceef906b36249f93edb78be08e3ef2f0e6d800bc9eb39dc0108b7813ce59",
+          "earliest_log_utc": 1794826315.841656,
+          "latest_log_utc": 1794826575.534932,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-3600s-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+              "snapshot": "campaign/absence-leader-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 3909822,
+          "sha256": "0555c3fa697ca2fcda037c39df1971adfca82e00000ec520002182cca6e23cde",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794833260.898021,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-3600s-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/absence-leader-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6966050,
+          "sha256": "ae81ccfa0b3f90260383fad383775cdb5541c6ca6fc221ac43c60a6a0fe31278",
+          "earliest_log_utc": 1794831985.589562,
+          "latest_log_utc": 1794833263.363674,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-3600s-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/absence-leader-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 4243747,
+          "sha256": "992fdecd9bc98b914afb8267a735a3388ad056472e34650a74319e94430a215a",
+          "earliest_log_utc": 1794828864.687631,
+          "latest_log_utc": 1794833263.865846,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-60s-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+              "snapshot": "campaign/absence-leader-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1412993,
+          "sha256": "89a8a0a9d08ee278e7a7696da31c32c6da53d054d358d86b871a880584082f48",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794826633.132011,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-60s-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/absence-leader-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 410635,
+          "sha256": "b8363e8ef64e950b24a589b04a76c890dd394e33485284ed6ca3e761b237cf89",
+          "earliest_log_utc": 1794826315.728382,
+          "latest_log_utc": 1794826636.352675,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-60s-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/absence-leader-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 838695,
+          "sha256": "a72085fc6fb8888828af6408552ddf564b4687efc0b867b7a3fa362111f5b480",
+          "earliest_log_utc": 1794826315.841656,
+          "latest_log_utc": 1794826636.360004,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-900s-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+              "snapshot": "campaign/absence-leader-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2130026,
+          "sha256": "d78ecf0b9dea771980d799a3cb1ea54d050a54eb485c690c890c984bd5dc00c0",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794827837.730247,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-900s-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/absence-leader-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5709988,
+          "sha256": "c2b20de672ab62488c1dc0687bde254eb84a5f4987f798c90fa469d85c152d48",
+          "earliest_log_utc": 1794826315.728382,
+          "latest_log_utc": 1794827840.072982,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-leader-900s-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/absence-leader-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2936116,
+          "sha256": "9e16c908a482e27acaaf11718ba10bbb9c44504be5c0c7a664ed3a0ba6ee5679",
+          "earliest_log_utc": 1794826315.841656,
+          "latest_log_utc": 1794827841.179608,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 3921,
+          "sha256": "16f0e26670fea7097e461a2c66fb34d466b89464bf6ed4896c4a1fd5f7ec379f",
+          "earliest_log_utc": 1794833385.456603,
+          "latest_log_utc": 1794833386.424755,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 10072,
+          "sha256": "6ba1d6fd341027286db67bcbba19dda60d1f151acff10070b6bccf43975abd23",
+          "earliest_log_utc": 1794833347.925638,
+          "latest_log_utc": 1794833383.056065,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 149679,
+          "sha256": "f68dec4e1a5408fc103cbcfe27694542bceeb2b1249369a682a4a0fd5f890111",
+          "earliest_log_utc": 1794833309.672474,
+          "latest_log_utc": 1794833385.332478,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-0-2ed32112-d7c7-46da-b30d-f76ffa694a52-runtime.log",
+          "pod_uid": "2ed32112-d7c7-46da-b30d-f76ffa694a52",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 7479,
+          "sha256": "9e4899cbb7b0bfd548a724fd1a8de5134f524e2a82406437eddd3b108580773d",
+          "earliest_log_utc": 1794833428.311035,
+          "latest_log_utc": 1794833431.258663,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-1-52577bb1-d2e2-4ccb-8600-6d4c9ac291ed-runtime.log",
+          "pod_uid": "52577bb1-d2e2-4ccb-8600-6d4c9ac291ed",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 6005,
+          "sha256": "e2dae1eae49ea55675295a2a27b17d86cf21676904802baa0c74d4dd4be31871",
+          "earliest_log_utc": 1794833429.124658,
+          "latest_log_utc": 1794833431.180222,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-2-a81e9799-7a92-42f0-8f3c-78d1fc566b31-runtime.log",
+          "pod_uid": "a81e9799-7a92-42f0-8f3c-78d1fc566b31",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 6336,
+          "sha256": "fa47874d4b1fa91862141c16b2c412b4ecdd1fefda82e46b8b0285e661ac1751",
+          "earliest_log_utc": 1794833428.998822,
+          "latest_log_utc": 1794833461.284508,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-0-2ed32112-d7c7-46da-b30d-f76ffa694a52-runtime.log",
+          "pod_uid": "2ed32112-d7c7-46da-b30d-f76ffa694a52",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://40a380e068053bda236dfbf50d5ae47d42bcb0f7c45f82732b6ddbd5050023db",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 7479,
+          "sha256": "9e4899cbb7b0bfd548a724fd1a8de5134f524e2a82406437eddd3b108580773d",
+          "earliest_log_utc": 1794833428.311035,
+          "latest_log_utc": 1794833431.258663,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-1-52577bb1-d2e2-4ccb-8600-6d4c9ac291ed-runtime.log",
+          "pod_uid": "52577bb1-d2e2-4ccb-8600-6d4c9ac291ed",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://27d278f7c6a3cc7244cb7aed56d541d44c2f58fd8204e7d0cbb441ca19d07683",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6005,
+          "sha256": "e2dae1eae49ea55675295a2a27b17d86cf21676904802baa0c74d4dd4be31871",
+          "earliest_log_utc": 1794833429.124658,
+          "latest_log_utc": 1794833431.180222,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-2-a81e9799-7a92-42f0-8f3c-78d1fc566b31-runtime.log",
+          "pod_uid": "a81e9799-7a92-42f0-8f3c-78d1fc566b31",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://b46443b821f70b1e51fc111e6de43f15554d15786904d53e947ff0d2dbbe0927",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6336,
+          "sha256": "fa47874d4b1fa91862141c16b2c412b4ecdd1fefda82e46b8b0285e661ac1751",
+          "earliest_log_utc": 1794833428.998822,
+          "latest_log_utc": 1794833461.284508,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://3534f090176da79e38400c732e50985d567e77b4b0d762400d7093e267a32711",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 4574,
+          "sha256": "0ede0f89b7f76e61febd151281cb1f1593161073c33d764abf7ecc60c4048237",
+          "earliest_log_utc": 1794826316.069859,
+          "latest_log_utc": 1794826321.033193,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5832,
+          "sha256": "51df0c6840afed3a050c3cd54c75a4fd6c3ad47d87f384f1cd922c01773d865a",
+          "earliest_log_utc": 1794826315.728382,
+          "latest_log_utc": 1794826320.683131,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6616,
+          "sha256": "ebb52638c6d8a1464681d38d05b81146099ebf0fd71293c531e72192ce092511",
+          "earliest_log_utc": 1794826315.841656,
+          "latest_log_utc": 1794826321.822421,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1319923,
+          "sha256": "a760f344123f742001ce373b033db0531f94be959245f551987e06fae0b22d9e",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794826524.720685,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 8779,
+          "sha256": "3dc4f39dc52698f1a5ec123bca1f2d1240d7054194ee8cb4ec46dd0ce1820e19",
+          "earliest_log_utc": 1794826315.728382,
+          "latest_log_utc": 1794826525.80482,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 651189,
+          "sha256": "06109dec64fdfb49885771b98ebb709c05e6a2bfd84926953b9d55ac8d4731b7",
+          "earliest_log_utc": 1794826315.841656,
+          "latest_log_utc": 1794826524.234098,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-leader/pod-logs/aab2b6ca-533f-4a9c-b2b3-5e9103a4b367/runtime/0-previous-1794826328750269000.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://3534f090176da79e38400c732e50985d567e77b4b0d762400d7093e267a32711",
+            "captured_utc": 1794826328.872716
+          },
+          "bytes": 4574,
+          "sha256": "0ede0f89b7f76e61febd151281cb1f1593161073c33d764abf7ecc60c4048237",
+          "earliest_log_utc": 1794826316.069859,
+          "latest_log_utc": 1794826321.033193,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-leader/pod-logs/6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4/runtime/0-previous-1794833315747384000.log",
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://7ffe125f318771a46ec83090cc1b6acb636316f2326494b112ae4a3892d262e5",
+            "captured_utc": 1794833315.9727201
+          },
+          "bytes": 4243747,
+          "sha256": "992fdecd9bc98b914afb8267a735a3388ad056472e34650a74319e94430a215a",
+          "earliest_log_utc": 1794828864.687631,
+          "latest_log_utc": 1794833263.865846,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-leader/pod-logs/06ef718f-bd3c-4060-a9e5-e89cdd8653f6/runtime/0-previous-1794833346421938000.log",
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://c80275373eebdd1b9b9d8aeade6b804c3b2c3919f4f9365854c7b879fefdeddc",
+            "captured_utc": 1794833346.75035
+          },
+          "bytes": 7060568,
+          "sha256": "50a65b6a163453fa314f77d0f84ebd76bff2d25d7bad649d52be78576d6e760b",
+          "earliest_log_utc": 1794831985.589562,
+          "latest_log_utc": 1794833309.574363,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-leader/pod-logs/aab2b6ca-533f-4a9c-b2b3-5e9103a4b367/runtime/1-previous-1794833387417313000.log",
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 1,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://14bda79644ccf034b9520917f2cc16b002cfa71bc27e803019967ec3e2d1f973",
+            "captured_utc": 1794833387.6414
+          },
+          "bytes": 3945406,
+          "sha256": "d9e13ec0ec66d16fb8d9cf4dad633393370dcc5f9b70ad4c254e0b5e934ffb65",
+          "earliest_log_utc": 1794826323.811312,
+          "latest_log_utc": 1794833348.492943,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        }
+      ],
+      "observed_runtime_generation_count": 10,
+      "metadata_mapped_generation_count": 7,
+      "generations_without_strictly_indexed_capture": [
+        {
+          "pod_uid": "06ef718f-bd3c-4060-a9e5-e89cdd8653f6",
+          "restart_index": 1
+        },
+        {
+          "pod_uid": "6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4",
+          "restart_index": 1
+        },
+        {
+          "pod_uid": "aab2b6ca-533f-4a9c-b2b3-5e9103a4b367",
+          "restart_index": 2
+        }
+      ],
+      "before_stop_uid_only_files": [
+        "campaign/before-stop-1-slimfaas-0-aab2b6ca-533f-4a9c-b2b3-5e9103a4b367-runtime.log",
+        "campaign/before-stop-1-slimfaas-1-06ef718f-bd3c-4060-a9e5-e89cdd8653f6-runtime.log",
+        "campaign/before-stop-1-slimfaas-2-6c4448b8-53b5-4191-a8a9-1b96cf4ab4b4-runtime.log",
+        "campaign/before-stop-2-slimfaas-0-2ed32112-d7c7-46da-b30d-f76ffa694a52-runtime.log",
+        "campaign/before-stop-2-slimfaas-1-52577bb1-d2e2-4ccb-8600-6d4c9ac291ed-runtime.log",
+        "campaign/before-stop-2-slimfaas-2-a81e9799-7a92-42f0-8f3c-78d1fc566b31-runtime.log"
+      ],
+      "supplementary_manifest_sha256": "bd5d25996ce014d267e9ac3c9db2a11790fc7c307b2f65e872606310e3cd0316",
+      "history_completeness": "INCONCLUSIVE: retired/rotated log history and before-stop restart metadata are not fully demonstrated. A represented generation is not proof of complete lifetime capture.",
+      "healthy_window_verdict": "No observed error headers outside the explicit initialization/fault/recovery intervals; complete healthy-window absence remains INCONCLUSIVE because log-history coverage is incomplete."
+    },
+    {
+      "role": "quorum",
+      "namespace": "slimfaas-pr506-n189-p113-endurance-quorum",
+      "archive_sha256": "0d500cd1ef688fe7972c63cbab14cbb8c3bb55d82f63b3fdb71e03e8c70ef56b",
+      "initial_ready_utc": 1794833652.306436,
+      "fault_recovery_windows": [
+        {
+          "start": 1794833652.5521014,
+          "end": 1794833855.0585396,
+          "label": "protocol"
+        },
+        {
+          "start": 1794833877.3542662,
+          "end": 1794833909.9123225,
+          "label": "absence-quorum-30s"
+        },
+        {
+          "start": 1794833909.959296,
+          "end": 1794833972.7941082,
+          "label": "absence-quorum-60s"
+        },
+        {
+          "start": 1794833972.8255968,
+          "end": 1794834278.3351452,
+          "label": "absence-quorum-300s"
+        },
+        {
+          "start": 1794834278.3718078,
+          "end": 1794835184.106733,
+          "label": "absence-quorum-900s"
+        },
+        {
+          "start": 1794835184.1423874,
+          "end": 1794836992.3961282,
+          "label": "absence-quorum-1800s"
+        },
+        {
+          "start": 1794836992.4336898,
+          "end": 1794840604.2714887,
+          "label": "absence-quorum-3600s"
+        },
+        {
+          "start": 1794840604.2888756,
+          "end": 1794840639.9869635,
+          "label": "crashes-and-restart"
+        }
+      ],
+      "unique_observed_error_headers": 7255,
+      "header_categories": {
+        "absence-quorum-1800s": 720,
+        "startup": 3,
+        "protocol": 546,
+        "absence-quorum-60s": 130,
+        "absence-quorum-300s": 668,
+        "absence-quorum-900s": 1996,
+        "absence-quorum-30s": 27,
+        "absence-quorum-3600s": 3137,
+        "crashes-and-restart": 28
+      },
+      "outside_recorded_windows": [],
+      "unique_header_set_sha256": "868501e7f75f60cb14ecd9c1556bd5f3079940fa8c0ac83a97453f5db2ed8530",
+      "indexed_log_files": [
+        {
+          "path": "campaign/absence-quorum-1800s-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+              "snapshot": "campaign/absence-quorum-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2647216,
+          "sha256": "4f820b0d8ea56c40f4e42e852d0ac8f9581f8f0795e6878c0238b734d3334db0",
+          "earliest_log_utc": 1794836099.971907,
+          "latest_log_utc": 1794836986.259,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-1800s-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/absence-quorum-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 78009,
+          "sha256": "6be0d9eb00f5051245bda85bea584eb65da9cdde101cdfdc141649e0c3b62b03",
+          "earliest_log_utc": 1794833645.936304,
+          "latest_log_utc": 1794836986.261237,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-1800s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/absence-quorum-1800s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 711855,
+          "sha256": "b88a4878d14c44c3498781803701e60882d406208a15d46df4c943d411082849",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794836987.174967,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 3,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-300s-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+              "snapshot": "campaign/absence-quorum-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 3045156,
+          "sha256": "2aa94ef4972401e4feff3d260d2e4a6986f2d8a81c61a0faa72edb4b990e06d3",
+          "earliest_log_utc": 1794833654.205645,
+          "latest_log_utc": 1794834273.065506,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-300s-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/absence-quorum-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 59280,
+          "sha256": "8cf30802815a01138660e3ed279ce4005e32cd91a5f3db496debe9d44d331c1c",
+          "earliest_log_utc": 1794833645.936304,
+          "latest_log_utc": 1794834273.872622,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-300s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/absence-quorum-300s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 674125,
+          "sha256": "437ea6707fb93aff0956d0ac4e14fc9b5343a8e751efbb6c76303ac07c960543",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794834273.961436,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 1,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-30s-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+              "snapshot": "campaign/absence-quorum-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1446063,
+          "sha256": "26c3f337c2b3864f4eef9d37b574cfeba9675c9b29372f57d8f12c54f729b489",
+          "earliest_log_utc": 1794833654.205645,
+          "latest_log_utc": 1794833907.394018,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-30s-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/absence-quorum-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 28478,
+          "sha256": "0d026a57dd4026b60a226381cb94f2b66a5ebbedce609fd78225a1b97c440b13",
+          "earliest_log_utc": 1794833645.936304,
+          "latest_log_utc": 1794833907.353953,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-30s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/absence-quorum-30s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 662291,
+          "sha256": "f3c2b67a3965e0355677de7cf62566d0903926c33eb811a6262478c84c8026be",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794833907.39099,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-3600s-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+              "snapshot": "campaign/absence-quorum-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 2655433,
+          "sha256": "c5117961b10077f844db72e1b06379b1c1c758691d6de48a5e8bdded7ef2697d",
+          "earliest_log_utc": 1794836099.971907,
+          "latest_log_utc": 1794840592.573034,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-3600s-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/absence-quorum-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5575425,
+          "sha256": "93d6401aed491dce54995268653e328916aba052235c410b76fa4b3254f3d32b",
+          "earliest_log_utc": 1794839186.600413,
+          "latest_log_utc": 1794840593.144962,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-3600s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/absence-quorum-3600s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 736195,
+          "sha256": "eae6b9f761d4a96b0f99af8479cdc091d6eb75888a3d6cdb570f39bb36c3344c",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794840592.578667,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 3,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-60s-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+              "snapshot": "campaign/absence-quorum-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1709819,
+          "sha256": "5212d1601aa3a3a750e645cff88fe78e9f25b4ced8dfb461fa472093d53f996b",
+          "earliest_log_utc": 1794833654.205645,
+          "latest_log_utc": 1794833970.988195,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-60s-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/absence-quorum-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 38286,
+          "sha256": "9fc1d65ed9f320a5f2108c3696531348826cb9b0cde46d75b25e34efab48f0fe",
+          "earliest_log_utc": 1794833645.936304,
+          "latest_log_utc": 1794833970.960145,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-60s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/absence-quorum-60s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 663783,
+          "sha256": "fd290a2e72b66c61a34b5f966ce635f66b40aad1d91062331fbcf5521facbe22",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794833970.970875,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-900s-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+              "snapshot": "campaign/absence-quorum-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 7027137,
+          "sha256": "0e6534b4aa4843e5628db72bd256adbb6e098a6ccf2a66c60702a7a900811fd1",
+          "earliest_log_utc": 1794833654.205645,
+          "latest_log_utc": 1794835178.614648,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-900s-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/absence-quorum-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 69125,
+          "sha256": "e12fc0e0ff946ccda8a95704f7df3be52ac88dc55935e903195c5b86e8404ead",
+          "earliest_log_utc": 1794833645.936304,
+          "latest_log_utc": 1794835179.315067,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/absence-quorum-900s-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/absence-quorum-900s-kubernetes-pods.json"
+            }
+          },
+          "bytes": 692117,
+          "sha256": "092948b59c4602f2f950397ef375d40c9193553b4dc2b36439d8bd8f00008b90",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794835179.585984,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 2,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 59776,
+          "sha256": "05810cc19b1aee85ae12782e23ab2c4620d8b9963897988ecd1e2fdfd8f454f0",
+          "earliest_log_utc": 1794840606.06273,
+          "latest_log_utc": 1794840623.974459,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 6156143,
+          "sha256": "7df336a0e4b7cd83dda84fe848edd94831f32f0b606eb94bb9a0ce19254d91f1",
+          "earliest_log_utc": 1794839186.600413,
+          "latest_log_utc": 1794840625.180843,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-1-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 3589,
+          "sha256": "df9d9d4ad71406a543ef1552a240b3012d1664931261193916ac329c6c5dd6f3",
+          "earliest_log_utc": 1794840625.140389,
+          "latest_log_utc": 1794840626.113978,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-0-fa76232b-e941-434f-a9aa-7a459f63ceb7-runtime.log",
+          "pod_uid": "fa76232b-e941-434f-a9aa-7a459f63ceb7",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 7658,
+          "sha256": "9468fd3851fd620d6b6207c8423e54193301dbc5209bf4da8021607557cf724c",
+          "earliest_log_utc": 1794840636.259058,
+          "latest_log_utc": 1794840639.281577,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-1-683fe4cb-fc58-475d-b107-ea543b2c6654-runtime.log",
+          "pod_uid": "683fe4cb-fc58-475d-b107-ea543b2c6654",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 9632,
+          "sha256": "3b99d52284cac1edb4b752aac5bbef81666b9512c218f788beeb2cd2993103ec",
+          "earliest_log_utc": 1794840635.769618,
+          "latest_log_utc": 1794840639.727442,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/before-stop-2-slimfaas-2-d6290e72-b78f-4709-9d77-5795b3caabe7-runtime.log",
+          "pod_uid": "d6290e72-b78f-4709-9d77-5795b3caabe7",
+          "restart_index": null,
+          "association": "UID only; before-stop capture lacks restart-index metadata",
+          "bytes": 6862,
+          "sha256": "764877c05a6b88fdd18b91928277f17dd045e14f52e01f411a7f507c909b61a4",
+          "earliest_log_utc": 1794840635.937956,
+          "latest_log_utc": 1794840638.97022,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-0-fa76232b-e941-434f-a9aa-7a459f63ceb7-runtime.log",
+          "pod_uid": "fa76232b-e941-434f-a9aa-7a459f63ceb7",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://0fc6b6b019f51f01809f8f5a5e3ce537e7e703b2d188e523cda88adc596c8d80",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 7658,
+          "sha256": "9468fd3851fd620d6b6207c8423e54193301dbc5209bf4da8021607557cf724c",
+          "earliest_log_utc": 1794840636.259058,
+          "latest_log_utc": 1794840639.281577,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-1-683fe4cb-fc58-475d-b107-ea543b2c6654-runtime.log",
+          "pod_uid": "683fe4cb-fc58-475d-b107-ea543b2c6654",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://db43c84b1197fee70b985de0d1b8899f364cf19a51c27542ab30d746499d0194",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 9632,
+          "sha256": "3b99d52284cac1edb4b752aac5bbef81666b9512c218f788beeb2cd2993103ec",
+          "earliest_log_utc": 1794840635.769618,
+          "latest_log_utc": 1794840639.727442,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/final-slimfaas-2-d6290e72-b78f-4709-9d77-5795b3caabe7-runtime.log",
+          "pod_uid": "d6290e72-b78f-4709-9d77-5795b3caabe7",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://f4c2cdf6843219ed2a826e7fb088fb95d4dc5b8bcc5747fd2575748b1244ff88",
+              "snapshot": "campaign/final-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6862,
+          "sha256": "764877c05a6b88fdd18b91928277f17dd045e14f52e01f411a7f507c909b61a4",
+          "earliest_log_utc": 1794840635.937956,
+          "latest_log_utc": 1794840638.97022,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://1a6c9efa2275251e9130d7da2f6446dab8f621febf198302bf2040b22d190db6",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 4574,
+          "sha256": "5bd0d5460a35763b32d2300611a797d9d7ff5b1226cdc3d18d26075ff96cef6f",
+          "earliest_log_utc": 1794833646.202671,
+          "latest_log_utc": 1794833651.535392,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 5832,
+          "sha256": "11d7c02e1dd8abf15fe4393b1f01485b3989c0e2f1920a34c9ea925218f59d77",
+          "earliest_log_utc": 1794833645.936304,
+          "latest_log_utc": 1794833650.913313,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/initial-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/initial-kubernetes-pods.json"
+            }
+          },
+          "bytes": 6616,
+          "sha256": "9733e40babb88f845b7c9ffe9e77d95fed233be3fe085fec679d8ebfc54c84ca",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794833652.123199,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 1,
+              "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 1319289,
+          "sha256": "ee44769710cee631e35ff1bf87f460800b38a6f6f66545ac8f797e67ec3057d3",
+          "earliest_log_utc": 1794833654.205645,
+          "latest_log_utc": 1794833854.84101,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+          "pod_uid": "5163c433-bd62-417b-804f-55198635143d",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://e8e71940467de5b7b7d409bfe535736c21069ab5bcdaf715e6dc98cee283a43c",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 27732,
+          "sha256": "6d589ce9d5c25d54a44b30ac6e03dbf75975ed4f1c055b5f96811ea134ba17d7",
+          "earliest_log_utc": 1794833645.936304,
+          "latest_log_utc": 1794833855.974312,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "campaign/payloads-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "coobserved_pod_snapshot": {
+              "index": 0,
+              "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+              "snapshot": "campaign/payloads-kubernetes-pods.json"
+            }
+          },
+          "bytes": 651189,
+          "sha256": "114e60f8b9d70d63e93a150d905152bd8eccc4c1f70e8d74cb2651328c44e72d",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794833854.591978,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-quorum/pod-logs/7b717299-8ae4-48d0-912c-9f8576530158/runtime/0-previous-1794833661708073000.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://1a6c9efa2275251e9130d7da2f6446dab8f621febf198302bf2040b22d190db6",
+            "captured_utc": 1794833661.780033
+          },
+          "bytes": 4574,
+          "sha256": "5bd0d5460a35763b32d2300611a797d9d7ff5b1226cdc3d18d26075ff96cef6f",
+          "earliest_log_utc": 1794833646.202671,
+          "latest_log_utc": 1794833651.535392,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-quorum/pod-logs/7b717299-8ae4-48d0-912c-9f8576530158/runtime/1-previous-1794840607189362000.log",
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 1,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://ef51d14a13e36fdbf923f2d52025117d33fb65cd1ca48724cd6481dcf815061b",
+            "captured_utc": 1794840607.362337
+          },
+          "bytes": 2655433,
+          "sha256": "c5117961b10077f844db72e1b06379b1c1c758691d6de48a5e8bdded7ef2697d",
+          "earliest_log_utc": 1794836099.971907,
+          "latest_log_utc": 1794840592.573034,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-quorum/pod-logs/a1878033-7143-40d8-9bf0-092261d09e74/runtime/0-previous-1794840607364313000.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 0,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://c1015daefa3594cd58cf57cd8d18b76d27e2bef48cc9b729023d93ee1f670742",
+            "captured_utc": 1794840607.490321
+          },
+          "bytes": 799094,
+          "sha256": "274472f1a142be39a204b532ea3fe4123480e9d56d2db1a4b5c79ba85eb98726",
+          "earliest_log_utc": 1794833646.139494,
+          "latest_log_utc": 1794840605.866176,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 3,
+          "critical_header_occurrences": 0
+        },
+        {
+          "path": "kubernetes/net11-120-runtime-history/slimfaas-pr506-n189-p113-endurance-quorum/pod-logs/a1878033-7143-40d8-9bf0-092261d09e74/runtime/1-previous-1794840627783686000.log",
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 1,
+          "association": {
+            "collector": "observer120",
+            "previous": true,
+            "container_id": "containerd://ad4960d134cfbbf77d25efc90d64430b1e18db485c1d5b71f0cd82e9a5f584fe",
+            "captured_utc": 1794840627.857271
+          },
+          "bytes": 4328,
+          "sha256": "a2ce99b8b69388681b117fc4c7259eb69fe48c3b6fc2843190c88fc4ebde6c4d",
+          "earliest_log_utc": 1794840608.747923,
+          "latest_log_utc": 1794840609.779373,
+          "unparsed_timestamp_lines": 0,
+          "unparsed_error_header_lines": 0,
+          "oom_string_occurrences": 0,
+          "unhandled_string_occurrences": 0,
+          "critical_header_occurrences": 0
+        }
+      ],
+      "observed_runtime_generation_count": 10,
+      "metadata_mapped_generation_count": 8,
+      "generations_without_strictly_indexed_capture": [
+        {
+          "pod_uid": "7b717299-8ae4-48d0-912c-9f8576530158",
+          "restart_index": 2
+        },
+        {
+          "pod_uid": "a1878033-7143-40d8-9bf0-092261d09e74",
+          "restart_index": 2
+        }
+      ],
+      "before_stop_uid_only_files": [
+        "campaign/before-stop-1-slimfaas-0-7b717299-8ae4-48d0-912c-9f8576530158-runtime.log",
+        "campaign/before-stop-1-slimfaas-1-5163c433-bd62-417b-804f-55198635143d-runtime.log",
+        "campaign/before-stop-1-slimfaas-2-a1878033-7143-40d8-9bf0-092261d09e74-runtime.log",
+        "campaign/before-stop-2-slimfaas-0-fa76232b-e941-434f-a9aa-7a459f63ceb7-runtime.log",
+        "campaign/before-stop-2-slimfaas-1-683fe4cb-fc58-475d-b107-ea543b2c6654-runtime.log",
+        "campaign/before-stop-2-slimfaas-2-d6290e72-b78f-4709-9d77-5795b3caabe7-runtime.log"
+      ],
+      "supplementary_manifest_sha256": "87fd04fb6218c324f016f57fd774979a2b6a40f927161b6cac732f134c252ac0",
+      "history_completeness": "INCONCLUSIVE: retired/rotated log history and before-stop restart metadata are not fully demonstrated. A represented generation is not proof of complete lifetime capture.",
+      "healthy_window_verdict": "No observed error headers outside the explicit initialization/fault/recovery intervals; complete healthy-window absence remains INCONCLUSIVE because log-history coverage is incomplete."
+    }
+  ],
+  "scope": "Offline audit of existing immutable in-driver and observer120 captures. Exact (podUID,timestamped header) deduplication avoids repeated snapshot counts. Counts are log headers, not distinct exceptions. Fault fences are client wall-clock observations, not calibrated distributed traces; boundary classification remains observational. No replay, deadline change, zero-error/lifetime/OOM certification, or rewriting of original logs."
+}

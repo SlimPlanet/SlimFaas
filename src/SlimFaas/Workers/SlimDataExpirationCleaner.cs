@@ -72,6 +72,8 @@ public sealed class SlimDataExpirationCleaner
                 continue;
 
             var baseKey = ttlKey[..^SlimDataInterpreter.TimeToLivePostfix.Length];
+            if (keyValues.TryGetValue(baseKey, out var expiringMetadata) && IsManagedFileMetadata(baseKey, expiringMetadata))
+                continue;
             _logger.LogDeletingExpiredKeyvalueKey(baseKey);
 
             try
@@ -110,84 +112,47 @@ public sealed class SlimDataExpirationCleaner
             }
         }
 
-        // 3) Local disk: TTL expiration + orphaned offload files (single pass)
+        // 3) Immutable body revisions follow durable metadata, queue and DLQ
+        // references. A local current-file hint cannot retain an obsolete revision
+        // or justify deleting a different revision.
         await foreach (var entry in _files.EnumerateAllMetadataAsync(ct).ConfigureAwait(false))
         {
             ct.ThrowIfCancellationRequested();
-
-            // TTL expiration takes precedence
-            var exp = entry.Metadata.ExpireAtUtcTicks;
-            if (exp is long t && t > 0 && t <= nowTicks)
+            if (FileAdmissionTags.IsManaged(entry.Metadata.Tags) || FileAdmissionStore.Find(payload, entry.Id) is not null)
             {
-                _logger.LogDeletingExpiredLocalFileByDisk(entry.Id, t);
                 try
                 {
-                    await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
+                    if (await CanDeleteAdmittedFileAsync(entry, payload, nowTicks).ConfigureAwait(false))
+                        await _files.DeleteVersionAsync(entry.Id, entry.Metadata.Sha256Hex, ct).ConfigureAwait(false);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogFailedToDeleteExpiredLocalFile(ex, entry.Id);
-                }
-                continue;
-            }
-
-            string? fileQueueElementId = null;
-            var hasQueueElementTag =
-                entry.Metadata.Tags is not null &&
-                entry.Metadata.Tags.TryGetValue(QueueElementIdTagKey, out fileQueueElementId) &&
-                !string.IsNullOrEmpty(fileQueueElementId);
-            var queueElementIsActive =
-                hasQueueElementTag && activeQueueIds.Contains(fileQueueElementId!);
-            var candidateKey = DiskCandidatePrefix + entry.Id;
-
-            // A file can be written just before its Raft metadata is committed. Requiring
-            // several consecutive observations protects that window and cluster convergence.
-            if (!keyValues.ContainsKey(DataFileKeys.MetaKey(entry.Id)))
-            {
-                observedOrphanArtifacts.Add(candidateKey);
-                if (queueElementIsActive)
-                {
-                    _orphanCandidates.Remove(candidateKey);
-                    continue;
-                }
-
-                if (!IsConfirmedOrphan(candidateKey))
-                    continue;
-
-                _logger.LogDeletingConfirmedLocalFileWithoutRaft(entry.Id);
-                try
-                {
-                    await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
-                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
                 catch (Exception ex)
                 {
                     _logger.LogFailedToDeleteLocalFileWithout(ex, entry.Id);
                 }
                 continue;
             }
-
-            // Orphaned offload file: its metadata still exists, but the queue item is gone.
-            if (hasQueueElementTag)
+            string candidateKey = DiskCandidatePrefix + entry.Id + ":" + entry.Metadata.Sha256Hex;
+            bool queueIsActive = entry.Metadata.Tags is not null &&
+                entry.Metadata.Tags.TryGetValue(QueueElementIdTagKey, out string? queueId) &&
+                activeQueueIds.Contains(queueId);
+            if (queueIsActive || IsReferencedVersion(entry, keyValues, activeQueueIds, nowTicks))
             {
-                observedOrphanArtifacts.Add(candidateKey);
-                if (queueElementIsActive)
-                {
-                    _orphanCandidates.Remove(candidateKey);
-                    continue;
-                }
+                _orphanCandidates.Remove(candidateKey);
+                continue;
+            }
 
-                if (!IsConfirmedOrphan(candidateKey))
-                    continue;
-
-                _logger.LogDeletingConfirmedOrphanedOffloadFileId(entry.Id, fileQueueElementId);
-                try
-                {
-                    await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogFailedToDeleteOrphanedOffloadFile(ex, entry.Id);
-                }
+            observedOrphanArtifacts.Add(candidateKey);
+            bool expired = entry.Metadata.ExpireAtUtcTicks is long deadline && deadline > 0 && deadline <= nowTicks;
+            if (!expired && !IsConfirmedOrphan(candidateKey))
+                continue;
+            try
+            {
+                await _files.DeleteVersionAsync(entry.Id, entry.Metadata.Sha256Hex, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogFailedToDeleteLocalFileWithout(ex, entry.Id);
             }
         }
 
@@ -212,7 +177,7 @@ public sealed class SlimDataExpirationCleaner
                 continue;
             }
 
-            if (meta?.Tags is null)
+            if (meta?.Tags is null || FileAdmissionTags.IsManaged(meta.Tags))
                 continue;
 
             if (!meta.Tags.TryGetValue(QueueElementIdTagKey, out var queueElementId) ||
@@ -264,6 +229,55 @@ public sealed class SlimDataExpirationCleaner
         return observedCycles >= _orphanConfirmationCycles;
     }
 
+    private async Task<bool> CanDeleteAdmittedFileAsync(FileMetadataEntry file, SlimDataPayload payload, long nowTicks)
+    {
+        var admission = FileAdmissionStore.Find(payload, file.Id);
+        string token;
+        long deadline;
+        if (file.Metadata.Tags is not null && FileAdmissionTags.IsManaged(file.Metadata.Tags))
+        {
+            if (!FileAdmissionTags.TryRead(file.Metadata.Tags, out token, out deadline))
+            {
+                _logger.LogInvalidFileAdmissionMarker(file.Id);
+                return false;
+            }
+        }
+        else if (admission is not null)
+        {
+            token = admission.Token;
+            deadline = admission.DeadlineUtcTicks;
+        }
+        else
+        {
+            _logger.LogInvalidFileAdmissionMarker(file.Id);
+            return false;
+        }
+        if (admission is not null)
+        {
+            if (admission.Token != token) return false;
+            if (admission.Phase == FileAdmissionPhase.Retired) return true;
+            if (FileAdmissionStore.IsReferenced(payload, admission, nowTicks)) return false;
+        }
+        else if (deadline > nowTicks) return false;
+
+        var result = await _db.ExecuteFileAdmissionAsync(new()
+        {
+            Action = FileAdmissionAction.Retire, FileId = file.Id, Token = token, DeadlineUtcTicks = deadline
+        }).ConfigureAwait(false);
+        return result.Applied && result.Phase == FileAdmissionPhase.Retired;
+    }
+
+    private static bool IsManagedFileMetadata(string key, ReadOnlyMemory<byte> value)
+    {
+        if (!key.StartsWith(DataFileKeys.MetaPrefix, StringComparison.Ordinal) ||
+            !key.EndsWith(DataFileKeys.MetaSuffix, StringComparison.Ordinal)) return false;
+        try
+        {
+            return FileAdmissionTags.IsManaged(MemoryPackSerializer.Deserialize<DataSetMetadata>(value.Span)?.Tags);
+        }
+        catch (MemoryPackSerializationException) { return false; }
+    }
+
     private async Task DeleteOrphanMetadataAsync(IReadOnlyCollection<string> keys)
     {
         foreach (string[] batch in keys.Chunk(MaximumMetadataDeleteBatchSize))
@@ -280,6 +294,38 @@ public sealed class SlimDataExpirationCleaner
         {
             _logger.LogFailedToDeleteOrphanedOffloadMetadata(ex, key);
         }
+    }
+
+    private static bool IsReferencedVersion(
+        FileMetadataEntry entry,
+        ImmutableDictionary<string, ReadOnlyMemory<byte>> keyValues,
+        HashSet<string> activeQueueIds,
+        long nowTicks)
+    {
+        string key = DataFileKeys.MetaKey(entry.Id);
+        if (!keyValues.TryGetValue(key, out ReadOnlyMemory<byte> bytes))
+            return false;
+        if (keyValues.TryGetValue(SlimDataInterpreter.TtlKey(key), out ReadOnlyMemory<byte> ttl) &&
+            TryReadInt64(ttl, out long expiration) && expiration > 0 && expiration <= nowTicks)
+            return false;
+        DataSetMetadata? metadata;
+        try
+        {
+            metadata = MemoryPackSerializer.Deserialize<DataSetMetadata>(bytes.Span);
+        }
+        catch
+        {
+            // An unreadable durable reference cannot prove a revision disposable.
+            // The separate metadata audit logs the malformed record.
+            return true;
+        }
+        if (metadata is null || string.IsNullOrEmpty(metadata.Sha256Hex))
+            return true;
+        if (!metadata.Sha256Hex.Equals(entry.Metadata.Sha256Hex, StringComparison.OrdinalIgnoreCase))
+            return false;
+        return metadata.Tags is null ||
+               !metadata.Tags.TryGetValue(QueueElementIdTagKey, out string? queueId) ||
+               string.IsNullOrEmpty(queueId) || activeQueueIds.Contains(queueId);
     }
 
     internal static HashSet<string> BuildActiveQueueIds(

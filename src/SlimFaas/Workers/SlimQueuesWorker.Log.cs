@@ -3,6 +3,10 @@ namespace SlimFaas
 {
     internal static partial class SlimQueuesWorkerLog
     {
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Trace, Message = "Async delivery stage={Stage} Function={FunctionName} ElementId={ElementId} TryNumber={TryNumber} Generation={Generation} ReservedTarget={ReservedTarget} StatusCode={StatusCode}")]
+        internal static partial void LogAsyncDeliveryStage(this global::Microsoft.Extensions.Logging.ILogger logger,
+            string stage, string functionName, string elementId, int tryNumber, long generation, string reservedTarget, int? statusCode);
+
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Error, Message = "Global Error in SlimFaas Worker")]
         internal static partial void LogGlobalErrorInSlimFaasWorker(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Exception exception);
 

@@ -16,6 +16,8 @@ internal sealed class HttpRangeReadStream : Stream
 
     private readonly long _length;
     private long _position;
+    private int _readRetries;
+    private const int MaximumReadRetries = 2;
 
     private HttpResponseMessage? _resp;
     private Stream? _respStream;
@@ -50,9 +52,26 @@ internal sealed class HttpRangeReadStream : Stream
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        if (_position >= _length)
+        if (buffer.IsEmpty || _position >= _length)
             return 0;
 
+        while (true)
+        {
+            try { return await ReadCoreAsync(buffer, cancellationToken).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is IOException and not FileNotFoundException or HttpRequestException &&
+                                       !cancellationToken.IsCancellationRequested && _readRetries < MaximumReadRetries)
+            {
+                _readRetries++;
+                // Only successfully returned bytes advanced _position. Reopen
+                // at that exact offset; SaveVerified still checks the complete
+                // body before publication. Cancellation/timeouts are not retried.
+                await DisposeCurrentResponseAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async ValueTask<int> ReadCoreAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+    {
         await EnsureChunkAsync(cancellationToken).ConfigureAwait(false);
 
         cancellationToken.ThrowIfCancellationRequested();

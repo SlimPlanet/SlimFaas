@@ -1,0 +1,215 @@
+{
+  "scope": "Controlled diagnostic, no formal performance acceptance. Batch-response serialization/HTTP-copy diagnostic: original / candidate / candidate / original, all with 65536-byte persisted WAL geometry; managed OOM logs must also remain empty, one-shot fresh bootstrap, identical 1 GiB resources and full 180-second observation.",
+  "started": 1794738264.8817222,
+  "finished": 1794739188.753906,
+  "formal_performance_acceptance": false,
+  "variants": {
+    "before": {
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-05",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "bbbfae6e26b7b5ac57b4d0daeaa8a4dcf4330e5498481989f00f07560296bd31",
+        "slimdata_dll": "7924bbea28de8ddaa1caa7513a996f41b9eed9ec937e3e96bf49a3025639ba5d"
+      },
+      "image_config_sha256": "bba7f39dd5e3355e971de40efd4f21df59a347e748402a0a7bcdc83f7bf7c83c"
+    },
+    "after": {
+      "source": "c2fa989a068256a09e4fa7a2192f373eee00ad91",
+      "image": "localhost/slimfaas-pr506:after-tools-net11-06",
+      "hashes": {
+        "runtime": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+        "slimfaas_dll": "359e569e529e25405c2c2dc77ba2edf08994b09affc21af06bdbea623a846ef9",
+        "slimdata_dll": "3b3dfde1cfe18745c56d34f5eec8fccab1960eab2b2b5a0fd390c212aebe3df0"
+      },
+      "image_config_sha256": "612ac278a0c04eed701fff54e4275c5a3d6ac4807891c2a5551bbba2bbe036fa"
+    }
+  },
+  "observation_seconds": 180,
+  "rows": [
+    {
+      "ordinal": 1,
+      "variant": "before",
+      "namespace": "slimfaas-pr506-br10-1-before",
+      "chunk_size": 65536,
+      "isolation_valid": true,
+      "exit_code": 0,
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 3.5988249100046232,
+      "missing_confirmed": [],
+      "extra_deliveries": 0,
+      "repeated_deliveries": {},
+      "restarts": 0,
+      "managed_oom_log_occurrences": 0,
+      "managed_oom_audit": {
+        "nodes": [
+          {
+            "file": "slimfaas-0-runtime.log",
+            "sha256": "1922c0a6babf1bc19f060b5d7db5e3cf062da81078ef64f506a00667e07d1227",
+            "log_occurrences": 0
+          },
+          {
+            "file": "slimfaas-1-runtime.log",
+            "sha256": "220590743a570a23835d404bc8bd79d3b1b2ccf695befbb1e99d9d35451a5181",
+            "log_occurrences": 0
+          },
+          {
+            "file": "slimfaas-2-runtime.log",
+            "sha256": "e2114e6173f86e321e782fcaf4f27987b9b4e8faa685b835487a7ad6353b4fd3",
+            "log_occurrences": 0
+          }
+        ],
+        "passed": true,
+        "note": "Current container logs plus restart-count guard; exception-log occurrences are not distinct exception counts."
+      },
+      "driver_passed": true,
+      "host_passed": true,
+      "report_sha256": "c842668a2edcbb2ab810197943927ba3eae5a97873fc04b79a439676229e58ed",
+      "original_vm_index_sha256": "8d0e54c732d55380f3afd9116afaeba9b63d6cdbef507360b7f94a6fb0a6a66a",
+      "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-br10-1-before",
+      "runtime_sha256": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "slimfaas_dll_sha256": "bbbfae6e26b7b5ac57b4d0daeaa8a4dcf4330e5498481989f00f07560296bd31",
+      "slimdata_dll_sha256": "7924bbea28de8ddaa1caa7513a996f41b9eed9ec937e3e96bf49a3025639ba5d"
+    },
+    {
+      "ordinal": 2,
+      "variant": "after",
+      "namespace": "slimfaas-pr506-br10-2-after",
+      "chunk_size": 65536,
+      "isolation_valid": true,
+      "exit_code": 0,
+      "source": "c2fa989a068256a09e4fa7a2192f373eee00ad91",
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 3.6852644449973013,
+      "missing_confirmed": [],
+      "extra_deliveries": 0,
+      "repeated_deliveries": {},
+      "restarts": 0,
+      "managed_oom_log_occurrences": 0,
+      "managed_oom_audit": {
+        "nodes": [
+          {
+            "file": "slimfaas-0-runtime.log",
+            "sha256": "b4c2e27637651b3f2e9a7a4a9a510c6277eaa06d1b7d692f304222c0d8fe39f2",
+            "log_occurrences": 0
+          },
+          {
+            "file": "slimfaas-1-runtime.log",
+            "sha256": "10dc43ce5d801f6a20cea571792beafb73d7efbbf4f8ce9fe6351c8fd45ff0bf",
+            "log_occurrences": 0
+          },
+          {
+            "file": "slimfaas-2-runtime.log",
+            "sha256": "7f926fa0090aa71983fb9d4759c07efc94eee1ff560f0814fba6c2f1ffb288f3",
+            "log_occurrences": 0
+          }
+        ],
+        "passed": true,
+        "note": "Current container logs plus restart-count guard; exception-log occurrences are not distinct exception counts."
+      },
+      "driver_passed": true,
+      "host_passed": true,
+      "report_sha256": "62c520ec9097667e83d7a9c3eef5efd87f911a8f72974420f6b40ff99136bd8e",
+      "original_vm_index_sha256": "2545baec4c60fac2ac46ed9e98526d3ee920bb52980250f35c8d9abf4e3b1279",
+      "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-br10-2-after",
+      "runtime_sha256": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "slimfaas_dll_sha256": "359e569e529e25405c2c2dc77ba2edf08994b09affc21af06bdbea623a846ef9",
+      "slimdata_dll_sha256": "3b3dfde1cfe18745c56d34f5eec8fccab1960eab2b2b5a0fd390c212aebe3df0"
+    },
+    {
+      "ordinal": 3,
+      "variant": "after",
+      "namespace": "slimfaas-pr506-br10-3-after",
+      "chunk_size": 65536,
+      "isolation_valid": true,
+      "exit_code": 1,
+      "source": "c2fa989a068256a09e4fa7a2192f373eee00ad91",
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 3.7942409819806926,
+      "missing_confirmed": [],
+      "extra_deliveries": 0,
+      "repeated_deliveries": {},
+      "restarts": 0,
+      "managed_oom_log_occurrences": 6,
+      "managed_oom_audit": {
+        "nodes": [
+          {
+            "file": "slimfaas-0-runtime.log",
+            "sha256": "93955444cc2cd9e65175ec9ba993138913472d6743adf701706fbde47cb9dace",
+            "log_occurrences": 6
+          },
+          {
+            "file": "slimfaas-1-runtime.log",
+            "sha256": "dcfe44715ddc7cb039e8af401fa1348c432226449e9b82a08a16b06a17a87b66",
+            "log_occurrences": 0
+          },
+          {
+            "file": "slimfaas-2-runtime.log",
+            "sha256": "f5b4d8c9869a94e73fb33654ca64399b3b3829467fc954cce202dbeff6048f5b",
+            "log_occurrences": 0
+          }
+        ],
+        "passed": false,
+        "note": "Current container logs plus restart-count guard; exception-log occurrences are not distinct exception counts."
+      },
+      "driver_passed": true,
+      "host_passed": false,
+      "report_sha256": "b022e9c04e37ae7c9bb80a3db77fc6becc3b26410f3f724a32f00c60c01a3588",
+      "original_vm_index_sha256": "2de0ba35ebb877efe1b68a9dd721037d7e5510acc3aea9e4c803ae993f832353",
+      "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-br10-3-after",
+      "runtime_sha256": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "slimfaas_dll_sha256": "359e569e529e25405c2c2dc77ba2edf08994b09affc21af06bdbea623a846ef9",
+      "slimdata_dll_sha256": "3b3dfde1cfe18745c56d34f5eec8fccab1960eab2b2b5a0fd390c212aebe3df0"
+    },
+    {
+      "ordinal": 4,
+      "variant": "before",
+      "namespace": "slimfaas-pr506-br10-4-before",
+      "chunk_size": 65536,
+      "isolation_valid": true,
+      "exit_code": 0,
+      "source": "766ada9b9b92b5ad520c27c43b4ba770bce45e33",
+      "accepted": 200,
+      "unknown_count": 0,
+      "send_seconds": 3.6947941470134538,
+      "missing_confirmed": [],
+      "extra_deliveries": 0,
+      "repeated_deliveries": {},
+      "restarts": 0,
+      "managed_oom_log_occurrences": 0,
+      "managed_oom_audit": {
+        "nodes": [
+          {
+            "file": "slimfaas-0-runtime.log",
+            "sha256": "d7477fca4c6f0788163ae4e14e5631b745375df4b4f0042f3b6e9eecf4a185c7",
+            "log_occurrences": 0
+          },
+          {
+            "file": "slimfaas-1-runtime.log",
+            "sha256": "f3d5ec696cee7da8c60a1547165e4684406e062c4505cc56e3c0abe57490ca13",
+            "log_occurrences": 0
+          },
+          {
+            "file": "slimfaas-2-runtime.log",
+            "sha256": "c4cccc687dafac16b49cbd2d725b7400dc6495522807e55cc36e6660164e7374",
+            "log_occurrences": 0
+          }
+        ],
+        "passed": true,
+        "note": "Current container logs plus restart-count guard; exception-log occurrences are not distinct exception counts."
+      },
+      "driver_passed": true,
+      "host_passed": true,
+      "report_sha256": "15da5653b50067f53541ab1ff50fe1898af460e324a8dadc58a29371c561b6c1",
+      "original_vm_index_sha256": "4f2b0abf647322619b4268921c6d8ac7d1a98610b39a27bf8cfe254f9bb44040",
+      "originals_retained": "/var/home/core/slimfaas-pr506/runs/slimfaas-pr506-br10-4-before",
+      "runtime_sha256": "def71534449c62f88dc262e291c4821161308f40eb19f048e6604e7c42199dd8",
+      "slimfaas_dll_sha256": "bbbfae6e26b7b5ac57b4d0daeaa8a4dcf4330e5498481989f00f07560296bd31",
+      "slimdata_dll_sha256": "7924bbea28de8ddaa1caa7513a996f41b9eed9ec937e3e96bf49a3025639ba5d"
+    }
+  ]
+}

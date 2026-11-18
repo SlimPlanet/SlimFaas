@@ -1,0 +1,9 @@
+{
+  "archive": "correctness-raw-file-index-net11-03.json.gz",
+  "sha256": "f54fb0e38c62ad09d6ea882b058c080baa42b22f0434d2d9381f0e0a1b70d3dc",
+  "bytes": 3484769,
+  "expanded_sha256": "833584bc45a27475afb02401682884a015c09f692a6003cf01c011c984dee753",
+  "expanded_bytes": 11229148,
+  "source": "1ecba4d13d29ae68909979e168ff5b53aae6fea1",
+  "index_roots": 7
+}

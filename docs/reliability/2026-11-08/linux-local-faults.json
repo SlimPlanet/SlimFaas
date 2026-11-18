@@ -1,0 +1,285 @@
+{
+  "schema": 1,
+  "archives": [
+    {
+      "archive": "linux-network-09-evidence.tar.gz",
+      "bytes": 537242,
+      "sha256": "c99fb6481f25a38a30f3f2ebb87a040697eb7f58c3c2013d5a938e53d4122d75",
+      "data": {
+        "./parameters.json": {
+          "started_utc": 1794143790.43226,
+          "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+          "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+          "commit": "6d6246619b323985f83aa1afbd91998fc872d12c",
+          "runtime_sha256": "9801740aa572f9bcebfdfe8b4f5697c7988404854251a6652436cf83c5017017",
+          "slimdata_sha256": "92bf570398016c1fa80781096d4464ef2aa1d9af83ed4ba0dc2d716c1c173154",
+          "harness_sha256": "2279aeaf1084084dd59c6b65014006b21040b97a8f2f774738f3df9934574220",
+          "arguments": {
+            "runtime": "/root/.cache/slimdata-lts/export/reliable-portable/SlimFaas.dll",
+            "dotnet": "/root/.cache/slimdata-lts/dotnet/dotnet",
+            "source_commit": "6d6246619b323985f83aa1afbd91998fc872d12c",
+            "output": "/root/.cache/slimdata-lts/network-run-09",
+            "state_directory": null,
+            "resume": false,
+            "port_base": 37120,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 30.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "api,latency,partitions,restarts",
+            "durations": [
+              1.0,
+              5.0,
+              10.0,
+              30.0,
+              60.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "./report-before-resume-1794143882770876659.json": {
+          "passed": false,
+          "error": "CalledProcessError(2, ['tc', 'qdisc', 'add', 'dev', 'lo', 'root', 'netem', 'delay', '25ms'])",
+          "results": [
+            {
+              "phase": "api-smoke",
+              "passed": true
+            }
+          ],
+          "accepted": 53,
+          "unknown": 0,
+          "missing": [],
+          "finished_utc": 1794143822.5646906
+        },
+        "./report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "network-partition-1s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 1.0674057040000093,
+              "full_recovery_seconds": 5.544317677999999,
+              "passed": true
+            },
+            {
+              "phase": "network-partition-5s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 5.087996453000017,
+              "full_recovery_seconds": 3.8082510790000015,
+              "passed": true
+            },
+            {
+              "phase": "network-partition-10s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 10.06277703500001,
+              "full_recovery_seconds": 6.228403686000007,
+              "passed": true
+            },
+            {
+              "phase": "network-partition-30s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 30.061303641999984,
+              "full_recovery_seconds": 5.188663501000008,
+              "passed": true
+            },
+            {
+              "phase": "network-partition-60s",
+              "fault": "all-Raft-links-dropped",
+              "actual_absence_seconds": 60.06083423200005,
+              "full_recovery_seconds": 6.494726077999985,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 413,
+          "unknown": 338,
+          "missing": [],
+          "finished_utc": 1794144324.9580789
+        },
+        "./parameters-resume-1.json": {
+          "started_utc": 1794143882.775455,
+          "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+          "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+          "commit": "6d6246619b323985f83aa1afbd91998fc872d12c",
+          "runtime_sha256": "9801740aa572f9bcebfdfe8b4f5697c7988404854251a6652436cf83c5017017",
+          "slimdata_sha256": "92bf570398016c1fa80781096d4464ef2aa1d9af83ed4ba0dc2d716c1c173154",
+          "harness_sha256": "cc33a6230844241ebc598f1a3523878614b33f5cc9a72c81dea11a66b6a6c0b3",
+          "arguments": {
+            "runtime": "/root/.cache/slimdata-lts/export/reliable-portable/SlimFaas.dll",
+            "dotnet": "/root/.cache/slimdata-lts/dotnet/dotnet",
+            "source_commit": "6d6246619b323985f83aa1afbd91998fc872d12c",
+            "output": "/root/.cache/slimdata-lts/network-run-09",
+            "state_directory": null,
+            "resume": true,
+            "port_base": 37120,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 30.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "partitions,restarts",
+            "durations": [
+              1.0,
+              5.0,
+              10.0,
+              30.0,
+              60.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        }
+      }
+    },
+    {
+      "archive": "linux-disk-02-evidence.tar.gz",
+      "bytes": 187071,
+      "sha256": "150f418c691d41dc918235fb4e5402ce53322e3b79a2db4e6f6d9911a6d4fe73",
+      "data": {
+        "./parameters.json": {
+          "started_utc": 1794143891.1033256,
+          "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+          "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+          "commit": "6d6246619b323985f83aa1afbd91998fc872d12c",
+          "runtime_sha256": "9801740aa572f9bcebfdfe8b4f5697c7988404854251a6652436cf83c5017017",
+          "slimdata_sha256": "92bf570398016c1fa80781096d4464ef2aa1d9af83ed4ba0dc2d716c1c173154",
+          "harness_sha256": "cc33a6230844241ebc598f1a3523878614b33f5cc9a72c81dea11a66b6a6c0b3",
+          "arguments": {
+            "runtime": "/root/.cache/slimdata-lts/export/reliable-portable/SlimFaas.dll",
+            "dotnet": "/root/.cache/slimdata-lts/dotnet/dotnet",
+            "source_commit": "6d6246619b323985f83aa1afbd91998fc872d12c",
+            "output": "/root/.cache/slimdata-lts/disk-run-02",
+            "state_directory": "/root/.cache/slimdata-lts/disk-resources-02/mount/state",
+            "resume": false,
+            "port_base": 37320,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 30.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "api,diskfull,restarts",
+            "durations": [
+              15.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "./report.json": {
+          "passed": true,
+          "error": null,
+          "results": [
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "disk-full",
+              "full_recovery_seconds": 22.766550881,
+              "passed": true
+            },
+            {
+              "phase": "full-persistent-restart",
+              "passed": true
+            }
+          ],
+          "accepted": 133,
+          "unknown": 72,
+          "missing": [],
+          "finished_utc": 1794144220.819387
+        }
+      }
+    },
+    {
+      "archive": "terminal-linux-disk-02-evidence.tar.gz",
+      "bytes": 193200,
+      "sha256": "aabd548de9badcf3e6078a750d7f5ac5be50d3b5ebf6deb4d85e8be6886c056c",
+      "data": {
+        "terminal-disk-run-02/parameters.json": {
+          "started_utc": 1794156995.8003545,
+          "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+          "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+          "commit": "7920d9f99d36ef0c68a0b497d4ee4c3526d2a979",
+          "runtime_sha256": "2c7d0fdf0049aafa51888c56857fab9ae0a5a3888f7a2152c3b817f65061d609",
+          "slimdata_sha256": "84fd85f3433c7f33be85aedcb36eb6dae0d739ef7ae1435c3a0e6b88f395502c",
+          "harness_sha256": "f6c1603696d9bc459443303592bfde389077558d9118998a39becbd7389b9009",
+          "arguments": {
+            "runtime": "/root/.cache/slimdata-lts/export/runtime-75598/SlimFaas.dll",
+            "dotnet": "/root/.cache/slimdata-lts/dotnet/dotnet",
+            "source_commit": "7920d9f99d36ef0c68a0b497d4ee4c3526d2a979",
+            "output": "/root/.cache/slimdata-lts/terminal-disk-run-02",
+            "state_directory": "/root/.cache/slimdata-lts/terminal-disk-resources-02/mount/state",
+            "resume": false,
+            "port_base": 35120,
+            "node_log_level": "Warning",
+            "delivery_diagnostics": false,
+            "payload_sizes": [
+              65536,
+              262144,
+              1048576,
+              2000000,
+              2097152,
+              4194304
+            ],
+            "concurrency": 4,
+            "request_timeout": 30.0,
+            "recovery_timeout": 300.0,
+            "scenarios": "api,diskfull,diskfull,diskfull,restarts",
+            "durations": [
+              15.0
+            ],
+            "roles": "follower,leader,quorum",
+            "traffic_interval": 1
+          }
+        },
+        "terminal-disk-run-02/report.json": {
+          "passed": false,
+          "error": "AssertionError('Convergence failure at 35123/data/files/bd16dbabbb914b13bf59a6a26f9d0166: HTTP 503, sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')",
+          "results": [
+            {
+              "phase": "api-smoke",
+              "passed": true
+            },
+            {
+              "phase": "disk-full",
+              "full_recovery_seconds": 99.140393258,
+              "passed": true
+            }
+          ],
+          "accepted": 121,
+          "unknown": 46,
+          "missing": [],
+          "finished_utc": 1794157232.5908296
+        }
+      }
+    }
+  ]
+}

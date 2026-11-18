@@ -13,7 +13,7 @@ keywords = ["slimfaas", "websocket", "faas", "jobs"]
 authors = [{ name = "SlimFaas Contributors" }]
 
 dependencies = [
-    "websockets>=12.0",
+    "websockets>=16.1.1,<17",
 ]
 
 [project.urls]
@@ -24,9 +24,9 @@ Documentation = "https://slimfaas.dev/"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "anyio>=4.0",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
+    "anyio>=4.16.0",
     # Pygments 2.21.0 is rejected by the CNCF FOSSA policy (GPL findings).
     # Keep the last version validated by FOSSA until a newer release is approved.
     "pygments==2.19.2",
@@ -37,3 +37,4 @@ packages = ["src/slimfaas_client"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

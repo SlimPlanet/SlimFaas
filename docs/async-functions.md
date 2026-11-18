@@ -61,6 +61,12 @@ sequenceDiagram
 
 ## Retry and concurrency
 
+The HTTP worker persists known final responses before clearing local tracking
+during a leadership transition. If persisting a queue callback fails, it retains
+the completion and its capacity reservation and retries the callback. Internal
+offload cleanup follows the committed callback. A completion from an earlier
+tracking generation cannot release a replacement dispatch's local slot.
+
 `SlimFaas/NumberParallelRequest` limits concurrent requests for the whole function;
 `SlimFaas/NumberParallelRequestPerPod` limits each replica. Dispatch waits for
 readiness, dependencies and capacity. A recipient's `202` continues occupying
@@ -108,6 +114,13 @@ HTTP deliveries include:
 | `SlimFaas-Element-Id` | Execution ID required for a callback |
 | `SlimFaas-Try-Number` | Zero-based attempt number |
 | `Slimfaas-Last-Try` | Lowercase `true` or `false` |
+
+With `TimeoutRetries: [1, 2]`, the three possible deliveries have attempt
+numbers `0`, `1`, `2`; only attempt `2` has `Slimfaas-Last-Try: true`.
+Earlier versions incorrectly exposed one-based queue attempt numbers and
+inverted the final-attempt flag when retries were configured. The correction
+also applies to WebSocket async deliveries. Stored retry history and the
+number of configured deliveries are unchanged.
 
 Use the real received element ID, not a Stream message ID or an invented UUID:
 
@@ -338,6 +351,11 @@ Return the actual completion status from an async handler. For deferred work,
 return 202 and send the existing explicit callback with its execution ID.
 An offloaded body is loaded before delivery through the existing base64
 WebSocket contract; that transport still materializes the body in memory.
+The Python client's receive limit applies to the entire JSON/base64 envelope.
+Older clients inherited a 1 MiB cap, causing a 1009 disconnect for valid larger
+bodies. Current clients use a configurable, bounded 32 MiB envelope limit;
+see [client limits](clients.md). Prefer file references when envelope overhead
+or concurrent in-memory deliveries exceed the worker's budget.
 See [client documentation](clients.md) and SDK examples.
 
 ### Observability and upgrades

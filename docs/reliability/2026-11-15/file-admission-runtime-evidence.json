@@ -1,0 +1,257 @@
+{
+  "recorded": 1794765109.106134,
+  "base": "c02bd1451ad5a5f4f586467e0349a6eec88824ce",
+  "passed": 2388,
+  "failed": 0,
+  "skipped": 0,
+  "sources": [
+    {
+      "path": "src/SlimData/ClusterFiles/ClusterFileSync.cs",
+      "bytes": 17231,
+      "sha256": "0dda640fdd3ff93ddb66998818f3f519ce8479ac997e13bcb0625308f10ad26b"
+    },
+    {
+      "path": "src/SlimData/ClusterFiles/FileCopyProtocol.cs",
+      "bytes": 4135,
+      "sha256": "61dd64ac23c15b2140dec8c974b9bb143bd08a3a270a3aed0d192f41977621ed"
+    },
+    {
+      "path": "src/SlimData/ClusterFiles/Http/HttpRangeReadStream.cs",
+      "bytes": 8808,
+      "sha256": "14fb4d84333a8fd6e9e11aafb99ddc4a8fa21028923066b9f70b41855e25480b"
+    },
+    {
+      "path": "src/SlimData/FileAdmissionTags.cs",
+      "bytes": 893,
+      "sha256": "a1c5667e68a04ef6475238b6a144e8a38ca7d44caeefd0a12f1346c93531386a"
+    },
+    {
+      "path": "src/SlimData/FileAdmissions.cs",
+      "bytes": 16294,
+      "sha256": "dd82dc287860c7af1b466ae7649c66dda61434a8cc44a1e023dafd4a1ea07fe5"
+    },
+    {
+      "path": "src/SlimData/Options/ClusterFileOptions.cs",
+      "bytes": 2926,
+      "sha256": "6793514f69be8a0fabee85e8176d976c2eb3b3702ae004a496c5fb81b7b43696"
+    },
+    {
+      "path": "src/SlimFaas/Data/DataFileKeys.cs",
+      "bytes": 938,
+      "sha256": "b304e6927cbbfaa543b905353acf0d84dc8374a8f3375aa5bcda05accbccaa9f"
+    },
+    {
+      "path": "src/SlimFaas/Data/DataFileRoutes.cs",
+      "bytes": 10748,
+      "sha256": "7ac56d130cb2b4186f93e96666fb4546e9d70af176993704265c9668c3121d7c"
+    },
+    {
+      "path": "src/SlimFaas/Data/FileAdmissionReconciler.Log.cs",
+      "bytes": 953,
+      "sha256": "9e37b2e7016aca3146ce3a5b89ddb844c7a039ef827cdef09c8d079899d85e37"
+    },
+    {
+      "path": "src/SlimFaas/Data/FileAdmissionReconciler.cs",
+      "bytes": 9743,
+      "sha256": "88a240b2fa6d5392b37d4ad0ad14293c4e00107f67749675070da8fb76d63995"
+    },
+    {
+      "path": "src/SlimFaas/Data/FileAdmissionService.cs",
+      "bytes": 8754,
+      "sha256": "b49836970917b418d66678c700e4f444d24d7b19c689468fd905adccd3594e1b"
+    },
+    {
+      "path": "src/SlimFaas/Endpoints/AsyncFunctionEndpoints.cs",
+      "bytes": 12410,
+      "sha256": "63e4f93427ae7fa229abfdb4a7b35ddc84870af1a85e1beab59474f0787fe95c"
+    },
+    {
+      "path": "src/SlimFaas/Endpoints/FunctionEndpointsHelpers.cs",
+      "bytes": 23567,
+      "sha256": "d48e044cead90563753a2df4cc1a1443b4ea3c48e33d37d8ebfe77dcafbc8370"
+    },
+    {
+      "path": "src/SlimFaas/Program.cs",
+      "bytes": 34716,
+      "sha256": "2b30785aae02fa6a04e13db62fae279ccd286bcb9ad4c9b9cad7a26c5bbac3ea"
+    },
+    {
+      "path": "src/SlimFaas/Workers/SlimDataExpirationCleaner.Log.cs",
+      "bytes": 6202,
+      "sha256": "3b8fda4643f9ecc2fbe4fdf3f5a7c072bfdd664adef1d41ef1158243fc131a1e"
+    },
+    {
+      "path": "src/SlimFaas/Workers/SlimDataExpirationCleaner.cs",
+      "bytes": 13981,
+      "sha256": "6aa9d34e13a70e48791042d54453214a1ebac55125cef13b44e5cce87f1758a8"
+    },
+    {
+      "path": "tests/SlimData.Tests/ClusterFiles/ClusterFileOptionsTests.cs",
+      "bytes": 5338,
+      "sha256": "62279a01bf44de6af521d450e3d75a827c85757376a668f89e01a04c58279f98"
+    },
+    {
+      "path": "tests/SlimData.Tests/ClusterFiles/FileCopyProtocolTests.cs",
+      "bytes": 10998,
+      "sha256": "b63c60cfc774bf1e77dc5bae7f07e26536c15595f72a05aab4ba1519b65192ed"
+    },
+    {
+      "path": "tests/SlimData.Tests/ClusterFiles/Http/HttpRangeReadStreamTests.cs",
+      "bytes": 8057,
+      "sha256": "8ad439eb551404825ab1cc96c02dda2bb4e2596703abeca329a41ea909ad724d"
+    },
+    {
+      "path": "tests/SlimData.Tests/FileAdmissionTests.cs",
+      "bytes": 17484,
+      "sha256": "e20655417069b64451650e6378551d38dae68f541cfef647884d7a387438a946"
+    },
+    {
+      "path": "tests/SlimFaas.Tests/Data/DataFileRoutesTests.cs",
+      "bytes": 23977,
+      "sha256": "f29e7a58096de27fd04bd4fa27227e4d706d609d8de5b7163cce4fa02d500da2"
+    },
+    {
+      "path": "tests/SlimFaas.Tests/Data/FileAdmissionReconcilerTests.cs",
+      "bytes": 10277,
+      "sha256": "63e16bca092b3545cd6e0e0cfa6911e246596f7625d6de09a02eb79cde6e81ba"
+    },
+    {
+      "path": "tests/SlimFaas.Tests/Data/FileAdmissionServiceTests.cs",
+      "bytes": 9752,
+      "sha256": "6ef8960f6ee132a9671520bc7afd3da7ec9cf1beab9eebb50740a987798eda4a"
+    },
+    {
+      "path": "tests/SlimFaas.Tests/Endpoints/AsyncFunctionEndpointTests.cs",
+      "bytes": 26546,
+      "sha256": "35ec5800d52b6eb57c6c8a6a732e44f9dc20cb50dc7e9e41cc8e7a2a2a145915"
+    },
+    {
+      "path": "tests/SlimFaas.Tests/Workers/FileAdmissionCleanupTests.cs",
+      "bytes": 8568,
+      "sha256": "5e4cfd34a43e2c43708cbb48669cb67b85f9215907902ca0930aaf4cac05e607"
+    }
+  ],
+  "results": [
+    {
+      "file": "reproductions/file-admission-runtime-net11-14/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_18_44_55_net11.0.trx",
+      "sha256": "856557a0b943e8b3936fac177a148b7f788ed6f6f30751c7c91cc31e67472a69",
+      "counters": {
+        "total": "52",
+        "executed": "52",
+        "passed": "52",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "file": "reproductions/file-admission-runtime-net11-14/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_18_44_56_net11.0.trx",
+      "sha256": "c3f0ce1087b438e35c5a3a219571e5fb364590a9b55fbf82547fd7c3b72211e6",
+      "counters": {
+        "total": "11",
+        "executed": "11",
+        "passed": "11",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "file": "reproductions/file-admission-runtime-net11-14/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_18_45_09_net11.0.trx",
+      "sha256": "240c156cee78e4824ebca2d9b979930bd486fc86f3b4d78ce0ef9f948ce2d60b",
+      "counters": {
+        "total": "447",
+        "executed": "447",
+        "passed": "447",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "file": "reproductions/file-admission-runtime-net11-14/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_18_45_11_net11.0.trx",
+      "sha256": "4a63c18228efc0d5a0d9b9dbb2a201f77603f707b317bb2cfe885abb0117eb33",
+      "counters": {
+        "total": "1769",
+        "executed": "1769",
+        "passed": "1769",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "file": "reproductions/file-admission-runtime-net11-14/full-solution-03/_a115vcCX1PXQ575D_2026-11-15_18_45_15_net11.0.trx",
+      "sha256": "13ab03c3ff0b20afc287638a80758ab53437eefc7bc7fc1d29b728bcf3cfe594",
+      "counters": {
+        "total": "109",
+        "executed": "109",
+        "passed": "109",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ],
+  "scope": "Full combined runtime: opt-in durable admission, atomic metadata/enqueue/public alias, reference reconciliation, retirement cleanup and bounded Range I/O resume. Full UI/analyzers/audits active. Dedicated live acceptance-fault tests, Native AOT publications and final performance cost still pending.",
+  "component_commits": {
+    "cleanup": "08b91020",
+    "range_continuation": "00c16bd9"
+  },
+  "documentation": "23 pages, 1683 local links/assets, 405 search entries",
+  "dependencies_or_lockfiles_changed": false,
+  "default_required_durable_copies": 0,
+  "default_async_offload_threshold_bytes": 1048576,
+  "files_copy_protocol": "slimfaas.file.persist.v2 / slimfaas.file.persisted.v2; binds the admission marker",
+  "live_acceptance_faults_and_cost": "Pending; unit/component evidence is not final contract/performance certification."
+}

@@ -1,0 +1,93 @@
+{
+  "created": 1794842141.851669,
+  "source": "189826231fe43fe3069e8a1f7724f83589432c6f",
+  "roles": [
+    {
+      "environment": "native",
+      "role": "follower",
+      "confirmed": 23170,
+      "unknown": 26,
+      "intents": 23197,
+      "intent_only_negative_controls": 1,
+      "original_files": 17954,
+      "extra_successful_fault_deliveries": 0,
+      "report": "native-follower-189.json",
+      "report_sha256": "47ade24b7ca7af0ea0b3f3ee744153f546d541f4abdc9edc47d05d357366a3fd",
+      "raw_archive_sha256": "347a424b3e49cf1e4f93d7b55c78e3d3892551f66c02b11c506c09fadae61e1d"
+    },
+    {
+      "environment": "native",
+      "role": "leader",
+      "confirmed": 23070,
+      "unknown": 34,
+      "intents": 23105,
+      "intent_only_negative_controls": 1,
+      "original_files": 17868,
+      "extra_successful_fault_deliveries": 0,
+      "report": "native-leader-189.json",
+      "report_sha256": "3f5f101d216c67b236f6685ebc5bba6f610fc4de0ef1f5436b38daf0f4f95e95",
+      "raw_archive_sha256": "ea9574200f2a8e47d37de3662bc7feba4f29321be828569957de461857ccfa79"
+    },
+    {
+      "environment": "native",
+      "role": "quorum",
+      "confirmed": 146,
+      "unknown": 26107,
+      "intents": 26254,
+      "intent_only_negative_controls": 1,
+      "original_files": 215,
+      "extra_successful_fault_deliveries": 0,
+      "report": "native-quorum-189.json",
+      "report_sha256": "cb18a6bd3eb4209a0875c37c6860ec6fc6a5f44c4a44cf7ee6c65c17395bdaab",
+      "raw_archive_sha256": "adaba6eebe77617e5fb7fa48044bae8e020e46901bc03ad1fa2b27ff30a7c911"
+    },
+    {
+      "environment": "kind",
+      "role": "follower",
+      "confirmed": 22831,
+      "unknown": 48,
+      "intents": 22880,
+      "intent_only_negative_controls": 1,
+      "original_files": 9562,
+      "extra_successful_fault_deliveries": 0,
+      "report": "kind-follower-189.json.gz",
+      "report_sha256": "a4b6e218677dc7c58946d1f2b09c5ebbc5485c2898216581b8b6930990a1ab4d",
+      "raw_archive_sha256": "eb61c60c73d419536c31d74f8ff623e8226b0f5ae03ce712ddb329e514f3ab4a"
+    },
+    {
+      "environment": "kind",
+      "role": "leader",
+      "confirmed": 22885,
+      "unknown": 31,
+      "intents": 22917,
+      "intent_only_negative_controls": 1,
+      "original_files": 9529,
+      "extra_successful_fault_deliveries": 1,
+      "report": "kind-leader-189.json.gz",
+      "report_sha256": "ba139a5abb369f3b97531a57cbe94ee69dfdf9f6a3ae28163d9736c599d289cc",
+      "raw_archive_sha256": "5c62b68ae1f7a61a3c62c99c4d6ccc778b39b525987f84b8d866c83b6a59aebd"
+    },
+    {
+      "environment": "kind",
+      "role": "quorum",
+      "confirmed": 230,
+      "unknown": 8940,
+      "intents": 9171,
+      "intent_only_negative_controls": 1,
+      "original_files": 396,
+      "extra_successful_fault_deliveries": 0,
+      "report": "kind-quorum-189.json.gz",
+      "report_sha256": "5ccc83ea47ff5c71333de0c37dbe6462205bfe8e25d9eb2ed08874f0121dff82",
+      "raw_archive_sha256": "0d500cd1ef688fe7972c63cbab14cbb8c3bb55d82f63b3fdb71e03e8c70ef56b"
+    }
+  ],
+  "totals": {
+    "confirmed": 92332,
+    "unknown": 35186,
+    "intents": 127524,
+    "intent_only_negative_controls": 6,
+    "original_files": 55524,
+    "extra_successful_fault_deliveries": 1
+  },
+  "scope": "All six recovery/integrity roles closed. Client-intent/confirmed/unknown sets independently reconstructed from published raw archives; confirmed and unknown disjoint. One extra fault-time success is an unknown client outcome in the kind leader role. Formal performance, healthy log/lifetime audit and remaining guarantees are separate; no LTS/merge acceptance."
+}

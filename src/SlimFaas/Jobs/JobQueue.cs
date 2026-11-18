@@ -14,7 +14,9 @@ public class JobQueue(IDatabaseService databaseService) : IJobQueue
 
     public async Task<string> EnqueueAsync(string key, byte[] message)
     {
-        RetryInformation retryInformation = new([2,4,8,16,32], 120, [500,502,503]);
+        // A lost worker leaves a reservation that SlimData expires as HTTP 504.
+        // Keep it retryable so an accepted job is not evicted before creation.
+        RetryInformation retryInformation = new([2,4,8,16,32], 120, [500,502,503,504]);
         return await databaseService.ListLeftPushAsync($"{KeyPrefix}{key}", message, retryInformation);
     }
 

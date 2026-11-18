@@ -12,6 +12,7 @@ using SlimFaas.Local;
 using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas;
+using ZLinq;
 
 namespace SlimFaas.Endpoints;
 
@@ -30,7 +31,7 @@ public static class FunctionEndpointsHelpers
 
     public static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
     {
-        return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
+        return replicasService.Deployments.FindFunction(functionName);
     }
 
     /// <summary>
@@ -83,12 +84,17 @@ public static class FunctionEndpointsHelpers
 
         foreach (string candidate in candidates)
         {
-            foreach (Kubernetes.Job job in jobs.Where(job => job.Status == JobStatus.Running))
+            foreach (Kubernetes.Job job in jobs.AsValueEnumerable().Where(static job => job.Status == JobStatus.Running))
             {
-                bool matchesJobIp = job.Ips
-                    .Where(ip => !string.IsNullOrWhiteSpace(ip))
-                    .Select(NormalizeNetworkAddress)
-                    .Any(ip => string.Equals(ip, candidate, StringComparison.OrdinalIgnoreCase));
+                bool matchesJobIp = false;
+                foreach (string ip in job.Ips.AsValueEnumerable().Where(static ip => !string.IsNullOrWhiteSpace(ip)))
+                {
+                    if (string.Equals(NormalizeNetworkAddress(ip), candidate, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchesJobIp = true;
+                        break;
+                    }
+                }
                 if (!matchesJobIp)
                 {
                     continue;
@@ -210,7 +216,7 @@ public static class FunctionEndpointsHelpers
         }
         else if (candidate.Count(c => c == ':') == 1)
         {
-            int separatorIndex = candidate.LastIndexOf(':');
+            int separatorIndex = candidate.LastIndexOf(':', StringComparison.Ordinal);
             if (separatorIndex > 0
                 && int.TryParse(candidate[(separatorIndex + 1)..], out _))
             {
@@ -309,8 +315,10 @@ public static class FunctionEndpointsHelpers
         // ILogger<T> is a singleton cached by the DI container, unlike
         // ILoggerFactory.CreateLogger(string) which takes a lock on every call.
         var logger = context.RequestServices.GetRequiredService<ILogger<FunctionEndpointsHelpersLog>>();
-        List<CustomHeader> customHeaders = contextRequest.Headers
-            .Select(headers => new CustomHeader(headers.Key, headers.Value.ToArray())).ToList();
+        context.Items.Remove(FileAdmissionService.ContextKey);
+        var customHeaders = new List<CustomHeader>(contextRequest.Headers.Count);
+        foreach (var header in contextRequest.Headers.AsValueEnumerable())
+            customHeaders.Add(new CustomHeader(header.Key, header.Value.ToArray()));
 
         string requestMethod = contextRequest.Method;
         byte[]? requestBodyBytes = null;
@@ -375,7 +383,19 @@ public static class FunctionEndpointsHelpers
                 { "FunctionName", functionName }
             };
 
-            var put = await fileSync!.BroadcastFilePutAsync(
+            PreparedFileAdmission? admission = null;
+            FilePutResult put;
+            var admissionService = context.RequestServices.GetService<IFileAdmissionService>();
+            if (admissionService?.Enabled == true)
+            {
+                admission = await admissionService.PrepareAsync(offloadedFileId, offloadContent!, contentType,
+                    offloadedFileId, contentLength, tags, ct).ConfigureAwait(false);
+                context.Items[FileAdmissionService.ContextKey] = admission;
+                put = new(admission.Metadata.Sha256Hex, admission.Metadata.ContentType, admission.Metadata.Length);
+            }
+            else
+            {
+                put = await fileSync!.BroadcastFilePutAsync(
                 id: offloadedFileId,
                 content: offloadContent!,
                 contentType: contentType,
@@ -384,8 +404,9 @@ public static class FunctionEndpointsHelpers
                 ttl: null,
                 ct: ct,
                 tags);
+            }
 
-            var meta = new DataSetMetadata(
+            var meta = admission?.Metadata ?? new DataSetMetadata(
                 Sha256Hex: put.Sha256Hex,
                 Length: put.Length,
                 ContentType: put.ContentType,
@@ -397,7 +418,8 @@ public static class FunctionEndpointsHelpers
                 logger.LogOffloadingRequestMetadataMetaKeyTags(metaKey, string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
             }
             var metaBytes = MemoryPackSerializer.Serialize(meta);
-            await db!.SetQueueMetadataAsync(metaKey, metaBytes);
+            if (admission is null)
+                await db!.SetQueueMetadataAsync(metaKey, metaBytes);
         }
         else if (requestBodyBytes is null)
         {
@@ -517,7 +539,7 @@ public static class FunctionEndpointsHelpers
     {
         int numberReady = f.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);
 
-        var pods = f.Pods.Select(p =>
+        var pods = f.Pods.AsValueEnumerable().Select(static p =>
         {
             string status;
             if (p.Ready is true)

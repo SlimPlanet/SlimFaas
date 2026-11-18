@@ -753,6 +753,52 @@ public class SlimQueuesWorkerOffloadTests
         Assert.True(stream.Disposed);
     }
 
+    [Theory]
+    [InlineData(65536)]
+    [InlineData(1048576)]
+    public async Task Large_inline_body_is_forwarded_from_the_packet_and_disposed_after_completion(int bodyBytes)
+    {
+        const string functionName = "inline-body";
+        byte[] originalBody = new byte[bodyBytes];
+        originalBody[0] = 42;
+        originalBody[^1] = 123;
+        var original = new CustomRequest([], originalBody, functionName, "/work", "POST", "");
+        byte[] packet = MemoryPackSerializer.Serialize(original);
+        var queue = BuildQueueMock(functionName, new QueueData("inline-id", packet, 0, true, 0, 0));
+        Task callback = ObserveCallback(queue, functionName, "inline-id", 200);
+        var fileSync = new Mock<IClusterFileSync>();
+        var database = new Mock<IDatabaseService>();
+        var (worker, sendClient) = BuildWorker(
+            queue.Object, BuildReplicasService(functionName, "192.168.99.12"), fileSync.Object, database.Object);
+        MemoryStream? capturedBody = null;
+        sendClient.Reset();
+        sendClient.Setup(s => s.SendHttpRequestAsync(
+                It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<IProxy?>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(async (
+                CustomRequest request, SlimFaasDefaultConfiguration _, string? _, CancellationTokenSource? _,
+                IProxy? _, string? _, string? _, string? _, Stream? body, string? _, string? _) =>
+            {
+                Assert.Null(request.Body);
+                capturedBody = Assert.IsType<MemoryStream>(body);
+                Assert.True(capturedBody.TryGetBuffer(out ArraySegment<byte> segment));
+                Assert.Same(packet, segment.Array);
+                using var actual = new MemoryStream();
+                await capturedBody.CopyToAsync(actual);
+                Assert.Equal(originalBody, actual.ToArray());
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            });
+
+        await RunUntilAsync(worker, callback);
+
+        Assert.NotNull(capturedBody);
+        Assert.False(capturedBody.CanRead);
+        fileSync.VerifyNoOtherCalls();
+        database.VerifyNoOtherCalls();
+    }
+
     private static async Task<HttpResponseMessage> WaitForCancellationAsync(CancellationToken cancellationToken)
     {
         await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);

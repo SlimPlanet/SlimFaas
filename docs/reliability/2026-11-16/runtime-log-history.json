@@ -1,0 +1,174 @@
+{
+  "source_runtime": "f2f80124af9b88d0ad4bbd94653372cf393ad1b5",
+  "scope": "Actual source-f2 async receipts complete, leader detailed log history incomplete after kubelet rotation. No retroactive repair of missing trace.",
+  "case": "own-async-c16-a01",
+  "accepted": 2880,
+  "successful_receipts": 2880,
+  "successful_duplicate_ids": 0,
+  "confirmed_missing": 0,
+  "corrupt_receipts": 0,
+  "original_trace_coverage": {
+    "passed": false,
+    "runtime_log_coverage_complete": false,
+    "missing_instances": [],
+    "observed_prefix_gaps": [
+      {
+        "pod_uid": "95c901db-d811-44ec-b6c7-fed838ca8cc9",
+        "restart_index": 0,
+        "earlier_path": "pod-logs/95c901db-d811-44ec-b6c7-fed838ca8cc9/runtime/0-current-1794896084422517000.log",
+        "canonical_path": "pod-logs/95c901db-d811-44ec-b6c7-fed838ca8cc9/runtime/0-current-1794896221821910000.log",
+        "reason": "Known earlier output is absent or changed; rotation/truncation is not complete history"
+      }
+    ],
+    "workload_window_utc": [
+      0,
+      1794896221.5522938
+    ],
+    "instances": [
+      {
+        "pod": "slimfaas-0",
+        "pod_uid": "95c901db-d811-44ec-b6c7-fed838ca8cc9",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://0d6cb1351320a155206c068c85d4c4f0821fcca75b78d85a0b1dcce68a99c53c",
+        "captured_utc": 1794896221.892023,
+        "path": "pod-logs/95c901db-d811-44ec-b6c7-fed838ca8cc9/runtime/0-current-1794896221821910000.log",
+        "bytes": 76330,
+        "sha256": "ddc52b9d72a49851bf20591a0b9425615b0c6b6449e37bac9db70cfc0cf8cb5f",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": []
+      },
+      {
+        "pod": "slimfaas-1",
+        "pod_uid": "a012b038-6129-40b9-b4f0-a9d90791ca60",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://9c13cf543d8f6afee75432fd954d74ce3144d330d20a80769d8feb4def147fd7",
+        "captured_utc": 1794896222.1404102,
+        "path": "pod-logs/a012b038-6129-40b9-b4f0-a9d90791ca60/runtime/0-current-1794896221963444000.log",
+        "bytes": 1985716,
+        "sha256": "114939c8d723bf13c2585e07984f3637b96392baea305d09b2edff52df5ee8e3",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": [
+          "2026-11-17T06:14:41.010889358Z 2026-11-17T06:14:41.0106816+00:00fail: SlimFaas.Database.SlimDataService[870726782]"
+        ]
+      },
+      {
+        "pod": "slimfaas-2",
+        "pod_uid": "bb932f9a-496a-4e23-83fd-c96216336df8",
+        "container": "runtime",
+        "restart_index": 0,
+        "previous": false,
+        "exit_code": 0,
+        "container_id": "containerd://1d3864db30fab0891f7e0ec59337563b27827a99591364699c398c98eb9aaa29",
+        "captured_utc": 1794896222.3387442,
+        "path": "pod-logs/bb932f9a-496a-4e23-83fd-c96216336df8/runtime/0-current-1794896222217542000.log",
+        "bytes": 1987048,
+        "sha256": "2a7c4c300aa9ecea2a93272d5c7eab1237ada28c2b4dee2ffb5491714fed5495",
+        "hash_matches_capture": true,
+        "managed_oom_log_occurrences": 0,
+        "runtime_errors_during_workload": [
+          "2026-11-17T06:14:42.016531647Z 2026-11-17T06:14:42.0162985+00:00fail: SlimFaas.Database.SlimDataService[870726782]"
+        ]
+      }
+    ],
+    "note": "One canonical snapshot per pod UID/restart; previous complete logs supersede partial current snapshots. OOM occurrences are not distinct exceptions. Error-level, critical and unhandled errors are counted only within the supplied healthy-workload window; bootstrap errors remain retained in the raw logs."
+  },
+  "kubelet_retention": {
+    "started": 1794898442.453847,
+    "previous_attempt": "owned-kind-log-retention-01.json",
+    "nodes": [
+      {
+        "node": "slimfaas-pr506-control-plane",
+        "config_path": "/var/lib/kubelet/config.yaml",
+        "preserved_before": "preflight/owned-kind-control-plane-kubelet-before-log-retention.yaml",
+        "before_sha256": "936ecd6f3689d658f04ac4553d9667a4d251317e1de971e333c58469f9974cde",
+        "after_sha256": "660b4886a9a9a61f1ebb38521e7a3ce352f15b7845dbe9aef0881c2cec081bed",
+        "restarted": true,
+        "effective_containerLogMaxSize": "128Mi"
+      },
+      {
+        "node": "slimfaas-pr506-worker",
+        "preserved_before": "preflight/owned-kind-worker-kubelet-before-log-retention.yaml",
+        "before_sha256": "936ecd6f3689d658f04ac4553d9667a4d251317e1de971e333c58469f9974cde",
+        "after_sha256": "660b4886a9a9a61f1ebb38521e7a3ce352f15b7845dbe9aef0881c2cec081bed",
+        "restarted": true,
+        "effective_containerLogMaxSize": "128Mi"
+      },
+      {
+        "node": "slimfaas-pr506-worker2",
+        "preserved_before": "preflight/owned-kind-worker2-kubelet-before-log-retention.yaml",
+        "before_sha256": "936ecd6f3689d658f04ac4553d9667a4d251317e1de971e333c58469f9974cde",
+        "after_sha256": "660b4886a9a9a61f1ebb38521e7a3ce352f15b7845dbe9aef0881c2cec081bed",
+        "restarted": true,
+        "effective_containerLogMaxSize": "128Mi"
+      },
+      {
+        "node": "slimfaas-pr506-worker3",
+        "preserved_before": "preflight/owned-kind-worker3-kubelet-before-log-retention.yaml",
+        "before_sha256": "936ecd6f3689d658f04ac4553d9667a4d251317e1de971e333c58469f9974cde",
+        "after_sha256": "660b4886a9a9a61f1ebb38521e7a3ce352f15b7845dbe9aef0881c2cec081bed",
+        "restarted": true,
+        "effective_containerLogMaxSize": "128Mi"
+      }
+    ],
+    "passed": true,
+    "phase": "closed",
+    "finished": 1794898448.74467
+  },
+  "red_test_log_sha256": "c9f600e1ee2c0a34a15abedcd240f188a098f2f4758e5f430abe7db01fcde392",
+  "validation": {
+    "started": 1794898710.148524,
+    "commands": [
+      {
+        "name": "platform",
+        "argv": [
+          "python3",
+          ".bin/test-platform-validation.py"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "routing",
+        "argv": [
+          "python3",
+          ".bin/test-kubernetes-routing.py"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "chaos",
+        "argv": [
+          "python3",
+          ".bin/test-local-chaos-harness.py"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "sonar",
+        "argv": [
+          "python3",
+          ".bin/test-sonar-benchmark-boundary.py"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "diff",
+        "argv": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "passed": true,
+    "finished": 1794898715.911179
+  }
+}

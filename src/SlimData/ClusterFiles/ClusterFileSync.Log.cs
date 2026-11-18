@@ -3,6 +3,12 @@ namespace SlimData.ClusterFiles
 {
     internal static partial class ClusterFileSyncLog
     {
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "Remote file persistence receipt rejected. Node={Node} Id={Id}")]
+        internal static partial void LogRemoteFilePersistenceReceiptRejected(this global::Microsoft.Extensions.Logging.ILogger logger, string node, string id);
+
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "Remote file persistence confirmation failed. Node={Node} Id={Id}")]
+        internal static partial void LogRemoteFilePersistenceConfirmationFailed(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Exception exception, string node, string id);
+
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "FileSync announce skipped (remote returned 501 Not Implemented). Node={Node}")]
         internal static partial void LogFileSyncAnnounceSkippedRemoteReturned501(this global::Microsoft.Extensions.Logging.ILogger logger, string node);
 
@@ -17,6 +23,9 @@ namespace SlimData.ClusterFiles
 
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "HEAD failed on node {Node}. Status={Status}")]
         internal static partial void LogHEADFailedOnNodeStatus(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Uri node, int status);
+
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "File HEAD probe failed; trying the next peer. Node={Node} Id={Id}")]
+        internal static partial void LogFileHeadProbeFailed(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Exception exception, string node, string id);
 
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "HEAD ok but no Content-Length from node {Node}")]
         internal static partial void LogHEADOkButNoContentLength(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Uri node);

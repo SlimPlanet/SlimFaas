@@ -28,7 +28,7 @@ accepts these MCP tool arguments:
 
 The example assumes your API listens on `http://127.0.0.1:8000`, exposes `POST /ask` with the schema above, and serves its OpenAPI document at `/openapi.json`. SlimFaasMcp must be able to reach that API.
 
-With .NET 10 and Node.js 24 or later installed, start SlimFaasMcp from the repository root:
+With .NET SDK 11.0.100 and Node.js 26 LTS installed, start SlimFaasMcp from the repository root:
 
 ```bash
 dotnet run --project src/SlimFaasMcp --no-launch-profile -- --urls http://127.0.0.1:5269

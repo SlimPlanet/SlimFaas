@@ -6,11 +6,11 @@ on:
       node_version:
         required: false
         type: string
-        default: "24"
+        default: "26.13.0"
       pnpm_version:
         required: false
         type: string
-        default: "10.14.0"
+        default: "12.18.0"
       working_directory:
         required: false
         type: string
@@ -20,11 +20,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ inputs.node_version }}
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: ${{ inputs.pnpm_version }}
           run_install: false

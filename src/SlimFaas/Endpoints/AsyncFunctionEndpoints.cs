@@ -8,6 +8,7 @@ using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
+using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
 
@@ -20,7 +21,6 @@ public class AsyncFunction
 public static class AsyncFunctionEndpoints
 {
     private static readonly string[] s_allHttpMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
-    private const long AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L;
 
     public static void MapAsyncFunctionEndpoints(this IEndpointRouteBuilder app)
     {
@@ -46,8 +46,9 @@ public static class AsyncFunctionEndpoints
                 NetworkActivityTracker activityTracker,
                 IClusterFileSync fileSync,
                 IDatabaseService db,
-                IOptions<ClusterFileOptions> fileOptions) =>
-                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker, fileSync, db, fileOptions))
+                IOptions<ClusterFileOptions> fileOptions,
+                IOptions<SlimFaasOptions> options) =>
+                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker, fileSync, db, fileOptions, options))
             .WithName("HandleAsyncFunctionRoot")
             .Produces(202)
             .Produces(404)
@@ -76,7 +77,8 @@ public static class AsyncFunctionEndpoints
         [FromServices] NetworkActivityTracker activityTracker,
         [FromServices] IClusterFileSync fileSync,
         [FromServices] IDatabaseService db,
-        [FromServices] IOptions<ClusterFileOptions> fileOptions)
+        [FromServices] IOptions<ClusterFileOptions> fileOptions,
+        [FromServices] IOptions<SlimFaasOptions> options)
     {
         functionPath ??= "";
 
@@ -116,6 +118,8 @@ public static class AsyncFunctionEndpoints
             await deadLetters.ConfigureAsync(function);
 
         string queueElementId = Guid.NewGuid().ToString();
+        if (logger.IsEnabled(LogLevel.Trace))
+            logger.LogAsyncAdmissionStage("preparing", functionName, queueElementId, context.TraceIdentifier, null);
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
             context,
             jobService,
@@ -128,7 +132,7 @@ public static class AsyncFunctionEndpoints
             context.Request,
             functionName,
             functionPath ?? "",
-            bodyOffloadThresholdBytes: AsyncBodyOffloadThresholdBytes,
+            bodyOffloadThresholdBytes: options.Value.AsyncBodyOffloadThresholdBytes,
             queueElementId: queueElementId,
             fileSync: fileSync,
             db: db,
@@ -145,16 +149,35 @@ public static class AsyncFunctionEndpoints
         string id;
         try
         {
-            id = await slimFaasQueue.EnqueueAsync(
+            if (logger.IsEnabled(LogLevel.Trace))
+                logger.LogAsyncAdmissionStage("commit-request", functionName, queueElementId, context.TraceIdentifier, customRequest.OffloadedFileId);
+            if (context.Items.TryGetValue(FileAdmissionService.ContextKey, out var prepared) && prepared is PreparedFileAdmission admission)
+            {
+                if (admission.FileId != customRequest.OffloadedFileId)
+                    throw new SlimDataUnavailableException("The prepared file does not match the queued request.");
+                await context.RequestServices.GetRequiredService<IFileAdmissionService>().CommitQueueAsync(
+                    admission, functionName, queueElementId, bin,
+                    new RetryInformation(defaultAsync.TimeoutRetries, defaultAsync.HttpTimeout, defaultAsync.HttpStatusRetries),
+                    context.RequestAborted).ConfigureAwait(false);
+                id = queueElementId;
+            }
+            else
+            {
+                if (customRequest.OffloadedFileId is not null && fileOptions.Value.RequiredDurableCopies > 0)
+                    throw new SlimDataUnavailableException("Durable file admission was not prepared.");
+                id = await slimFaasQueue.EnqueueAsync(
                 functionName,
                 bin,
                 new RetryInformation(
                     defaultAsync.TimeoutRetries,
                     defaultAsync.HttpTimeout,
                     defaultAsync.HttpStatusRetries), queueElementId);
+            }
         }
         catch
         {
+            if (logger.IsEnabled(LogLevel.Trace))
+                logger.LogAsyncAdmissionStage("commit-outcome-unknown", functionName, queueElementId, context.TraceIdentifier, customRequest.OffloadedFileId);
             activityTracker.Record(
                 NetworkActivityTracker.EventTypes.RequestEnd,
                 activityCaller.Actor,
@@ -163,6 +186,9 @@ public static class AsyncFunctionEndpoints
                 correlationId: requestInId);
             throw;
         }
+
+        if (logger.IsEnabled(LogLevel.Trace))
+            logger.LogAsyncAdmissionStage("commit-confirmed", functionName, id, context.TraceIdentifier, customRequest.OffloadedFileId);
 
         activityTracker.Record(
             NetworkActivityTracker.EventTypes.Enqueue,

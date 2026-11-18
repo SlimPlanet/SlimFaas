@@ -39,7 +39,7 @@ public sealed class ClusterWebSocketSendClient : IWebSocketSendClient, IDisposab
         // HTTP response-duration metrics wrap upgraded streams as read-only.
         // A WebSocket handshake needs an unwrapped duplex transport.
 #pragma warning disable CA2000 // _sync owns and disposes its handler.
-        var handler = InternalHttpClientHandler.Create(_options.AllowUnsecureSsl);
+        var handler = InternalHttpClientHandler.CreateForClusterPeers(_options.AllowUnsecureSsl);
 #pragma warning restore CA2000
         handler.AllowAutoRedirect = false;
         _sync = new HttpMessageInvoker(handler);
@@ -229,8 +229,13 @@ public sealed class ClusterWebSocketSendClient : IWebSocketSendClient, IDisposab
         {
             try
             {
-                await WebSocketPeerFrames.SendBodyAsync(socket, correlation, requestBodyStream, uploadCancellation.Token)
+                await WebSocketPeerFrames.SendBodyAsync(socket, correlation, requestBodyStream, uploadCancellation.Token, relayToken)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (uploadCancellation.IsCancellationRequested && !budget.IsCancellationRequested)
+            {
+                // A completed response stops only further upload reads. It must
+                // not cancel the successful response's still-pending headers.
             }
             catch (Exception exception)
             {
@@ -311,7 +316,7 @@ public sealed class ClusterWebSocketSendClient : IWebSocketSendClient, IDisposab
             }
             finally
             {
-                await budget.CancelAsync().ConfigureAwait(false);
+                if (!completed) await budget.CancelAsync().ConfigureAwait(false);
                 socket.Dispose();
                 uploadCancellation.Dispose();
                 budget.Dispose();
