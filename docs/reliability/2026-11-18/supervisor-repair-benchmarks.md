@@ -1,6 +1,6 @@
 # Overnight macOS rerun after the supervisor repair
 
-Updated 2026-11-18 00:13 CET. Campaign state: **in progress**.
+Updated 2026-11-18 01:06 CET. Campaign state: **in progress**.
 
 Native supervisor smoke: **PASS**. An HTTP job without arguments succeeded, a malformed job failed individually, and the next job succeeded. Results agreed on all three nodes and the supervisor shut down cleanly.
 
@@ -27,6 +27,7 @@ The original HTTP reference stopped at the disk reserve while testing large bodi
 | http-bounded-abba-20 | FAIL | 512 | 512 | 0 | 0 |
 | http-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
+| memory-abba-replay | FAIL | 20 | 20 | 0 | 0 |
 | memory-reference-comparison | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
@@ -47,6 +48,12 @@ An observation means that the measured run supplied the expected integrity and r
   - Async p99/throughput/delivery guardrail failed for 1048577 bytes at concurrency 16 (7 pair comparisons).
   - Async paced workload guardrail failed at concurrency 1 (6 pair comparisons).
   - Async p99/throughput/delivery guardrail failed for 4194304 bytes at concurrency 1 (4 pair comparisons).
+- **memory-abba-replay / set-c12**: FAIL. 1 ABBA block(s), pair verdicts FAIL, PASS, FAIL, PASS.
+  - throughput (2 pair comparisons).
+- **memory-abba-replay / set-c48**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
+- **memory-abba-replay / mixed-c12**: FAIL. 2 ABBA block(s), pair verdicts FAIL, FAIL, PASS, PASS, PASS, PASS, PASS, PASS.
+  - throughput (2 pair comparisons).
+- **memory-abba-replay / mixed-c48**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
 
 A and B refer to the first and second variants, respectively. For code comparisons, A is the reference and B is the candidate. For settings comparisons, A uses the current settings and B uses the measured change. Each table includes matched cases with evidence across all four roles of the attempt. The displayed throughput, p95 and CPU are medians across repetitions. RAM is the highest sampled cluster working set. The verdicts above use the comparison criteria for the corresponding profile.
 
@@ -167,6 +174,46 @@ A and B refer to the first and second variants, respectively. For code compariso
 
 </details>
 
+<details><summary>memory-abba-replay / mixed-c12-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-mixed | n/a | 12 | operation/s | 434.89 → 425.58 | n/a → n/a | 92.03 → 91.46 | 1.72 → 1.79 | 423.00 → 440.89 |
+
+</details>
+
+<details><summary>memory-abba-replay / mixed-c12-attempt-2 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-mixed | n/a | 12 | operation/s | 422.63 → 470.61 | n/a → n/a | 91.54 → 90.82 | 1.81 → 1.66 | 443.77 → 424.19 |
+
+</details>
+
+<details><summary>memory-abba-replay / mixed-c48-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-mixed | n/a | 48 | operation/s | 2674.46 → 2619.31 | n/a → n/a | 26.21 → 26.11 | 0.85 → 0.83 | 594.47 → 603.91 |
+
+</details>
+
+<details><summary>memory-abba-replay / set-c12-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 12 | operation/s | 111.49 → 104.00 | n/a → n/a | 246.57 → 249.88 | 3.50 → 3.64 | 495.17 → 505.73 |
+
+</details>
+
+<details><summary>memory-abba-replay / set-c48-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 48 | operation/s | 971.37 → 964.44 | n/a → n/a | 112.26 → 114.09 | 1.18 → 1.10 | 506.52 → 505.95 |
+
+</details>
+
 
 ## Candidate observations
 
@@ -271,3 +318,4 @@ Status: **queued**.
 - **files-bounded-files-unique**: OBSERVED.
 - **http-bounded-abba**: FAIL (30 GiB disk reserve).
 - **http-bounded-abba-20**: FAIL.
+- **memory-abba-replay**: FAIL.
