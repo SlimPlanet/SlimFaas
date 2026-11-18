@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 05:58 CET. Campaign state: **in progress**.
+Updated 2026-11-18 06:51 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -24,6 +24,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | http-bounded-abba-20 | FAIL | 448 | 448 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
 | memory-abba-replay | INCONCLUSIVE | 0 | 0 | 0 | 0 |
+| memory-abba-replay-resumed | FAIL | 20 | 20 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | threshold-512kib-retry | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
@@ -40,7 +41,11 @@ An observation means that the measured run supplied the expected integrity and r
 
 ## Comparisons
 
-ABBA results are pending.
+- **memory-abba-replay-resumed / set-c12**: FAIL. 2 ABBA block(s), pair verdicts PASS, PASS, FAIL, PASS, PASS, FAIL, PASS, PASS.
+  - throughput (2 pair comparisons).
+- **memory-abba-replay-resumed / set-c48**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
+- **memory-abba-replay-resumed / mixed-c12**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
+- **memory-abba-replay-resumed / mixed-c48**: PASS. 1 ABBA block(s), pair verdicts PASS, PASS, PASS, PASS.
 
 A and B refer to the first and second variants, respectively. For code comparisons, A is the reference and B is the candidate. For settings comparisons, A uses the current settings and B uses the measured change. Each table includes matched cases with evidence across all four roles of the attempt. The displayed throughput, p95 and CPU are medians across repetitions. RAM is the highest sampled cluster working set. The verdicts above use the comparison criteria for the corresponding profile.
 
@@ -80,6 +85,46 @@ A and B refer to the first and second variants, respectively. For code compariso
 | sync | 1048577 | 16 | request/s | 450.84 → 453.81 | n/a → n/a | 36.83 → 36.70 | 6.77 → 6.69 | 3087.70 → 1355.27 |
 | sync | 4194304 | 1 | request/s | 105.60 → 105.16 | n/a → n/a | 10.20 → 10.22 | 19.50 → 19.21 | 1997.48 → 637.75 |
 | sync | 4194304 | 16 | request/s | 113.29 → 113.33 | n/a → n/a | 151.59 → 147.16 | 25.58 → 25.50 | 1653.11 → 528.31 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / mixed-c12-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-mixed | n/a | 12 | operation/s | 438.37 → 441.61 | n/a → n/a | 92.19 → 90.94 | 1.68 → 1.71 | 416.42 → 447.38 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / mixed-c48-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-mixed | n/a | 48 | operation/s | 2665.47 → 2592.87 | n/a → n/a | 26.10 → 26.21 | 0.85 → 0.83 | 576.56 → 595.88 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / set-c12-attempt-1 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 12 | operation/s | 103.06 → 105.33 | n/a → n/a | 249.39 → 249.36 | 3.72 → 3.58 | 497.14 → 502.92 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / set-c12-attempt-2 (FAIL)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 12 | operation/s | 114.88 → 114.15 | n/a → n/a | 244.32 → 247.72 | 3.57 → 3.49 | 503.64 → 499.50 |
+
+</details>
+
+<details><summary>memory-abba-replay-resumed / set-c48-attempt-1 (PASS)</summary>
+
+| Scenario | Bytes | C | Unit | Rate A → B | Completed/s A → B | p95 ms A → B | CPU ms/op A → B | Peak MiB A → B |
+|---|---:|---:|---|---:|---:|---:|---:|---:|
+| slimdata-set | 4096 | 48 | operation/s | 1035.30 → 1046.75 | n/a → n/a | 95.89 → 91.82 | 1.15 → 1.07 | 491.72 → 507.75 |
 
 </details>
 
@@ -184,3 +229,4 @@ Status: **queued**.
 - **threshold-512kib-retry**: INCONCLUSIVE (20 GiB disk reserve).
 - **wal-64kib-retry**: deferred (20 GiB disk reserve).
 - **http-bounded-abba-20-resumed**: FAIL (20 GiB disk reserve).
+- **memory-abba-replay-resumed**: FAIL.
