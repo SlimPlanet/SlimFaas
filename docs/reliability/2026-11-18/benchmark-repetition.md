@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 05:11 CET. Campaign state: **in progress**.
+Updated 2026-11-18 05:14 CET. Campaign state: **in progress**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -21,6 +21,7 @@ The bounded HTTP comparison uses 5-second load windows, 1-second warmups, two re
 | files-bounded-files-upload | OBSERVED | 12 | 12 | 0 | 0 |
 | http-bounded-abba-20 | FAIL | 320 | 320 | 0 | 0 |
 | jobs-rerun | OBSERVED | 4 | 4 | 0 | 0 |
+| memory-abba-replay | INCONCLUSIVE | 0 | 0 | 0 | 0 |
 | streams-rerun | OBSERVED | 8 | 8 | 0 | 0 |
 | websocket-rerun | OBSERVED | 48 | 48 | 0 | 0 |
 
@@ -176,3 +177,4 @@ Status: **queued**.
 - **files-bounded-files**: OBSERVED.
 - **files-bounded-files-unique**: OBSERVED.
 - **http-bounded-abba-20**: FAIL (20 GiB disk reserve).
+- **memory-abba-replay**: INCONCLUSIVE (20 GiB disk reserve).
