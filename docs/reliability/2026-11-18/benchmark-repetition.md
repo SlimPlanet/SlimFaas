@@ -1,6 +1,6 @@
 # Independent repeat of the bounded macOS benchmark campaign
 
-Updated 2026-11-18 07:24 CET. Campaign state: **application finished**.
+Updated 2026-11-18 07:25 CET. Campaign state: **final**.
 
 Product candidate: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`. The .NET 11 reference is `f36084643a75d803051a6918d2950d1a4f674ada`.
 Both products use macOS ARM64 Native AOT. Driver source: `bbcf21477a78a973aec53f1f851f2dc3a557d1d8`, SDK 11.0.100.
@@ -253,7 +253,9 @@ Full CSV, JSON, Markdown, resource samples and raw evidence remain in the local 
 
 ## Queue and routing microbenchmarks
 
-Status: **queued**.
+Status: **deferred**.
+
+Less than 30 minutes or insufficient disk space.
 
 ## Run status
 
