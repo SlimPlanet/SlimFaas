@@ -1,0 +1,16 @@
+{
+  "name": "slimfaas-live-stream-video",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "scripts": {
+    "browser:install": "playwright-core install chromium",
+    "capture": "node capture.mjs",
+    "educational": "python3 film.py educational",
+    "marketing": "python3 film.py marketing",
+    "test": "python3 -m unittest discover"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.1"
+  }
+}

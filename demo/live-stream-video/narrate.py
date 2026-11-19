@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 import wave
 
 HERE = Path(__file__).resolve().parent
-WORK = HERE.parents[1] / "artifacts/live-stream-video"
+WORK = HERE / "artifacts"
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 RATE = 24000
 

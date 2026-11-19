@@ -1,32 +1,63 @@
 [
   {
-    "key": "night",
-    "headline": "Give your agent tools the night off.",
-    "voice": "Why keep a tool running all night for one morning report? With SlimFaas, idle agent tools can sleep.",
-    "voiceSamples": 145408
+    "key": "idle",
+    "headline": "Zero idle replicas.",
+    "detail": "One HTTP call wakes your API.",
+    "voice": "Why keep an API running all night for one morning request?",
+    "voiceSamples": 72704,
+    "cueSamples": [
+      72704
+    ]
   },
   {
     "key": "wake",
-    "headline": "Ready when you call.",
-    "voice": "Keep your existing HTTP app. The next call wakes a worker and waits for the answer. Here, one sleeping tool comes back with fifty-five.",
-    "voiceSamples": 202240
+    "headline": "Keep your HTTP handler.",
+    "detail": "The first caller waits for a ready worker.",
+    "voice": "Call your existing endpoint through SlimFaas. It wakes a worker and returns your handler’s answer.",
+    "voiceSamples": 122880,
+    "cueSamples": [
+      57344,
+      65536
+    ]
   },
   {
     "key": "rush",
-    "headline": "Take the morning rush in stride.",
-    "voice": "Then the rush hits. We sent thirty calculations at once. The queue held the work while four workers shared the load.",
-    "voiceSamples": 153088
+    "headline": "Queue the burst.",
+    "detail": "Callers get HTTP 202 once their work is queued.",
+    "voice": "Thirty calculations arrived at once. The callers could move on while four workers shared the load.",
+    "voiceSamples": 122368,
+    "cueSamples": [
+      51200,
+      71168
+    ]
   },
   {
     "key": "quiet",
-    "headline": "All done. Clock out.",
-    "voice": "All thirty finished. The workers went back to zero, freeing capacity for the next thing your team wants to run.",
-    "voiceSamples": 151552
+    "headline": "Give the capacity back.",
+    "detail": "All the work is done. The idle timer expires.",
+    "voice": "All thirty finished. The workers scaled back to zero.",
+    "voiceSamples": 71680,
+    "cueSamples": [
+      28160,
+      43520
+    ]
+  },
+  {
+    "key": "cost",
+    "headline": "lower infrastructure costs",
+    "voice": "One team reported cutting its infrastructure costs by more than sixty percent.",
+    "voiceSamples": 104960,
+    "cueSamples": [
+      104960
+    ]
   },
   {
     "key": "try",
-    "headline": "Give one tool a five-minute try.",
-    "voice": "Pick a tool your agent already calls. Run the local demo and watch it wake up. Then let it sleep.",
-    "voiceSamples": 134144
+    "headline": "Try it with one HTTP endpoint.",
+    "voice": "Try SlimFaas locally with one of your own HTTP endpoints.",
+    "voiceSamples": 96256,
+    "cueSamples": [
+      96256
+    ]
   }
 ]

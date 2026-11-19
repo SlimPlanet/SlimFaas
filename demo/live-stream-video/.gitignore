@@ -1,0 +1,5 @@
+node_modules/
+artifacts/
+__pycache__/
+media/*
+!media/dashboard.mp4

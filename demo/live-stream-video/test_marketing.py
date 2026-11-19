@@ -33,6 +33,13 @@ class MarketingTimelineTests(unittest.TestCase):
             self.assertAlmostEqual(last["end"], render.LEAD + samples / render.RATE)
             self.assertIn("Back to sleep.", (directory / "subtitles.vtt").read_text())
 
+    def test_caption_change_follows_the_recorded_sentence_boundary(self):
+        cues = render.subtitles("All thirty finished. The workers scaled back to zero.", 3 * render.RATE,
+                                [render.RATE, 2 * render.RATE])
+        self.assertEqual(cues[0]["end"], render.LEAD + 1)
+        self.assertEqual(cues[1]["start"], cues[0]["end"])
+        self.assertEqual(cues[1]["end"], render.LEAD + 3)
+
     def test_one_extra_sample_rejects_the_edit_before_encoding(self):
         with tempfile.TemporaryDirectory() as scratch:
             directory = Path(scratch)

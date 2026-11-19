@@ -29,6 +29,7 @@
 **/coverage
 .slimfaas
 artifacts
+demo/live-stream-video
 **/secrets.dev.yaml
 **/values.dev.yaml
 LICENSE

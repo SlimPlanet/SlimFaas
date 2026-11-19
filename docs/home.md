@@ -15,7 +15,7 @@ Watch the HTTP proxy wake a sleeping function and SlimFaas scale it to four pods
 
 [![Live dashboard preview showing autoscaling and message delivery](media/live-stream/preview.gif)](media/live-stream/dashboard.mp4)
 
-[Watch the 39-second overview (MP4)](media/live-stream/marketing.mp4) · [Watch the full narrated demo (3 min 11 s)](media/live-stream/dashboard.mp4) · [Read the demo transcript](media/live-stream/transcript.txt)
+[Watch *Zero idle replicas* (31-second MP4)](media/live-stream/marketing.mp4) · [Overview captions](media/live-stream/marketing.vtt) · [Watch the full narrated demo (3 min 11 s)](media/live-stream/dashboard.mp4) · [Read the demo transcript](media/live-stream/transcript.txt)
 
 ## CNCF & Community
 

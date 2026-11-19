@@ -9,9 +9,8 @@ import tempfile
 import wave
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[2]
-MEDIA = ROOT / "docs/media/live-stream"
-WORK = ROOT / "artifacts/live-stream-video/marketing"
+MEDIA = HERE.parent / "media"
+WORK = HERE.parent / "artifacts" / "marketing"
 FPS = 24
 RATE = 24000
 LEAD = 0.25
@@ -21,6 +20,7 @@ FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 # In/out points in the educational master. Crop only the recorded dashboard, above its lower third.
 # Freeze the resolved state at the end to leave time to read the dashboard.
 SHOTS = {
+    "idle": (26.1, 31.8, "528:240:1200:364"),
     "wake": (33.15, 43.0, "840:390:840:490"),
     "rush": (66.4, 73.2, "840:390:840:348"),
     "quiet": (79.55, 88.2, "840:390:840:348"),
@@ -37,15 +37,20 @@ def timestamp(seconds):
     return f"{ms // 3600000:02}:{ms // 60000 % 60:02}:{ms // 1000 % 60:02}.{ms % 1000:03}"
 
 
-def subtitles(voice, seconds):
+def subtitles(voice, samples, cue_samples):
     sentences = re.split(r"(?<=[.!?])\s+", voice)
-    word_count = len(voice.split())
+    if len(cue_samples) == len(sentences) and sum(cue_samples) == samples:
+        weights = cue_samples
+    else:
+        # Replacement narrators can supply WAVs of a different length.
+        weights = [len(sentence.split()) for sentence in sentences]
+    seconds_per_unit = samples / RATE / sum(weights)
     cues = []
-    words = 0
-    for sentence in sentences:
-        start = LEAD + words / word_count * seconds
-        words += len(sentence.split())
-        cues.append({"start": start, "end": LEAD + words / word_count * seconds, "text": sentence})
+    offset = 0
+    for sentence, weight in zip(sentences, weights):
+        start = LEAD + offset * seconds_per_unit
+        offset += weight
+        cues.append({"start": start, "end": LEAD + offset * seconds_per_unit, "text": sentence})
     return cues
 
 
@@ -64,7 +69,7 @@ def plan(directory):
         count = math.ceil((LEAD + samples / RATE + tail) * FPS)
         check_length(frames + count)
         scene["frames"] = count
-        scene["cues"] = subtitles(scene["voice"], samples / RATE)
+        scene["cues"] = subtitles(scene["voice"], samples, scene.get("cueSamples", []))
         for cue in scene["cues"]:
             start = timestamp(frames / FPS + cue["start"])
             end = timestamp(frames / FPS + cue["end"])
@@ -111,7 +116,10 @@ def render(directory):
            "-vf", "scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p",
            "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
            "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", "-metadata:s:a:0", "language=eng",
-           "-metadata", "title=SlimFaas | Give your agent tools the night off", directory / "marketing.mp4")
+           "-metadata", "title=SlimFaas | Zero idle replicas. One HTTP call wakes your API.",
+           "-metadata", "comment=Cost result reported by Guillaume Chervet (AXA France), Devoxx Belgium 2025: "
+           "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas",
+           directory / "marketing.mp4")
     (directory / "marketing.mp4").replace(MEDIA / "marketing.mp4")
     (directory / "subtitles.vtt").replace(MEDIA / "marketing.vtt")
     print(f"Marketing cut: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)

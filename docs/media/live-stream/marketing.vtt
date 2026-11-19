@@ -1,40 +1,28 @@
 WEBVTT
 
-00:00:00.250 --> 00:00:03.953
-Why keep a tool running all night for one morning report?
+00:00:00.250 --> 00:00:03.279
+Why keep an API running all night for one morning request?
 
-00:00:03.953 --> 00:00:06.309
-With SlimFaas, idle agent tools can sleep.
+00:00:04.208 --> 00:00:06.598
+Call your existing endpoint through SlimFaas.
 
-00:00:07.250 --> 00:00:09.006
-Keep your existing HTTP app.
+00:00:06.598 --> 00:00:09.328
+It wakes a worker and returns your handler’s answer.
 
-00:00:09.006 --> 00:00:12.868
-The next call wakes a worker and waits for the answer.
+00:00:10.250 --> 00:00:12.383
+Thirty calculations arrived at once.
 
-00:00:12.868 --> 00:00:15.677
-Here, one sleeping tool comes back with fifty-five.
+00:00:12.383 --> 00:00:15.349
+The callers could move on while four workers shared the load.
 
-00:00:16.583 --> 00:00:17.798
-Then the rush hits.
-
-00:00:17.798 --> 00:00:19.621
-We sent thirty calculations at once.
-
-00:00:19.621 --> 00:00:22.962
-The queue held the work while four workers shared the load.
-
-00:00:23.875 --> 00:00:24.822
+00:00:16.250 --> 00:00:17.423
 All thirty finished.
 
-00:00:24.822 --> 00:00:30.190
-The workers went back to zero, freeing capacity for the next thing your team wants to run.
+00:00:17.423 --> 00:00:19.237
+The workers scaled back to zero.
 
-00:00:31.125 --> 00:00:33.081
-Pick a tool your agent already calls.
+00:00:20.167 --> 00:00:24.540
+One team reported cutting its infrastructure costs by more than sixty percent.
 
-00:00:33.081 --> 00:00:35.596
-Run the local demo and watch it wake up.
-
-00:00:35.596 --> 00:00:36.714
-Then let it sleep.
+00:00:25.458 --> 00:00:29.469
+Try SlimFaas locally with one of your own HTTP endpoints.

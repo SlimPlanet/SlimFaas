@@ -25,6 +25,13 @@ updates:
     open-pull-requests-limit: 0
     commit-message: { prefix: "deps(pnpm:site-demo-fibonacci-react)", include: scope }
 
+  # Standalone film capture and rendering tools
+  - package-ecosystem: npm
+    directory: "/demo/live-stream-video"
+    schedule: { interval: weekly, day: monday, time: "07:15", timezone: "Europe/Paris" }
+    open-pull-requests-limit: 0
+    commit-message: { prefix: "deps(pnpm:live-stream-video)", include: scope }
+
   # ─────────────────────────────────── NuGet (.NET 11) ────────────────────────
   - package-ecosystem: nuget
     directory: "/"   # scanne tous les .csproj/.props/.targets
