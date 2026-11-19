@@ -80,6 +80,10 @@ class SlimFaasClient:
         (default: 32 MiB). This does not change the server's HTTP body limits.
     max_queue:
         Incoming frame buffer high-water mark (default: 4), with backpressure.
+    secret:
+        Shared secret sent as ``Authorization: Bearer <secret>`` when connecting.
+        Must match the server's ``SlimFaas__WebSocketSecret``. Surrounding whitespace
+        is ignored (default: ``None``, no header is sent).
     """
 
     def __init__(
@@ -91,6 +95,7 @@ class SlimFaasClient:
         ping_interval: float = 30.0,
         max_message_size: int = 32 * 1024 * 1024,
         max_queue: int = 4,
+        secret: Optional[str] = None,
     ) -> None:
         if type(max_message_size) is not int or max_message_size <= 0:
             raise ValueError("max_message_size must be a positive integer")
@@ -102,6 +107,7 @@ class SlimFaasClient:
         self._ping_interval = ping_interval
         self._max_message_size = max_message_size
         self._max_queue = max_queue
+        self._secret = secret
 
         self._async_request_handler: Optional[AsyncRequestHandler] = None
         self._stream_message_handler: Optional[StreamMessageHandler] = None
@@ -231,8 +237,12 @@ class SlimFaasClient:
     async def _connect_and_loop(self) -> None:
         logger.info("Connecting to SlimFaas WebSocket at %s …", self._url)
 
+        # A secret read from a file often ends with a newline, which a header value cannot carry.
+        secret = self._secret.strip() if self._secret else ""
+        headers = {"Authorization": f"Bearer {secret}"} if secret else None
         async with websockets.connect(  # type: ignore[attr-defined]
-            self._url, max_size=self._max_message_size, max_queue=self._max_queue,
+            self._url, additional_headers=headers,
+            max_size=self._max_message_size, max_queue=self._max_queue,
         ) as ws:
             self._ws = ws
             logger.info("Connected. Registering function '%s' …", self._config.function_name)

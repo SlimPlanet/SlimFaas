@@ -30,6 +30,13 @@ public class SlimFaasClientOptions
 
     /// <summary>Taille du buffer de lecture WebSocket en octets (défaut : 64 Ko).</summary>
     public int ReceiveBufferSize { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Shared secret sent as <c>Authorization: Bearer &lt;secret&gt;</c> when connecting.
+    /// Must match the server's <c>SlimFaas__WebSocketSecret</c>. Surrounding whitespace is ignored;
+    /// <c>null</c> or empty sends no header.
+    /// </summary>
+    public string? Secret { get; set; }
 }
 
 /// <summary>
@@ -248,6 +255,12 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
         using var ws = new ClientWebSocket();
         _ws = ws;
+        // A secret read from a file often ends with a newline, which a header value cannot carry.
+        string? secret = _options.Secret?.Trim();
+        if (!string.IsNullOrEmpty(secret))
+        {
+            ws.Options.SetRequestHeader("Authorization", $"Bearer {secret}");
+        }
 
         await ws.ConnectAsync(_uri, ct).ConfigureAwait(false);
         _logger.LogConnectedRegisteringFunction(_config.FunctionName);

@@ -5,6 +5,8 @@ namespace SlimFaas.WebSocket
     {
         [LoggerMessage(Level = LogLevel.Debug, Message = "Discarded synchronous frame after cancellation: {CorrelationId}")]
         internal static partial void LogSyncFrameDiscardedAfterCancellation(this ILogger logger, string correlationId);
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Rejected a WebSocket client from {RemoteAddress}: missing or invalid secret.")]
+        internal static partial void LogWebSocketClientAuthenticationRejected(this ILogger logger, string? remoteAddress);
         [LoggerMessage(Level = LogLevel.Error, Message = "WebSocket directory lifecycle failed for {FunctionName}.")]
         internal static partial void LogWebSocketDirectoryLifecycleFailed(this ILogger logger, Exception exception, string functionName);
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "Failed to deserialize WebSocket message")]

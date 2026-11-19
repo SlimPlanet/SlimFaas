@@ -151,6 +151,7 @@ default; function visibility never grants DLQ access. See the
 | `ReconnectDelay` | `5.0` | Seconds to wait before reconnecting after a disconnection |
 | `PingInterval` | `30.0` | Keepalive ping interval in seconds, `0` disables pings |
 | `ReceiveBufferSize` | `65536` | WebSocket receive buffer size in bytes |
+| `Secret` | `null` | Shared secret sent as `Authorization: Bearer <secret>`; must match the server's `SlimFaas__WebSocketSecret` |
 
 ```csharp
 var options = new SlimFaasClientOptions
@@ -158,6 +159,7 @@ var options = new SlimFaasClientOptions
     ReconnectDelay = 5.0,
     PingInterval = 30.0,
     ReceiveBufferSize = 64 * 1024,
+    Secret = Environment.GetEnvironmentVariable("SLIMFAAS_WS_SECRET"),
 };
 
 await using var client = new SlimFaasClient.SlimFaasClient(
@@ -170,6 +172,7 @@ await using var client = new SlimFaasClient.SlimFaasClient(
 
 - After a clean close by the server it reconnects immediately; after a network error or an unreachable server it waits `ReconnectDelay` seconds and retries, forever.
 - It **returns normally** when `ct` is cancelled, whether the cancellation happens while connected, while connecting or during the reconnect delay. It never surfaces an `OperationCanceledException` for its own token.
+- A handshake rejected with `401` because `Secret` is missing or wrong is logged and retried after `ReconnectDelay`, like an unreachable server. See [client authentication](../../../docs/clients.md#client-authentication).
 - It **throws** `SlimFaasRegistrationException` when SlimFaas refuses the registration (name already used by a Kubernetes function, configuration mismatch): this is fatal and is not retried.
 - `IsConnected` is `true` only between a successful registration and the next disconnection; `ConnectionId` is `null` outside that window. `SendCallbackAsync` and the sync response methods throw `InvalidOperationException` while disconnected.
 
