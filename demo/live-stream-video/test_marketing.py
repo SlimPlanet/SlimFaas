@@ -9,15 +9,17 @@ from marketing import render
 
 
 class MarketingTimelineTests(unittest.TestCase):
-    def plan_voice(self, directory, samples):
-        (directory / "scenes.json").write_text(json.dumps([{"key": "try", "voice": "Wake up. Back to sleep."}]))
-        voice_dir = directory / "voice"
+    def plan_voice(self, directory, samples, edition="marketing"):
+        source = directory / "house" if edition == "house" else directory
+        source.mkdir(exist_ok=True)
+        (source / "scenes.json").write_text(json.dumps([{"key": "try", "voice": "Wake up. Back to sleep."}]))
+        voice_dir = source / "voice"
         voice_dir.mkdir()
         with wave.open(str(voice_dir / "try.wav"), "wb") as output:
             output.setparams((1, 2, render.RATE, 0, "NONE", "not compressed"))
             output.writeframes(bytes(2 * samples))
         with patch.object(render, "HERE", directory), patch.object(render, "WORK", directory):
-            return render.plan(directory)
+            return render.plan(directory, edition)
 
     def test_one_minute_includes_voice_padding_and_cta_hold(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -39,6 +41,12 @@ class MarketingTimelineTests(unittest.TestCase):
         self.assertEqual(cues[0]["end"], render.LEAD + 1)
         self.assertEqual(cues[1]["start"], cues[0]["end"])
         self.assertEqual(cues[1]["end"], render.LEAD + 3)
+
+    def test_house_edition_can_pass_one_minute(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            scenes, frames = self.plan_voice(Path(scratch), 65 * render.RATE, "house")
+            self.assertGreater(frames, render.LIMIT)
+            self.assertEqual(scenes[0]["frames"], frames)
 
     def test_one_extra_sample_rejects_the_edit_before_encoding(self):
         with tempfile.TemporaryDirectory() as scratch:

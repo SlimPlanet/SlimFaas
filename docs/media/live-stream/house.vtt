@@ -1,0 +1,67 @@
+WEBVTT
+
+00:00:00.250 --> 00:00:01.647
+It's eight in the evening.
+
+00:00:01.647 --> 00:00:04.911
+Upstairs and downstairs, light spills from every window.
+
+00:00:05.833 --> 00:00:07.252
+The family heads out.
+
+00:00:07.252 --> 00:00:09.247
+The front door closes behind them.
+
+00:00:09.247 --> 00:00:10.612
+All eight lights stay on.
+
+00:00:11.542 --> 00:00:16.864
+Eight sixty-watt lamps, left on for eight hours, use three point eight four kilowatt-hours.
+
+00:00:16.864 --> 00:00:22.091
+At twenty-five euro cents per kilowatt-hour, that's ninety-six cents to light an empty house.
+
+00:00:23.000 --> 00:00:24.483
+Let's replay that night.
+
+00:00:24.483 --> 00:00:26.861
+The last person out switches off the lights.
+
+00:00:26.861 --> 00:00:30.104
+Over the same eight hours, those lamps add zero to the bill.
+
+00:00:31.042 --> 00:00:32.375
+Someone comes home.
+
+00:00:32.375 --> 00:00:33.730
+One room lights up.
+
+00:00:33.730 --> 00:00:35.522
+Your API can work the same way.
+
+00:00:36.458 --> 00:00:39.648
+With SlimFaas, an idle API can scale to zero.
+
+00:00:39.648 --> 00:00:43.488
+The next HTTP call wakes a worker and waits for its answer.
+
+00:00:44.417 --> 00:00:46.113
+Watch this real deployment.
+
+00:00:46.113 --> 00:00:48.427
+Thirty calculations arrived together.
+
+00:00:48.427 --> 00:00:50.027
+Four workers shared the load.
+
+00:00:50.958 --> 00:00:52.292
+All thirty finished.
+
+00:00:52.292 --> 00:00:55.641
+After the idle timeout, the worker count returned to zero.
+
+00:00:56.542 --> 00:01:02.259
+At Devoxx Belgium, one team reported cutting its infrastructure costs by more than sixty percent.
+
+00:01:03.167 --> 00:01:07.177
+Try SlimFaas locally with one of your own HTTP endpoints.

@@ -1,9 +1,10 @@
 # Make the SlimFaas Live Stream films
 
-Run the commands below from this directory. You can copy it outside the SlimFaas repository. It contains the educational master, the narration for both editions, the recording manifests and the pnpm project.
+Run the commands below from this directory. You can copy it outside the SlimFaas repository. It contains the educational master, the narration for all three editions, the recording manifests and the pnpm project.
 
 | Edition | Published film | Rebuild |
 | --- | --- | --- |
+| Animated house | [The last ones out (1 min 9 s)](../../docs/media/live-stream/house.mp4) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
 | Marketing | [Zero idle replicas (31 seconds)](../../docs/media/live-stream/marketing.mp4), portrait 4:5, English voice and burned-in captions | `pnpm marketing` |
 | Educational | [Dashboard walkthrough](media/dashboard.mp4), 3 min 11 s, widescreen, English voice and selectable captions | `pnpm educational` after capturing three takes |
 
@@ -19,7 +20,13 @@ pnpm browser:install
 pnpm test
 ```
 
-## Rebuild the existing marketing edit
+## Rebuild the animated house
+
+Run `pnpm house` to write `media/house.mp4` and `media/house.vtt`. The [house illustration](marketing/house/scene.html), [animation](marketing/house/animation.js) and [narration](marketing/house/scenes.json) are bundled. The renderer uses the same educational master and recorded observations as the short cut.
+
+The household example counts lighting during eight empty hours. Eight 60 W lamps consume 3.84 kWh, or €0.96 at the illustrative rate of €0.25/kWh. Switching them off before leaving brings that lighting charge to €0.00. The flowers wilt during the first time-lapse. The Kubernetes sequence shows 30 completed calculations, four ready workers at peak, then zero. The separate team cost result is sourced in the [marketing brief](marketing/brief.md).
+
+## Rebuild the short marketing edit
 
 ```sh
 pnpm marketing
@@ -76,14 +83,14 @@ kind delete cluster --name slimfaas-film --kubeconfig "$PWD/artifacts/kubeconfig
 
 ## Replace the narration
 
-Both films use the English synthetic voice `af_heart` from [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M). Each lossless voice master is included so you can reproduce the edit offline. The generator used the [int8 Kokoro ONNX model](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0) at speed 1.055.
+All editions use the English synthetic voice `af_heart` from [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M). Each lossless voice master is included so you can reproduce the edit offline. The generator used the [int8 Kokoro ONNX model](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0) at speed 1.055.
 
 ```sh
 python3 narrate.py
 python3 render.py
 ```
 
-To synthesize a revised script, pass your local Kokoro server to the first command with `--speech-url http://127.0.0.1:8880/v1/audio/speech`. For the marketing edition, add `--mode marketing` to that command, then run `python3 marketing/render.py`. To record a human narrator, supply one mono 24 kHz 16-bit PCM WAV per scene key in the edition's `voice/` directory and run its editor directly. The `film.py` commands restore the bundled takes.
+To synthesize a revised script, pass your local Kokoro server to the first command with `--speech-url http://127.0.0.1:8880/v1/audio/speech`. For the short film or the house film, use `--mode marketing` or `--mode house`, then run `python3 marketing/render.py marketing` or `python3 marketing/render.py house` respectively. To record a human narrator, supply one mono 24 kHz 16-bit PCM WAV per scene key in the edition's `voice/` directory and run its editor directly. The `film.py` commands restore the bundled takes.
 
 For the educational edition, set `FILM_FONT` and `FILM_FONT_BOLD` to local TrueType paths if Arial or DejaVu Sans is unavailable. The editor renders H.264/AAC with fast start and labels compressed waits with their elapsed-time multiplier. Durations follow the narration and the observed cluster timing. Review the framing when changing the capture viewport, dashboard layout or workload names.
 

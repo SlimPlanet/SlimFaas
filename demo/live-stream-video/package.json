@@ -8,7 +8,8 @@
     "capture": "node capture.mjs",
     "educational": "python3 film.py educational",
     "marketing": "python3 film.py marketing",
-    "test": "python3 -m unittest discover"
+    "house": "python3 film.py house",
+    "test": "python3 -m unittest discover && node --test marketing/house/animation.test.mjs"
   },
   "devDependencies": {
     "playwright-core": "1.65.1"

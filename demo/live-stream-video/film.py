@@ -9,11 +9,11 @@ HERE = Path(__file__).resolve().parent
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("edition", choices=("educational", "marketing"))
+    parser.add_argument("edition", choices=("educational", "marketing", "house"))
     args = parser.parse_args()
-    editor = HERE / ("marketing/render.py" if args.edition == "marketing" else "render.py")
+    editor = [HERE / "render.py"] if args.edition == "educational" else [HERE / "marketing/render.py", args.edition]
     subprocess.run([sys.executable, HERE / "narrate.py", "--mode", args.edition], check=True)
-    subprocess.run([sys.executable, editor], check=True)
+    subprocess.run([sys.executable, *editor], check=True)
 
 
 if __name__ == "__main__":

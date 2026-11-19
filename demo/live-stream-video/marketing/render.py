@@ -1,4 +1,5 @@
 """Render the short social cut from the published Kubernetes recording and English voice."""
+import argparse
 import json
 import math
 import os
@@ -54,20 +55,24 @@ def subtitles(voice, samples, cue_samples):
     return cues
 
 
-def plan(directory):
-    scenes = json.loads((HERE / "scenes.json").read_text())
+def plan(directory, edition="marketing"):
+    house = edition == "house"
+    source = HERE / "house" if house else HERE
+    work = WORK / "house" if house else WORK
+    scenes = json.loads((source / "scenes.json").read_text())
     frames = 0
     audio = bytearray()
     vtt = ["WEBVTT", ""]
     for scene in scenes:
-        with wave.open(str(WORK / "voice" / (scene["key"] + ".wav")), "rb") as take:
+        with wave.open(str(work / "voice" / (scene["key"] + ".wav")), "rb") as take:
             if (take.getframerate(), take.getnchannels(), take.getsampwidth()) != (RATE, 1, 2):
                 raise ValueError(f"Expected 24 kHz mono 16-bit voice for {scene['key']}")
             samples = take.getnframes()
             voice = take.readframes(samples)
         tail = 1.8 if scene["key"] == "try" else 0.65
         count = math.ceil((LEAD + samples / RATE + tail) * FPS)
-        check_length(frames + count)
+        if not house:
+            check_length(frames + count)
         scene["frames"] = count
         scene["cues"] = subtitles(scene["voice"], samples, scene.get("cueSamples", []))
         for cue in scene["cues"]:
@@ -88,8 +93,8 @@ def encode(*args):
     subprocess.run([FFMPEG, "-nostdin", "-y", "-loglevel", "error", *args], check=True)
 
 
-def render(directory):
-    scenes, frames = plan(directory)
+def render(directory, edition="marketing"):
+    scenes, frames = plan(directory, edition)
     observed = json.loads((HERE.parent / "observed.json").read_text())
     # English voice quotes these measurements from the published master.
     for key, value in {"syncResponse": {"result": 55}, "asyncAccepted": 30, "peakReadyWorkers": 4,
@@ -110,22 +115,27 @@ def render(directory):
             raise ValueError(f"Incomplete dashboard excerpt for {scene['key']}")
     (directory / "plan.json").write_text(json.dumps({"fps": FPS, "scenes": scenes, "observed": observed}))
     subprocess.run(["node", HERE / "frames.mjs", directory], check=True)
+    title = "The last ones out" if edition == "house" else "Zero idle replicas. One HTTP call wakes your API."
     encode("-framerate", str(FPS), "-start_number", "0", "-i", directory / "frames/%05d.jpg",
            "-i", directory / "voice.wav",
            "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast",
            "-vf", "scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p",
            "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
            "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", "-metadata:s:a:0", "language=eng",
-           "-metadata", "title=SlimFaas | Zero idle replicas. One HTTP call wakes your API.",
+           "-metadata", f"title=SlimFaas | {title}",
            "-metadata", "comment=Cost result reported by Guillaume Chervet (AXA France), Devoxx Belgium 2025: "
            "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas",
            directory / "marketing.mp4")
-    (directory / "marketing.mp4").replace(MEDIA / "marketing.mp4")
-    (directory / "subtitles.vtt").replace(MEDIA / "marketing.vtt")
-    print(f"Marketing cut: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)
+    (directory / "marketing.mp4").replace(MEDIA / f"{edition}.mp4")
+    (directory / "subtitles.vtt").replace(MEDIA / f"{edition}.vtt")
+    print(f"{title}: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)
 
 
 if __name__ == "__main__":
-    WORK.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=WORK) as scratch:
-        render(Path(scratch))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("edition", nargs="?", choices=("marketing", "house"), default="marketing")
+    edition = parser.parse_args().edition
+    work = WORK / "house" if edition == "house" else WORK
+    work.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=work) as scratch:
+        render(Path(scratch), edition)

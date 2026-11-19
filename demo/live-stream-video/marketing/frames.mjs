@@ -2,6 +2,7 @@
 import { chromium } from 'playwright-core';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const directory = process.argv[2];
 const { scenes, fps, observed } = JSON.parse(await readFile(path.join(directory, 'plan.json'), 'utf8'));
@@ -20,6 +21,11 @@ const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1080, height: 1350 }, deviceScaleFactor: 1 });
   await page.setContent(board);
+  if (scenes.some(scene => scene.house)) {
+    const interior = await readFile(new URL('house/scene.html', import.meta.url), 'utf8');
+    await page.locator('.film__story').evaluate((story, html) => story.insertAdjacentHTML('beforebegin', html), interior);
+    await page.addScriptTag({ path: fileURLToPath(new URL('house/animation.js', import.meta.url)) });
+  }
   await page.evaluate(async base64 => {
     const mark = document.querySelector('.film__logo');
     mark.src = 'data:image/svg+xml;base64,' + base64;
@@ -32,10 +38,13 @@ try {
     await page.evaluate(({ scene, stats, result }) => {
       const field = name => document.querySelector('.film__' + name);
       document.querySelector('main').className = 'film film--' + scene.key;
+      if (field('house')) field('house').hidden = !scene.house;
       field('story').hidden = !stats;
       field('case').hidden = scene.key !== 'cost';
       field('close').hidden = scene.key !== 'try';
-      if (stats) {
+      if (scene.house) {
+        document.querySelector('.house-film__title').textContent = scene.headline;
+      } else if (stats) {
         field('headline').textContent = scene.headline;
         field('detail').textContent = scene.detail;
         field('source').textContent = scene.key === 'quiet' ? 'Kubernetes · time-lapse' : 'Kubernetes recording';
@@ -81,7 +90,8 @@ try {
         }
       }
       const caption = scene.cues.find(cue => cue.start <= t && t < cue.end)?.text || '';
-      await page.evaluate(async ({ image, caption, t }) => {
+      await page.evaluate(async ({ image, caption, t, houseKey, progress }) => {
+        if (houseKey) window.drawHouse(houseKey, progress, t);
         if (image) {
           const capture = document.querySelector('.film__capture');
           capture.src = 'data:image/jpeg;base64,' + image;
@@ -91,8 +101,8 @@ try {
         text.textContent = caption;
         if (text.getBoundingClientRect().bottom > innerHeight - 38) throw new Error('Caption exceeds safe area');
         const section = document.querySelector('section:not([hidden])');
-        section.style.transform = 'translateY(' + (8 * Math.max(0, 1 - t / 0.3) ** 2) + 'px)';
-      }, { image, caption, t });
+        section.style.transform = houseKey ? 'none' : 'translateY(' + (8 * Math.max(0, 1 - t / 0.3) ** 2) + 'px)';
+      }, { image, caption, t, houseKey: scene.house ? scene.key : null, progress: i / Math.max(1, scene.frames - 1) });
       await page.screenshot({ path: path.join(frames, String(movieFrame).padStart(5, '0') + '.jpg'),
         type: 'jpeg', quality: 92 });
     }
