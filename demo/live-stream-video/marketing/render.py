@@ -149,6 +149,11 @@ def render(directory, edition="marketing"):
            "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas",
            directory / "marketing.mp4")
     MEDIA.mkdir(exist_ok=True)
+    if edition == "house":
+        # Publish the same AAC packets and picture holds for audio-only playback.
+        encode("-i", directory / "marketing.mp4", "-map", "0:a:0", "-c:a", "copy", "-movflags", "+faststart",
+               directory / "house.m4a")
+        (directory / "house.m4a").replace(MEDIA / "house.m4a")
     (directory / "marketing.mp4").replace(MEDIA / f"{edition}.mp4")
     (directory / "subtitles.vtt").replace(MEDIA / f"{edition}.vtt")
     print(f"{title}: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)

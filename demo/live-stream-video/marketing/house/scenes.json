@@ -4,141 +4,153 @@
     "visual": "opening",
     "headline": "Reduce infrastructure spend by up to 60%",
     "voice": "Reduce infrastructure spend by up to sixty percent.",
-    "voiceSamples": 72192,
+    "voiceSamples": 98640,
     "cueSamples": [
-      72192
-    ]
+      98640
+    ],
+    "speaker": "am_michael"
   },
   {
     "key": "evening",
     "headline": "Eight lights on.",
     "voice": "Upstairs and downstairs, all eight lights are on.",
-    "voiceSamples": 61952,
+    "voiceSamples": 90960,
     "cueSamples": [
-      61952
+      90960
     ],
-    "visual": "house"
+    "visual": "house",
+    "speaker": "bf_emma"
   },
   {
     "key": "leave",
     "headline": "The last ones out.",
     "voice": "The family leaves. Every window stays bright.",
-    "voiceSamples": 67840,
+    "voiceSamples": 71280,
     "cueSamples": [
-      32000,
-      35840
+      35520,
+      35760
     ],
-    "visual": "house"
+    "visual": "house",
+    "speaker": "bf_emma"
   },
   {
     "key": "bill",
     "headline": "An empty house. A running bill.",
     "voice": "Eight lamps burn for eight empty hours. That's ninety-six cents to light an empty house.",
-    "voiceSamples": 110336,
+    "voiceSamples": 134400,
     "cueSamples": [
-      54016,
-      56320
+      70080,
+      64320
     ],
-    "visual": "house"
+    "visual": "house",
+    "speaker": "bf_emma"
   },
   {
     "key": "switch",
     "headline": "Same night. Lights off.",
     "voice": "Replay the night. The last person switches off the lights. Same eight hours, zero cents.",
-    "voiceSamples": 126464,
+    "voiceSamples": 172080,
     "cueSamples": [
-      30464,
-      51456,
-      44544
+      40320,
+      68640,
+      63120
     ],
-    "visual": "house"
+    "visual": "house",
+    "speaker": "bf_emma"
   },
   {
     "key": "return",
     "headline": "Light the room you need.",
     "voice": "Someone comes home. Only their room lights up.",
-    "voiceSamples": 66816,
+    "voiceSamples": 79440,
     "cueSamples": [
-      32000,
-      34816
+      39840,
+      39600
     ],
-    "visual": "house"
+    "visual": "house",
+    "speaker": "bf_emma"
   },
   {
     "key": "mapping",
     "visual": "architecture",
     "headline": "Every window is a pod.",
     "voice": "Each window is a pod. SlimFaas is the front door for requests.",
-    "voiceSamples": 93952,
+    "voiceSamples": 97920,
     "cueSamples": [
-      36096,
-      57856
-    ]
+      41760,
+      56160
+    ],
+    "speaker": "bf_emma"
   },
   {
     "key": "podbill",
     "visual": "architecture",
     "headline": "Idle pods run up a bill.",
     "voice": "At ten euros per pod-hour, eight idle pods cost eighty euros in one hour.",
-    "voiceSamples": 108032,
+    "voiceSamples": 128400,
     "cueSamples": [
-      108032
-    ]
+      128400
+    ],
+    "speaker": "bf_emma"
   },
   {
     "key": "sleeping",
     "visual": "architecture",
     "headline": "Let idle pods sleep.",
     "voice": "After the idle timeout, SlimFaas scales the app to zero. Another quiet hour adds zero euros.",
-    "voiceSamples": 137472,
+    "voiceSamples": 172800,
     "cueSamples": [
-      83712,
+      119040,
       53760
-    ]
+    ],
+    "speaker": "bf_emma"
   },
   {
     "key": "arrival",
     "visual": "architecture",
     "headline": "One request wakes the app.",
     "voice": "One request wakes a pod. More requests light up the house.",
-    "voiceSamples": 81664,
+    "voiceSamples": 96000,
     "cueSamples": [
-      41216,
-      40448
-    ]
+      50400,
+      45600
+    ],
+    "speaker": "bf_emma"
   },
   {
     "key": "tower",
     "visual": "architecture",
     "headline": "From house to high-rise.",
     "voice": "Demand keeps climbing. Eight windows become thirty-two.",
-    "voiceSamples": 76544,
+    "voiceSamples": 83280,
     "cueSamples": [
-      34560,
-      41984
-    ]
+      42720,
+      40560
+    ],
+    "speaker": "bf_emma"
   },
   {
     "key": "palace",
     "visual": "architecture",
     "headline": "Room for a royal crowd.",
     "voice": "Now picture Versailles. Ninety-six windows glow, all behind the same front door.",
-    "voiceSamples": 113920,
+    "voiceSamples": 120720,
     "cueSamples": [
-      37120,
-      76800
-    ]
+      35520,
+      85200
+    ],
+    "speaker": "bf_emma"
   },
   {
     "key": "trial",
     "visual": "penguin",
     "headline": "Try it in five minutes.",
     "voice": "Try SlimFaas in five minutes with your existing HTTP app. Keep your language and your handler.",
-    "speaker": "bm_george",
-    "voiceSamples": 178432,
+    "speaker": "am_fenrir",
+    "voiceSamples": 156160,
     "cueSamples": [
-      121600,
-      56832
+      110880,
+      45280
     ]
   },
   {
@@ -146,13 +158,13 @@
     "visual": "penguin",
     "headline": "Build your agent over HTTP.",
     "voice": "Building an agent? Stream files, cache results, and publish events. Replay streams, queue jobs, and trace requests. All over HTTP, without an SDK.",
-    "speaker": "bm_george",
-    "voiceSamples": 280832,
+    "speaker": "am_fenrir",
+    "voiceSamples": 253440,
     "cueSamples": [
-      40192,
-      79104,
-      83712,
-      77824
+      33600,
+      71520,
+      61920,
+      86400
     ]
   },
   {
@@ -160,14 +172,14 @@
     "visual": "penguin",
     "headline": "Save €6,000 a month.",
     "voice": "One team saved over sixty percent. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. You save six thousand euros a month. Try SlimFaas. Help protect the ice for penguins like me!",
-    "speaker": "bm_george",
-    "voiceSamples": 358400,
+    "speaker": "am_fenrir",
+    "voiceSamples": 326656,
     "cueSamples": [
-      66304,
-      128256,
-      64768,
-      36608,
-      62464
+      58080,
+      124320,
+      57120,
+      29280,
+      57856
     ]
   }
 ]
