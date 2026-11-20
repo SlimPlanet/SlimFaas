@@ -1,10 +1,10 @@
 // Rasterize the editorial cards offline with the same Chromium used for the live takes.
-import { chromium } from '../../src/SlimFaas/ClientApp/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright-core';
 import { mkdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const here = new URL('./', import.meta.url);
-const work = new URL('../../artifacts/live-stream-video/', here);
+const work = new URL('artifacts/', here);
 const destination = new URL('cards/', work);
 await mkdir(destination, { recursive: true });
 const scenes = JSON.parse(await readFile(new URL('scenes.json', here), 'utf8'));

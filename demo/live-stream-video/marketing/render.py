@@ -1,17 +1,19 @@
-"""Render the short social cut from the published Kubernetes recording and English voice."""
+"""Render the dashboard cut or the illustrated house film with its localized voice track."""
+from array import array
+import argparse
 import json
 import math
 import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import wave
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[2]
-MEDIA = ROOT / "docs/media/live-stream"
-WORK = ROOT / "artifacts/live-stream-video/marketing"
+MEDIA = HERE.parent / "media"
+WORK = HERE.parent / "artifacts" / "marketing"
 FPS = 24
 RATE = 24000
 LEAD = 0.25
@@ -21,6 +23,7 @@ FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 # In/out points in the educational master. Crop only the recorded dashboard, above its lower third.
 # Freeze the resolved state at the end to leave time to read the dashboard.
 SHOTS = {
+    "idle": (26.1, 31.8, "528:240:1200:364"),
     "wake": (33.15, 43.0, "840:390:840:490"),
     "rush": (66.4, 73.2, "840:390:840:348"),
     "quiet": (79.55, 88.2, "840:390:840:348"),
@@ -37,34 +40,65 @@ def timestamp(seconds):
     return f"{ms // 3600000:02}:{ms // 60000 % 60:02}:{ms // 1000 % 60:02}.{ms % 1000:03}"
 
 
-def subtitles(voice, seconds):
+def subtitles(voice, samples, cue_samples):
     sentences = re.split(r"(?<=[.!?])\s+", voice)
-    word_count = len(voice.split())
+    if len(cue_samples) == len(sentences) and sum(cue_samples) == samples:
+        weights = cue_samples
+    else:
+        # Replacement narrators can supply WAVs of a different length.
+        weights = [len(sentence.split()) for sentence in sentences]
+    seconds_per_unit = samples / RATE / sum(weights)
     cues = []
-    words = 0
-    for sentence in sentences:
-        start = LEAD + words / word_count * seconds
-        words += len(sentence.split())
-        cues.append({"start": start, "end": LEAD + words / word_count * seconds, "text": sentence})
+    offset = 0
+    for sentence, weight in zip(sentences, weights):
+        start = LEAD + offset * seconds_per_unit
+        offset += weight
+        cues.append({"start": start, "end": LEAD + offset * seconds_per_unit, "text": sentence})
     return cues
 
 
-def plan(directory):
-    scenes = json.loads((HERE / "scenes.json").read_text())
+def mouth_motion(pcm, count):
+    """Measure voiced energy in each video frame so the beak closes during silence."""
+    signal = array("h")
+    signal.frombytes(pcm)
+    if sys.byteorder != "little":
+        signal.byteswap()
+    width = RATE // FPS
+    result = []
+    for frame in range(count):
+        start = frame * width - round(LEAD * RATE)
+        block = signal[max(0, start):max(0, start + width)]
+        rms = math.sqrt(sum(sample * sample for sample in block) / len(block)) if block else 0
+        result.append(round(min(1, max(0, (rms - 110) / 3300)), 3))
+    return result
+
+
+def edition_path(edition):
+    return {"marketing": Path("."), "house": Path("house"), "house-fr": Path("house/fr")}[edition]
+
+
+def plan(directory, edition="marketing"):
+    house = edition != "marketing"
+    source = HERE / edition_path(edition)
+    work = WORK / edition_path(edition)
+    scenes = json.loads((source / "scenes.json").read_text())
     frames = 0
     audio = bytearray()
     vtt = ["WEBVTT", ""]
     for scene in scenes:
-        with wave.open(str(WORK / "voice" / (scene["key"] + ".wav")), "rb") as take:
+        with wave.open(str(work / "voice" / (scene["key"] + ".wav")), "rb") as take:
             if (take.getframerate(), take.getnchannels(), take.getsampwidth()) != (RATE, 1, 2):
                 raise ValueError(f"Expected 24 kHz mono 16-bit voice for {scene['key']}")
             samples = take.getnframes()
             voice = take.readframes(samples)
-        tail = 1.8 if scene["key"] == "try" else 0.65
+        tail = 1.8 if scene["key"] in ("try", "year") else 0.65
         count = math.ceil((LEAD + samples / RATE + tail) * FPS)
-        check_length(frames + count)
+        if not house:
+            check_length(frames + count)
+        if scene.get("visual") == "penguin":
+            scene["mouth"] = mouth_motion(voice, count)
         scene["frames"] = count
-        scene["cues"] = subtitles(scene["voice"], samples / RATE)
+        scene["cues"] = subtitles(scene["voice"], samples, scene.get("cueSamples", []))
         for cue in scene["cues"]:
             start = timestamp(frames / FPS + cue["start"])
             end = timestamp(frames / FPS + cue["end"])
@@ -83,16 +117,18 @@ def encode(*args):
     subprocess.run([FFMPEG, "-nostdin", "-y", "-loglevel", "error", *args], check=True)
 
 
-def render(directory):
-    scenes, frames = plan(directory)
-    observed = json.loads((HERE.parent / "observed.json").read_text())
-    # English voice quotes these measurements from the published master.
-    for key, value in {"syncResponse": {"result": 55}, "asyncAccepted": 30, "peakReadyWorkers": 4,
-                       "asyncCompletedWithResult4807526976": 30, "finalReadyWorkers": 0}.items():
-        if observed[key] != value:
-            raise ValueError(f"The recorded {key} changed. Review the marketing script and in/out points.")
+def render(directory, edition="marketing"):
+    scenes, frames = plan(directory, edition)
+    observed = None
+    if edition == "marketing":
+        observed = json.loads((HERE.parent / "observed.json").read_text())
+        # English voice quotes these measurements from the published master.
+        for key, value in {"syncResponse": {"result": 55}, "asyncAccepted": 30, "peakReadyWorkers": 4,
+                           "asyncCompletedWithResult4807526976": 30, "finalReadyWorkers": 0}.items():
+            if observed[key] != value:
+                raise ValueError(f"The recorded {key} changed. Review the marketing script and in/out points.")
     for scene in scenes:
-        if scene["key"] not in SHOTS:
+        if edition != "marketing" or scene["key"] not in SHOTS:
             continue
         start, stop, crop = SHOTS[scene["key"]]
         destination = directory / scene["key"]
@@ -103,21 +139,40 @@ def render(directory):
         scene["images"] = len(list(destination.glob("*.jpg")))
         if scene["images"] < int((stop - start) * 12) - 1:
             raise ValueError(f"Incomplete dashboard excerpt for {scene['key']}")
-    (directory / "plan.json").write_text(json.dumps({"fps": FPS, "scenes": scenes, "observed": observed}))
+    language = "fr" if edition == "house-fr" else "en"
+    storyboard = {"fps": FPS, "scenes": scenes, "observed": observed, "language": language}
+    (directory / "plan.json").write_text(json.dumps(storyboard))
     subprocess.run(["node", HERE / "frames.mjs", directory], check=True)
+    title = {"house": "From eight windows to Versailles", "house-fr": "De huit fenêtres à Versailles",
+             "marketing": "Zero idle replicas. One HTTP call wakes your API."}[edition]
+    comment = ("Cost result reported by Guillaume Chervet (AXA France), Devoxx Belgium 2025: "
+               "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas"
+               if edition == "marketing" else "Illustrative workload and savings scenario.")
     encode("-framerate", str(FPS), "-start_number", "0", "-i", directory / "frames/%05d.jpg",
            "-i", directory / "voice.wav",
            "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast",
            "-vf", "scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p",
            "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-           "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", "-metadata:s:a:0", "language=eng",
-           "-metadata", "title=SlimFaas | Give your agent tools the night off", directory / "marketing.mp4")
-    (directory / "marketing.mp4").replace(MEDIA / "marketing.mp4")
-    (directory / "subtitles.vtt").replace(MEDIA / "marketing.vtt")
-    print(f"Marketing cut: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)
+           "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", "-metadata:s:a:0", "language=fra" if edition == "house-fr" else "language=eng",
+           "-metadata", f"title=SlimFaas | {title}",
+           "-metadata", f"comment={comment}",
+           directory / "marketing.mp4")
+    MEDIA.mkdir(exist_ok=True)
+    if edition != "marketing":
+        # Publish the same AAC packets and picture holds for audio-only playback.
+        encode("-i", directory / "marketing.mp4", "-map", "0:a:0", "-c:a", "copy", "-movflags", "+faststart",
+               directory / f"{edition}.m4a")
+        (directory / f"{edition}.m4a").replace(MEDIA / f"{edition}.m4a")
+    (directory / "marketing.mp4").replace(MEDIA / f"{edition}.mp4")
+    (directory / "subtitles.vtt").replace(MEDIA / f"{edition}.vtt")
+    print(f"{title}: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)
 
 
 if __name__ == "__main__":
-    WORK.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=WORK) as scratch:
-        render(Path(scratch))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("edition", nargs="?", choices=("marketing", "house", "house-fr"), default="marketing")
+    edition = parser.parse_args().edition
+    work = WORK / edition_path(edition)
+    work.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=work) as scratch:
+        render(Path(scratch), edition)

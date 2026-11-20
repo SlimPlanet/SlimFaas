@@ -9,9 +9,8 @@ import subprocess
 import wave
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
-WORK = ROOT / "artifacts/live-stream-video"
-OUT = ROOT / "docs/media/live-stream"
+WORK = HERE / "artifacts"
+OUT = HERE / "media"
 FPS = 20
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 scenes = json.loads((HERE / "scenes.json").read_text())

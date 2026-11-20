@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibonacci3
+  namespace: slimfaas-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fibonacci3
+  template:
+    metadata:
+      labels:
+        app: fibonacci3
+      annotations:
+        SlimFaas/Function: 'true'
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: '120'
+        SlimFaas/NumberParallelRequest: '40'
+        SlimFaas/NumberParallelRequestPerPod: '10'
+        SlimFaas/SubscribeEvents: Public:tool-catalog
+        SlimFaas/ReplicasAtStart: '2'
+        prometheus.io/path: /metrics
+        prometheus.io/port: '5000'
+        prometheus.io/scrape: 'true'
+        SlimFaas/SubscribeStream: Public:agent-output
+        SlimFaas/ReplicasMin: '2'
+        SlimFaas/DefaultVisibility: Public
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      containers:
+        - name: fibonacci3
+          image: docker.io/axaguildev/fibonacci-api:0.89.1
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:5000
+            - name: AgentTourRole
+              value: evaluator
+          resources:
+            requests:
+              cpu: 150m
+              memory: 64Mi
+          ports:
+            - containerPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibonacci4
+  namespace: slimfaas-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fibonacci4
+  template:
+    metadata:
+      labels:
+        app: fibonacci4
+      annotations:
+        SlimFaas/Function: 'true'
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: '120'
+        SlimFaas/DefaultVisibility: Public
+        SlimFaas/ReplicasAtStart: '2'
+        SlimFaas/SubscribeEvents: Public:tool-catalog
+        prometheus.io/path: /metrics
+        prometheus.io/port: '5000'
+        prometheus.io/scrape: 'true'
+        SlimFaas/SubscribeStream: Public:agent-output
+        SlimFaas/ReplicasMin: '2'
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      containers:
+        - name: fibonacci4
+          image: docker.io/axaguildev/fibonacci-api:0.89.1
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:5000
+            - name: AgentTourRole
+              value: audit
+          resources:
+            requests:
+              cpu: 150m
+              memory: 64Mi
+          ports:
+            - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fibonacci3
+  namespace: slimfaas-demo
+spec:
+  selector:
+    app: fibonacci3
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fibonacci4
+  namespace: slimfaas-demo
+spec:
+  selector:
+    app: fibonacci4
+  ports:
+    - port: 5000
+      targetPort: 5000

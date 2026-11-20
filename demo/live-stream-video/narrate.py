@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 import wave
 
 HERE = Path(__file__).resolve().parent
-WORK = HERE.parents[1] / "artifacts/live-stream-video"
+WORK = HERE / "artifacts"
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 RATE = 24000
 
@@ -32,10 +32,11 @@ def speech_server(value):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("educational", "marketing"), default="educational")
+    parser.add_argument("--mode", choices=("educational", "marketing", "house", "house-fr"), default="educational")
     parser.add_argument("--speech-url", type=speech_server, help="Optional local Kokoro-compatible /v1/audio/speech endpoint")
     args = parser.parse_args()
-    edition = Path("marketing") if args.mode == "marketing" else Path(".")
+    edition = {"educational": Path("."), "marketing": Path("marketing"), "house": Path("marketing/house"),
+               "house-fr": Path("marketing/house/fr")}[args.mode]
     source = HERE / edition
     destination = WORK / edition / "voice"
     destination.mkdir(parents=True, exist_ok=True)
@@ -43,7 +44,7 @@ def main():
     offset = 0
     for scene in json.loads((source / "scenes.json").read_text()):
         if args.speech_url:
-            body = json.dumps({"model": "kokoro", "voice": "af_heart", "speed": 1.055,
+            body = json.dumps({"model": "kokoro", "voice": scene.get("speaker", "af_heart"), "speed": 1.055,
                                "input": scene["voice"], "response_format": "wav"}).encode()
             args.speech_url.request("POST", "/v1/audio/speech", body, {"Content-Type": "application/json"})
             with args.speech_url.getresponse() as response:
