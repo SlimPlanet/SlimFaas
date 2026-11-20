@@ -1,115 +1,115 @@
 WEBVTT
 
-00:00:00.250 --> 00:00:03.889
+00:00:00.250 --> 00:00:04.122
 Quickly and easily reduce your infrastructure costs by at least sixty percent.
 
-00:00:04.792 --> 00:00:06.415
+00:00:05.042 --> 00:00:06.665
 Stop wasting energy!
 
-00:00:06.415 --> 00:00:09.445
+00:00:06.665 --> 00:00:09.695
 Upstairs and downstairs, all eight lights are on.
 
-00:00:10.375 --> 00:00:11.923
+00:00:10.625 --> 00:00:12.173
 The family leaves.
 
-00:00:11.923 --> 00:00:13.278
+00:00:12.173 --> 00:00:13.528
 Every window stays bright.
 
-00:00:14.208 --> 00:00:16.664
+00:00:14.458 --> 00:00:16.914
 Eight lamps burn for eight empty hours.
 
-00:00:16.664 --> 00:00:19.395
+00:00:16.914 --> 00:00:19.645
 That's ninety-six cents to light an empty house.
 
-00:00:20.333 --> 00:00:22.451
+00:00:20.583 --> 00:00:22.701
 Put good habits into practice.
 
-00:00:22.451 --> 00:00:24.682
+00:00:22.701 --> 00:00:24.932
 The last person switches off the lights.
 
-00:00:24.682 --> 00:00:27.150
+00:00:24.932 --> 00:00:27.400
 Same eight hours, zero cents.
 
-00:00:28.083 --> 00:00:29.407
+00:00:28.333 --> 00:00:29.657
 Someone comes home.
 
-00:00:29.407 --> 00:00:30.718
+00:00:29.657 --> 00:00:30.968
 Only their room lights up.
 
-00:00:31.625 --> 00:00:36.243
+00:00:31.875 --> 00:00:36.493
 SlimFaas automates your best practices and switches idle pods off for you!
 
-00:00:36.243 --> 00:00:37.913
+00:00:36.493 --> 00:00:38.163
 Each window is a pod.
 
-00:00:37.913 --> 00:00:40.344
+00:00:38.163 --> 00:00:40.594
 SlimFaas is the front door for requests.
 
-00:00:41.250 --> 00:00:46.597
+00:00:41.500 --> 00:00:46.847
 At ten euros per pod-hour, eight idle pods cost eighty euros in one hour.
 
-00:00:47.500 --> 00:00:51.433
+00:00:47.750 --> 00:00:51.683
 After the idle timeout, SlimFaas scales the app to zero.
 
-00:00:51.433 --> 00:00:53.720
+00:00:51.683 --> 00:00:53.970
 Another quiet hour adds zero euros.
 
-00:00:54.625 --> 00:00:56.741
+00:00:54.875 --> 00:00:56.991
 One request wakes a pod.
 
-00:00:56.741 --> 00:00:58.457
+00:00:56.991 --> 00:00:58.707
 More requests light up the house.
 
-00:00:59.375 --> 00:01:01.183
+00:00:59.625 --> 00:01:01.433
 Demand keeps climbing.
 
-00:01:01.183 --> 00:01:03.161
+00:01:01.433 --> 00:01:03.411
 Eight windows become thirty-two.
 
-00:01:04.083 --> 00:01:05.948
+00:01:04.333 --> 00:01:06.198
 Now picture Versailles.
 
-00:01:05.948 --> 00:01:09.358
+00:01:06.198 --> 00:01:09.608
 Thousands of messages come through the same front door.
 
-00:01:09.358 --> 00:01:10.908
+00:01:09.608 --> 00:01:11.158
 Ninety-six windows light up.
 
-00:01:11.833 --> 00:01:16.216
+00:01:12.083 --> 00:01:15.549
 Try SlimFaas in five minutes with your existing HTTP app.
 
-00:01:16.216 --> 00:01:18.337
+00:01:15.549 --> 00:01:17.033
 Keep your language and your handler.
 
-00:01:19.250 --> 00:01:21.819
+00:01:17.958 --> 00:01:20.119
 Perfect for your agentic apps!
 
-00:01:21.819 --> 00:01:25.199
+00:01:20.119 --> 00:01:23.793
 Stream files, cache results, and publish events.
 
-00:01:25.199 --> 00:01:29.117
+00:01:23.793 --> 00:01:27.112
 Replay streams, queue jobs, and trace requests.
 
-00:01:29.117 --> 00:01:32.842
+00:01:27.112 --> 00:01:29.922
 All over HTTP, without an SDK.
 
-00:01:33.750 --> 00:01:34.886
+00:01:30.833 --> 00:01:31.976
 Take this example.
 
-00:01:34.886 --> 00:01:40.800
+00:01:31.976 --> 00:01:36.802
 At sixty percent, a ten-thousand-euro monthly bill drops to four thousand.
 
-00:01:40.800 --> 00:01:43.366
+00:01:36.802 --> 00:01:39.131
 That's six thousand euros saved each month.
 
-00:01:44.292 --> 00:01:49.597
+00:01:40.042 --> 00:01:44.401
 Incredible, over twelve months you save seventy-two thousand euros!
 
-00:01:49.597 --> 00:01:51.447
+00:01:44.401 --> 00:01:45.930
 Give SlimFaas a try.
 
-00:01:51.447 --> 00:01:54.480
+00:01:45.930 --> 00:01:48.686
 Help keep my home on the ice!
 
-00:01:54.480 --> 00:01:56.513
+00:01:48.686 --> 00:01:50.518
 This isn’t Versailles, you know!

@@ -35,15 +35,20 @@ def trim_take(voice):
 def pace_take(voice, key, visual):
     # Let the listener take in the prices and give the chick a beat to land the joke.
     if key in ("year-2", "year-3"):
-        return voice
-    if key in ("podbill-0", "savings-1", "year-0"):
+        tempo = 1.0
+    elif key in ("podbill-0", "savings-1", "year-0"):
         tempo = 1.12
     elif visual in ("opening", "penguin"):
         tempo = 1.18
     else:
         tempo = 1.24
+    filters = f"atempo={tempo}"
+    if visual in ("opening", "penguin"):
+        # Lift pitch and formants by two semitones while retaining the intended delivery speed.
+        boy_rate = round(RATE * 2 ** (2 / 12))
+        filters = f"asetrate={boy_rate},aresample={RATE},atempo={tempo * RATE / boy_rate}"
     command = [os.environ.get("FFMPEG", "ffmpeg"), "-v", "error", "-nostdin", "-f", "f32le",
-               "-ar", str(RATE), "-ac", "1", "-i", "-", "-af", f"atempo={tempo}", "-f", "f32le", "-"]
+               "-ar", str(RATE), "-ac", "1", "-i", "-", "-af", filters, "-f", "f32le", "-"]
     paced = subprocess.run(command, input=voice.astype("<f4").tobytes(), capture_output=True, check=True)
     return np.frombuffer(paced.stdout, "<f4").copy()
 

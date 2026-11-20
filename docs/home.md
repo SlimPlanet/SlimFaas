@@ -17,8 +17,8 @@ Watch the HTTP proxy wake a sleeping function and SlimFaas scale it to four pods
 
 *From eight windows to Versailles* follows an idle application from its monthly pod charges to a year of savings.
 
-- **English (1 min 58 s)** · [Watch the film](media/live-stream/house.mp4) · [Audio](media/live-stream/house.m4a) · [Captions](media/live-stream/house.vtt)
-- **Français (2 min 13 s)** · [Voir le film](media/live-stream/house-fr.mp4) · [Audio](media/live-stream/house-fr.m4a) · [Sous-titres](media/live-stream/house-fr.vtt)
+- **English (1 min 52 s)** · [Watch the film](media/live-stream/house.mp4) · [Audio](media/live-stream/house.m4a) · [Captions](media/live-stream/house.vtt)
+- **Français (2 min 08 s)** · [Voir le film](media/live-stream/house-fr.mp4) · [Audio](media/live-stream/house-fr.m4a) · [Sous-titres](media/live-stream/house-fr.vtt)
 
 [Watch *Zero idle replicas* (31-second MP4)](media/live-stream/marketing.mp4) · [Overview captions](media/live-stream/marketing.vtt) · [Watch the full narrated demo (3 min 11 s)](media/live-stream/dashboard.mp4) · [Read the demo transcript](media/live-stream/transcript.txt)
 

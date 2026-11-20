@@ -4,8 +4,8 @@ Run the commands below from this directory. You can copy it outside the SlimFaas
 
 | Edition | Published film | Rebuild |
 | --- | --- | --- |
-| Animated house · English | [From eight windows to Versailles (1 min 58 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
-| Animated house · French | [De huit fenêtres à Versailles (2 min 13 s)](../../docs/media/live-stream/house-fr.mp4) · [Audio only](../../docs/media/live-stream/house-fr.m4a) · [French captions](../../docs/media/live-stream/house-fr.vtt) | `pnpm house:fr` |
+| Animated house · English | [From eight windows to Versailles (1 min 52 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
+| Animated house · French | [De huit fenêtres à Versailles (2 min 08 s)](../../docs/media/live-stream/house-fr.mp4) · [Audio only](../../docs/media/live-stream/house-fr.m4a) · [French captions](../../docs/media/live-stream/house-fr.vtt) | `pnpm house:fr` |
 | Marketing | [Zero idle replicas (31 seconds)](../../docs/media/live-stream/marketing.mp4), portrait 4:5, English voice and burned-in captions | `pnpm marketing` |
 | Educational | [Dashboard walkthrough](media/dashboard.mp4), 3 min 11 s, widescreen, English voice and selectable captions | `pnpm educational` after capturing three takes |
 
@@ -86,9 +86,9 @@ kind delete cluster --name slimfaas-film --kubeconfig "$PWD/artifacts/kubeconfig
 
 ## Replace the narration
 
-The French and English house films use Qwen3-TTS 1.7B CustomVoice, generated locally on Apple Silicon with MLX Audio. Ono Anna plays the girl and Vivian plays the chick. Sohee narrates the house in French and Serena narrates it in English. Each sentence has its own acting direction. The narrator picks up speed as the rocket traffic builds, while the chick moves from surprise at the annual saving to a soft appeal and a wry final line. The mix gives the prices extra room and leaves a 0.76-second pause before the final joke. Each scene targets −17 LUFS and −2 dBTP before AAC encoding. Rendering uses the bundled recordings. [Voice directions](marketing/house/voice-direction.json) · [Qwen3-TTS](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice) · [MLX weights](https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit/tree/41d3337e8b7f2843a75841595fc14e4b9a7a4b96)
+The French and English house films use Qwen3-TTS 1.7B CustomVoice, generated locally on Apple Silicon with MLX Audio. Ryan plays the boy in the opening. Dylan gives the penguin a younger boy’s voice, from the excited savings reveal to the wink at Versailles. The mix lifts both voices by two semitones while preserving their delivery speed. Sohee narrates the house in French and Serena narrates it in English. Each sentence has its own acting direction. The narrator picks up speed as the rocket traffic builds, while the chick moves from surprise at the annual saving to a soft appeal and a wry final line. The mix gives the prices extra room and leaves a 0.76-second pause before the final joke. Each scene targets −17 LUFS and −2 dBTP before AAC encoding. Rendering uses the bundled recordings. [Voice directions](marketing/house/voice-direction.json) · [Qwen3-TTS](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice) · [MLX weights](https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit/tree/41d3337e8b7f2843a75841595fc14e4b9a7a4b96)
 
-Hear the same opening and closing lines with Kokoro first and Qwen second. [French comparison, Qwen at 0:13](../../docs/media/live-stream/house-voice-comparison-fr.m4a) · [English comparison, Qwen at 0:12](../../docs/media/live-stream/house-voice-comparison-en.m4a)
+Hear the previous cut followed by the two boys delivering the opening and closing lines. [French comparison, new cast at 0:12](../../docs/media/live-stream/house-voice-comparison-fr.m4a) · [English comparison, new cast at 0:10](../../docs/media/live-stream/house-voice-comparison-en.m4a)
 
 To audition a different reading on Apple Silicon, edit the corresponding cue in the voice directions. With the 8-bit MLX snapshot downloaded locally, this example records the appeal and punchline as two separate WAVs. Omit the cue filters to record the entire language.
 

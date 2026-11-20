@@ -1,20 +1,20 @@
 {
   "model": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
   "roleByVisual": {
-    "opening": "girl",
+    "opening": "boy",
     "house": "narrator",
     "architecture": "narrator",
     "penguin": "chick"
   },
   "cast": {
-    "girl": {
+    "boy": {
       "voice": {
-        "en": "Ono_Anna",
-        "fr": "Ono_Anna"
+        "en": "Ryan",
+        "fr": "Ryan"
       },
       "instruct": {
-        "en": "Play a delighted young girl. Bright, clear, youthful and smiling, with a lively rise and fall.",
-        "fr": "Tu joues une petite fille joyeuse. Ta voix est claire, légère et souriante."
+        "en": "Play an eight-year-old boy who has just discovered something exciting. Use a bright, clear boy soprano, a quick breath and a springy rhythm. Smile as you share the good news with a friend.",
+        "fr": "Joue un garçon de huit ans qui vient de découvrir une bonne nouvelle. Une voix de garçon avant la mue, claire, légère et souriante. Prends un petit élan pour raconter ta découverte à un copain."
       }
     },
     "narrator": {
@@ -29,12 +29,12 @@
     },
     "chick": {
       "voice": {
-        "en": "Vivian",
-        "fr": "Vivian"
+        "en": "Dylan",
+        "fr": "Dylan"
       },
       "instruct": {
-        "en": "Play a small animated penguin chick. Use a light, youthful, playful character voice that stays clear and easy to understand.",
-        "fr": "Tu joues un tout petit pingouin de dessin animé. Parle avec une voix enfantine, légère et malicieuse, et une diction claire."
+        "en": "Play a little boy penguin, about seven years old. Give him a light, round, boyish voice with a playful bounce. Speak directly to one friend. Let his wonder, tenderness and impish humour come through.",
+        "fr": "Joue un petit garçon pingouin de sept ans, à la voix claire et ronde d’avant la mue. Il parle à un copain. Donne-lui de l’élan quand il s’émerveille, de la douceur quand il se confie et un sourire malicieux pour les blagues."
       }
     }
   },
@@ -101,7 +101,7 @@
       ],
       "savings": [
         "A little aside, as if doing the sums together.",
-        "Slow down through the three amounts. Let the pitch fall as the monthly bill falls.",
+        "Count the savings with wide-eyed excitement. Use a lilting head voice, bright clear high notes and easy conversational pacing. Give each amount room.",
         "Savour the monthly saving. Warm, pleased emphasis on six thousand."
       ],
       "year": [
@@ -173,7 +173,7 @@
       ],
       "savings": [
         "Comme une confidence joyeuse, invite ton ami à faire un petit calcul.",
-        "Ralentis pour les trois montants. Fais descendre la voix quand la facture diminue.",
+        "Fais cette découverte tout en haut de ta voix de petit garçon. Compte avec un sourire joyeux, en articulant chaque chiffre.",
         "Savoure les six mille euros économisés chaque mois et laisse entendre ton sourire."
       ],
       "year": [
@@ -186,14 +186,18 @@
   },
   "spokenOverrides": {
     "fr": {
-      "promise-0": "Réduisez ultra rapidement et simplement vos coûts d'infrastructure… d'au moins soixante pour cent !",
+      "promise-0": "Réduisez ultra rapidement et simplement vos coûts d'infrastructure d'au moins soixante pour cent !",
       "evening-1": "À l’étage comme au rez-de-chaussée, les huit lampes sont allumées !",
       "mapping-0": "Slim Fass automatise vos bonnes pratiques, et éteint tout seul les pods en cas d'inactivité !",
       "podbill-0": "À dix euros par pod et par heure, huit pods inactifs coûtent… quatre-vingts euros en une heure.",
       "trial-0": "Essayez Slim Fass en cinq minutes avec votre application ache, té, té, pé.",
       "trial-1": "Gardez votre langage, et votre code.",
       "toolbox-3": "Tout passe par HTTP, sans SDK.",
-      "year-1": "Essayez Slim Fasse !"
+      "year-1": "Essayez Slim Fasse !",
+      "savings-1": "À soixante pour cent, une facture mensuelle de dix mille euros tombe à quatre mille euros !"
+    },
+    "en": {
+      "savings-1": "At sixty percent, a ten-thousand-euro monthly bill drops to four thousand!"
     }
   }
 }

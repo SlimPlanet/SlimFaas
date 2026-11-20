@@ -4,9 +4,9 @@
     "visual": "opening",
     "headline": "Quickly and easily reduce your infrastructure costs by at least 60%",
     "voice": "Quickly and easily reduce your infrastructure costs by at least sixty percent.",
-    "voiceSamples": 87332,
+    "voiceSamples": 92929,
     "cueSamples": [
-      87332
+      92929
     ],
     "speaker": "af_sky"
   },
@@ -150,10 +150,10 @@
     "headline": "Try it in five minutes.",
     "voice": "Try SlimFaas in five minutes with your existing HTTP app. Keep your language and your handler.",
     "speaker": "af_bella",
-    "voiceSamples": 156096,
+    "voiceSamples": 118804,
     "cueSamples": [
-      105176,
-      50920
+      83183,
+      35621
     ]
   },
   {
@@ -162,12 +162,12 @@
     "headline": "Perfect for your agentic apps.",
     "voice": "Perfect for your agentic apps! Stream files, cache results, and publish events. Replay streams, queue jobs, and trace requests. All over HTTP, without an SDK.",
     "speaker": "af_bella",
-    "voiceSamples": 326216,
+    "voiceSamples": 287130,
     "cueSamples": [
-      61659,
-      81106,
-      94051,
-      89400
+      51867,
+      88157,
+      79655,
+      67451
     ]
   },
   {
@@ -176,11 +176,11 @@
     "headline": "Save €6,000 a month.",
     "voice": "Take this example. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. That's six thousand euros saved each month.",
     "speaker": "af_bella",
-    "voiceSamples": 230778,
+    "voiceSamples": 199135,
     "cueSamples": [
-      27259,
-      141944,
-      61575
+      27432,
+      115812,
+      55891
     ]
   },
   {
@@ -190,11 +190,11 @@
     "voice": "Incredible, over twelve months you save seventy-two thousand euros! Give SlimFaas a try. Help keep my home on the ice! This isn’t Versailles, you know!",
     "speaker": "af_bella",
     "cueSamples": [
-      127335,
-      44382,
-      72800,
-      48800
+      104628,
+      36703,
+      66131,
+      43972
     ],
-    "voiceSamples": 293317
+    "voiceSamples": 251434
   }
 ]

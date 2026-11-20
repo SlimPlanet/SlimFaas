@@ -1,115 +1,115 @@
 WEBVTT
 
-00:00:00.250 --> 00:00:05.019
+00:00:00.250 --> 00:00:05.776
 Réduisez ultra rapidement et simplement vos coûts d’infrastructure d’au moins 60 %.
 
-00:00:05.958 --> 00:00:07.316
+00:00:06.708 --> 00:00:08.066
 Stop au gaspillage !
 
-00:00:07.316 --> 00:00:10.614
+00:00:08.066 --> 00:00:11.364
 À l’étage comme au rez-de-chaussée, les huit lampes sont allumées.
 
-00:00:11.542 --> 00:00:13.345
+00:00:12.292 --> 00:00:14.095
 La famille sort.
 
-00:00:13.345 --> 00:00:15.344
+00:00:14.095 --> 00:00:16.094
 Toutes les fenêtres restent éclairées.
 
-00:00:16.250 --> 00:00:19.987
+00:00:17.000 --> 00:00:20.737
 Huit lampes restent allumées pendant huit heures.
 
-00:00:19.987 --> 00:00:23.240
+00:00:20.737 --> 00:00:23.990
 Éclairer la maison vide coûte 96 centimes.
 
-00:00:24.167 --> 00:00:26.132
+00:00:24.917 --> 00:00:26.882
 Adoptez les bonnes pratiques.
 
-00:00:26.132 --> 00:00:28.570
+00:00:26.882 --> 00:00:29.320
 La dernière personne éteint les lumières.
 
-00:00:28.570 --> 00:00:31.886
+00:00:29.320 --> 00:00:32.636
 Huit heures plus tard, l’éclairage a coûté zéro centime.
 
-00:00:32.792 --> 00:00:33.965
+00:00:33.542 --> 00:00:34.715
 Quelqu’un rentre.
 
-00:00:33.965 --> 00:00:36.401
+00:00:34.715 --> 00:00:37.151
 Seule sa pièce s’allume.
 
-00:00:37.333 --> 00:00:42.677
+00:00:38.083 --> 00:00:43.427
 SlimFaas automatise vos bonnes pratiques et éteint tout seul les pods en cas d’inactivité !
 
-00:00:42.677 --> 00:00:45.058
+00:00:43.427 --> 00:00:45.808
 Imaginez que chaque fenêtre soit un pod.
 
-00:00:45.058 --> 00:00:47.931
+00:00:45.808 --> 00:00:48.681
 SlimFaas est la porte d’entrée des requêtes.
 
-00:00:48.833 --> 00:00:55.553
+00:00:49.583 --> 00:00:56.303
 À 10 € par pod et par heure, huit pods inactifs coûtent 80 € en une heure.
 
-00:00:56.458 --> 00:01:01.456
+00:00:57.208 --> 00:01:02.206
 Après le délai d’inactivité, SlimFaas ramène le nombre de pods à zéro.
 
-00:01:01.456 --> 00:01:05.400
+00:01:02.206 --> 00:01:06.150
 Une heure de plus au calme ne coûte rien en pods.
 
-00:01:06.333 --> 00:01:07.860
+00:01:07.083 --> 00:01:08.610
 Une requête réveille un pod.
 
-00:01:07.860 --> 00:01:10.083
+00:01:08.610 --> 00:01:10.833
 D’autres arrivent et la maison se rallume.
 
-00:01:11.000 --> 00:01:13.053
+00:01:11.750 --> 00:01:13.803
 La demande grimpe.
 
-00:01:13.053 --> 00:01:14.864
+00:01:13.803 --> 00:01:15.614
 Huit fenêtres deviennent trente-deux.
 
-00:01:15.792 --> 00:01:17.921
+00:01:16.542 --> 00:01:18.671
 Imaginez maintenant Versailles.
 
-00:01:17.921 --> 00:01:20.192
+00:01:18.671 --> 00:01:20.942
 Des milliers de messages arrivent en fusée.
 
-00:01:20.192 --> 00:01:22.886
+00:01:20.942 --> 00:01:23.636
 Quatre-vingt-seize fenêtres brillent derrière la même porte.
 
-00:01:23.792 --> 00:01:29.457
+00:01:24.542 --> 00:01:28.909
 Essayez SlimFaas en cinq minutes avec votre application HTTP.
 
-00:01:29.457 --> 00:01:31.585
+00:01:28.909 --> 00:01:30.613
 Gardez votre langage et votre code.
 
-00:01:32.500 --> 00:01:34.932
+00:01:31.542 --> 00:01:33.552
 Parfait pour vos applications agentic !
 
-00:01:34.932 --> 00:01:39.673
+00:01:33.552 --> 00:01:38.150
 Diffusez des fichiers, gardez les résultats en cache et publiez des événements.
 
-00:01:39.673 --> 00:01:44.965
+00:01:38.150 --> 00:01:42.398
 Relisez les flux, mettez les tâches en file d’attente et suivez les requêtes.
 
-00:01:44.965 --> 00:01:47.975
+00:01:42.398 --> 00:01:45.034
 Tout passe par HTTP, sans SDK.
 
-00:01:48.917 --> 00:01:50.297
+00:01:45.958 --> 00:01:47.306
 Prenons un exemple.
 
-00:01:50.297 --> 00:01:55.878
+00:01:47.306 --> 00:01:52.197
 À 60 %, une facture mensuelle de 10 000 € tombe à 4 000 €.
 
-00:01:55.878 --> 00:01:58.316
+00:01:52.197 --> 00:01:54.338
 Cela fait 6 000 € d’économies par mois.
 
-00:01:59.250 --> 00:02:04.205
+00:01:55.250 --> 00:02:00.055
 Incroyable, sur douze mois, vous économisez 72 000 € !
 
-00:02:04.205 --> 00:02:05.710
+00:02:00.055 --> 00:02:01.678
 Essayez SlimFaas.
 
-00:02:05.710 --> 00:02:09.368
+00:02:01.678 --> 00:02:04.362
 Aidez-moi à protéger ma banquise !
 
-00:02:09.368 --> 00:02:11.162
+00:02:04.362 --> 00:02:06.518
 Ce n’est pas Versailles, ici !

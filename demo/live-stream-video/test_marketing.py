@@ -52,6 +52,10 @@ class MarketingTimelineTests(unittest.TestCase):
             scenes = json.loads((source / "scenes.json").read_text())
             language = "fr" if source.name == "fr" else "en"
             cues = {key: (text, voice, note) for key, text, voice, note in record_qwen.directed_cues(language)}
+            opening, narrator, chick = (cues[key] for key in ("promise-0", "evening-0", "year-3"))
+            self.assertEqual(len({opening[1], narrator[1], chick[1]}), 3)
+            for child in (opening, chick):
+                self.assertIn("garçon" if language == "fr" else "boy", child[2])
             for key, spoken in direction["spokenOverrides"].get(language, {}).items():
                 self.assertEqual(cues[key][0], spoken)
             self.assertEqual(set(direction["scenes"][language]), {scene["key"] for scene in scenes})

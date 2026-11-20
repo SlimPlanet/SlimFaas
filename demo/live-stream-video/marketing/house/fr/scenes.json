@@ -6,9 +6,9 @@
     "voice": "Réduisez ultra rapidement et simplement vos coûts d’infrastructure d’au moins 60 %.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      114447
+      132618
     ],
-    "voiceSamples": 114447
+    "voiceSamples": 132618
   },
   {
     "key": "evening",
@@ -151,10 +151,10 @@
     "voice": "Essayez SlimFaas en cinq minutes avec votre application HTTP. Gardez votre langage et votre code.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      135962,
-      51086
+      104805,
+      40916
     ],
-    "voiceSamples": 187048
+    "voiceSamples": 145721
   },
   {
     "key": "toolbox",
@@ -163,12 +163,12 @@
     "voice": "Parfait pour vos applications agentic ! Diffusez des fichiers, gardez les résultats en cache et publiez des événements. Relisez les flux, mettez les tâches en file d’attente et suivez les requêtes. Tout passe par HTTP, sans SDK.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      58357,
-      113794,
-      126999,
-      72260
+      48256,
+      110333,
+      101951,
+      63283
     ],
-    "voiceSamples": 371410
+    "voiceSamples": 323823
   },
   {
     "key": "savings",
@@ -177,11 +177,11 @@
     "voice": "Prenons un exemple. À 60 %, une facture mensuelle de 10 000 € tombe à 4 000 €. Cela fait 6 000 € d’économies par mois.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      33124,
-      133956,
-      58509
+      32342,
+      117391,
+      51391
     ],
-    "voiceSamples": 225589
+    "voiceSamples": 201124
   },
   {
     "key": "year",
@@ -190,11 +190,11 @@
     "voice": "Incroyable, sur douze mois, vous économisez 72 000 € ! Essayez SlimFaas. Aidez-moi à protéger ma banquise ! Ce n’est pas Versailles, ici !",
     "speaker": "ff_siwis",
     "cueSamples": [
-      118931,
-      36108,
-      87800,
-      43040
+      115320,
+      38947,
+      64414,
+      51759
     ],
-    "voiceSamples": 285879
+    "voiceSamples": 270440
   }
 ]
