@@ -1,0 +1,199 @@
+{
+  "model": "Qwen3-TTS-12Hz-1.7B-CustomVoice",
+  "roleByVisual": {
+    "opening": "girl",
+    "house": "narrator",
+    "architecture": "narrator",
+    "penguin": "chick"
+  },
+  "cast": {
+    "girl": {
+      "voice": {
+        "en": "Ono_Anna",
+        "fr": "Ono_Anna"
+      },
+      "instruct": {
+        "en": "Play a delighted young girl. Bright, clear, youthful and smiling, with a lively rise and fall.",
+        "fr": "Tu joues une petite fille joyeuse. Ta voix est claire, légère et souriante."
+      }
+    },
+    "narrator": {
+      "voice": {
+        "en": "Serena",
+        "fr": "Sohee"
+      },
+      "instruct": {
+        "en": "You are a warm female storyteller showing a friend what happens on screen. Speak conversationally, with clear consonants and a varied, natural rhythm.",
+        "fr": "Tu es une narratrice chaleureuse qui raconte à une amie ce qui se passe à l’écran. Varie le rythme en articulant les consonnes."
+      }
+    },
+    "chick": {
+      "voice": {
+        "en": "Vivian",
+        "fr": "Vivian"
+      },
+      "instruct": {
+        "en": "Play a small animated penguin chick. Use a light, youthful, playful character voice that stays clear and easy to understand.",
+        "fr": "Tu joues un tout petit pingouin de dessin animé. Parle avec une voix enfantine, légère et malicieuse, et une diction claire."
+      }
+    }
+  },
+  "scenes": {
+    "en": {
+      "promise": [
+        "Open with a burst of joy. Ease back on the infrastructure words, then give the percentage a bright, confident landing."
+      ],
+      "evening": [
+        "A quick call to attention from across the room. Punch the word for waste.",
+        "Turn into a curious observer. Travel upstairs and downstairs with your voice. Stress that all eight are on."
+      ],
+      "leave": [
+        "Quietly follow the family out. Let the sentence fall away.",
+        "Notice the absurd detail with gently rising disbelief as you realise every window is still bright."
+      ],
+      "bill": [
+        "Use a measured pulse. Make the repetition of eight lamps and eight hours audible.",
+        "A small sigh in the tone. Stress the cost, then slow down on the empty house."
+      ],
+      "switch": [
+        "Brighten as if you just thought of a good idea. Invite the listener along.",
+        "Soft and deliberate, like someone reaching for a light switch.",
+        "Let eight hours pass in the first phrase. Land lightly, almost triumphantly, on zero."
+      ],
+      "return": [
+        "Lean in as you hear someone coming back.",
+        "A warm, satisfied smile. Gently emphasise that just one room lights up."
+      ],
+      "mapping": [
+        "A friendly reveal. Give the product name room, then emphasise how the idle pods switch off by themselves.",
+        "An intimate, unhurried explanation. Give window and pod distinct accents.",
+        "Sound reassuring. Land on the front door as if pointing to it."
+      ],
+      "podbill": [
+        "Explain a bill to a friend. Separate the unit price, the eight pods and the total. Give the final amount the strongest stress."
+      ],
+      "sleeping": [
+        "Let the energy and pitch fall as the application goes quiet. Make zero distinct.",
+        "Almost conspiratorial. Speak gently, then linger on how little that extra hour costs."
+      ],
+      "arrival": [
+        "A single request arrives. Enunciate wakes and pod, with a slight upward inflection on wakes and a crisp final D on pod.",
+        "Gather speed and energy as more requests arrive. Finish with a smile."
+      ],
+      "tower": [
+        "Build anticipation with an upward inflection. The load is still rising.",
+        "Lift your voice from eight to thirty-two as the tower climbs."
+      ],
+      "palace": [
+        "A theatrical invitation. Savour the name Versailles.",
+        "Rush forward with the rockets. Emphasise the sheer number of messages.",
+        "Marvel at ninety-six glowing windows, then give the sentence a clear finish."
+      ],
+      "trial": [
+        "As the little penguin, offer an inviting challenge. Stress five minutes, then articulate the HTTP initials clearly.",
+        "Easy and reassuring. Give language and existing code equal weight."
+      ],
+      "toolbox": [
+        "An enthusiastic discovery. Bright, focused emphasis on agentic apps.",
+        "A bouncy three-beat list, with a distinct action on each beat.",
+        "Continue the list with energy, then settle on tracing requests.",
+        "Look up at the listener and give the payoff. Say the initials distinctly."
+      ],
+      "savings": [
+        "A little aside, as if doing the sums together.",
+        "Slow down through the three amounts. Let the pitch fall as the monthly bill falls.",
+        "Savour the monthly saving. Warm, pleased emphasis on six thousand."
+      ],
+      "year": [
+        "Genuine astonishment on the first word. Give the annual saving a proud, joyful reveal, and say the number clearly.",
+        "A short, friendly invitation directly to the listener.",
+        "Suddenly tender and sincere. Ask a friend for help protecting your home. Soften the final word.",
+        "You have just spotted all the palace lights. Deliver the joke with dry, mischievous amusement. Stress Versailles, then let the final aside land gently."
+      ]
+    },
+    "fr": {
+      "promise": [
+        "Commence avec un élan joyeux. Ralentis sur « coûts d’infrastructure ». Fais une petite pause avant « d’au moins soixante pour cent » et finis sur une note de fierté."
+      ],
+      "evening": [
+        "Interpelle quelqu’un de l’autre côté de la pièce. Appuie sur « gaspillage ».",
+        "Observe avec curiosité. Fais entendre le mouvement entre l’étage et le rez-de-chaussée, puis souligne le nombre de lampes."
+      ],
+      "leave": [
+        "Suis discrètement la famille qui sort. Laisse descendre la voix.",
+        "Tu découvres que toutes les fenêtres sont encore éclairées. Laisse monter ton étonnement."
+      ],
+      "bill": [
+        "Compte les lampes et les heures sur deux temps bien distincts.",
+        "Montre doucement à quel point il est absurde de payer pour une maison vide. Détache bien le prix."
+      ],
+      "switch": [
+        "Avec un sourire complice, propose cette idée toute simple.",
+        "Adoucis et ralentis la voix au moment où la main trouve l’interrupteur.",
+        "Laisse passer les huit heures, puis annonce zéro avec une petite pointe de satisfaction."
+      ],
+      "return": [
+        "Tends l’oreille : tu viens d’entendre un bruit à la porte.",
+        "Avec un sourire chaleureux, insiste sur le fait qu’une seule pièce se rallume."
+      ],
+      "mapping": [
+        "Dévoile le nom du produit avec enthousiasme. Explique clairement que les pods s’éteignent tout seuls.",
+        "Prends le temps de faire voir la fenêtre, puis le pod.",
+        "Avec assurance, montre la porte d’entrée du doigt."
+      ],
+      "podbill": [
+        "Explique le calcul, posément, avec une pause avant le total. Fais bien entendre chaque nombre."
+      ],
+      "sleeping": [
+        "Parle un peu plus bas à mesure que le bâtiment s’endort. Détache le mot « zéro ».",
+        "Sur le ton de la confidence, fais durer l’idée que cette heure de plus ne coûte rien."
+      ],
+      "arrival": [
+        "Une première requête ! Laisse entendre ta surprise au réveil du pod.",
+        "Accélère à mesure que les requêtes arrivent. Termine avec un sourire."
+      ],
+      "tower": [
+        "La demande monte encore : fais monter la voix avec elle.",
+        "Fais entendre le saut entre huit et trente-deux, à mesure que l’immeuble grandit."
+      ],
+      "palace": [
+        "Invite le public au spectacle. Détache « Versailles » avec un plaisir théâtral.",
+        "Suis l’élan des fusées. Accélère tout en articulant « des milliers de messages ».",
+        "Émerveille-toi devant les fenêtres illuminées, puis reviens doucement à la porte."
+      ],
+      "trial": [
+        "Propose un petit défi à un ami. Souligne les cinq minutes, puis détache chaque lettre de HTTP.",
+        "Rassure doucement ton ami. Il peut garder son langage et son code."
+      ],
+      "toolbox": [
+        "Partage une découverte formidable avec une joie enfantine. Fais entendre le mot « agentiques ».",
+        "Donne du ressort aux trois verbes. Une action par temps.",
+        "Poursuis la liste avec énergie, puis ralentis sur les requêtes.",
+        "Regarde ton ami. Dis les initiales une à une et conclus sur un ton complice."
+      ],
+      "savings": [
+        "Comme une confidence joyeuse, invite ton ami à faire un petit calcul.",
+        "Ralentis pour les trois montants. Fais descendre la voix quand la facture diminue.",
+        "Savoure les six mille euros économisés chaque mois et laisse entendre ton sourire."
+      ],
+      "year": [
+        "Émerveille-toi sur le gain annuel. Marque une petite pause avant « soixante-douze mille euros », puis articule bien tout le montant.",
+        "Lance une invitation brève, enthousiaste et directe.",
+        "Tout à coup très tendre et sincère, demande à ton ami de t’aider à protéger ta maison. Adoucis le dernier mot.",
+        "Tu découvres les lumières du palais de glace. Sur un ton malicieux, détache « Versailles » et laisse tomber « ici » avec un petit sourire."
+      ]
+    }
+  },
+  "spokenOverrides": {
+    "fr": {
+      "promise-0": "Réduisez ultra rapidement et simplement vos coûts d'infrastructure… d'au moins soixante pour cent !",
+      "evening-1": "À l’étage comme au rez-de-chaussée, les huit lampes sont allumées !",
+      "mapping-0": "Slim Fass automatise vos bonnes pratiques, et éteint tout seul les pods en cas d'inactivité !",
+      "podbill-0": "À dix euros par pod et par heure, huit pods inactifs coûtent… quatre-vingts euros en une heure.",
+      "trial-0": "Essayez Slim Fass en cinq minutes avec votre application ache, té, té, pé.",
+      "trial-1": "Gardez votre langage, et votre code.",
+      "toolbox-3": "Tout passe par HTTP, sans SDK.",
+      "year-1": "Essayez Slim Fasse !"
+    }
+  }
+}

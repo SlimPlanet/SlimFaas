@@ -4,8 +4,8 @@ Run the commands below from this directory. You can copy it outside the SlimFaas
 
 | Edition | Published film | Rebuild |
 | --- | --- | --- |
-| Animated house · English | [From eight windows to Versailles (1 min 49 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
-| Animated house · French | [De huit fenêtres à Versailles (1 min 59 s)](../../docs/media/live-stream/house-fr.mp4) · [Audio only](../../docs/media/live-stream/house-fr.m4a) · [French captions](../../docs/media/live-stream/house-fr.vtt) | `pnpm house:fr` |
+| Animated house · English | [From eight windows to Versailles (1 min 58 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
+| Animated house · French | [De huit fenêtres à Versailles (2 min 13 s)](../../docs/media/live-stream/house-fr.mp4) · [Audio only](../../docs/media/live-stream/house-fr.m4a) · [French captions](../../docs/media/live-stream/house-fr.vtt) | `pnpm house:fr` |
 | Marketing | [Zero idle replicas (31 seconds)](../../docs/media/live-stream/marketing.mp4), portrait 4:5, English voice and burned-in captions | `pnpm marketing` |
 | Educational | [Dashboard walkthrough](media/dashboard.mp4), 3 min 11 s, widescreen, English voice and selectable captions | `pnpm educational` after capturing three takes |
 
@@ -86,7 +86,23 @@ kind delete cluster --name slimfaas-film --kubeconfig "$PWD/artifacts/kubeconfig
 
 ## Replace the narration
 
-Both house soundtracks use Kokoro. The English opening blends Puck and Nova, Heart narrates the house, and the chick blends Bella and Sky. In French, the opening blends Siwis and Puck, Siwis narrates the house, and the chick blends Siwis and Sky. The chick’s pitch and formants rise together by about four semitones, with tempo correction to keep its words clear. Takes were synthesized locally, timed by sentence and mastered to a −16.5 LUFS target per scene with a −2 dBTP ceiling before AAC encoding. [Kokoro by hexgrad](https://huggingface.co/hexgrad/Kokoro-82M)
+The French and English house films use Qwen3-TTS 1.7B CustomVoice, generated locally on Apple Silicon with MLX Audio. Ono Anna plays the girl and Vivian plays the chick. Sohee narrates the house in French and Serena narrates it in English. Each sentence has its own acting direction. The narrator picks up speed as the rocket traffic builds, while the chick moves from surprise at the annual saving to a soft appeal and a wry final line. The mix gives the prices extra room and leaves a 0.76-second pause before the final joke. Each scene targets −17 LUFS and −2 dBTP before AAC encoding. Rendering uses the bundled recordings. [Voice directions](marketing/house/voice-direction.json) · [Qwen3-TTS](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice) · [MLX weights](https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit/tree/41d3337e8b7f2843a75841595fc14e4b9a7a4b96)
+
+Hear the same opening and closing lines with Kokoro first and Qwen second. [French comparison, Qwen at 0:13](../../docs/media/live-stream/house-voice-comparison-fr.m4a) · [English comparison, Qwen at 0:12](../../docs/media/live-stream/house-voice-comparison-en.m4a)
+
+To audition a different reading on Apple Silicon, edit the corresponding cue in the voice directions. With the 8-bit MLX snapshot downloaded locally, this example records the appeal and punchline as two separate WAVs. Omit the cue filters to record the entire language.
+
+```sh
+hf download mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit --revision 41d3337e8b7f2843a75841595fc14e4b9a7a4b96 --local-dir artifacts/qwen-model
+uv run --no-project --python 3.12 --with mlx-audio==0.6.7 --with soundfile==0.14.0 python marketing/house/record_qwen.py fr --model-dir artifacts/qwen-model --output artifacts/qwen-auditions/fr --cue year-2 --cue year-3
+```
+
+When all the WAVs for a language are ready, the mixer writes the lossless master and the sample count of each caption. Run the film command to rebuild the animation, captions and final audio together.
+
+```sh
+uv run --no-project --python 3.12 --with numpy --with soundfile==0.14.0 python marketing/house/mix_qwen.py fr --takes artifacts/qwen-auditions/fr
+pnpm house:fr
+```
 
 The educational and dashboard marketing editions use Kokoro `af_heart` at speed 1.055. Each edition includes a lossless mono 24 kHz master. Running the film commands restores the published voices and timings offline. [Kokoro ONNX model](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0)
 
@@ -95,7 +111,7 @@ python3 narrate.py
 python3 render.py
 ```
 
-For an alternate Kokoro read, pass a local speech server with `--speech-url http://127.0.0.1:8880/v1/audio/speech`. The scene’s `speaker` field selects a compatible base voice. Pass the same edition (`marketing`, `house` or `house-fr`) to `narrate.py --mode` and `marketing/render.py`. To record a human narrator, supply one mono 24 kHz 16-bit PCM WAV per scene key in the edition's `voice/` directory and run its editor directly. The `film.py` commands restore the bundled takes.
+For an alternate Kokoro read, pass a local speech server with `--speech-url http://127.0.0.1:8880/v1/audio/speech`. For this alternative the scene’s `speaker` field selects a Kokoro base voice. Pass the same edition (`marketing`, `house` or `house-fr`) to `narrate.py --mode` and `marketing/render.py`. To record a human narrator, supply one mono 24 kHz 16-bit PCM WAV per scene key in the edition's `voice/` directory and run its editor directly. The `film.py` commands restore the bundled takes.
 
 For the educational edition, set `FILM_FONT` and `FILM_FONT_BOLD` to local TrueType paths if Arial or DejaVu Sans is unavailable. The editor renders H.264/AAC with fast start and labels compressed waits with their elapsed-time multiplier. Durations follow the narration and the observed cluster timing. Review the framing when changing the capture viewport, dashboard layout or workload names.
 

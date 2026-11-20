@@ -6,9 +6,9 @@
     "voice": "Réduisez ultra rapidement et simplement vos coûts d’infrastructure d’au moins 60 %.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      135773
+      114447
     ],
-    "voiceSamples": 135773
+    "voiceSamples": 114447
   },
   {
     "key": "evening",
@@ -17,10 +17,10 @@
     "voice": "Stop au gaspillage ! À l’étage comme au rez-de-chaussée, les huit lampes sont allumées.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      41779,
-      73366
+      32583,
+      79155
     ],
-    "voiceSamples": 115145
+    "voiceSamples": 111738
   },
   {
     "key": "leave",
@@ -29,10 +29,10 @@
     "voice": "La famille sort. Toutes les fenêtres restent éclairées.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      30557,
-      41479
+      43278,
+      47977
     ],
-    "voiceSamples": 72036
+    "voiceSamples": 91255
   },
   {
     "key": "bill",
@@ -41,10 +41,10 @@
     "voice": "Huit lampes restent allumées pendant huit heures. Éclairer la maison vide coûte 96 centimes.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      56082,
-      69231
+      89680,
+      78091
     ],
-    "voiceSamples": 125313
+    "voiceSamples": 167771
   },
   {
     "key": "switch",
@@ -53,11 +53,11 @@
     "voice": "Adoptez les bonnes pratiques. La dernière personne éteint les lumières. Huit heures plus tard, l’éclairage a coûté zéro centime.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      41832,
-      54639,
-      75755
+      47174,
+      58508,
+      79592
     ],
-    "voiceSamples": 172226
+    "voiceSamples": 185274
   },
   {
     "key": "return",
@@ -66,10 +66,10 @@
     "voice": "Quelqu’un rentre. Seule sa pièce s’allume.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      30459,
-      34357
+      28164,
+      58470
     ],
-    "voiceSamples": 64816
+    "voiceSamples": 86634
   },
   {
     "key": "mapping",
@@ -78,11 +78,11 @@
     "voice": "SlimFaas automatise vos bonnes pratiques et éteint tout seul les pods en cas d’inactivité ! Imaginez que chaque fenêtre soit un pod. SlimFaas est la porte d’entrée des requêtes.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      134945,
-      56677,
-      55315
+      128237,
+      57153,
+      68960
     ],
-    "voiceSamples": 246937
+    "voiceSamples": 254350
   },
   {
     "key": "podbill",
@@ -91,9 +91,9 @@
     "voice": "À 10 € par pod et par heure, huit pods inactifs coûtent 80 € en une heure.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      111780
+      161280
     ],
-    "voiceSamples": 111780
+    "voiceSamples": 161280
   },
   {
     "key": "sleeping",
@@ -102,10 +102,10 @@
     "voice": "Après le délai d’inactivité, SlimFaas ramène le nombre de pods à zéro. Une heure de plus au calme ne coûte rien en pods.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      106493,
-      65667
+      119938,
+      94666
     ],
-    "voiceSamples": 172160
+    "voiceSamples": 214604
   },
   {
     "key": "arrival",
@@ -114,10 +114,10 @@
     "voice": "Une requête réveille un pod. D’autres arrivent et la maison se rallume.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      42839,
-      50112
+      36631,
+      53364
     ],
-    "voiceSamples": 92951
+    "voiceSamples": 89995
   },
   {
     "key": "tower",
@@ -126,10 +126,10 @@
     "voice": "La demande grimpe. Huit fenêtres deviennent trente-deux.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      34500,
-      40870
+      49280,
+      43454
     ],
-    "voiceSamples": 75370
+    "voiceSamples": 92734
   },
   {
     "key": "palace",
@@ -138,11 +138,11 @@
     "voice": "Imaginez maintenant Versailles. Des milliers de messages arrivent en fusée. Quatre-vingt-seize fenêtres brillent derrière la même porte.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      49207,
-      56191,
-      67467
+      51093,
+      54511,
+      64671
     ],
-    "voiceSamples": 172865
+    "voiceSamples": 170275
   },
   {
     "key": "trial",
@@ -151,10 +151,10 @@
     "voice": "Essayez SlimFaas en cinq minutes avec votre application HTTP. Gardez votre langage et votre code.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      105551,
-      51252
+      135962,
+      51086
     ],
-    "voiceSamples": 156803
+    "voiceSamples": 187048
   },
   {
     "key": "toolbox",
@@ -163,12 +163,12 @@
     "voice": "Parfait pour vos applications agentic ! Diffusez des fichiers, gardez les résultats en cache et publiez des événements. Relisez les flux, mettez les tâches en file d’attente et suivez les requêtes. Tout passe par HTTP, sans SDK.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      59501,
-      104311,
-      95563,
-      53234
+      58357,
+      113794,
+      126999,
+      72260
     ],
-    "voiceSamples": 312609
+    "voiceSamples": 371410
   },
   {
     "key": "savings",
@@ -177,11 +177,11 @@
     "voice": "Prenons un exemple. À 60 %, une facture mensuelle de 10 000 € tombe à 4 000 €. Cela fait 6 000 € d’économies par mois.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      35634,
-      112121,
-      56984
+      33124,
+      133956,
+      58509
     ],
-    "voiceSamples": 204739
+    "voiceSamples": 225589
   },
   {
     "key": "year",
@@ -190,11 +190,11 @@
     "voice": "Incroyable, sur douze mois, vous économisez 72 000 € ! Essayez SlimFaas. Aidez-moi à protéger ma banquise ! Ce n’est pas Versailles, ici !",
     "speaker": "ff_siwis",
     "cueSamples": [
-      104868,
-      37632,
-      64290,
-      38002
+      118931,
+      36108,
+      87800,
+      43040
     ],
-    "voiceSamples": 244792
+    "voiceSamples": 285879
   }
 ]

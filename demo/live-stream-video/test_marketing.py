@@ -1,3 +1,5 @@
+from contextlib import redirect_stderr
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -6,6 +8,7 @@ from unittest.mock import patch
 import wave
 
 from marketing import render
+from marketing.house import record_qwen
 
 
 class MarketingTimelineTests(unittest.TestCase):
@@ -42,10 +45,47 @@ class MarketingTimelineTests(unittest.TestCase):
         self.assertEqual(cues[1]["start"], cues[0]["end"])
         self.assertEqual(cues[1]["end"], render.LEAD + 3)
 
+    def test_each_house_caption_has_a_voice_direction_and_a_recorded_boundary(self):
+        house = render.HERE / "house"
+        direction = json.loads((house / "voice-direction.json").read_text())
+        for source in (house, house / "fr"):
+            scenes = json.loads((source / "scenes.json").read_text())
+            language = "fr" if source.name == "fr" else "en"
+            cues = {key: (text, voice, note) for key, text, voice, note in record_qwen.directed_cues(language)}
+            for key, spoken in direction["spokenOverrides"].get(language, {}).items():
+                self.assertEqual(cues[key][0], spoken)
+            self.assertEqual(set(direction["scenes"][language]), {scene["key"] for scene in scenes})
+            for scene in scenes:
+                with self.subTest(edition=source.name, scene=scene["key"]):
+                    role = direction["roleByVisual"][scene["visual"]]
+                    self.assertTrue(direction["cast"][role]["voice"][language])
+                    notes = direction["scenes"][language][scene["key"]]
+                    lengths = scene["cueSamples"]
+                    self.assertEqual(sum(lengths), scene["voiceSamples"])
+                    captions = render.subtitles(scene["voice"], sum(lengths), lengths)
+                    self.assertEqual(len(captions), len(notes))
+                    self.assertEqual(len(lengths), len(notes))
+                    for i, note in enumerate(notes):
+                        text, voice, instruction = cues[f"{scene['key']}-{i}"]
+                        self.assertTrue(note.strip() and text.strip())
+                        self.assertEqual(voice, direction["cast"][role]["voice"][language])
+                        self.assertTrue(instruction.endswith(note))
+            amount = "soixante-douze mille euros" if language == "fr" else "seventy-two thousand euros"
+            self.assertIn(amount, cues["year-0"][0])
+
     def test_mouth_follows_the_audio_and_closes_during_padding(self):
         samples = (4096).to_bytes(2, "little") * (render.RATE // render.FPS)
         levels = render.mouth_motion(samples, 8)
         self.assertEqual(levels, [0, 0, 0, 0, 0, 0, 1, 0])
+
+    def test_unknown_voice_cue_fails_before_loading_model_or_writing_takes(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            output = Path(scratch) / "takes"
+            args = ["record_qwen.py", "fr", "--cue", "absent", "--model-dir", scratch, "--output", str(output)]
+            with patch("sys.argv", args), redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+                record_qwen.main()
+            self.assertIn("Unknown cue 'absent'", error.getvalue())
+            self.assertFalse(output.exists())
 
     def test_house_edition_can_pass_one_minute(self):
         with tempfile.TemporaryDirectory() as scratch:
