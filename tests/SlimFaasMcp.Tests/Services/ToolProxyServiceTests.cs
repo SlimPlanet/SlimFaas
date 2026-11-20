@@ -190,6 +190,34 @@ public class ToolProxyServiceTests
         Assert.Equal(expectedUrl, requestedUrls[^1]);
     }
 
+    // The schemes of a Swagger 2.0 operation override those of the document, which override the scheme of the document URL.
+    [Theory]
+    [InlineData("""{ "swagger": "2.0", "basePath": "/api", "schemes": ["http"], "paths": { "/pets": { "get": { "schemes": ["https"] } } } }""",
+        "https://api.example.com/api/pets")]
+    [InlineData("""{ "swagger": "2.0", "basePath": "/api", "paths": { "/pets": { "get": { "schemes": ["https"] } } } }""",
+        "https://api.example.com/api/pets")]
+    [InlineData("""{ "swagger": "2.0", "host": "pets.example.com", "schemes": ["http"], "paths": { "/pets": { "get": { "schemes": ["https"] } } } }""",
+        "https://pets.example.com/pets")]
+    [InlineData("""{ "swagger": "2.0", "basePath": "/api", "schemes": ["https"], "paths": { "/pets": { "get": { "schemes": ["http"] } } } }""",
+        "http://api.example.com/api/pets")]
+    [InlineData("""{ "swagger": "2.0", "basePath": "/api", "schemes": ["https"], "paths": { "/pets": { "get": { "schemes": [] } } } }""",
+        "https://api.example.com/api/pets")]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Uses_The_Schemes_Of_The_Swagger2_Operation(string swaggerJson, string expectedUrl)
+    {
+        const string documentUrl = "http://api.example.com/docs/openapi.json";
+        var (svc, requestedUrls) = CreateWithDocument(swaggerJson, documentUrl);
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        // The second call is served from the cache.
+        for (var i = 0; i < 2; i++)
+        {
+            var result = await svc.ExecuteToolAsync(documentUrl, "get_pets", argsDoc.RootElement);
+
+            Assert.Equal(200, result.StatusCode);
+            Assert.Equal(expectedUrl, requestedUrls[^1]);
+        }
+    }
+
     [Fact]
     public async Task ExecuteToolAsync_Without_BaseUrl_Resolves_A_Relative_Server_Url_Against_The_Redirected_Document_Url()
     {

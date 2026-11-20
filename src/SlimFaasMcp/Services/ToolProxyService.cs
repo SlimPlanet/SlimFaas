@@ -574,6 +574,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
     // without schemes uses the scheme of the document URL. A Swagger 2.0 document without host is served from the host
     // of the document URL. A URL with a variable that has no default value has no base URL. For an OpenAPI 3
     // operation, the servers of the operation come first, then those of its path item, then those of the document.
+    // For a Swagger 2.0 operation, the schemes of the operation come first, then those of the document.
     public static string? ExtractBaseUrl(JsonDocument swagger, string swaggerUrl, string? path = null, string? verb = null)
     {
         JsonElement root = swagger.RootElement;
@@ -607,12 +608,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             string? basePath = root.TryGetProperty("basePath", out JsonElement bp) && bp.ValueKind == JsonValueKind.String
                 ? bp.GetString()
                 : null;
-            string? scheme = root.TryGetProperty("schemes", out JsonElement schemes) &&
-                             schemes.ValueKind == JsonValueKind.Array &&
-                             schemes.GetArrayLength() > 0 &&
-                             schemes[0].ValueKind == JsonValueKind.String
-                ? schemes[0].GetString()
-                : null;
+            string? scheme = FindScheme(root, path, verb);
             if (root.TryGetProperty("host", out JsonElement hostProp) && hostProp.ValueKind == JsonValueKind.String)
             {
                 url = $"{scheme ?? documentUri?.Scheme ?? Uri.UriSchemeHttps}://{hostProp.GetString()}{basePath}";
@@ -645,6 +641,48 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return documentUri is not null && Uri.TryCreate(documentUri, url, out Uri? resolvedUri)
             ? resolvedUri.AbsoluteUri
             : null;
+    }
+
+    // The transport scheme of a Swagger 2.0 operation: the first scheme of the operation, else the first of the document.
+    private static string? FindScheme(JsonElement root, string? path, string? verb)
+    {
+        if (FindOperation(root, path, verb) is { } operation &&
+            FirstScheme(operation) is { } operationScheme)
+        {
+            return operationScheme;
+        }
+
+        return FirstScheme(root);
+    }
+
+    private static string? FirstScheme(JsonElement element) =>
+        element.TryGetProperty("schemes", out JsonElement schemes) &&
+        schemes.ValueKind == JsonValueKind.Array &&
+        schemes.GetArrayLength() > 0 &&
+        schemes[0].ValueKind == JsonValueKind.String
+            ? schemes[0].GetString()
+            : null;
+
+    private static JsonElement? FindOperation(JsonElement root, string? path, string? verb)
+    {
+        if (path is not null &&
+            verb is not null &&
+            root.TryGetProperty("paths", out JsonElement paths) &&
+            paths.ValueKind == JsonValueKind.Object &&
+            paths.TryGetProperty(path, out JsonElement pathItem) &&
+            pathItem.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty member in pathItem.EnumerateObject())
+            {
+                if (string.Equals(member.Name, verb, StringComparison.OrdinalIgnoreCase) &&
+                    member.Value.ValueKind == JsonValueKind.Object)
+                {
+                    return member.Value;
+                }
+            }
+        }
+
+        return null;
     }
 
     // The servers that apply to an operation: the non-empty servers of the operation, else of its path item, else of the
