@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const directory = process.argv[2];
-const { scenes, fps, observed } = JSON.parse(await readFile(path.join(directory, 'plan.json'), 'utf8'));
+const { scenes, fps, observed, language = 'en' } = JSON.parse(await readFile(path.join(directory, 'plan.json'), 'utf8'));
 const board = await readFile(new URL('board.html', import.meta.url), 'utf8');
 const logo = await readFile(new URL('slimfaas.svg', import.meta.url));
 const frames = path.join(directory, 'frames');
@@ -21,6 +21,7 @@ const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1080, height: 1350 }, deviceScaleFactor: 1 });
   await page.setContent(board);
+  await page.evaluate(lang => { document.documentElement.lang = lang; }, language);
   if (scenes.some(scene => scene.visual)) {
     const [interior, chapters, penguin] = await Promise.all(['scene', 'chapters', 'penguin'].map(name =>
       readFile(new URL('house/' + name + '.html', import.meta.url), 'utf8')));

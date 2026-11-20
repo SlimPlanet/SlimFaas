@@ -1,0 +1,109 @@
+WEBVTT
+
+00:00:00.250 --> 00:00:03.308
+Réduisez vos coûts d’infrastructure jusqu’à 60 %.
+
+00:00:04.250 --> 00:00:07.307
+À l’étage comme au rez-de-chaussée, les huit lampes sont allumées.
+
+00:00:08.208 --> 00:00:09.482
+La famille sort.
+
+00:00:09.482 --> 00:00:11.210
+Toutes les fenêtres restent éclairées.
+
+00:00:12.125 --> 00:00:14.462
+Huit lampes restent allumées pendant huit heures.
+
+00:00:14.462 --> 00:00:17.346
+Éclairer la maison vide coûte 96 centimes.
+
+00:00:18.250 --> 00:00:19.584
+Rejouons la scène.
+
+00:00:19.584 --> 00:00:21.860
+La dernière personne éteint les lumières.
+
+00:00:21.860 --> 00:00:25.017
+Huit heures plus tard, l’éclairage a coûté zéro centime.
+
+00:00:25.958 --> 00:00:27.227
+Quelqu’un rentre.
+
+00:00:27.227 --> 00:00:28.659
+Seule sa pièce s’allume.
+
+00:00:29.583 --> 00:00:31.945
+Imaginez que chaque fenêtre soit un pod.
+
+00:00:31.945 --> 00:00:34.250
+SlimFaas est la porte d’entrée des requêtes.
+
+00:00:35.167 --> 00:00:39.824
+À 10 € par pod et par heure, huit pods inactifs coûtent 80 € en une heure.
+
+00:00:40.750 --> 00:00:45.187
+Après le délai d’inactivité, SlimFaas ramène le nombre de pods à zéro.
+
+00:00:45.187 --> 00:00:47.923
+Une heure de plus au calme ne coûte rien en pods.
+
+00:00:48.833 --> 00:00:50.618
+Une requête réveille un pod.
+
+00:00:50.618 --> 00:00:52.706
+D’autres arrivent et la maison se rallume.
+
+00:00:53.625 --> 00:00:55.022
+La demande grimpe.
+
+00:00:55.022 --> 00:00:56.744
+Huit fenêtres deviennent trente-deux.
+
+00:00:57.667 --> 00:00:59.403
+Imaginez maintenant Versailles.
+
+00:00:59.403 --> 00:01:02.260
+Quatre-vingt-seize fenêtres brillent derrière la même porte.
+
+00:01:03.167 --> 00:01:07.565
+Essayez SlimFaas en cinq minutes avec votre application HTTP.
+
+00:01:07.565 --> 00:01:09.700
+Gardez votre langage et votre code.
+
+00:01:10.625 --> 00:01:12.066
+Vous créez un agent ?
+
+00:01:12.066 --> 00:01:16.412
+Diffusez des fichiers, gardez les résultats en cache et publiez des événements.
+
+00:01:16.412 --> 00:01:20.394
+Relisez les flux, mettez les tâches en file d’attente et suivez les requêtes.
+
+00:01:20.394 --> 00:01:22.612
+Tout passe par HTTP, sans SDK.
+
+00:01:23.542 --> 00:01:26.435
+Une équipe a économisé plus de 60 %.
+
+00:01:26.435 --> 00:01:31.107
+À 60 %, une facture mensuelle de 10 000 € tombe à 4 000 €.
+
+00:01:31.107 --> 00:01:33.481
+Cela fait 6 000 € d’économies par mois.
+
+00:01:34.417 --> 00:01:37.841
+Sur douze mois, vous économisez 72 000 €.
+
+00:01:37.841 --> 00:01:40.087
+Avant, c’était 120 000 € par an.
+
+00:01:40.087 --> 00:01:42.359
+Après, c’est 48 000 € par an.
+
+00:01:42.359 --> 00:01:43.927
+Essayez SlimFaas.
+
+00:01:43.927 --> 00:01:45.846
+Aidez-moi à protéger ma banquise !

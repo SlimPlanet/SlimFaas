@@ -4,153 +4,153 @@
     "visual": "opening",
     "headline": "Reduce infrastructure spend by up to 60%",
     "voice": "Reduce infrastructure spend by up to sixty percent.",
-    "voiceSamples": 98640,
+    "voiceSamples": 75143,
     "cueSamples": [
-      98640
+      75143
     ],
-    "speaker": "am_michael"
+    "speaker": "am_puck"
   },
   {
     "key": "evening",
     "headline": "Eight lights on.",
     "voice": "Upstairs and downstairs, all eight lights are on.",
-    "voiceSamples": 90960,
+    "voiceSamples": 62746,
     "cueSamples": [
-      90960
+      62746
     ],
     "visual": "house",
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "leave",
     "headline": "The last ones out.",
     "voice": "The family leaves. Every window stays bright.",
-    "voiceSamples": 71280,
+    "voiceSamples": 66440,
     "cueSamples": [
-      35520,
-      35760
+      31264,
+      35176
     ],
     "visual": "house",
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "bill",
     "headline": "An empty house. A running bill.",
     "voice": "Eight lamps burn for eight empty hours. That's ninety-six cents to light an empty house.",
-    "voiceSamples": 134400,
+    "voiceSamples": 114350,
     "cueSamples": [
-      70080,
-      64320
+      54446,
+      59904
     ],
     "visual": "house",
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "switch",
     "headline": "Same night. Lights off.",
     "voice": "Replay the night. The last person switches off the lights. Same eight hours, zero cents.",
-    "voiceSamples": 172080,
+    "voiceSamples": 130437,
     "cueSamples": [
-      40320,
-      68640,
-      63120
+      30474,
+      53071,
+      46892
     ],
     "visual": "house",
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "return",
     "headline": "Light the room you need.",
     "voice": "Someone comes home. Only their room lights up.",
-    "voiceSamples": 79440,
+    "voiceSamples": 68013,
     "cueSamples": [
-      39840,
-      39600
+      32692,
+      35321
     ],
     "visual": "house",
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "mapping",
     "visual": "architecture",
     "headline": "Every window is a pod.",
     "voice": "Each window is a pod. SlimFaas is the front door for requests.",
-    "voiceSamples": 97920,
+    "voiceSamples": 96843,
     "cueSamples": [
-      41760,
-      56160
+      36321,
+      60522
     ],
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "podbill",
     "visual": "architecture",
     "headline": "Idle pods run up a bill.",
     "voice": "At ten euros per pod-hour, eight idle pods cost eighty euros in one hour.",
-    "voiceSamples": 128400,
+    "voiceSamples": 111545,
     "cueSamples": [
-      128400
+      111545
     ],
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "sleeping",
     "visual": "architecture",
     "headline": "Let idle pods sleep.",
     "voice": "After the idle timeout, SlimFaas scales the app to zero. Another quiet hour adds zero euros.",
-    "voiceSamples": 172800,
+    "voiceSamples": 142725,
     "cueSamples": [
-      119040,
-      53760
+      86240,
+      56485
     ],
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "arrival",
     "visual": "architecture",
     "headline": "One request wakes the app.",
     "voice": "One request wakes a pod. More requests light up the house.",
-    "voiceSamples": 96000,
+    "voiceSamples": 85459,
     "cueSamples": [
-      50400,
-      45600
+      43792,
+      41667
     ],
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "tower",
     "visual": "architecture",
     "headline": "From house to high-rise.",
     "voice": "Demand keeps climbing. Eight windows become thirty-two.",
-    "voiceSamples": 83280,
+    "voiceSamples": 77910,
     "cueSamples": [
-      42720,
-      40560
+      35440,
+      42470
     ],
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "palace",
     "visual": "architecture",
     "headline": "Room for a royal crowd.",
     "voice": "Now picture Versailles. Ninety-six windows glow, all behind the same front door.",
-    "voiceSamples": 120720,
+    "voiceSamples": 114907,
     "cueSamples": [
-      35520,
-      85200
+      36147,
+      78760
     ],
-    "speaker": "bf_emma"
+    "speaker": "af_heart"
   },
   {
     "key": "trial",
     "visual": "penguin",
     "headline": "Try it in five minutes.",
     "voice": "Try SlimFaas in five minutes with your existing HTTP app. Keep your language and your handler.",
-    "speaker": "am_fenrir",
-    "voiceSamples": 156160,
+    "speaker": "af_bella",
+    "voiceSamples": 148282,
     "cueSamples": [
-      110880,
-      45280
+      102583,
+      45699
     ]
   },
   {
@@ -158,28 +158,40 @@
     "visual": "penguin",
     "headline": "Build your agent over HTTP.",
     "voice": "Building an agent? Stream files, cache results, and publish events. Replay streams, queue jobs, and trace requests. All over HTTP, without an SDK.",
-    "speaker": "am_fenrir",
-    "voiceSamples": 253440,
+    "speaker": "af_bella",
+    "voiceSamples": 244213,
     "cueSamples": [
-      33600,
-      71520,
-      61920,
-      86400
+      30813,
+      70027,
+      74423,
+      68950
     ]
   },
   {
     "key": "savings",
     "visual": "penguin",
     "headline": "Save €6,000 a month.",
-    "voice": "One team saved over sixty percent. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. You save six thousand euros a month. Try SlimFaas. Help protect the ice for penguins like me!",
-    "speaker": "am_fenrir",
-    "voiceSamples": 326656,
+    "voice": "One team saved over sixty percent. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. That's six thousand euros saved each month.",
+    "speaker": "af_bella",
+    "voiceSamples": 229380,
     "cueSamples": [
-      58080,
-      124320,
-      57120,
-      29280,
-      57856
+      52888,
+      117423,
+      59069
     ]
+  },
+  {
+    "key": "year",
+    "visual": "penguin",
+    "headline": "What does that save in a year?",
+    "voice": "Keep that up for twelve months and you save seventy-two thousand euros. Your yearly bill goes from one hundred and twenty thousand euros to forty-eight thousand. Give SlimFaas a try. Help keep my home on the ice!",
+    "speaker": "af_bella",
+    "cueSamples": [
+      104578,
+      128018,
+      36538,
+      37451
+    ],
+    "voiceSamples": 306585
   }
 ]

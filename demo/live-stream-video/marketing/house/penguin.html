@@ -1,11 +1,11 @@
 <div class="house-film__polar" hidden>
-  <svg class="house-film__ice" viewBox="0 0 1080 565" role="img" aria-label="A smiling emperor penguin waves from an Antarctic ice floe">
+  <svg class="house-film__ice" viewBox="0 0 1080 565" role="img" aria-label="A fluffy penguin chick waves from an Antarctic ice floe" data-fr-label="Un manchot tout duveteux salue sur la banquise">
     <defs>
       <linearGradient id="polarSky" x2=".85" y2="1"><stop stop-color="#b9cde8"/><stop offset=".48" stop-color="#d8e8f1"/><stop offset="1" stop-color="#ffe7c4"/></linearGradient>
       <linearGradient id="polarWater" x2=".2" y2="1"><stop stop-color="#86adb9"/><stop offset=".6" stop-color="#5b8eaa"/><stop offset="1" stop-color="#315d7e"/></linearGradient>
-      <linearGradient id="coat" x2=".85" y2="1"><stop stop-color="#31445e"/><stop offset=".52" stop-color="#1f304b"/><stop offset="1" stop-color="#101c34"/></linearGradient>
-      <linearGradient id="belly" x2=".25" y2="1"><stop stop-color="#ffdca1"/><stop offset=".29" stop-color="#fff3dc"/><stop offset=".68" stop-color="#fcf6e9"/><stop offset="1" stop-color="#bbd0d7"/></linearGradient>
-      <linearGradient id="goldPatch" x2=".72" y2="1"><stop stop-color="#f4a459"/><stop offset=".6" stop-color="#ffcd78"/><stop offset="1" stop-color="#fce8bd"/></linearGradient>
+      <radialGradient id="chickDown" cx=".34" cy=".27" r=".82"><stop stop-color="#d6e0e5"/><stop offset=".54" stop-color="#afbdcb"/><stop offset="1" stop-color="#76899d"/></radialGradient>
+      <radialGradient id="chickHood" cx=".34" cy=".20" r=".94"><stop stop-color="#42536a"/><stop offset=".58" stop-color="#26364c"/><stop offset="1" stop-color="#17263a"/></radialGradient>
+      <linearGradient id="chickFace" x2=".2" y2="1"><stop stop-color="#fffdf4"/><stop offset="1" stop-color="#f0e8de"/></linearGradient>
       <linearGradient id="iceEdge" x2=".6" y2="1"><stop stop-color="#d5f5ed"/><stop offset=".42" stop-color="#95c6cc"/><stop offset="1" stop-color="#658eaa"/></linearGradient>
     </defs>
     <path fill="url(#polarSky)" d="M0 0h1080v565H0z"/>
@@ -23,22 +23,26 @@
       <path d="m107 429 137 18 93 24-140-14zm454 60 77-14 29-8 118-17-53 48zm332-79 81 25-54 39-20-7z" fill="#b4d9dc"/>
       <path d="m164 429 139-17 53 4m223 27 103-9 40-14 90-6m-124-21-46 9" fill="none" stroke="#b6d1d4" stroke-width="3"/>
       <ellipse cx="498" cy="416" rx="119" ry="16" fill="#8daebb" opacity=".48"/>
-      <g transform="translate(499 413)">
-        <g fill="#db985c" stroke="#594a46" stroke-width="3"><path d="M-32-10q-8 10-27 10-10 1-19 8 15 5 27 1 9 3 20-1 13 1 17-4l-3-15z"/><path d="M10-12Q10-1 30 0l20 7q-6 5-17 3-7 3-17 0-17 1-23-5v-14z"/></g>
+      <g transform="translate(504 414)">
+        <g fill="#e7ac76" stroke="#906a5b" stroke-width="2.7"><path d="M-25-17q-7 6-21 7-20-2-26 8 3 5 12 3 7 5 15 0 11 3 25-3l8-10z"/><path d="M23-16q9 7 25 7 16 0 22 9-6 4-14 1-7 4-15 1-12 1-23-5l-6-9z"/></g>
         <g id="penguinBody">
-          <path d="M13-294c-17-3-43 11-51 36-8 28-4 50-22 83-15 27-20 86-15 124L-99-5q24 3 43-12c17 13 64 16 89-5 29-29 41-78 37-123-4-40-21-75-36-101z" fill="url(#coat)" stroke="#243550" stroke-width="3"/>
-          <path d="M26-237q-6 25-23 50c-16 25-39 59-47 93q-12 51 6 79 43 15 69-9c28-27 38-73 36-113-3-38-15-71-41-100z" fill="url(#belly)"/>
-          <path id="penguinFlipper" d="M-40-191c-19 7-39 16-60 14-17-1-36-8-56-23-8-5-13-1-11 6 8 28 33 56 61 64 25 7 50-2 73-18z" fill="url(#coat)" stroke="#243550" stroke-width="3"/>
-          <path d="M50-187c31 6 52 35 65 77 5 17 0 21-10 13-25-19-43-38-56-61z" fill="#25374f"/>
+          <path id="penguinFlipper" d="M-59-163q-17-2-31-20-10-11-16-40-3-12-10-4-12 17-7 49 4 33 27 51 21 15 39 7z" fill="#7b8da1" stroke="#596b80" stroke-width="3.4"/>
+          <path d="M57-164q28 9 43 41 11 23 9 42-9 5-24-13-13-15-30-20z" fill="#8192a4" stroke="#607185" stroke-width="3.4"/>
+          <path d="M-47-200q33-24 75-7 39 15 48 63l6 29-5-3q10 40 4 70l-5-5q-5 33-31 42l-5-3q-22 13-58 2l-7 3q-23-8-34-25l-6 4q-13-21-12-52l-5 3q-3-31 4-57 6-42 31-64z" fill="url(#chickDown)" stroke="#63768a" stroke-width="3.4"/>
+          <path d="M-24-148q24-18 45 0 27 23 32 75 4 52-28 60-37 10-62-10-21-16-13-59 6-43 26-66z" fill="#dbe2e4" opacity=".83"/>
+          <g stroke="#f0f3f1" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".65"><path d="m-43-82 5 4 5-6m37 43 5 4 5-6m-12-71 5 4 4-5"/></g>
           <g id="penguinHead">
-            <path d="M-39-253q-15-63 21-91c17-15 47-17 66-2 17 12 18 33 13 52-5 18-22 32-22 61l-16 35q-5-24-20-32-26-6-42-23z" fill="url(#coat)"/>
-            <path d="M-21-272q6-23 22-22 17 1 14 16-9 17-4 29l12 27q-13-12-26-18-18-8-18-32z" fill="url(#goldPatch)"/>
-            <path d="M35-305q13-8 23 0l40 12q8 4 0 7l-45-4-19-9z" fill="#374256"/>
-            <path id="penguinBeak" d="M41-298q15 9 57 7-24 14-48 6-6-3-9-13z" fill="#efa660" stroke="#543f43" stroke-width="1.7"/>
-            <g id="penguinEye"><ellipse cx="32" cy="-313" rx="10" ry="11" fill="#fdf6ea"/><ellipse cx="35" cy="-311" rx="5.5" ry="7" fill="#17223b"/><circle cx="37" cy="-315" r="2.4" fill="white"/></g>
-            <path d="M20-326q9-8 18-4" fill="none" stroke="#78899c" stroke-width="3.3" stroke-linecap="round"/>
+            <path d="M-73-194q-20-31-4-72 12-32 53-42-3-8-8-14 14 0 24 12 2-14 10-21 2 12 1 20 12-10 22-11-3 7-9 13 45 5 63 41 20 38 1 74-13 26-49 38-48 15-81-5-13-6-23-15z" fill="url(#chickHood)" stroke="#26384b" stroke-width="4"/>
+            <path d="M-64-231q0-37 29-44 26-4 39 18 15-21 38-16 31 9 28 41-1 36-28 52-38 24-73 5-34-17-33-56z" fill="url(#chickFace)"/>
+            <g fill="#e6a79c" opacity=".51"><ellipse cx="-44" cy="-210" rx="15" ry="7"/><ellipse cx="49" cy="-210" rx="15" ry="7"/></g>
+            <g id="penguinEye">
+              <g fill="#172438" stroke="#344256" stroke-width="2.5"><ellipse cx="-28" cy="-237" rx="12" ry="16"/><ellipse cx="32" cy="-237" rx="12" ry="16"/></g>
+              <g fill="#fff"><circle cx="-32" cy="-243" r="4.4"/><circle cx="-24" cy="-231" r="2"/><circle cx="28" cy="-243" r="4.4"/><circle cx="36" cy="-231" r="2"/></g>
+            </g>
+            <path d="M-43-258q9-10 18-6m49 1q10-5 19 6" fill="none" stroke="#596475" stroke-width="3.8" stroke-linecap="round"/>
+            <path id="penguinBeak" d="M-12-217q14 0 29 0-6 15-13 16-9-1-16-16z" fill="#bc7157" stroke="#825447" stroke-width="2"/>
+            <path d="M-15-219q16-14 34 0-1 6-15 7-13-1-19-7z" fill="#efaf68" stroke="#93694f" stroke-width="2.3"/>
           </g>
-          <path d="M-46-101q-4 28-1 51m-10-42q-4 15-4 23" fill="none" stroke="#63798a" stroke-width="2.5" opacity=".55"/>
         </g>
       </g>
     </g>
@@ -46,8 +50,15 @@
   </svg>
   <div class="house-film__pitch">
     <h1></h1>
-    <div data-pitch="trial"><p>Bring an existing <strong>HTTP app.</strong><br>Keep your runtime and your handler.</p><span class="house-film__pitch-address">slimfaas.dev/get-started/local</span></div>
-    <ul data-pitch="toolbox"><li>Stream large files</li><li>Cache repeated results</li><li>Fan out events with pub/sub</li><li>Replay durable streams</li><li>Queue background jobs</li><li>Trace requests and errors</li></ul>
-    <div data-pitch="savings"><p><strong>€10,000 → €4,000 / month</strong> at 60% savings.</p><div class="house-film__savings-bar" aria-hidden="true"><div></div></div><div class="house-film__savings-labels"><b data-month="remaining"></b><b data-month="saved"></b></div><span class="house-film__pitch-address">slimfaas.dev/get-started/local</span></div>
+    <div data-pitch="trial"><p><span data-fr="Prenez votre application">Bring an existing</span> <strong data-fr="HTTP.">HTTP app.</strong><br><span data-fr="Gardez votre langage et votre code.">Keep your runtime and your handler.</span></p><span class="house-film__pitch-address">slimfaas.dev/get-started/local</span></div>
+    <ul data-pitch="toolbox"><li data-fr="Diffuser de gros fichiers">Stream large files</li><li data-fr="Réutiliser le cache">Cache repeated results</li><li data-fr="Publier des événements">Fan out events with pub/sub</li><li data-fr="Relire les flux persistants">Replay durable streams</li><li data-fr="Mettre les tâches en file">Queue background jobs</li><li data-fr="Tracer les requêtes et erreurs">Trace requests and errors</li></ul>
+    <div data-pitch="savings"><p><strong data-fr="10 000 € → 4 000 € par mois">€10,000 → €4,000 / month</strong> <span data-fr="avec 60 % d’économies.">at 60% savings.</span></p><div class="house-film__savings-bar" aria-hidden="true"><div></div></div><div class="house-film__savings-labels"><b data-month="remaining"></b><b data-month="saved"></b></div></div>
+    <div data-pitch="year">
+      <div class="house-film__annual-figure"><strong class="house-film__annual-total" data-year="saved"></strong><span data-fr="économisés par an">saved per year</span></div>
+      <p class="house-film__annual-basis" data-fr="6 000 € d’économies par mois × 12 mois">€6,000 saved each month × 12 months</p>
+      <div class="house-film__months" aria-hidden="true"></div>
+      <p data-fr="Budget annuel : 120 000 € → 48 000 €">Annual spend €120,000 → €48,000</p>
+      <span class="house-film__pitch-address">slimfaas.dev/get-started/local</span>
+    </div>
   </div>
 </div>

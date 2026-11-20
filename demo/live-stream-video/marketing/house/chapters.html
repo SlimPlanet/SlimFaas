@@ -21,10 +21,19 @@
 .house-film__savings-bar div { height: 100%; background: #aebcd1; }
 .house-film__savings-labels { display: flex; justify-content: space-between; margin-top: 7px; font-size: 25px; font-variant-numeric: tabular-nums; }
 .house-film__savings-labels b:last-child { color: var(--color-primary); }
+.house-film__annual-figure { display: flex; align-items: baseline; gap: 20px; font-size: 32px; font-weight: 640; }
+.house-film__annual-total { display: block; font-size: 100px; line-height: 1; letter-spacing: -5px; font-variant-numeric: tabular-nums; }
+.house-film__months { display: flex; gap: 7px; margin: 12px 0; }
+.house-film__month { flex: 1; height: 12px; border-radius: 3px; background: var(--line); }
+.house-film__month--saved { background: var(--color-primary); }
+.film--year .house-film__pitch h1 { font-size: 52px; margin-bottom: 10px; }
+.film--year .house-film__pitch p { font-size: 30px; }
+.film--year .house-film__pitch-address { margin-top: 12px; }
+:lang(fr) .house-film__promise { font-size: 90px; }
 </style>
 <template id="openingChapter">
   <div class="house-film__opening" hidden>
-    <h1 class="house-film__promise"><span>Reduce</span><span>infrastructure</span><span>spend by up to</span><strong>60%</strong></h1>
+    <h1 class="house-film__promise"><span data-fr="Réduisez vos coûts">Reduce</span><span data-fr="d’infrastructure">infrastructure</span><span data-fr="jusqu’à">spend by up to</span><strong data-fr="60 %">60%</strong></h1>
     <svg class="house-film__opening-art" viewBox="0 0 620 420" aria-hidden="true">
       <defs><pattern id="coverGrid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M0 26V0h26" fill="none" stroke="#dee4ff" stroke-width="1.5"/></pattern></defs>
       <path fill="url(#coverGrid)" d="M0 0h620v420H0z"/>
@@ -35,11 +44,11 @@
         <path d="M243 318v-82a22 22 0 0 1 44 0v82" fill="white" stroke="#0000ff" stroke-width="4"/>
       </g>
     </svg>
-    <p class="house-film__credit"><b>One team reported savings above 60%</b>Guillaume Chervet, AXA France · Devoxx Belgium 2025</p>
+    <p class="house-film__credit"><b data-fr="Une équipe a économisé plus de 60 %">One team reported savings above 60%</b>Guillaume Chervet, AXA France · Devoxx Belgium 2025</p>
   </div>
 </template>
 <template id="architectureChapter">
-  <svg class="house-film__diagram" viewBox="0 0 1080 730" role="img" aria-label="The house windows become application pods, served through the SlimFaas front door">
+  <svg class="house-film__diagram" viewBox="0 0 1080 730" role="img" data-fr-label="Les fenêtres deviennent des pods, la porte SlimFaas reçoit les requêtes" aria-label="The house windows become application pods, served through the SlimFaas front door">
     <defs>
       <linearGradient id="blueprintSky" x2=".15" y2="1"><stop stop-color="#101c42"/><stop offset=".7" stop-color="#202f59"/><stop offset="1" stop-color="#12243e"/></linearGradient>
       <pattern id="draftGrid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0v36" fill="none" stroke="#8495d0" stroke-opacity=".22"/><circle r="1.8" fill="#a0b3e2" opacity=".48"/></pattern>
@@ -74,10 +83,10 @@
 </template>
 <template id="podLedger">
  <div class="house-film__ledger house-film__architecture-ledger">
-  <div class="house-film__ledger-head"><strong>Illustrative application pod costs</strong><span class="house-film__tariff">€10 / pod-hour</span></div>
+  <div class="house-film__ledger-head"><strong data-fr="Coût simulé des pods">Illustrative application pod costs</strong><span class="house-film__tariff" data-fr="10 € par pod-heure">€10 / pod-hour</span></div>
   <dl class="house-film__readings">
-    <div><dt>Active pods</dt><dd data-pod="active"></dd></div><div><dt>Hourly rate</dt><dd data-pod="rate"></dd></div>
-    <div><dt>Elapsed</dt><dd data-pod="elapsed"></dd></div><div><dt>Pod charges</dt><dd class="house-film__charge" data-pod="bill"></dd></div>
+    <div><dt data-fr="Pods actifs">Active pods</dt><dd data-pod="active"></dd></div><div><dt data-fr="Tarif horaire">Hourly rate</dt><dd data-pod="rate"></dd></div>
+    <div><dt data-fr="Durée">Elapsed</dt><dd data-pod="elapsed"></dd></div><div><dt data-fr="Coût cumulé">Pod charges</dt><dd class="house-film__charge" data-pod="bill"></dd></div>
   </dl>
   <p class="house-film__comparison" data-pod="note"></p>
  </div>

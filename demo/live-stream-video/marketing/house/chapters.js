@@ -11,6 +11,11 @@
   const polar = section.querySelector('.house-film__polar');
   stage.insertBefore(diagram, title);
   section.append(opener, ledger);
+  const french = document.documentElement.lang === 'fr';
+  if (french) {
+    for (const el of document.querySelectorAll('[data-fr]')) el.textContent = el.dataset.fr;
+    for (const el of document.querySelectorAll('[data-fr-label]')) el.setAttribute('aria-label', el.dataset.frLabel);
+  }
 
   const id = name => section.querySelector('#' + name);
   const bounded = value => Math.max(0, Math.min(1, value));
@@ -82,7 +87,9 @@
     path(id('podConnections'),'M515 505V422H'+(x+w/2)+'V'+(y+h/2),{});
   }
   const podFields = Object.fromEntries([...ledger.querySelectorAll('[data-pod]')].map(el=>[el.dataset.pod,el]));
-  const money = new Intl.NumberFormat('en-IE', {style:'currency',currency:'EUR',maximumFractionDigits:0});
+  const locale = french ? 'fr-FR' : 'en-IE';
+  const decimalHours = new Intl.NumberFormat(locale, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+  const money = new Intl.NumberFormat(locale, {style:'currency',currency:'EUR',maximumFractionDigits:0});
   function towerRoom(i) {
     return [[329,402,569,642][i%4], 229+Math.floor(i/4)*43, 48, 32];
   }
@@ -91,6 +98,17 @@
     return [(col<12 ? 56 : 573)+(col%12)*35, 352+Math.floor(i/24)*54, 26, 39];
   }
   const mix = (a,b,t) => a.map((v,i)=>v+(b[i]-v)*t);
+  const notes = french ? {
+    mapping: 'Fenêtres → pods de l’application   ·   Porte → passerelle HTTP',
+    bill: '8 pods × 10 € par heure = 80 € par heure',
+    sleep: 'La deuxième heure sans pod ajoute 0 € à la facture.',
+    growth: 'Montée en charge · compteur horaire en pause'
+  } : {
+    mapping: 'Windows → application pods   ·   Door → HTTP gateway',
+    bill: 'Eight pods × €10 per hour = €80 per hour',
+    sleep: 'Second hour at zero pods adds €0 to the bill.',
+    growth: 'Scale-up snapshots · billing clock paused'
+  };
   function drawArchitecture(key, p) {
     const mapping = key === 'mapping', bill = key === 'podbill', sleep = key === 'sleeping';
     const arrival = key === 'arrival', tower = key === 'tower', palace = key === 'palace';
@@ -107,14 +125,12 @@
     // The scale-up is shown at a paused billing clock, as a series of instantaneous rates.
     const hours = mapping ? 0 : bill ? eased(p,.1,.78) : sleep ? 1+eased(p,.30,.86) : 2;
     const accrued = 80*Math.min(hours,1);
-    const note = mapping ? 'Windows → application pods   ·   Door → HTTP gateway' :
-      bill ? 'Eight pods × €10 per hour = €80 per hour' :
-      sleep ? 'Second hour at zero pods adds €0 to the bill.' : 'Scale-up snapshots · billing clock paused';
+    const noteKey = mapping ? 'mapping' : bill ? 'bill' : sleep ? 'sleep' : 'growth';
     podFields.active.textContent=count;
     podFields.rate.textContent=money.format(count*10);
-    podFields.elapsed.textContent=hours.toFixed(1)+' h';
+    podFields.elapsed.textContent=decimalHours.format(hours)+' h';
     podFields.bill.textContent=money.format(accrued);
-    podFields.note.textContent=note;
+    podFields.note.textContent=notes[noteKey];
     fade(diagram,mapping?eased(p,.03,.40):1);
     fade(id('blueprintHouse'),1-towerGrowth);
     fade(id('towerShell'),towerGrowth*(1-wingGrowth));
@@ -150,22 +166,36 @@
   const remainingLabel = polar.querySelector('[data-month="remaining"]');
   const savedLabel = polar.querySelector('[data-month="saved"]');
   const remainingBar = polar.querySelector('.house-film__savings-bar div');
+  const monthlyBill = 10000;
+  const monthlySaving = monthlyBill * .60;
+  const annualTotal = polar.querySelector('[data-year="saved"]');
+  const months = Array.from({length: 12}, () => {
+    const month = document.createElement('span');
+    month.className = 'house-film__month';
+    polar.querySelector('.house-film__months').append(month);
+    return month;
+  });
   let savingsCue;
   function drawPenguin(key, localTime, time, mouth) {
     if (key === 'savings') {
       const fraction = eased(localTime, savingsCue.start, savingsCue.end);
-      const saving = Math.round(6000 * fraction);
+      const saving = Math.round(monthlySaving * fraction);
       remainingBar.style.width = (100 - 60 * fraction) + '%';
-      remainingLabel.textContent = money.format(10000 - saving) + ' spend';
-      savedLabel.textContent = money.format(saving) + ' saved';
+      remainingLabel.textContent = money.format(monthlyBill - saving) + (french ? ' à payer' : ' spend');
+      savedLabel.textContent = money.format(saving) + (french ? ' économisés' : ' saved');
+    }
+    if (key === 'year') {
+      const elapsed = Math.round(months.length * eased(localTime, savingsCue.start, savingsCue.end));
+      annualTotal.textContent = money.format(monthlySaving * elapsed);
+      months.forEach((month, i) => month.classList.toggle('house-film__month--saved', i < elapsed));
     }
     id('floe').setAttribute('transform','translate(0 '+(2.8*Math.sin(time*1.4))+')');
     id('penguinBody').setAttribute('transform','rotate('+(1.25*Math.sin(time*1.9))+' 0 -12)');
-    id('penguinHead').setAttribute('transform','rotate('+(2*Math.sin(time*2.2))+' 0 -250)');
-    id('penguinFlipper').setAttribute('transform','rotate('+(7+13*Math.sin(time*3.3))+' -40 -176)');
+    id('penguinHead').setAttribute('transform','rotate('+(2*Math.sin(time*2.2))+' 0 -185)');
+    id('penguinFlipper').setAttribute('transform','rotate('+(7+13*Math.sin(time*3.3))+' -64 -155)');
     const blink = Math.max(.10, Math.min(1,Math.abs((time+1)%3.72-.16)*9));
-    id('penguinEye').setAttribute('transform','translate(0 -313) scale(1 '+blink+') translate(0 313)');
-    id('penguinBeak').setAttribute('transform','rotate('+(mouth*13)+' 43 -295)');
+    id('penguinEye').setAttribute('transform','translate(0 -237) scale(1 '+blink+') translate(0 237)');
+    id('penguinBeak').setAttribute('transform','translate(0 '+(mouth*7)+')');
     ripples.setAttribute('transform','translate('+(3*Math.sin(time*.8))+' 0)');
   }
   window.setHouseChapter = scene => {
@@ -181,6 +211,7 @@
     if (penguin) {
       polar.querySelector('h1').textContent=scene.headline;
       if (scene.key === 'savings') savingsCue = scene.cues[1];
+      if (scene.key === 'year') savingsCue = scene.cues[0];
       for (const element of polar.querySelectorAll('[data-pitch]')) element.hidden=element.dataset.pitch!==scene.key;
     }
   };

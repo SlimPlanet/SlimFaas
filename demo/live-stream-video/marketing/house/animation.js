@@ -1,5 +1,9 @@
 // The film renderer supplies normalized scene time, so a still and the encoded frame agree.
 (() => {
+  const locale = document.documentElement.lang === 'fr' ? 'fr-FR' : 'en-IE';
+  const hoursFormat = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const energyFormat = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const chargeFormat = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' });
   const svg = document.querySelector('.house-film__skyline');
   const layer = id => svg.querySelector('#' + id);
   const clamp = value => Math.min(1, Math.max(0, value));
@@ -139,9 +143,9 @@
     const hours = 8*elapsed;
     const kwh = key === 'bill' ? 8 * .060 * hours : 0;
     readings.lamps.textContent = lit;
-    readings.hours.textContent = hours.toFixed(1);
-    readings.energy.textContent = kwh.toFixed(2);
-    readings.charge.textContent = '€' + (.25*kwh).toFixed(2);
+    readings.hours.textContent = hoursFormat.format(hours);
+    readings.energy.textContent = energyFormat.format(kwh);
+    readings.charge.textContent = chargeFormat.format(.25*kwh);
     comparison.hidden = !(homecoming || (replay && p >= .87));
     const wilt = key === 'bill' ? smooth(elapsed) : 0;
     for (const {stalk,blossom,h,i} of flowers) {

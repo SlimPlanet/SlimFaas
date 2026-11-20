@@ -1,0 +1,198 @@
+[
+  {
+    "key": "promise",
+    "visual": "opening",
+    "headline": "Réduisez vos coûts d’infrastructure jusqu’à 60 %",
+    "voice": "Réduisez vos coûts d’infrastructure jusqu’à 60 %.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      73401
+    ],
+    "voiceSamples": 73401
+  },
+  {
+    "key": "evening",
+    "visual": "house",
+    "headline": "Huit fenêtres allumées.",
+    "voice": "À l’étage comme au rez-de-chaussée, les huit lampes sont allumées.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      73366
+    ],
+    "voiceSamples": 73366
+  },
+  {
+    "key": "leave",
+    "visual": "house",
+    "headline": "Tout le monde est parti.",
+    "voice": "La famille sort. Toutes les fenêtres restent éclairées.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      30557,
+      41479
+    ],
+    "voiceSamples": 72036
+  },
+  {
+    "key": "bill",
+    "visual": "house",
+    "headline": "La maison est vide. La facture grimpe.",
+    "voice": "Huit lampes restent allumées pendant huit heures. Éclairer la maison vide coûte 96 centimes.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      56082,
+      69231
+    ],
+    "voiceSamples": 125313
+  },
+  {
+    "key": "switch",
+    "visual": "house",
+    "headline": "Même nuit, lumières éteintes.",
+    "voice": "Rejouons la scène. La dernière personne éteint les lumières. Huit heures plus tard, l’éclairage a coûté zéro centime.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      32007,
+      54639,
+      75755
+    ],
+    "voiceSamples": 162401
+  },
+  {
+    "key": "return",
+    "visual": "house",
+    "headline": "Une pièce suffit.",
+    "voice": "Quelqu’un rentre. Seule sa pièce s’allume.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      30459,
+      34357
+    ],
+    "voiceSamples": 64816
+  },
+  {
+    "key": "mapping",
+    "visual": "architecture",
+    "headline": "Une fenêtre, un pod.",
+    "voice": "Imaginez que chaque fenêtre soit un pod. SlimFaas est la porte d’entrée des requêtes.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      56677,
+      55315
+    ],
+    "voiceSamples": 111992
+  },
+  {
+    "key": "podbill",
+    "visual": "architecture",
+    "headline": "Même au repos, un pod coûte.",
+    "voice": "À 10 € par pod et par heure, huit pods inactifs coûtent 80 € en une heure.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      111780
+    ],
+    "voiceSamples": 111780
+  },
+  {
+    "key": "sleeping",
+    "visual": "architecture",
+    "headline": "Au repos, zéro pod.",
+    "voice": "Après le délai d’inactivité, SlimFaas ramène le nombre de pods à zéro. Une heure de plus au calme ne coûte rien en pods.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      106493,
+      65667
+    ],
+    "voiceSamples": 172160
+  },
+  {
+    "key": "arrival",
+    "visual": "architecture",
+    "headline": "Une requête réveille l’appli.",
+    "voice": "Une requête réveille un pod. D’autres arrivent et la maison se rallume.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      42839,
+      50112
+    ],
+    "voiceSamples": 92951
+  },
+  {
+    "key": "tower",
+    "visual": "architecture",
+    "headline": "La maison devient un immeuble.",
+    "voice": "La demande grimpe. Huit fenêtres deviennent trente-deux.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      33524,
+      41325
+    ],
+    "voiceSamples": 74849
+  },
+  {
+    "key": "palace",
+    "visual": "architecture",
+    "headline": "Bienvenue à Versailles.",
+    "voice": "Imaginez maintenant Versailles. Quatre-vingt-seize fenêtres brillent derrière la même porte.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      41664,
+      68571
+    ],
+    "voiceSamples": 110235
+  },
+  {
+    "key": "trial",
+    "visual": "penguin",
+    "headline": "Essayez en cinq minutes.",
+    "voice": "Essayez SlimFaas en cinq minutes avec votre application HTTP. Gardez votre langage et votre code.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      105551,
+      51252
+    ],
+    "voiceSamples": 156803
+  },
+  {
+    "key": "toolbox",
+    "visual": "penguin",
+    "headline": "Votre agent passe par HTTP.",
+    "voice": "Vous créez un agent ? Diffusez des fichiers, gardez les résultats en cache et publiez des événements. Relisez les flux, mettez les tâches en file d’attente et suivez les requêtes. Tout passe par HTTP, sans SDK.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      34576,
+      104311,
+      95563,
+      53234
+    ],
+    "voiceSamples": 287684
+  },
+  {
+    "key": "savings",
+    "visual": "penguin",
+    "headline": "6 000 € d’économies par mois.",
+    "voice": "Une équipe a économisé plus de 60 %. À 60 %, une facture mensuelle de 10 000 € tombe à 4 000 €. Cela fait 6 000 € d’économies par mois.",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      69449,
+      112121,
+      56984
+    ],
+    "voiceSamples": 238554
+  },
+  {
+    "key": "year",
+    "visual": "penguin",
+    "headline": "Et sur une année ?",
+    "voice": "Sur douze mois, vous économisez 72 000 €. Avant, c’était 120 000 € par an. Après, c’est 48 000 € par an. Essayez SlimFaas. Aidez-moi à protéger ma banquise !",
+    "speaker": "ff_siwis",
+    "cueSamples": [
+      82193,
+      53897,
+      54529,
+      37632,
+      46050
+    ],
+    "voiceSamples": 274301
+  }
+]

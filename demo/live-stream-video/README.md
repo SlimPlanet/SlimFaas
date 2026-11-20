@@ -4,7 +4,8 @@ Run the commands below from this directory. You can copy it outside the SlimFaas
 
 | Edition | Published film | Rebuild |
 | --- | --- | --- |
-| Animated house | [From eight windows to Versailles (1 min 42 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
+| Animated house · English | [From eight windows to Versailles (1 min 42 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
+| Animated house · French | [De huit fenêtres à Versailles (1 min 48 s)](../../docs/media/live-stream/house-fr.mp4) · [Audio only](../../docs/media/live-stream/house-fr.m4a) · [French captions](../../docs/media/live-stream/house-fr.vtt) | `pnpm house:fr` |
 | Marketing | [Zero idle replicas (31 seconds)](../../docs/media/live-stream/marketing.mp4), portrait 4:5, English voice and burned-in captions | `pnpm marketing` |
 | Educational | [Dashboard walkthrough](media/dashboard.mp4), 3 min 11 s, widescreen, English voice and selectable captions | `pnpm educational` after capturing three takes |
 
@@ -22,11 +23,11 @@ pnpm test
 
 ## Rebuild the animated house
 
-Run `pnpm house` to write `media/house.mp4`, the identical audio track in `media/house.m4a` and the captions in `media/house.vtt`. The house edition renders offline from its bundled artwork, English voice master and scene timings. Javert reads the opening line. Alba tells the house and architecture story. Fenrir voices the penguin, whose beak follows the audio. [Scene script](marketing/house/scenes.json) · [House](marketing/house/scene.html) · [Architecture](marketing/house/chapters.html) · [Penguin](marketing/house/penguin.html)
+Run `pnpm house` for English or `pnpm house:fr` for French. Each command produces an MP4, the identical AAC track in an M4A and matching WebVTT captions in `media/`, using the stems `house` and `house-fr`. Both renders run offline from the same artwork. Each language has its own script, lossless narration, caption timings, on-screen labels and number formats. The penguin chick’s beak follows the local voice. [English scenes](marketing/house/scenes.json) · [French scenes](marketing/house/fr/scenes.json) · [House](marketing/house/scene.html) · [Architecture](marketing/house/chapters.html) · [Penguin](marketing/house/penguin.html)
 
 The two meters use separate illustrative tariffs. Eight 60 W lamps left on for eight hours use 3.84 kWh and cost €0.96 at €0.25/kWh. At €10 per application pod-hour, eight idle pods cost €80 in the first hour. After scale-to-zero, the second hour adds €0. SlimFaas stays at the door to receive requests. The billing clock pauses while the house grows to 32 pods in the tower and 96 at Versailles, displaying the hourly rate at each scale. These counts illustrate demand.
 
-The closing example applies a 60% reduction to €10,000 per month, leaving €4,000 and saving €6,000. Guillaume Chervet reported a reduction above 60% for his team. [Devoxx Belgium 2025](https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas)
+The closing example applies a 60% reduction to €10,000 per month, leaving €4,000 and saving €6,000. If that monthly workload and saving hold for twelve months, annual spend falls from €120,000 to €48,000, freeing €72,000. Guillaume Chervet reported a reduction above 60% for his team. [Devoxx Belgium 2025](https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas)
 
 ## Rebuild the short marketing edit
 
@@ -85,7 +86,7 @@ kind delete cluster --name slimfaas-film --kubeconfig "$PWD/artifacts/kubeconfig
 
 ## Replace the narration
 
-The house film uses the stock Javert and Alba voices from Kyutai’s Pocket TTS through MLX Audio, and Kokoro’s male `am_fenrir` voice for the penguin. The performances were synthesized locally as complete scenes. The mix uses a 55 Hz high-pass filter, light compression and a −16.5 LUFS target per take, with a −2 dBTP ceiling before AAC encoding. Captions follow the recorded phrases. [Pocket TTS by Kyutai](https://huggingface.co/kyutai/pocket-tts-without-voice-cloning) · [MLX weights used for this recording](https://huggingface.co/mlx-community/pocket-tts-8bit/tree/ee0d088c10729a33640bac050b8796993f468a53) · [Kokoro by hexgrad](https://huggingface.co/hexgrad/Kokoro-82M)
+Both house soundtracks use Kokoro. The English opening blends Puck and Nova, Heart narrates the house, and the chick blends Bella and Sky. In French, the opening blends Siwis and Puck, Siwis narrates the house, and the chick blends Siwis and Sky. The chick’s pitch and formants rise together by about four semitones, with tempo correction to keep its words clear. Takes were synthesized locally, timed by sentence and mastered to a −16.5 LUFS target per scene with a −2 dBTP ceiling before AAC encoding. [Kokoro by hexgrad](https://huggingface.co/hexgrad/Kokoro-82M)
 
 The educational and dashboard marketing editions use Kokoro `af_heart` at speed 1.055. Each edition includes a lossless mono 24 kHz master. Running the film commands restores the published voices and timings offline. [Kokoro ONNX model](https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0)
 
@@ -94,7 +95,7 @@ python3 narrate.py
 python3 render.py
 ```
 
-For an alternate Kokoro read, the house script’s `speaker` fields select three corresponding presets. Pass your local Kokoro server to the first command with `--speech-url http://127.0.0.1:8880/v1/audio/speech`. For the short film or the house film, use `--mode marketing` or `--mode house`, then run `python3 marketing/render.py marketing` or `python3 marketing/render.py house` respectively. To record a human narrator, supply one mono 24 kHz 16-bit PCM WAV per scene key in the edition's `voice/` directory and run its editor directly. The `film.py` commands restore the bundled takes.
+For an alternate Kokoro read, pass a local speech server with `--speech-url http://127.0.0.1:8880/v1/audio/speech`. The scene’s `speaker` field selects a compatible base voice. Pass the same edition (`marketing`, `house` or `house-fr`) to `narrate.py --mode` and `marketing/render.py`. To record a human narrator, supply one mono 24 kHz 16-bit PCM WAV per scene key in the edition's `voice/` directory and run its editor directly. The `film.py` commands restore the bundled takes.
 
 For the educational edition, set `FILM_FONT` and `FILM_FONT_BOLD` to local TrueType paths if Arial or DejaVu Sans is unavailable. The editor renders H.264/AAC with fast start and labels compressed waits with their elapsed-time multiplier. Durations follow the narration and the observed cluster timing. Review the framing when changing the capture viewport, dashboard layout or workload names.
 

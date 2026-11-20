@@ -32,10 +32,11 @@ def speech_server(value):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("educational", "marketing", "house"), default="educational")
+    parser.add_argument("--mode", choices=("educational", "marketing", "house", "house-fr"), default="educational")
     parser.add_argument("--speech-url", type=speech_server, help="Optional local Kokoro-compatible /v1/audio/speech endpoint")
     args = parser.parse_args()
-    edition = {"educational": Path("."), "marketing": Path("marketing"), "house": Path("marketing/house")}[args.mode]
+    edition = {"educational": Path("."), "marketing": Path("marketing"), "house": Path("marketing/house"),
+               "house-fr": Path("marketing/house/fr")}[args.mode]
     source = HERE / edition
     destination = WORK / edition / "voice"
     destination.mkdir(parents=True, exist_ok=True)

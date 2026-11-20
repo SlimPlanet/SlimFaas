@@ -1,4 +1,4 @@
-"""Render the dashboard cut or the illustrated house film with its English voice track."""
+"""Render the dashboard cut or the illustrated house film with its localized voice track."""
 from array import array
 import argparse
 import json
@@ -73,10 +73,14 @@ def mouth_motion(pcm, count):
     return result
 
 
+def edition_path(edition):
+    return {"marketing": Path("."), "house": Path("house"), "house-fr": Path("house/fr")}[edition]
+
+
 def plan(directory, edition="marketing"):
-    house = edition == "house"
-    source = HERE / "house" if house else HERE
-    work = WORK / "house" if house else WORK
+    house = edition != "marketing"
+    source = HERE / edition_path(edition)
+    work = WORK / edition_path(edition)
     scenes = json.loads((source / "scenes.json").read_text())
     frames = 0
     audio = bytearray()
@@ -87,7 +91,7 @@ def plan(directory, edition="marketing"):
                 raise ValueError(f"Expected 24 kHz mono 16-bit voice for {scene['key']}")
             samples = take.getnframes()
             voice = take.readframes(samples)
-        tail = 1.8 if scene["key"] in ("try", "savings") else 0.65
+        tail = 1.8 if scene["key"] in ("try", "year") else 0.65
         count = math.ceil((LEAD + samples / RATE + tail) * FPS)
         if not house:
             check_length(frames + count)
@@ -135,25 +139,28 @@ def render(directory, edition="marketing"):
         scene["images"] = len(list(destination.glob("*.jpg")))
         if scene["images"] < int((stop - start) * 12) - 1:
             raise ValueError(f"Incomplete dashboard excerpt for {scene['key']}")
-    (directory / "plan.json").write_text(json.dumps({"fps": FPS, "scenes": scenes, "observed": observed}))
+    language = "fr" if edition == "house-fr" else "en"
+    storyboard = {"fps": FPS, "scenes": scenes, "observed": observed, "language": language}
+    (directory / "plan.json").write_text(json.dumps(storyboard))
     subprocess.run(["node", HERE / "frames.mjs", directory], check=True)
-    title = "From eight windows to Versailles" if edition == "house" else "Zero idle replicas. One HTTP call wakes your API."
+    title = {"house": "From eight windows to Versailles", "house-fr": "De huit fenêtres à Versailles",
+             "marketing": "Zero idle replicas. One HTTP call wakes your API."}[edition]
     encode("-framerate", str(FPS), "-start_number", "0", "-i", directory / "frames/%05d.jpg",
            "-i", directory / "voice.wav",
            "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast",
            "-vf", "scale=in_range=full:out_range=tv:out_color_matrix=bt709,format=yuv420p",
            "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-           "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", "-metadata:s:a:0", "language=eng",
+           "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", "-metadata:s:a:0", "language=fra" if edition == "house-fr" else "language=eng",
            "-metadata", f"title=SlimFaas | {title}",
            "-metadata", "comment=Cost result reported by Guillaume Chervet (AXA France), Devoxx Belgium 2025: "
            "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas",
            directory / "marketing.mp4")
     MEDIA.mkdir(exist_ok=True)
-    if edition == "house":
+    if edition != "marketing":
         # Publish the same AAC packets and picture holds for audio-only playback.
         encode("-i", directory / "marketing.mp4", "-map", "0:a:0", "-c:a", "copy", "-movflags", "+faststart",
-               directory / "house.m4a")
-        (directory / "house.m4a").replace(MEDIA / "house.m4a")
+               directory / f"{edition}.m4a")
+        (directory / f"{edition}.m4a").replace(MEDIA / f"{edition}.m4a")
     (directory / "marketing.mp4").replace(MEDIA / f"{edition}.mp4")
     (directory / "subtitles.vtt").replace(MEDIA / f"{edition}.vtt")
     print(f"{title}: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)
@@ -161,9 +168,9 @@ def render(directory, edition="marketing"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("edition", nargs="?", choices=("marketing", "house"), default="marketing")
+    parser.add_argument("edition", nargs="?", choices=("marketing", "house", "house-fr"), default="marketing")
     edition = parser.parse_args().edition
-    work = WORK / "house" if edition == "house" else WORK
+    work = WORK / edition_path(edition)
     work.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=work) as scratch:
         render(Path(scratch), edition)

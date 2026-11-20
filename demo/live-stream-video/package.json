@@ -9,6 +9,7 @@
     "educational": "python3 film.py educational",
     "marketing": "python3 film.py marketing",
     "house": "python3 film.py house",
+    "house:fr": "python3 film.py house-fr",
     "test": "python3 -m unittest discover && node --test marketing/house/animation.test.mjs"
   },
   "devDependencies": {

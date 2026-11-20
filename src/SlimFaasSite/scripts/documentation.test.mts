@@ -164,5 +164,9 @@ test('home film has a static reduced-motion preview, a direct MP4 fallback and E
     assert.equal(video.attr('preload'), 'none');
     assert.match(video.find('track[kind=captions][srclang=en]').attr('src')!, /captions\.vtt$/);
     assert.equal($('a[href$="/transcript.txt"]').length, 1);
-    assert.equal($('a[href$="/house.m4a"]').attr('href'), $('a[href$="/house.mp4"]').attr('href')!.replace(/\.mp4$/, '.m4a'));
+    for (const edition of ['house', 'house-fr']) {
+        for (const format of ['mp4', 'm4a', 'vtt']) {
+            assert.equal($(`a[href$="/${edition}.${format}"]`).length, 1);
+        }
+    }
 });
