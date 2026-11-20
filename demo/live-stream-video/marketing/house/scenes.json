@@ -2,20 +2,21 @@
   {
     "key": "promise",
     "visual": "opening",
-    "headline": "Reduce infrastructure spend by up to 60%",
-    "voice": "Reduce infrastructure spend by up to sixty percent.",
-    "voiceSamples": 75143,
+    "headline": "Quickly and easily reduce your infrastructure costs by at least 60%",
+    "voice": "Quickly and easily reduce your infrastructure costs by at least sixty percent.",
+    "voiceSamples": 105886,
     "cueSamples": [
-      75143
+      105886
     ],
-    "speaker": "am_puck"
+    "speaker": "af_sky"
   },
   {
     "key": "evening",
-    "headline": "Eight lights on.",
-    "voice": "Upstairs and downstairs, all eight lights are on.",
-    "voiceSamples": 62746,
+    "headline": "Stop wasting energy!",
+    "voice": "Stop wasting energy! Upstairs and downstairs, all eight lights are on.",
+    "voiceSamples": 103196,
     "cueSamples": [
+      40450,
       62746
     ],
     "visual": "house",
@@ -47,11 +48,11 @@
   },
   {
     "key": "switch",
-    "headline": "Same night. Lights off.",
-    "voice": "Replay the night. The last person switches off the lights. Same eight hours, zero cents.",
-    "voiceSamples": 130437,
+    "headline": "Put good habits into practice.",
+    "voice": "Put good habits into practice. The last person switches off the lights. Same eight hours, zero cents.",
+    "voiceSamples": 144593,
     "cueSamples": [
-      30474,
+      44630,
       53071,
       46892
     ],
@@ -73,10 +74,11 @@
   {
     "key": "mapping",
     "visual": "architecture",
-    "headline": "Every window is a pod.",
-    "voice": "Each window is a pod. SlimFaas is the front door for requests.",
-    "voiceSamples": 96843,
+    "headline": "SlimFaas automates your best practices.",
+    "voice": "SlimFaas automates your best practices and switches idle pods off for you! Each window is a pod. SlimFaas is the front door for requests.",
+    "voiceSamples": 213028,
     "cueSamples": [
+      116185,
       36321,
       60522
     ],
@@ -133,11 +135,12 @@
     "key": "palace",
     "visual": "architecture",
     "headline": "Room for a royal crowd.",
-    "voice": "Now picture Versailles. Ninety-six windows glow, all behind the same front door.",
-    "voiceSamples": 120433,
+    "voice": "Now picture Versailles. Thousands of messages come through the same front door. Ninety-six windows light up.",
+    "voiceSamples": 157322,
     "cueSamples": [
       42535,
-      77898
+      73871,
+      40916
     ],
     "speaker": "af_heart"
   },
@@ -156,12 +159,12 @@
   {
     "key": "toolbox",
     "visual": "penguin",
-    "headline": "Build your agent over HTTP.",
-    "voice": "Building an agent? Stream files, cache results, and publish events. Replay streams, queue jobs, and trace requests. All over HTTP, without an SDK.",
+    "headline": "Perfect for your agentic apps.",
+    "voice": "Perfect for your agentic apps! Stream files, cache results, and publish events. Replay streams, queue jobs, and trace requests. All over HTTP, without an SDK.",
     "speaker": "af_bella",
-    "voiceSamples": 244213,
+    "voiceSamples": 259052,
     "cueSamples": [
-      30813,
+      45652,
       70027,
       74423,
       68950
@@ -171,11 +174,11 @@
     "key": "savings",
     "visual": "penguin",
     "headline": "Save €6,000 a month.",
-    "voice": "One team saved over sixty percent. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. That's six thousand euros saved each month.",
+    "voice": "Take this example. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. That's six thousand euros saved each month.",
     "speaker": "af_bella",
-    "voiceSamples": 229380,
+    "voiceSamples": 208033,
     "cueSamples": [
-      52888,
+      31541,
       117423,
       59069
     ]
@@ -183,16 +186,15 @@
   {
     "key": "year",
     "visual": "penguin",
-    "headline": "What does that save in a year?",
-    "voice": "Keep that up for twelve months and you save seventy-two thousand euros. Your yearly bill goes from one hundred and twenty thousand euros to forty-eight thousand. Give SlimFaas a try. Help keep my home on the ice! This isn’t Versailles, you know!",
+    "headline": "Incredible!",
+    "voice": "Incredible, over twelve months you save seventy-two thousand euros! Give SlimFaas a try. Help keep my home on the ice! This isn’t Versailles, you know!",
     "speaker": "af_bella",
     "cueSamples": [
-      104578,
-      128018,
+      108747,
       36538,
       57010,
       37447
     ],
-    "voiceSamples": 363591
+    "voiceSamples": 239742
   }
 ]

@@ -145,6 +145,9 @@ def render(directory, edition="marketing"):
     subprocess.run(["node", HERE / "frames.mjs", directory], check=True)
     title = {"house": "From eight windows to Versailles", "house-fr": "De huit fenêtres à Versailles",
              "marketing": "Zero idle replicas. One HTTP call wakes your API."}[edition]
+    comment = ("Cost result reported by Guillaume Chervet (AXA France), Devoxx Belgium 2025: "
+               "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas"
+               if edition == "marketing" else "Illustrative workload and savings scenario.")
     encode("-framerate", str(FPS), "-start_number", "0", "-i", directory / "frames/%05d.jpg",
            "-i", directory / "voice.wav",
            "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast",
@@ -152,8 +155,7 @@ def render(directory, edition="marketing"):
            "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
            "-c:a", "aac", "-b:a", "112k", "-movflags", "+faststart", "-metadata:s:a:0", "language=fra" if edition == "house-fr" else "language=eng",
            "-metadata", f"title=SlimFaas | {title}",
-           "-metadata", "comment=Cost result reported by Guillaume Chervet (AXA France), Devoxx Belgium 2025: "
-           "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas",
+           "-metadata", f"comment={comment}",
            directory / "marketing.mp4")
     MEDIA.mkdir(exist_ok=True)
     if edition != "marketing":

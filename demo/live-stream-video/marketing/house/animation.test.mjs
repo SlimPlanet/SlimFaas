@@ -20,13 +20,16 @@ test('the two departures show the same eight empty hours and different lighting 
         readings: [...document.querySelectorAll('[data-reading]')].map(el => el.textContent),
         litWindows: [...document.querySelector('#rooms').children].filter(room => Number(room.querySelector('g').getAttribute('opacity')) > .5).length,
         outside: outside.length,
-        blossom: document.querySelector('#garden use').getAttribute('transform')
+        blossom: document.querySelector('#garden use').getAttribute('transform'),
+        fallen: [...document.querySelectorAll('#gardenTrees use[href="#treeLeaf"]')]
+          .filter(leaf => leaf.transform.baseVal.getItem(0).matrix.f >= 0).length
       };
     }, { key, progress });
   }
   const occupied = await frame('evening', 1);
   assert.equal(occupied.litWindows, 8);
   assert.equal(occupied.outside, 0);
+  assert.equal(occupied.fallen, 0);
   const departure = await frame('leave', .62);
   assert.ok(departure.outside > 0);
   assert.equal(departure.litWindows, 8);
@@ -35,9 +38,12 @@ test('the two departures show the same eight empty hours and different lighting 
   const waste = await frame('bill', 1);
   assert.deepEqual(waste.readings, ['8', '8.0', '3.84', '€0.96']);
   assert.notEqual(waste.blossom, occupied.blossom);
+  assert.ok(halfway.fallen > 0 && halfway.fallen < waste.fallen);
+  assert.equal(waste.fallen, 130);
   const off = await frame('switch', 1);
   assert.deepEqual(off.readings, ['0', '8.0', '0.00', '€0.00']);
   assert.equal(off.litWindows, 0);
+  assert.equal(off.fallen, 0);
   assert.equal((await frame('return', 1)).litWindows, 1);
   assert.deepEqual(await frame('bill', 1), waste);
 });
@@ -79,6 +85,10 @@ for (const language of ['en', 'fr']) {
         const gate = document.querySelector('#podDoor path').getBoundingClientRect();
         const windows = [...document.querySelector('#podWindows').children];
         const displayed = windows.filter(el => el.style.display !== 'none');
+        const traffic = document.querySelector('#rocketTraffic');
+        const pixels = traffic.getContext('2d').getImageData(0, 0, traffic.width, traffic.height).data;
+        let rocketPixels = 0;
+        for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) rocketPixels++;
         return {
           shown: displayed.length,
           lit: displayed.filter(el => el.dataset.lit === 'true').length,
@@ -94,6 +104,10 @@ for (const language of ['en', 'fr']) {
           glowing: [...document.querySelectorAll('#iceWindows use[href="#litIceWindow"]')].filter(el => Number(el.getAttribute('opacity')) >= .5).length,
           wink: document.querySelector('#penguinWink').getAttribute('transform'),
           intro: document.querySelector('.house-film__promise').textContent,
+          signature: document.querySelector('.film__signature').textContent,
+          chicks: [...document.querySelectorAll('#playingChicks use')].map(chick => chick.getAttribute('transform')),
+          fish: [...document.querySelectorAll('#fishGame use')].map(fish => fish.getAttribute('transform')),
+          rocketPixels, trafficNote: document.querySelector('[data-pod="note"]').textContent,
           beak: document.querySelector('#penguinBeak').getAttribute('transform'),
           visiblePitches: [...document.querySelectorAll('[data-pitch]')].filter(el => !el.hidden).map(el => el.dataset.pitch)
         };
@@ -109,6 +123,20 @@ for (const language of ['en', 'fr']) {
     assert.deepEqual(asleep.readings, ['0', currency.format(0), hours(2), currency.format(80)]);
     assert.equal((await frame('arrival', .28)).lit, 1);
     assert.equal((await frame('arrival', 1)).lit, 8);
+    const opening = await frame('promise', .2);
+    assert.equal(opening.chicks.length, 3);
+    assert.equal(opening.fish.length, 2);
+    assert.equal(opening.signature, french ? 'Simple, Rapide, Green' : 'Simple, Fast, Green');
+    assert.notDeepEqual(opening.chicks, (await frame('promise', .3)).chicks);
+    assert.notDeepEqual(opening.fish, (await frame('promise', .3)).fish);
+    assert.ok(opening.intro.includes(french ? 'd’au moins 60 %' : 'at least 60%'));
+    assert.equal(asleep.rocketPixels, 0);
+    const firstRocket = await frame('arrival', .15);
+    assert.ok(firstRocket.rocketPixels > 0);
+    const peak = await frame('palace', 1);
+    assert.ok(peak.trafficNote.includes(new Intl.NumberFormat(language).format(4800)));
+    assert.ok(peak.rocketPixels > 10 * firstRocket.rocketPixels);
+    assert.equal((await frame('sleeping', 1)).rocketPixels, 0);
     for (const [key, count] of [['tower', 32], ['palace', 96]]) {
       const drawing = await frame(key, 1);
       assert.equal(drawing.lit, count);
@@ -124,7 +152,6 @@ for (const language of ['en', 'fr']) {
     const close = await frame('savings', 1, 0, scenes.find(scene => scene.key === 'savings').cues[1].end);
     assert.deepEqual(close.monthly, [currency.format(4000) + (french ? ' à payer' : ' spend'),
       currency.format(6000) + (french ? ' économisés' : ' saved')]);
-    assert.ok(close.intro.includes(french ? 'Réduisez' : 'Reduce'));
     const finale = scenes.find(scene => scene.key === 'year');
     const first = finale.cues[0];
     for (const [time, months] of [[0, 0], [(first.start + first.end) / 2, 6], [first.end, 12]]) {

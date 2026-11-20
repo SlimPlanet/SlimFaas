@@ -2,24 +2,25 @@
   {
     "key": "promise",
     "visual": "opening",
-    "headline": "Réduisez vos coûts d’infrastructure jusqu’à 60 %",
-    "voice": "Réduisez vos coûts d’infrastructure jusqu’à 60 %.",
+    "headline": "Réduisez ultra rapidement et simplement vos coûts d’infrastructure d’au moins 60 %",
+    "voice": "Réduisez ultra rapidement et simplement vos coûts d’infrastructure d’au moins 60 %.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      73401
+      135773
     ],
-    "voiceSamples": 73401
+    "voiceSamples": 135773
   },
   {
     "key": "evening",
     "visual": "house",
-    "headline": "Huit fenêtres allumées.",
-    "voice": "À l’étage comme au rez-de-chaussée, les huit lampes sont allumées.",
+    "headline": "Stop au gaspillage !",
+    "voice": "Stop au gaspillage ! À l’étage comme au rez-de-chaussée, les huit lampes sont allumées.",
     "speaker": "ff_siwis",
     "cueSamples": [
+      41779,
       73366
     ],
-    "voiceSamples": 73366
+    "voiceSamples": 115145
   },
   {
     "key": "leave",
@@ -48,15 +49,15 @@
   {
     "key": "switch",
     "visual": "house",
-    "headline": "Même nuit, lumières éteintes.",
-    "voice": "Rejouons la scène. La dernière personne éteint les lumières. Huit heures plus tard, l’éclairage a coûté zéro centime.",
+    "headline": "Adoptez les bonnes pratiques.",
+    "voice": "Adoptez les bonnes pratiques. La dernière personne éteint les lumières. Huit heures plus tard, l’éclairage a coûté zéro centime.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      32007,
+      41832,
       54639,
       75755
     ],
-    "voiceSamples": 162401
+    "voiceSamples": 172226
   },
   {
     "key": "return",
@@ -73,14 +74,15 @@
   {
     "key": "mapping",
     "visual": "architecture",
-    "headline": "Une fenêtre, un pod.",
-    "voice": "Imaginez que chaque fenêtre soit un pod. SlimFaas est la porte d’entrée des requêtes.",
+    "headline": "SlimFaas automatise vos bonnes pratiques.",
+    "voice": "SlimFaas automatise vos bonnes pratiques et éteint tout seul les pods en cas d’inactivité ! Imaginez que chaque fenêtre soit un pod. SlimFaas est la porte d’entrée des requêtes.",
     "speaker": "ff_siwis",
     "cueSamples": [
+      134945,
       56677,
       55315
     ],
-    "voiceSamples": 111992
+    "voiceSamples": 246937
   },
   {
     "key": "podbill",
@@ -133,13 +135,14 @@
     "key": "palace",
     "visual": "architecture",
     "headline": "Bienvenue à Versailles.",
-    "voice": "Imaginez maintenant Versailles. Quatre-vingt-seize fenêtres brillent derrière la même porte.",
+    "voice": "Imaginez maintenant Versailles. Des milliers de messages arrivent en fusée. Quatre-vingt-seize fenêtres brillent derrière la même porte.",
     "speaker": "ff_siwis",
     "cueSamples": [
       49207,
+      56191,
       67467
     ],
-    "voiceSamples": 116674
+    "voiceSamples": 172865
   },
   {
     "key": "trial",
@@ -156,44 +159,42 @@
   {
     "key": "toolbox",
     "visual": "penguin",
-    "headline": "Votre agent passe par HTTP.",
-    "voice": "Vous créez un agent ? Diffusez des fichiers, gardez les résultats en cache et publiez des événements. Relisez les flux, mettez les tâches en file d’attente et suivez les requêtes. Tout passe par HTTP, sans SDK.",
+    "headline": "Parfait pour vos applications agentic.",
+    "voice": "Parfait pour vos applications agentic ! Diffusez des fichiers, gardez les résultats en cache et publiez des événements. Relisez les flux, mettez les tâches en file d’attente et suivez les requêtes. Tout passe par HTTP, sans SDK.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      34576,
+      59501,
       104311,
       95563,
       53234
     ],
-    "voiceSamples": 287684
+    "voiceSamples": 312609
   },
   {
     "key": "savings",
     "visual": "penguin",
     "headline": "6 000 € d’économies par mois.",
-    "voice": "Une équipe a économisé plus de 60 %. À 60 %, une facture mensuelle de 10 000 € tombe à 4 000 €. Cela fait 6 000 € d’économies par mois.",
+    "voice": "Prenons un exemple. À 60 %, une facture mensuelle de 10 000 € tombe à 4 000 €. Cela fait 6 000 € d’économies par mois.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      69449,
+      35634,
       112121,
       56984
     ],
-    "voiceSamples": 238554
+    "voiceSamples": 204739
   },
   {
     "key": "year",
     "visual": "penguin",
-    "headline": "Et sur une année ?",
-    "voice": "Sur douze mois, vous économisez 72 000 €. Avant, c’était 120 000 € par an. Après, c’est 48 000 € par an. Essayez SlimFaas. Aidez-moi à protéger ma banquise ! Ce n’est pas Versailles, ici !",
+    "headline": "Incroyable !",
+    "voice": "Incroyable, sur douze mois, vous économisez 72 000 € ! Essayez SlimFaas. Aidez-moi à protéger ma banquise ! Ce n’est pas Versailles, ici !",
     "speaker": "ff_siwis",
     "cueSamples": [
-      82193,
-      53897,
-      54529,
+      104868,
       37632,
       64290,
       38002
     ],
-    "voiceSamples": 330543
+    "voiceSamples": 244792
   }
 ]

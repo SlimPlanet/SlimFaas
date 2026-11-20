@@ -111,6 +111,35 @@
     const blossom = add(plant,'use',{href:'#flowerHead'});
     return {stalk,blossom,h,i};
   });
+  const trees = [[102, 550, 1.16], [966, 560, 1.35]].map(([x, y, size], tree) => {
+    const group = add(layer('gardenTrees'), 'g', {transform: 'translate('+x+' '+y+') scale('+size+')'});
+    const trunk = add(group, 'use', {href: '#treeWood'});
+    const leaves = Array.from({length: 65}, (_, i) => {
+      // A golden-angle spiral fills the crown evenly and gives each falling leaf its own path.
+      const angle = i * 2.4 + tree;
+      const radius = Math.sqrt(i / 65);
+      const x = 61 * radius * Math.cos(angle);
+      const y = -129 + 41 * radius * Math.sin(angle) + 9 * Math.abs(x) / 61;
+      const leaf = add(group, 'use', {href: '#treeLeaf'});
+      return {leaf, x, y, stagger: ((i * 19 + tree * 5) % 65) / 65, angle};
+    });
+    return {trunk, leaves};
+  });
+  function drawTrees(wilt, time) {
+    for (const {trunk, leaves} of trees) {
+      trunk.setAttribute('color', wilt > .82 ? '#968a82' : '#826e62');
+      for (const {leaf, x, y, stagger, angle} of leaves) {
+        const fall = between(wilt, .08 + .57 * stagger, .39 + .57 * stagger);
+        const drift = (20 + 25 * stagger) * fall + 11 * Math.sin(fall * 5 + angle) * fall;
+        const height = y + (3 + 7 * stagger - y) * fall * fall;
+        const turn = 20 * Math.sin(angle + time * 1.4) * (1 - fall) + fall * (100 + 160 * stagger);
+        leaf.setAttribute('transform', 'translate('+(x+drift)+' '+height+') rotate('+turn+') scale('+
+          (1 - .35 * fall)+' '+(1 - .74 * fall)+')');
+        const green = 1 - between(wilt, .01 + .32 * stagger, .3 + .32 * stagger);
+        leaf.setAttribute('fill', 'hsl('+(27+118*green)+' '+(35-8*green)+'% '+(43+8*stagger)+'%)');
+      }
+    }
+  }
   const readings = Object.fromEntries([...document.querySelectorAll('[data-reading]')].map(el => [el.dataset.reading,el]));
   const comparison = document.querySelector('.house-film__comparison');
   window.drawHouse = (key, p, time) => {
@@ -148,6 +177,7 @@
     readings.charge.textContent = chargeFormat.format(.25*kwh);
     comparison.hidden = !(homecoming || (replay && p >= .87));
     const wilt = key === 'bill' ? smooth(elapsed) : 0;
+    drawTrees(wilt, time);
     for (const {stalk,blossom,h,i} of flowers) {
       const dx = -5 + (i%3-1)*7 + 25*wilt + 1.8*Math.sin(time*1.8+i);
       const dy = -h + h*.47*wilt;

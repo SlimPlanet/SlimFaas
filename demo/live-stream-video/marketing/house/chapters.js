@@ -16,6 +16,7 @@
     for (const el of document.querySelectorAll('[data-fr]')) el.textContent = el.dataset.fr;
     for (const el of document.querySelectorAll('[data-fr-label]')) el.setAttribute('aria-label', el.dataset.frLabel);
   }
+  document.querySelector('.film__signature').textContent = french ? 'Simple, Rapide, Green' : 'Simple, Fast, Green';
 
   const id = name => section.querySelector('#' + name);
   const bounded = value => Math.max(0, Math.min(1, value));
@@ -34,9 +35,37 @@
 
   const houseX = [223, 347, 571, 696];
   const rooms = Array.from({length: 8}, (_, i) => [houseX[i % 4], i < 4 ? 303 : 437, 103, 94]);
-  const cover = rooms.map((_, i) => add(id('coverLights'), 'rect', {
-    x: [44, 132, 321, 408][i % 4], y: i < 4 ? 126 : 236, width: 55, height: 53, rx: 3
+  const chicks = [[218, 357, .91], [512, 347, 1.06], [800, 356, .82]].map(([x, y, size]) => ({
+    x, y, size, body: add(id('playingChicks'), 'use', {href: '#jumpingChick'}),
+    shadow: add(id('chickShadows'), 'ellipse', {cx: x, cy: y + 4, rx: 49 * size, ry: 8})
   }));
+  for (const [i, x] of [78, 365, 653, 966].entries()) {
+    for (let n = 0; n < 7; n++) {
+      const dx = (n % 3 - 1) * 22;
+      const dy = Math.floor(n / 3) * 10 + n % 2 * 2;
+      add(id('fishSchool'), 'use', {href: '#dollarFish', transform:
+        'translate(' + (x + dx) + ' ' + (359 - dy) + ') rotate(' + ((i + n) % 3 - 1) * 12 + ') scale(.84)'});
+    }
+  }
+  const flyingFish = chicks.slice(1).map(() => add(id('fishGame'), 'use', {href: '#dollarFish'}));
+  function drawOpening(time) {
+    chicks.forEach(({body, shadow, x, y, size}, i) => {
+      const beat = (time * .86 + i * .32) % 1;
+      const airborne = bounded((beat - .12) / .77);
+      const hop = 4 * airborne * (1 - airborne);
+      body.setAttribute('transform', 'translate(' + (x + 9 * Math.sin(beat * 2 * Math.PI)) + ' ' +
+        (y - hop * (55 + 10 * i)) + ') rotate(' + (Math.sin(beat * 2 * Math.PI) * 6) + ') scale(' + size + ')');
+      shadow.setAttribute('rx', size * (49 - 19 * hop));
+    });
+    flyingFish.forEach((fish, i) => {
+      const phase = (time * .53 + i * .53) % 2;
+      const travel = phase <= 1 ? phase : 2 - phase;
+      const x = chicks[i].x + 40 + (chicks[i + 1].x - chicks[i].x - 80) * travel;
+      const y = 241 - 145 * 4 * travel * (1 - travel);
+      fish.setAttribute('transform', 'translate(' + x + ' ' + y + ') rotate(' +
+        ((2 * travel - 1) * 39) + ') scale(' + (phase < 1 ? -1.12 : 1.12) + ' 1.12)');
+    });
+  }
   for (let floor = 0; floor < 8; floor++) {
     path(id('towerFloors'), 'M303 ' + (224 + floor * 43) + 'h419', {});
   }
@@ -98,16 +127,75 @@
     return [(col<12 ? 56 : 573)+(col%12)*35, 352+Math.floor(i/24)*54, 26, 39];
   }
   const mix = (a,b,t) => a.map((v,i)=>v+(b[i]-v)*t);
+  const trafficCanvas = id('rocketTraffic');
+  const trafficPaint = trafficCanvas.getContext('2d');
+  const rocket = document.createElement('canvas');
+  rocket.width = 64;
+  rocket.height = 36;
+  const ink = rocket.getContext('2d');
+  ink.translate(30, 18);
+  for (const [fill, shape] of [
+    ['#ffaf47', 'M-8 -4 Q-20 -6 -29 0 Q-18 5 -8 4Z'],
+    ['#fff1ab', 'M-8 -2 L-22 0 L-8 3Z'],
+    ['#7692ff', 'M-3 -5 L-12 -15 L-12 -3 M-3 5 L-12 15 L-12 3'],
+    ['#f7faff', 'M-12 -4 Q1 -12 20 0 Q4 11 -12 4Z'],
+    ['#ff9463', 'M10 -4 Q16 -2 20 0 L10 4Z'],
+    ['#243fc3', 'M-2 0 A3.5 3.5 0 1 0 5 0 A3.5 3.5 0 1 0 -2 0']
+  ]) {
+    ink.fillStyle = fill;
+    ink.fill(new Path2D(shape));
+  }
+  function flyRocket(serial, flight, pod, size) {
+    // Side lanes converge on the gateway, then fan out to the awake pods.
+    const lane = ((serial * 47) % 137) / 137;
+    const inward = flight < .63;
+    const t = inward ? flight / .63 : (flight - .63) / .37;
+    const startX = inward ? (serial % 2 ? -25 : 1105) : 515;
+    const startY = inward ? 515 + lane * 204 : 510;
+    const endX = inward ? 515 : pod[0] + pod[2] / 2;
+    const endY = inward ? 510 : pod[1] + pod[3] / 2;
+    const arc = inward ? 63 * lane : -50 - 34 * lane;
+    const x = startX + (endX - startX) * t;
+    const y = startY + (endY - startY) * t + 4 * arc * t * (1 - t);
+    trafficPaint.save();
+    trafficPaint.translate(x, y);
+    trafficPaint.rotate(Math.atan2(endY - startY + 4 * arc * (1 - 2 * t), endX - startX));
+    trafficPaint.drawImage(rocket, -30 * size, -18 * size, 64 * size, 36 * size);
+    trafficPaint.restore();
+  }
+  const formatCount = new Intl.NumberFormat(locale);
+  function drawTraffic(key, p, count, towerGrowth, wingGrowth) {
+    trafficPaint.clearRect(0, 0, trafficCanvas.width, trafficCanvas.height);
+    if (!['arrival', 'tower', 'palace'].includes(key)) return 0;
+    if (key === 'arrival' && p < .4) {
+      flyRocket(1, Math.min(1, .63 * p / .24), rooms[5], 1.04);
+      return 1;
+    }
+    const volume = key === 'arrival' ? 1 + 23 * eased(p, .4, 1)
+      : key === 'tower' ? 24 + 616 * p : 640 + 4160 * p;
+    // Track individual messages over their flight interval. At the peak hundreds are in flight.
+    const inFlight = Math.min(225, 1 + volume * .095);
+    const size = .78 - .49 * eased(inFlight, 4, 150);
+    for (let serial = Math.max(2, Math.floor(volume - inFlight) + 1); serial <= volume; serial++) {
+      const slot = (serial * 37) % Math.max(count, 1);
+      const i = slot === 0 ? 5 : slot <= 5 ? slot - 1 : slot;
+      const box = mix(mix(rooms[i % 8], towerRoom(i % 32), towerGrowth), palaceRoom(i), wingGrowth);
+      const flight = (volume - serial) / inFlight;
+      const perspective = serial % 13 === 1 ? (1 - eased(flight, .25, .62)) * (.86 - size) : 0;
+      flyRocket(serial, flight, box, size + perspective);
+    }
+    return Math.floor(volume);
+  }
   const notes = french ? {
     mapping: 'Fenêtres → pods de l’application   ·   Porte → passerelle HTTP',
     bill: '8 pods × 10 € par heure = 80 € par heure',
     sleep: 'La deuxième heure sans pod ajoute 0 € à la facture.',
-    growth: 'Montée en charge · compteur horaire en pause'
+    growth: 'compteur horaire en pause'
   } : {
     mapping: 'Windows → application pods   ·   Door → HTTP gateway',
     bill: 'Eight pods × €10 per hour = €80 per hour',
     sleep: 'Second hour at zero pods adds €0 to the bill.',
-    growth: 'Scale-up snapshots · billing clock paused'
+    growth: 'billing clock paused'
   };
   function drawArchitecture(key, p) {
     const mapping = key === 'mapping', bill = key === 'podbill', sleep = key === 'sleeping';
@@ -130,15 +218,16 @@
     podFields.rate.textContent=money.format(count*10);
     podFields.elapsed.textContent=decimalHours.format(hours)+' h';
     podFields.bill.textContent=money.format(accrued);
-    podFields.note.textContent=notes[noteKey];
+    const messages = drawTraffic(key, p, count, towerGrowth, wingGrowth);
+    const trafficLabel = french ? 'Messages simulés' : 'Simulated messages';
+    podFields.note.textContent=messages
+      ? trafficLabel + ' ' + formatCount.format(messages) + ' · ' + notes.growth
+      : notes[noteKey];
     fade(diagram,mapping?eased(p,.03,.40):1);
     fade(id('blueprintHouse'),1-towerGrowth);
     fade(id('towerShell'),towerGrowth*(1-wingGrowth));
     fade(id('versaillesShell'),wingGrowth);
     fade(id('podConnections'),1-towerGrowth);
-    const packet = id('incomingPacket');
-    fade(packet,arrival && p < .25 ? 1 : 0);
-    packet.setAttribute('transform','translate(515 '+(720-213*eased(p,0,.24))+')');
     for (const [i,pane] of panes.entries()) {
       const footprint = rooms[i%8];
       const towerPos = towerRoom(i%32);
@@ -245,10 +334,7 @@
   window.drawHouseChapter = (key, visual, progress, time, filmTime, mouth) => {
     if (visual==='architecture') return drawArchitecture(key,progress);
     if (visual==='penguin') return drawPenguin(key,time,filmTime,mouth);
-    if (visual==='opening') {
-      cover.forEach((pane,i)=>fade(pane,.21+.79*eased(progress,.03+i*.047,.30+i*.047)));
-      return;
-    }
+    if (visual==='opening') return drawOpening(time);
     window.drawHouse(key,progress,time);
   };
 })();
