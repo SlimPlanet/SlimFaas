@@ -42,6 +42,11 @@ class MarketingTimelineTests(unittest.TestCase):
         self.assertEqual(cues[1]["start"], cues[0]["end"])
         self.assertEqual(cues[1]["end"], render.LEAD + 3)
 
+    def test_mouth_follows_the_audio_and_closes_during_padding(self):
+        samples = (4096).to_bytes(2, "little") * (render.RATE // render.FPS)
+        levels = render.mouth_motion(samples, 8)
+        self.assertEqual(levels, [0, 0, 0, 0, 0, 0, 1, 0])
+
     def test_house_edition_can_pass_one_minute(self):
         with tempfile.TemporaryDirectory() as scratch:
             scenes, frames = self.plan_voice(Path(scratch), 65 * render.RATE, "house")

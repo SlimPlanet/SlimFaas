@@ -4,7 +4,7 @@ Run the commands below from this directory. You can copy it outside the SlimFaas
 
 | Edition | Published film | Rebuild |
 | --- | --- | --- |
-| Animated house | [The last ones out (1 min 9 s)](../../docs/media/live-stream/house.mp4) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
+| Animated house | [From eight windows to Versailles (1 min 36 s)](../../docs/media/live-stream/house.mp4) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
 | Marketing | [Zero idle replicas (31 seconds)](../../docs/media/live-stream/marketing.mp4), portrait 4:5, English voice and burned-in captions | `pnpm marketing` |
 | Educational | [Dashboard walkthrough](media/dashboard.mp4), 3 min 11 s, widescreen, English voice and selectable captions | `pnpm educational` after capturing three takes |
 
@@ -22,9 +22,11 @@ pnpm test
 
 ## Rebuild the animated house
 
-Run `pnpm house` to write `media/house.mp4` and `media/house.vtt`. The [house illustration](marketing/house/scene.html), [animation](marketing/house/animation.js) and [narration](marketing/house/scenes.json) are bundled. The renderer uses the same educational master and recorded observations as the short cut.
+Run `pnpm house` to write `media/house.mp4` and `media/house.vtt`. The house edition renders offline from its bundled artwork, English voice master and scene timings. The narrator tells the house story. A male penguin voice (Kokoro `bm_george`) delivers the close, with beak motion driven by the audio. [Scene script](marketing/house/scenes.json) · [House](marketing/house/scene.html) · [Architecture](marketing/house/chapters.html) · [Penguin](marketing/house/penguin.html)
 
-The household example counts lighting during eight empty hours. Eight 60 W lamps consume 3.84 kWh, or €0.96 at the illustrative rate of €0.25/kWh. Switching them off before leaving brings that lighting charge to €0.00. The flowers wilt during the first time-lapse. The Kubernetes sequence shows 30 completed calculations, four ready workers at peak, then zero. The separate team cost result is sourced in the [marketing brief](marketing/brief.md).
+The two meters use separate illustrative tariffs. Eight 60 W lamps left on for eight hours use 3.84 kWh and cost €0.96 at €0.25/kWh. At €10 per application pod-hour, eight idle pods cost €80 in the first hour. After scale-to-zero, the second hour adds €0. SlimFaas stays at the door to receive requests. The billing clock pauses while the house grows to 32 pods in the tower and 96 at Versailles, displaying the hourly rate at each scale. These counts illustrate demand.
+
+The closing example applies a 60% reduction to €10,000 per month, leaving €4,000 and saving €6,000. Guillaume Chervet reported a reduction above 60% for his team. [Devoxx Belgium 2025](https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas)
 
 ## Rebuild the short marketing edit
 

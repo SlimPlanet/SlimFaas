@@ -43,7 +43,7 @@ def main():
     offset = 0
     for scene in json.loads((source / "scenes.json").read_text()):
         if args.speech_url:
-            body = json.dumps({"model": "kokoro", "voice": "af_heart", "speed": 1.055,
+            body = json.dumps({"model": "kokoro", "voice": scene.get("speaker", "af_heart"), "speed": 1.055,
                                "input": scene["voice"], "response_format": "wav"}).encode()
             args.speech_url.request("POST", "/v1/audio/speech", body, {"Content-Type": "application/json"})
             with args.speech_url.getresponse() as response:

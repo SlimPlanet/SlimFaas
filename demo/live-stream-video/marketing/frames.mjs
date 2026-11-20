@@ -1,4 +1,4 @@
-// Render the portrait cut entirely from the bundled mark, footage and observations.
+// Render the portrait films from their bundled artwork, narration timeline and optional footage.
 import { chromium } from 'playwright-core';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -10,21 +10,25 @@ const board = await readFile(new URL('board.html', import.meta.url), 'utf8');
 const logo = await readFile(new URL('slimfaas.svg', import.meta.url));
 const frames = path.join(directory, 'frames');
 await mkdir(frames);
-const metrics = {
+const metrics = observed ? {
   idle: [[0, 'ready workers']],
   wake: [['0 → 1', 'ready worker'], [observed.syncResponse.result, 'HTTP result']],
   rush: [[observed.asyncAccepted, 'accepted'], [observed.peakReadyWorkers, 'workers at peak']],
   quiet: [[observed.asyncCompletedWithResult4807526976, 'completed'], [observed.finalReadyWorkers, 'workers after idle']],
-};
+} : {};
 
 const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1080, height: 1350 }, deviceScaleFactor: 1 });
   await page.setContent(board);
-  if (scenes.some(scene => scene.house)) {
-    const interior = await readFile(new URL('house/scene.html', import.meta.url), 'utf8');
+  if (scenes.some(scene => scene.visual)) {
+    const [interior, chapters, penguin] = await Promise.all(['scene', 'chapters', 'penguin'].map(name =>
+      readFile(new URL('house/' + name + '.html', import.meta.url), 'utf8')));
     await page.locator('.film__story').evaluate((story, html) => story.insertAdjacentHTML('beforebegin', html), interior);
-    await page.addScriptTag({ path: fileURLToPath(new URL('house/animation.js', import.meta.url)) });
+    await page.locator('.house-film').evaluate((section, html) => section.insertAdjacentHTML('beforeend', html), chapters + penguin);
+    for (const name of ['animation', 'chapters']) {
+      await page.addScriptTag({ path: fileURLToPath(new URL('house/' + name + '.js', import.meta.url)) });
+    }
   }
   await page.evaluate(async base64 => {
     const mark = document.querySelector('.film__logo');
@@ -38,12 +42,12 @@ try {
     await page.evaluate(({ scene, stats, result }) => {
       const field = name => document.querySelector('.film__' + name);
       document.querySelector('main').className = 'film film--' + scene.key;
-      if (field('house')) field('house').hidden = !scene.house;
+      if (field('house')) field('house').hidden = !scene.visual;
       field('story').hidden = !stats;
       field('case').hidden = scene.key !== 'cost';
       field('close').hidden = scene.key !== 'try';
-      if (scene.house) {
-        document.querySelector('.house-film__title').textContent = scene.headline;
+      if (scene.visual) {
+        window.setHouseChapter(scene);
       } else if (stats) {
         field('headline').textContent = scene.headline;
         field('detail').textContent = scene.detail;
@@ -73,7 +77,7 @@ try {
           (stats && field('detail').getBoundingClientRect().bottom > field('monitor').getBoundingClientRect().top)) {
         throw new Error('Content overlaps in ' + scene.key);
       }
-    }, { scene, stats, result: observed.syncResponse.result });
+    }, { scene, stats, result: observed?.syncResponse.result });
 
     let previousImage = 0;
     for (let i = 0; i < scene.frames; i++, movieFrame++) {
@@ -90,8 +94,8 @@ try {
         }
       }
       const caption = scene.cues.find(cue => cue.start <= t && t < cue.end)?.text || '';
-      await page.evaluate(async ({ image, caption, t, houseKey, progress }) => {
-        if (houseKey) window.drawHouse(houseKey, progress, t);
+      await page.evaluate(async ({ image, caption, t, houseKey, progress, visual, filmTime, mouth }) => {
+        if (houseKey) window.drawHouseChapter(houseKey, visual, progress, t, filmTime, mouth);
         if (image) {
           const capture = document.querySelector('.film__capture');
           capture.src = 'data:image/jpeg;base64,' + image;
@@ -102,7 +106,8 @@ try {
         if (text.getBoundingClientRect().bottom > innerHeight - 38) throw new Error('Caption exceeds safe area');
         const section = document.querySelector('section:not([hidden])');
         section.style.transform = houseKey ? 'none' : 'translateY(' + (8 * Math.max(0, 1 - t / 0.3) ** 2) + 'px)';
-      }, { image, caption, t, houseKey: scene.house ? scene.key : null, progress: i / Math.max(1, scene.frames - 1) });
+      }, { image, caption, t, houseKey: scene.visual ? scene.key : null,
+        visual: scene.visual, filmTime: movieFrame / fps, mouth: scene.mouth?.[i] || 0, progress: i / Math.max(1, scene.frames - 1) });
       await page.screenshot({ path: path.join(frames, String(movieFrame).padStart(5, '0') + '.jpg'),
         type: 'jpeg', quality: 92 });
     }

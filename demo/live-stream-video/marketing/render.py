@@ -1,4 +1,5 @@
-"""Render the short social cut from the published Kubernetes recording and English voice."""
+"""Render the dashboard cut or the illustrated house film with its English voice track."""
+from array import array
 import argparse
 import json
 import math
@@ -6,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import wave
 
@@ -55,6 +57,22 @@ def subtitles(voice, samples, cue_samples):
     return cues
 
 
+def mouth_motion(pcm, count):
+    """Measure voiced energy in each video frame so the beak closes during silence."""
+    signal = array("h")
+    signal.frombytes(pcm)
+    if sys.byteorder != "little":
+        signal.byteswap()
+    width = RATE // FPS
+    result = []
+    for frame in range(count):
+        start = frame * width - round(LEAD * RATE)
+        block = signal[max(0, start):max(0, start + width)]
+        rms = math.sqrt(sum(sample * sample for sample in block) / len(block)) if block else 0
+        result.append(round(min(1, max(0, (rms - 110) / 3300)), 3))
+    return result
+
+
 def plan(directory, edition="marketing"):
     house = edition == "house"
     source = HERE / "house" if house else HERE
@@ -69,10 +87,12 @@ def plan(directory, edition="marketing"):
                 raise ValueError(f"Expected 24 kHz mono 16-bit voice for {scene['key']}")
             samples = take.getnframes()
             voice = take.readframes(samples)
-        tail = 1.8 if scene["key"] == "try" else 0.65
+        tail = 1.8 if scene["key"] in ("try", "savings") else 0.65
         count = math.ceil((LEAD + samples / RATE + tail) * FPS)
         if not house:
             check_length(frames + count)
+        if scene.get("visual") == "penguin":
+            scene["mouth"] = mouth_motion(voice, count)
         scene["frames"] = count
         scene["cues"] = subtitles(scene["voice"], samples, scene.get("cueSamples", []))
         for cue in scene["cues"]:
@@ -95,14 +115,16 @@ def encode(*args):
 
 def render(directory, edition="marketing"):
     scenes, frames = plan(directory, edition)
-    observed = json.loads((HERE.parent / "observed.json").read_text())
-    # English voice quotes these measurements from the published master.
-    for key, value in {"syncResponse": {"result": 55}, "asyncAccepted": 30, "peakReadyWorkers": 4,
-                       "asyncCompletedWithResult4807526976": 30, "finalReadyWorkers": 0}.items():
-        if observed[key] != value:
-            raise ValueError(f"The recorded {key} changed. Review the marketing script and in/out points.")
+    observed = None
+    if edition == "marketing":
+        observed = json.loads((HERE.parent / "observed.json").read_text())
+        # English voice quotes these measurements from the published master.
+        for key, value in {"syncResponse": {"result": 55}, "asyncAccepted": 30, "peakReadyWorkers": 4,
+                           "asyncCompletedWithResult4807526976": 30, "finalReadyWorkers": 0}.items():
+            if observed[key] != value:
+                raise ValueError(f"The recorded {key} changed. Review the marketing script and in/out points.")
     for scene in scenes:
-        if scene["key"] not in SHOTS:
+        if edition != "marketing" or scene["key"] not in SHOTS:
             continue
         start, stop, crop = SHOTS[scene["key"]]
         destination = directory / scene["key"]
@@ -115,7 +137,7 @@ def render(directory, edition="marketing"):
             raise ValueError(f"Incomplete dashboard excerpt for {scene['key']}")
     (directory / "plan.json").write_text(json.dumps({"fps": FPS, "scenes": scenes, "observed": observed}))
     subprocess.run(["node", HERE / "frames.mjs", directory], check=True)
-    title = "The last ones out" if edition == "house" else "Zero idle replicas. One HTTP call wakes your API."
+    title = "From eight windows to Versailles" if edition == "house" else "Zero idle replicas. One HTTP call wakes your API."
     encode("-framerate", str(FPS), "-start_number", "0", "-i", directory / "frames/%05d.jpg",
            "-i", directory / "voice.wav",
            "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-crf", "18", "-preset", "veryfast",
@@ -126,6 +148,7 @@ def render(directory, edition="marketing"):
            "-metadata", "comment=Cost result reported by Guillaume Chervet (AXA France), Devoxx Belgium 2025: "
            "https://m.devoxx.com/events/dvbe25/talks/11002/i-lost-weight-on-kubernetes-with-slimfaas",
            directory / "marketing.mp4")
+    MEDIA.mkdir(exist_ok=True)
     (directory / "marketing.mp4").replace(MEDIA / f"{edition}.mp4")
     (directory / "subtitles.vtt").replace(MEDIA / f"{edition}.vtt")
     print(f"{title}: {frames / FPS:.2f}s, 1080 × 1350, {FPS} fps", flush=True)

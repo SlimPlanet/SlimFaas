@@ -1,112 +1,173 @@
 [
   {
-    "key": "evening",
-    "house": true,
-    "headline": "Eight lights on.",
-    "voice": "It's eight in the evening. Upstairs and downstairs, light spills from every window.",
-    "voiceSamples": 111872,
+    "key": "promise",
+    "visual": "opening",
+    "headline": "Reduce infrastructure spend by up to 60%",
+    "voice": "Reduce infrastructure spend by up to sixty percent.",
+    "voiceSamples": 72192,
     "cueSamples": [
-      33536,
-      78336
+      72192
     ]
+  },
+  {
+    "key": "evening",
+    "headline": "Eight lights on.",
+    "voice": "Upstairs and downstairs, all eight lights are on.",
+    "voiceSamples": 61952,
+    "cueSamples": [
+      61952
+    ],
+    "visual": "house"
   },
   {
     "key": "leave",
-    "house": true,
     "headline": "The last ones out.",
-    "voice": "The family heads out. The front door closes behind them. All eight lights stay on.",
-    "voiceSamples": 114688,
+    "voice": "The family leaves. Every window stays bright.",
+    "voiceSamples": 67840,
     "cueSamples": [
-      34048,
-      47872,
-      32768
-    ]
+      32000,
+      35840
+    ],
+    "visual": "house"
   },
   {
     "key": "bill",
-    "house": true,
     "headline": "An empty house. A running bill.",
-    "voice": "Eight sixty-watt lamps, left on for eight hours, use three point eight four kilowatt-hours. At twenty-five euro cents per kilowatt-hour, that's ninety-six cents to light an empty house.",
-    "voiceSamples": 253184,
+    "voice": "Eight lamps burn for eight empty hours. That's ninety-six cents to light an empty house.",
+    "voiceSamples": 110336,
     "cueSamples": [
-      127744,
-      125440
-    ]
+      54016,
+      56320
+    ],
+    "visual": "house"
   },
   {
     "key": "switch",
-    "house": true,
     "headline": "Same night. Lights off.",
-    "voice": "Let's replay that night. The last person out switches off the lights. Over the same eight hours, those lamps add zero to the bill.",
-    "voiceSamples": 170496,
+    "voice": "Replay the night. The last person switches off the lights. Same eight hours, zero cents.",
+    "voiceSamples": 126464,
     "cueSamples": [
-      35584,
-      57088,
+      30464,
+      51456,
+      44544
+    ],
+    "visual": "house"
+  },
+  {
+    "key": "return",
+    "headline": "Light the room you need.",
+    "voice": "Someone comes home. Only their room lights up.",
+    "voiceSamples": 66816,
+    "cueSamples": [
+      32000,
+      34816
+    ],
+    "visual": "house"
+  },
+  {
+    "key": "mapping",
+    "visual": "architecture",
+    "headline": "Every window is a pod.",
+    "voice": "Each window is a pod. SlimFaas is the front door for requests.",
+    "voiceSamples": 93952,
+    "cueSamples": [
+      36096,
+      57856
+    ]
+  },
+  {
+    "key": "podbill",
+    "visual": "architecture",
+    "headline": "Idle pods run up a bill.",
+    "voice": "At ten euros per pod-hour, eight idle pods cost eighty euros in one hour.",
+    "voiceSamples": 108032,
+    "cueSamples": [
+      108032
+    ]
+  },
+  {
+    "key": "sleeping",
+    "visual": "architecture",
+    "headline": "Let idle pods sleep.",
+    "voice": "After the idle timeout, SlimFaas scales the app to zero. Another quiet hour adds zero euros.",
+    "voiceSamples": 137472,
+    "cueSamples": [
+      83712,
+      53760
+    ]
+  },
+  {
+    "key": "arrival",
+    "visual": "architecture",
+    "headline": "One request wakes the app.",
+    "voice": "One request wakes a pod. More requests light up the house.",
+    "voiceSamples": 81664,
+    "cueSamples": [
+      41216,
+      40448
+    ]
+  },
+  {
+    "key": "tower",
+    "visual": "architecture",
+    "headline": "From house to high-rise.",
+    "voice": "Demand keeps climbing. Eight windows become thirty-two.",
+    "voiceSamples": 76544,
+    "cueSamples": [
+      34560,
+      41984
+    ]
+  },
+  {
+    "key": "palace",
+    "visual": "architecture",
+    "headline": "Room for a royal crowd.",
+    "voice": "Now picture Versailles. Ninety-six windows glow, all behind the same front door.",
+    "voiceSamples": 113920,
+    "cueSamples": [
+      37120,
+      76800
+    ]
+  },
+  {
+    "key": "trial",
+    "visual": "penguin",
+    "headline": "Try it in five minutes.",
+    "voice": "Try SlimFaas in five minutes with your existing HTTP app. Keep your language and your handler.",
+    "speaker": "bm_george",
+    "voiceSamples": 178432,
+    "cueSamples": [
+      121600,
+      56832
+    ]
+  },
+  {
+    "key": "toolbox",
+    "visual": "penguin",
+    "headline": "Build your agent over HTTP.",
+    "voice": "Building an agent? Stream files, cache results, and publish events. Replay streams, queue jobs, and trace requests. All over HTTP, without an SDK.",
+    "speaker": "bm_george",
+    "voiceSamples": 280832,
+    "cueSamples": [
+      40192,
+      79104,
+      83712,
       77824
     ]
   },
   {
-    "key": "return",
-    "house": true,
-    "headline": "Light the room you need.",
-    "voice": "Someone comes home. One room lights up. Your API can work the same way.",
-    "voiceSamples": 107520,
+    "key": "savings",
+    "visual": "penguin",
+    "headline": "Save €6,000 a month.",
+    "voice": "One team saved over sixty percent. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. You save six thousand euros a month. Try SlimFaas. Help protect the ice for penguins like me!",
+    "speaker": "bm_george",
+    "voiceSamples": 358400,
     "cueSamples": [
-      32000,
-      32512,
-      43008
-    ]
-  },
-  {
-    "key": "wake",
-    "headline": "One call wakes your API.",
-    "detail": "Keep your existing HTTP handler.",
-    "voice": "With SlimFaas, an idle API can scale to zero. The next HTTP call wakes a worker and waits for its answer.",
-    "voiceSamples": 168704,
-    "cueSamples": [
-      76544,
-      92160
-    ]
-  },
-  {
-    "key": "rush",
-    "headline": "Queue the burst.",
-    "detail": "Workers join as the queue grows.",
-    "voice": "Watch this real deployment. Thirty calculations arrived together. Four workers shared the load.",
-    "voiceSamples": 134656,
-    "cueSamples": [
-      40704,
-      55552,
-      38400
-    ]
-  },
-  {
-    "key": "quiet",
-    "headline": "Give the capacity back.",
-    "detail": "The last worker shuts down after the idle timeout.",
-    "voice": "All thirty finished. After the idle timeout, the worker count returned to zero.",
-    "voiceSamples": 112384,
-    "cueSamples": [
-      32000,
-      80384
-    ]
-  },
-  {
-    "key": "cost",
-    "headline": "lower infrastructure costs",
-    "voice": "At Devoxx Belgium, one team reported cutting its infrastructure costs by more than sixty percent.",
-    "voiceSamples": 137216,
-    "cueSamples": [
-      137216
-    ]
-  },
-  {
-    "key": "try",
-    "headline": "Try it with one HTTP endpoint.",
-    "voice": "Try SlimFaas locally with one of your own HTTP endpoints.",
-    "voiceSamples": 96256,
-    "cueSamples": [
-      96256
+      66304,
+      128256,
+      64768,
+      36608,
+      62464
     ]
   }
 ]
