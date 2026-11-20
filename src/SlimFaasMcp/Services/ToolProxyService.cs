@@ -157,8 +157,14 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             };
         }
 
-        baseUrl ??= ExtractBaseUrl(swagger)
-                    ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            // Relative URLs resolve against where the document was finally retrieved, after any redirect.
+            string documentUrl = swaggerService.GetDocumentUri(swagger)?.AbsoluteUri ?? swaggerUrl;
+            baseUrl = ExtractBaseUrl(swagger, documentUrl, endpoint.Url, endpoint.Verb)
+                      ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+        }
+
         baseUrl = baseUrl.TrimEnd('/');
 
         Dictionary<string, JsonElement>? inputDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
@@ -562,37 +568,161 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return "application/json";
     }
 
-    public static string? ExtractBaseUrl(JsonDocument swagger)
+    // The API base URL described by the document: the first OpenAPI 3 server, with its variables set to their default
+    // values, or the Swagger 2.0 scheme, host and basePath. As both specifications define, a relative URL resolves
+    // against the URL of the document, a document without servers or host uses "/", and a Swagger 2.0 document
+    // without schemes uses the scheme of the document URL. A Swagger 2.0 document without host is served from the host
+    // of the document URL. A URL with a variable that has no default value has no base URL. For an OpenAPI 3
+    // operation, the servers of the operation come first, then those of its path item, then those of the document.
+    // For a Swagger 2.0 operation, the schemes of the operation come first, then those of the document.
+    public static string? ExtractBaseUrl(JsonDocument swagger, string swaggerUrl, string? path = null, string? verb = null)
     {
         JsonElement root = swagger.RootElement;
+        Uri? documentUri = Uri.TryCreate(swaggerUrl, UriKind.Absolute, out Uri? parsedDocumentUri)
+            ? parsedDocumentUri
+            : null;
 
-        if (root.TryGetProperty("servers", out JsonElement serversArr) &&
-            serversArr.ValueKind == JsonValueKind.Array &&
-            serversArr.GetArrayLength() > 0)
+        string url = "/";
+        if (FindServers(root, path, verb) is { } serversArr &&
+            serversArr[0].ValueKind == JsonValueKind.Object &&
+            serversArr[0].TryGetProperty("url", out JsonElement urlProp) &&
+            urlProp.ValueKind == JsonValueKind.String)
         {
-            JsonElement server = serversArr[0];
-            if (server.TryGetProperty("url", out JsonElement urlProp))
+            url = urlProp.GetString()!;
+            if (serversArr[0].TryGetProperty("variables", out JsonElement variables) &&
+                variables.ValueKind == JsonValueKind.Object)
             {
-                return urlProp.GetString();
+                foreach (JsonProperty variable in variables.EnumerateObject())
+                {
+                    if (variable.Value.ValueKind == JsonValueKind.Object &&
+                        variable.Value.TryGetProperty("default", out JsonElement defaultValue) &&
+                        defaultValue.ValueKind == JsonValueKind.String)
+                    {
+                        url = url.Replace($"{{{variable.Name}}}", defaultValue.GetString(), StringComparison.Ordinal);
+                    }
+                }
+            }
+        }
+        else
+        {
+            string? basePath = root.TryGetProperty("basePath", out JsonElement bp) && bp.ValueKind == JsonValueKind.String
+                ? bp.GetString()
+                : null;
+            string? scheme = FindScheme(root, path, verb);
+            if (root.TryGetProperty("host", out JsonElement hostProp) && hostProp.ValueKind == JsonValueKind.String)
+            {
+                url = $"{scheme ?? documentUri?.Scheme ?? Uri.UriSchemeHttps}://{hostProp.GetString()}{basePath}";
+            }
+            else if (scheme is not null && documentUri is not null)
+            {
+                // Without host, the API is served from the host of the document, with the scheme the document declares.
+                string port = documentUri.IsDefaultPort ? string.Empty : $":{documentUri.Port}";
+                url = $"{scheme}://{documentUri.Host}{port}{basePath}";
+            }
+            else if (!string.IsNullOrEmpty(basePath))
+            {
+                url = basePath;
             }
         }
 
-        if (root.TryGetProperty("host", out JsonElement hostProp))
+        // A variable without a default value cannot be resolved, whether it is in the host or in the path.
+        if (url.Contains('{', StringComparison.Ordinal) || url.Contains('}', StringComparison.Ordinal))
         {
-            string scheme = "https";
-            if (root.TryGetProperty("schemes", out JsonElement schemes) && schemes.ValueKind == JsonValueKind.Array &&
-                schemes.GetArrayLength() > 0)
-            {
-                scheme = schemes[0].GetString() ?? scheme;
-            }
+            return null;
+        }
 
-            string? host = hostProp.GetString();
-            string? basePath = root.TryGetProperty("basePath", out JsonElement bp) ? bp.GetString() : "";
-            return $"{scheme}://{host}{basePath}";
+        // On Unix, "/v1" parses as an absolute file URI, so only HTTP URLs are taken as they are.
+        if (Uri.TryCreate(url, UriKind.Absolute, out Uri? absoluteUri) &&
+            (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
+        {
+            return url;
+        }
+
+        return documentUri is not null && Uri.TryCreate(documentUri, url, out Uri? resolvedUri)
+            ? resolvedUri.AbsoluteUri
+            : null;
+    }
+
+    // The transport scheme of a Swagger 2.0 operation: the first scheme of the operation, else the first of the document.
+    private static string? FindScheme(JsonElement root, string? path, string? verb)
+    {
+        if (FindOperation(root, path, verb) is { } operation &&
+            FirstScheme(operation) is { } operationScheme)
+        {
+            return operationScheme;
+        }
+
+        return FirstScheme(root);
+    }
+
+    private static string? FirstScheme(JsonElement element) =>
+        element.TryGetProperty("schemes", out JsonElement schemes) &&
+        schemes.ValueKind == JsonValueKind.Array &&
+        schemes.GetArrayLength() > 0 &&
+        schemes[0].ValueKind == JsonValueKind.String
+            ? schemes[0].GetString()
+            : null;
+
+    private static JsonElement? FindOperation(JsonElement root, string? path, string? verb)
+    {
+        if (path is not null &&
+            verb is not null &&
+            root.TryGetProperty("paths", out JsonElement paths) &&
+            paths.ValueKind == JsonValueKind.Object &&
+            paths.TryGetProperty(path, out JsonElement pathItem) &&
+            pathItem.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty member in pathItem.EnumerateObject())
+            {
+                if (string.Equals(member.Name, verb, StringComparison.OrdinalIgnoreCase) &&
+                    member.Value.ValueKind == JsonValueKind.Object)
+                {
+                    return member.Value;
+                }
+            }
         }
 
         return null;
     }
+
+    // The servers that apply to an operation: the non-empty servers of the operation, else of its path item, else of the
+    // document.
+    private static JsonElement? FindServers(JsonElement root, string? path, string? verb)
+    {
+        if (path is not null &&
+            root.TryGetProperty("paths", out JsonElement paths) &&
+            paths.ValueKind == JsonValueKind.Object &&
+            paths.TryGetProperty(path, out JsonElement pathItem) &&
+            pathItem.ValueKind == JsonValueKind.Object)
+        {
+            if (verb is not null)
+            {
+                foreach (JsonProperty member in pathItem.EnumerateObject())
+                {
+                    if (string.Equals(member.Name, verb, StringComparison.OrdinalIgnoreCase) &&
+                        member.Value.ValueKind == JsonValueKind.Object &&
+                        NonEmptyServers(member.Value) is { } operationServers)
+                    {
+                        return operationServers;
+                    }
+                }
+            }
+
+            if (NonEmptyServers(pathItem) is { } pathServers)
+            {
+                return pathServers;
+            }
+        }
+
+        return NonEmptyServers(root);
+    }
+
+    private static JsonElement? NonEmptyServers(JsonElement element) =>
+        element.TryGetProperty("servers", out JsonElement servers) &&
+        servers.ValueKind == JsonValueKind.Array &&
+        servers.GetArrayLength() > 0
+            ? servers
+            : null;
 
     private static async Task<ProxyCallResult> ToProxyCallResult(HttpResponseMessage resp)
     {
