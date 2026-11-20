@@ -122,10 +122,10 @@
     "visual": "architecture",
     "headline": "From house to high-rise.",
     "voice": "Demand keeps climbing. Eight windows become thirty-two.",
-    "voiceSamples": 77910,
+    "voiceSamples": 78490,
     "cueSamples": [
-      35440,
-      42470
+      36009,
+      42481
     ],
     "speaker": "af_heart"
   },
@@ -134,10 +134,10 @@
     "visual": "architecture",
     "headline": "Room for a royal crowd.",
     "voice": "Now picture Versailles. Ninety-six windows glow, all behind the same front door.",
-    "voiceSamples": 114907,
+    "voiceSamples": 120433,
     "cueSamples": [
-      36147,
-      78760
+      42535,
+      77898
     ],
     "speaker": "af_heart"
   },
@@ -184,14 +184,15 @@
     "key": "year",
     "visual": "penguin",
     "headline": "What does that save in a year?",
-    "voice": "Keep that up for twelve months and you save seventy-two thousand euros. Your yearly bill goes from one hundred and twenty thousand euros to forty-eight thousand. Give SlimFaas a try. Help keep my home on the ice!",
+    "voice": "Keep that up for twelve months and you save seventy-two thousand euros. Your yearly bill goes from one hundred and twenty thousand euros to forty-eight thousand. Give SlimFaas a try. Help keep my home on the ice! This isn’t Versailles, you know!",
     "speaker": "af_bella",
     "cueSamples": [
       104578,
       128018,
       36538,
-      37451
+      57010,
+      37447
     ],
-    "voiceSamples": 306585
+    "voiceSamples": 363591
   }
 ]

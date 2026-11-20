@@ -7,6 +7,31 @@
       <radialGradient id="chickHood" cx=".34" cy=".20" r=".94"><stop stop-color="#42536a"/><stop offset=".58" stop-color="#26364c"/><stop offset="1" stop-color="#17263a"/></radialGradient>
       <linearGradient id="chickFace" x2=".2" y2="1"><stop stop-color="#fffdf4"/><stop offset="1" stop-color="#f0e8de"/></linearGradient>
       <linearGradient id="iceEdge" x2=".6" y2="1"><stop stop-color="#d5f5ed"/><stop offset=".42" stop-color="#95c6cc"/><stop offset="1" stop-color="#658eaa"/></linearGradient>
+      <linearGradient id="palaceIce" x2=".22" y2="1"><stop stop-color="#f7ffff"/><stop offset=".4" stop-color="#d2ebef"/><stop offset="1" stop-color="#8ebacb"/></linearGradient>
+      <radialGradient id="iglooShell" cx=".34" cy=".22" r=".86"><stop stop-color="#ffffff"/><stop offset=".58" stop-color="#d6edf1"/><stop offset="1" stop-color="#81aec4"/></radialGradient>
+      <linearGradient id="candleGlass" x2=".15" y2="1"><stop stop-color="#ffb855"/><stop offset=".48" stop-color="#ffda81"/><stop offset="1" stop-color="#fff1b1"/></linearGradient>
+      <g id="iglooDome" stroke-linejoin="round">
+        <path d="M-54 0a54 54 0 0 1 108 0z" fill="url(#iglooShell)" stroke="#7099b2" stroke-width="2.4"/>
+        <path d="M-49-19q48 11 98 0m-87-18q37 9 76 0m-57-13q19 4 38 0M-33-2l3-14m24 16 1-12m29 11-3-14m17-18 4 12m-32-16 1 16m-28-15-3 14m25-27 2 12" fill="none" stroke="#93b9c9" stroke-width="1.8"/>
+        <path d="M-55-2q55 8 110 0l-2 6H-53z" fill="#e9f6f7" stroke="#7ea5ba" stroke-width="1.6"/>
+      </g>
+      <g id="iceWing">
+        <path d="M0 218h141v78H0z" fill="url(#palaceIce)" stroke="#638aa3" stroke-width="2"/>
+        <path d="m-4 218 14-23h121l14 23z" fill="#8bafc3" stroke="#7196ae" stroke-width="2"/>
+        <path d="M8 196h125m-136 22h147M0 258h141" fill="none" stroke="#f5fcfa" stroke-width="4"/>
+        <path d="M0 222h141m-141 39h141" fill="none" stroke="#88acbb" stroke-width="2"/>
+        <path d="m16 210 5-9 5 9m37 0 6-9 6 9m35 0 5-9 5 9" fill="#d8eef1" stroke="#749ab0" stroke-width="2"/>
+      </g>
+      <g id="icePavilion">
+        <path d="M-44 212h88v84h-88z" fill="url(#palaceIce)" stroke="#648da7" stroke-width="2"/>
+        <use href="#iglooDome" transform="translate(0 210) scale(.90 1.05)"/>
+        <path d="M-47 215h94m-92 43h90m-83-38v72m76-72v72" fill="none" stroke="#e8f7f7" stroke-width="4"/>
+        <path d="M0 151v-10" stroke="#9e8252" stroke-width="3"/><circle cy="140" r="3.5" fill="#f6cc7d"/>
+      </g>
+      <path id="icePane" d="M-8 0v-13a8 8 0 0 1 16 0V0z"/>
+      <path id="iceMullion" d="M0-20v20m-8-12H8" fill="none" stroke-width="1.5"/>
+      <g id="iceWindow"><use href="#icePane" fill="#375b75" stroke="#7199ae" stroke-width="3.5"/><use href="#iceMullion" stroke="#a2bbc6"/></g>
+      <g id="litIceWindow"><use href="#icePane" fill="url(#candleGlass)" stroke="#ffcf6f" stroke-width="4" stroke-opacity=".56"/><use href="#iceMullion" stroke="#a77c53"/></g>
     </defs>
     <path fill="url(#polarSky)" d="M0 0h1080v565H0z"/>
     <circle cx="833" cy="103" r="62" fill="#fff1ce" opacity=".8"/>
@@ -17,6 +42,27 @@
     <path d="m0 297 118-19 132 8 77 10-82 13-159 3L0 308zm723-27 114-15 96 2 88 9-66 7-122 4z" fill="#deedf0"/>
     <path d="m0 307 86 5 159-3 82-13-16 14-150 13L0 317z" fill="#9bbfce"/>
     <g fill="none" stroke-linecap="round" id="waterRipples"></g>
+    <g id="iceVersailles" opacity="0">
+      <path d="m357 313 61-19 138-4 150-9 222 8 121 15 20 13-76 15-188 5-175 4-139-6-112-8z" fill="#9fc6d3" stroke="#86adbf" stroke-width="2"/>
+      <path d="m357 313 61-19 138-4 150-9 222 8 121 15 20 13-154 8-189-7-186 10z" fill="#e9f6f5"/>
+      <use href="#iceWing" x="495"/><use href="#iceWing" x="784"/>
+      <use href="#icePavilion" x="453"/><use href="#icePavilion" x="967"/>
+      <path d="M631 194h158v102H631z" fill="url(#palaceIce)" stroke="#628aa3" stroke-width="2.5"/>
+      <use href="#iglooDome" transform="translate(710 192) scale(1.47 1.38)"/>
+      <path d="M710 117V83q13-6 25 1l-5 6 6 4q-13-5-26 0" fill="#f3cc79" stroke="#9b8157" stroke-width="2"/>
+      <path d="m625 205 85-46 85 46z" fill="#f1dfaf" stroke="#9f906d" stroke-width="2.5"/>
+      <path d="m642 200 68-34 68 34z" fill="#91b4c7" stroke="#fff3d5" stroke-width="2"/>
+      <g transform="translate(710 187)" stroke="#fff0be" stroke-width="2.5">
+        <path d="M0-13v4m0 18v4m-13-13h4m18 0h4m-22-9 3 3m12 12 3 3m0-18-3 3m-12 12-3 3"/><circle r="6.5" fill="#f4c366"/>
+      </g>
+      <path d="M626 207h168m-164 49h160" stroke="#e6f5f6" stroke-width="5"/>
+      <g fill="none" stroke="#eefdff" stroke-width="6"><path d="M636 212v77m38-77v77m72-77v77m38-77v77"/></g>
+      <g id="iceWindows"></g>
+      <path d="M680 295v-10a30 34 0 0 1 60 0v10z" fill="url(#iglooShell)" stroke="#739bb0" stroke-width="2.5"/>
+      <path d="M691 295v-11a19 23 0 0 1 38 0v11z" fill="#46667c"/><path d="M686 265l8 6m16-18v9m22 3-7 7m-43 12 10 1m37 0 9-2" fill="none" stroke="#8bafbf" stroke-width="2"/>
+      <path d="M399 297h622m-344 4h66m-73 5h80m-88 6h96" stroke="#91b5c4" stroke-width="3"/>
+      <path d="m692 314-36 10m73-10 45 10" stroke="#b4d2da" stroke-width="3"/>
+    </g>
     <g id="floe">
       <path d="m107 429 113-37 194-16 138 9 173-9 167 28 82 31-54 39-189 24-193-7-135 14-187-15-117-27z" fill="url(#iceEdge)" stroke="#76a2b8" stroke-width="2"/>
       <path d="m107 429 113-37 194-16 138 9 173-9 167 28 82 31-189 15-118 17-196-6-134 10-140-14z" fill="#ecf6f2"/>
@@ -36,8 +82,12 @@
             <path d="M-64-231q0-37 29-44 26-4 39 18 15-21 38-16 31 9 28 41-1 36-28 52-38 24-73 5-34-17-33-56z" fill="url(#chickFace)"/>
             <g fill="#e6a79c" opacity=".51"><ellipse cx="-44" cy="-210" rx="15" ry="7"/><ellipse cx="49" cy="-210" rx="15" ry="7"/></g>
             <g id="penguinEye">
-              <g fill="#172438" stroke="#344256" stroke-width="2.5"><ellipse cx="-28" cy="-237" rx="12" ry="16"/><ellipse cx="32" cy="-237" rx="12" ry="16"/></g>
-              <g fill="#fff"><circle cx="-32" cy="-243" r="4.4"/><circle cx="-24" cy="-231" r="2"/><circle cx="28" cy="-243" r="4.4"/><circle cx="36" cy="-231" r="2"/></g>
+              <ellipse cx="-28" cy="-237" rx="12" ry="16" fill="#172438" stroke="#344256" stroke-width="2.5"/>
+              <g fill="#fff"><circle cx="-32" cy="-243" r="4.4"/><circle cx="-24" cy="-231" r="2"/></g>
+              <g id="penguinWink">
+                <ellipse cx="32" cy="-237" rx="12" ry="16" fill="#172438" stroke="#344256" stroke-width="2.5"/>
+                <g fill="#fff"><circle cx="28" cy="-243" r="4.4"/><circle cx="36" cy="-231" r="2"/></g>
+              </g>
             </g>
             <path d="M-43-258q9-10 18-6m49 1q10-5 19 6" fill="none" stroke="#596475" stroke-width="3.8" stroke-linecap="round"/>
             <path id="penguinBeak" d="M-12-217q14 0 29 0-6 15-13 16-9-1-16-16z" fill="#bc7157" stroke="#825447" stroke-width="2"/>

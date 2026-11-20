@@ -163,6 +163,21 @@
     const x=(i*193+23)%1060, y=255+(i*31)%300;
     path(ripples,'M'+x+' '+y+'q13-3 '+(32+i%5*8)+' 0',{stroke:i%2?'#c3dce2':'#436f92','stroke-width':2.3,opacity:.5});
   }
+  const icePalace = id('iceVersailles');
+  const iceWindows = id('iceWindows');
+  const palaceLights = [];
+  // Mirror the two galleries and domed pavilions across the Sun King's entrance.
+  for (const y of [250, 287]) {
+    const leftWing = [427, 453, 479, 510, 537, 564, 591, 618];
+    const leftPavilion = y === 250 ? [655, 690] : [655];
+    for (const x of [...leftWing, ...leftPavilion]) {
+      for (const center of [x, 1420 - x]) {
+        add(iceWindows, 'use', {href: '#iceWindow', x: center, y});
+        const glass = add(iceWindows, 'use', {href: '#litIceWindow', x: center, y, opacity: 0});
+        palaceLights.push({glass, delay: (710 - x) / 320 + (y === 250 ? .14 : 0)});
+      }
+    }
+  }
   const remainingLabel = polar.querySelector('[data-month="remaining"]');
   const savedLabel = polar.querySelector('[data-month="saved"]');
   const remainingBar = polar.querySelector('.house-film__savings-bar div');
@@ -176,6 +191,7 @@
     return month;
   });
   let savingsCue;
+  let punchline;
   function drawPenguin(key, localTime, time, mouth) {
     if (key === 'savings') {
       const fraction = eased(localTime, savingsCue.start, savingsCue.end);
@@ -189,12 +205,22 @@
       annualTotal.textContent = money.format(monthlySaving * elapsed);
       months.forEach((month, i) => month.classList.toggle('house-film__month--saved', i < elapsed));
     }
-    id('floe').setAttribute('transform','translate(0 '+(2.8*Math.sin(time*1.4))+')');
+    const reveal = punchline ? eased(localTime, punchline.start - 1.5, punchline.start + .12) : 0;
+    fade(icePalace, reveal);
+    icePalace.setAttribute('transform', 'translate(0 ' + (32 * (1 - reveal)) + ')');
+    for (const {glass, delay} of palaceLights) {
+      const on = punchline ? eased(localTime - punchline.start, delay - .32, delay - .10) : 0;
+      fade(glass, on);
+    }
+    const winkTime = punchline ? localTime - punchline.end : -1;
+    const wink = eased(winkTime, -.18, .04) * (1 - eased(winkTime, .38, .56));
+    id('penguinWink').setAttribute('transform', 'translate(0 -237) scale(1 ' + (1 - .92 * wink) + ') translate(0 237)');
+    id('floe').setAttribute('transform','translate('+(-204 * reveal)+' '+(2.8*Math.sin(time*1.4))+')');
     id('penguinBody').setAttribute('transform','rotate('+(1.25*Math.sin(time*1.9))+' 0 -12)');
-    id('penguinHead').setAttribute('transform','rotate('+(2*Math.sin(time*2.2))+' 0 -185)');
+    id('penguinHead').setAttribute('transform','rotate('+(2*Math.sin(time*2.2) + 6 * reveal)+' 0 -185)');
     id('penguinFlipper').setAttribute('transform','rotate('+(7+13*Math.sin(time*3.3))+' -64 -155)');
     const blink = Math.max(.10, Math.min(1,Math.abs((time+1)%3.72-.16)*9));
-    id('penguinEye').setAttribute('transform','translate(0 -237) scale(1 '+blink+') translate(0 237)');
+    id('penguinEye').setAttribute('transform','translate('+(4 * reveal)+' -237) scale(1 '+(wink > 0 ? 1 : blink)+') translate(0 237)');
     id('penguinBeak').setAttribute('transform','translate(0 '+(mouth*7)+')');
     ripples.setAttribute('transform','translate('+(3*Math.sin(time*.8))+' 0)');
   }
@@ -209,6 +235,7 @@
     title.textContent=scene.headline;
     if (architecture) window.drawHouse('return',1,0);
     if (penguin) {
+      punchline = scene.key === 'year' ? scene.cues.at(-1) : undefined;
       polar.querySelector('h1').textContent=scene.headline;
       if (scene.key === 'savings') savingsCue = scene.cues[1];
       if (scene.key === 'year') savingsCue = scene.cues[0];

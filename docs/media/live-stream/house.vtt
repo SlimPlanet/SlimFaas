@@ -54,53 +54,56 @@ One request wakes a pod.
 00:00:46.575 --> 00:00:48.311
 More requests light up the house.
 
-00:00:49.250 --> 00:00:50.727
+00:00:49.250 --> 00:00:50.750
 Demand keeps climbing.
 
-00:00:50.727 --> 00:00:52.496
+00:00:50.750 --> 00:00:52.520
 Eight windows become thirty-two.
 
-00:00:53.417 --> 00:00:54.923
+00:00:53.458 --> 00:00:55.231
 Now picture Versailles.
 
-00:00:54.923 --> 00:00:58.204
+00:00:55.231 --> 00:00:58.476
 Ninety-six windows glow, all behind the same front door.
 
-00:00:59.125 --> 00:01:03.399
+00:00:59.417 --> 00:01:03.691
 Try SlimFaas in five minutes with your existing HTTP app.
 
-00:01:03.399 --> 00:01:05.303
+00:01:03.691 --> 00:01:05.595
 Keep your language and your handler.
 
-00:01:06.208 --> 00:01:07.492
+00:01:06.500 --> 00:01:07.784
 Building an agent?
 
-00:01:07.492 --> 00:01:10.410
+00:01:07.784 --> 00:01:10.702
 Stream files, cache results, and publish events.
 
-00:01:10.410 --> 00:01:13.511
+00:01:10.702 --> 00:01:13.803
 Replay streams, queue jobs, and trace requests.
 
-00:01:13.511 --> 00:01:16.384
+00:01:13.803 --> 00:01:16.676
 All over HTTP, without an SDK.
 
-00:01:17.292 --> 00:01:19.495
+00:01:17.583 --> 00:01:19.787
 One team saved over sixty percent.
 
-00:01:19.495 --> 00:01:24.388
+00:01:19.787 --> 00:01:24.680
 At sixty percent, a ten-thousand-euro monthly bill drops to four thousand.
 
-00:01:24.388 --> 00:01:26.849
+00:01:24.680 --> 00:01:27.141
 That's six thousand euros saved each month.
 
-00:01:27.750 --> 00:01:32.107
+00:01:28.042 --> 00:01:32.399
 Keep that up for twelve months and you save seventy-two thousand euros.
 
-00:01:32.107 --> 00:01:37.442
+00:01:32.399 --> 00:01:37.733
 Your yearly bill goes from one hundred and twenty thousand euros to forty-eight thousand.
 
-00:01:37.442 --> 00:01:38.964
+00:01:37.733 --> 00:01:39.256
 Give SlimFaas a try.
 
-00:01:38.964 --> 00:01:40.524
+00:01:39.256 --> 00:01:41.631
 Help keep my home on the ice!
+
+00:01:41.631 --> 00:01:43.191
+This isn’t Versailles, you know!

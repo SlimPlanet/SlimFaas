@@ -43,7 +43,7 @@ test('the two departures show the same eight empty hours and different lighting 
 });
 
 for (const language of ['en', 'fr']) {
-  test(`the ${language} film maps the windows to pods and annualizes the monthly saving`, async t => {
+  test(`the ${language} film maps windows to pods, counts annual savings and lights the ice palace on cue`, async t => {
     const french = language === 'fr';
     const currency = new Intl.NumberFormat(french ? 'fr-FR' : 'en-IE', {style: 'currency', currency: 'EUR', maximumFractionDigits: 0});
     const hours = value => value.toFixed(1).replace('.', french ? ',' : '.') + ' h';
@@ -63,12 +63,19 @@ for (const language of ['en', 'fr']) {
       await page.addScriptTag({path: fileURLToPath(new URL(script, import.meta.url))});
     }
     const scenes = JSON.parse(await readFile(new URL(french ? 'fr/scenes.json' : 'scenes.json', import.meta.url), 'utf8'));
-    async function frame(key, progress, mouth = 0) {
+    for (const scene of scenes) {
+      let sample = 6000; // The film gives each narrator a quarter-second lead.
+      scene.cues = scene.cueSamples.map(length => {
+        const start = sample / 24000;
+        sample += length;
+        return {start, end: sample / 24000};
+      });
+    }
+    async function frame(key, progress, mouth = 0, time = progress * 6) {
       const scene = scenes.find(item => item.key === key);
-      return page.evaluate(({scene, progress, mouth}) => {
-        scene.cues = [{start: 0, end: 2}, {start: 2, end: 5}];
+      return page.evaluate(({scene, progress, mouth, time}) => {
         window.setHouseChapter(scene);
-        window.drawHouseChapter(scene.key, scene.visual, progress, progress * 6, progress * 6, mouth);
+        window.drawHouseChapter(scene.key, scene.visual, progress, time, time, mouth);
         const gate = document.querySelector('#podDoor path').getBoundingClientRect();
         const windows = [...document.querySelector('#podWindows').children];
         const displayed = windows.filter(el => el.style.display !== 'none');
@@ -83,11 +90,14 @@ for (const language of ['en', 'fr']) {
           monthly: [...document.querySelectorAll('[data-month]')].map(el => el.textContent),
           annual: document.querySelector('[data-year="saved"]').textContent,
           months: document.querySelectorAll('.house-film__month--saved').length,
+          icePalace: Number(document.querySelector('#iceVersailles').getAttribute('opacity')),
+          glowing: [...document.querySelectorAll('#iceWindows use[href="#litIceWindow"]')].filter(el => Number(el.getAttribute('opacity')) >= .5).length,
+          wink: document.querySelector('#penguinWink').getAttribute('transform'),
           intro: document.querySelector('.house-film__promise').textContent,
           beak: document.querySelector('#penguinBeak').getAttribute('transform'),
           visiblePitches: [...document.querySelectorAll('[data-pitch]')].filter(el => !el.hidden).map(el => el.dataset.pitch)
         };
-      }, {scene, progress, mouth});
+      }, {scene, progress, mouth, time});
     }
     const house = await frame('mapping', 1);
     assert.deepEqual(house.firstWindow, house.originalWindow);
@@ -111,15 +121,34 @@ for (const language of ['en', 'fr']) {
     for (const key of ['trial', 'toolbox', 'savings', 'year']) {
       assert.deepEqual((await frame(key, 1)).visiblePitches, [key]);
     }
-    const close = await frame('savings', 1);
+    const close = await frame('savings', 1, 0, scenes.find(scene => scene.key === 'savings').cues[1].end);
     assert.deepEqual(close.monthly, [currency.format(4000) + (french ? ' à payer' : ' spend'),
       currency.format(6000) + (french ? ' économisés' : ' saved')]);
     assert.ok(close.intro.includes(french ? 'Réduisez' : 'Reduce'));
-    for (const [progress, months] of [[0, 0], [1/6, 6], [1, 12]]) {
-      const year = await frame('year', progress);
+    const finale = scenes.find(scene => scene.key === 'year');
+    const first = finale.cues[0];
+    for (const [time, months] of [[0, 0], [(first.start + first.end) / 2, 6], [first.end, 12]]) {
+      const year = await frame('year', 1, 0, time);
       assert.equal(year.months, months);
       assert.equal(year.annual, currency.format(6000 * months));
+      assert.equal(year.icePalace, 0);
     }
+    const [appeal, joke] = finale.cues.slice(-2);
+    assert.ok(finale.voice.endsWith(french
+      ? 'Aidez-moi à protéger ma banquise ! Ce n’est pas Versailles, ici !'
+      : 'Help keep my home on the ice! This isn’t Versailles, you know!'));
+    assert.equal((await frame('year', 1, 0, appeal.start)).icePalace, 0);
+    const reveal = await frame('year', 1, 0, joke.start - .5);
+    assert.ok(reveal.icePalace > 0 && reveal.icePalace < 1);
+    const lighting = await frame('year', 1, 0, joke.start + .3);
+    const litPalace = await frame('year', 1, 0, joke.end + .2);
+    assert.equal(litPalace.icePalace, 1);
+    assert.equal(litPalace.glowing, 38);
+    assert.ok(lighting.glowing > 0 && lighting.glowing < litPalace.glowing);
+    assert.notEqual(litPalace.wink, reveal.wink);
+    assert.equal(litPalace.annual, currency.format(72000));
+    assert.equal((await frame('trial', 1)).icePalace, 0);
+    assert.equal((await frame('year', 0)).glowing, 0);
     assert.notEqual(close.beak, (await frame('savings', 1, 1)).beak);
   });
 }

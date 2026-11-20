@@ -4,8 +4,8 @@ Run the commands below from this directory. You can copy it outside the SlimFaas
 
 | Edition | Published film | Rebuild |
 | --- | --- | --- |
-| Animated house · English | [From eight windows to Versailles (1 min 42 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
-| Animated house · French | [De huit fenêtres à Versailles (1 min 48 s)](../../docs/media/live-stream/house-fr.mp4) · [Audio only](../../docs/media/live-stream/house-fr.m4a) · [French captions](../../docs/media/live-stream/house-fr.vtt) | `pnpm house:fr` |
+| Animated house · English | [From eight windows to Versailles (1 min 45 s)](../../docs/media/live-stream/house.mp4) · [Audio only](../../docs/media/live-stream/house.m4a) · [English captions](../../docs/media/live-stream/house.vtt) | `pnpm house` |
+| Animated house · French | [De huit fenêtres à Versailles (1 min 50 s)](../../docs/media/live-stream/house-fr.mp4) · [Audio only](../../docs/media/live-stream/house-fr.m4a) · [French captions](../../docs/media/live-stream/house-fr.vtt) | `pnpm house:fr` |
 | Marketing | [Zero idle replicas (31 seconds)](../../docs/media/live-stream/marketing.mp4), portrait 4:5, English voice and burned-in captions | `pnpm marketing` |
 | Educational | [Dashboard walkthrough](media/dashboard.mp4), 3 min 11 s, widescreen, English voice and selectable captions | `pnpm educational` after capturing three takes |
 
@@ -23,7 +23,7 @@ pnpm test
 
 ## Rebuild the animated house
 
-Run `pnpm house` for English or `pnpm house:fr` for French. Each command produces an MP4, the identical AAC track in an M4A and matching WebVTT captions in `media/`, using the stems `house` and `house-fr`. Both renders run offline from the same artwork. Each language has its own script, lossless narration, caption timings, on-screen labels and number formats. The penguin chick’s beak follows the local voice. [English scenes](marketing/house/scenes.json) · [French scenes](marketing/house/fr/scenes.json) · [House](marketing/house/scene.html) · [Architecture](marketing/house/chapters.html) · [Penguin](marketing/house/penguin.html)
+Run `pnpm house` for English or `pnpm house:fr` for French. Each command produces an MP4, the identical AAC track in an M4A and matching WebVTT captions in `media/`, using the stems `house` and `house-fr`. Both renders run offline from the same artwork. Each language has its own script, lossless narration, caption timings, on-screen labels and number formats. The chick’s beak follows its voice. In the closing shot, the final spoken cue times the reveal of an igloo Versailles, its 38 lights and the chick’s wink. [English scenes](marketing/house/scenes.json) · [French scenes](marketing/house/fr/scenes.json) · [House](marketing/house/scene.html) · [Architecture](marketing/house/chapters.html) · [Penguin](marketing/house/penguin.html)
 
 The two meters use separate illustrative tariffs. Eight 60 W lamps left on for eight hours use 3.84 kWh and cost €0.96 at €0.25/kWh. At €10 per application pod-hour, eight idle pods cost €80 in the first hour. After scale-to-zero, the second hour adds €0. SlimFaas stays at the door to receive requests. The billing clock pauses while the house grows to 32 pods in the tower and 96 at Versailles, displaying the hourly rate at each scale. These counts illustrate demand.
 

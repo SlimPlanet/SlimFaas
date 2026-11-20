@@ -26,6 +26,8 @@ Open with **Reduce infrastructure spend by up to 60%** and credit the team resul
 
 Close on the ice with three outcomes. A developer can try an existing HTTP app locally in five minutes and keep its handler. An agent can move files, reuse results, fan out events, replay streams, queue work and trace requests through HTTP. A platform team saving 60% on a €10,000 monthly bill would free €6,000 each month. At the same rate over twelve months, €120,000 becomes €48,000, freeing €72,000 per year. The final card counts each month as the chick speaks. [Local trial](../../../docs/get-started-local.md) · [Files](../../../docs/data-files.md) · [Cache](../../../docs/data-sets.md) · [Pub/sub](../../../docs/events.md) · [Streams](../../../docs/streams.md) · [Queued work](../../../docs/async-functions.md) · [Observability](../../../docs/opentelemetry.md)
 
+Let the chick ask for help protecting its ice, then leave a beat before “Ce n’est pas Versailles, ici !” or “This isn’t Versailles, you know!” Bring a domed ice palace into view behind the chick, light the windows from the centre out and land the wink on the last word.
+
 ## Visual direction
 
 Use the site's SlimFaas symbol beside the wordmark, white backgrounds, ink `#15263f`, primary blue `#0000ff` and its system sans-serif typography. Keep **Functions. Less infrastructure.** as the brand signature. Give each shot one outcome. Use recorded footage in the dashboard cut and a continuous illustrated façade in the house film. Keep captions clear of the queue and replica counts. [Official mark](../../../src/SlimFaasSite/public/slimfaas.svg) · [Design tokens and typography](../../../src/SlimFaasSite/src/styles/index.scss) · [Brand signature](../../../src/SlimFaasSite/src/components/NavBar.tsx)

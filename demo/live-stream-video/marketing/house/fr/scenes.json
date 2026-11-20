@@ -124,10 +124,10 @@
     "voice": "La demande grimpe. Huit fenêtres deviennent trente-deux.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      33524,
-      41325
+      34500,
+      40870
     ],
-    "voiceSamples": 74849
+    "voiceSamples": 75370
   },
   {
     "key": "palace",
@@ -136,10 +136,10 @@
     "voice": "Imaginez maintenant Versailles. Quatre-vingt-seize fenêtres brillent derrière la même porte.",
     "speaker": "ff_siwis",
     "cueSamples": [
-      41664,
-      68571
+      49207,
+      67467
     ],
-    "voiceSamples": 110235
+    "voiceSamples": 116674
   },
   {
     "key": "trial",
@@ -184,15 +184,16 @@
     "key": "year",
     "visual": "penguin",
     "headline": "Et sur une année ?",
-    "voice": "Sur douze mois, vous économisez 72 000 €. Avant, c’était 120 000 € par an. Après, c’est 48 000 € par an. Essayez SlimFaas. Aidez-moi à protéger ma banquise !",
+    "voice": "Sur douze mois, vous économisez 72 000 €. Avant, c’était 120 000 € par an. Après, c’est 48 000 € par an. Essayez SlimFaas. Aidez-moi à protéger ma banquise ! Ce n’est pas Versailles, ici !",
     "speaker": "ff_siwis",
     "cueSamples": [
       82193,
       53897,
       54529,
       37632,
-      46050
+      64290,
+      38002
     ],
-    "voiceSamples": 274301
+    "voiceSamples": 330543
   }
 ]
