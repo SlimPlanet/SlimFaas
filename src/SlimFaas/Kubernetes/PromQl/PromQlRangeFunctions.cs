@@ -2,7 +2,7 @@ using SlimFaas.Workers;
 
 namespace SlimFaas.Kubernetes;
 
-internal enum SampleFunction { Instant, Rate, Increase, InstantRate, Max, Min, Average, Sum, Count, Last }
+internal enum SampleFunction { Instant, Rate, Increase, InstantRate, Max, Min, Average, Sum, Count, Last, Present }
 
 internal static class PromQlRangeFunctions
 {
@@ -14,9 +14,9 @@ internal static class PromQlRangeFunctions
         value = last.Value;
         int count = end - first;
         if (function is SampleFunction.Instant or SampleFunction.Last) return true;
-        if (function == SampleFunction.Count)
+        if (function is SampleFunction.Count or SampleFunction.Present)
         {
-            value = count;
+            value = function == SampleFunction.Count ? count : 1;
             return true;
         }
 
@@ -52,18 +52,16 @@ internal static class PromQlRangeFunctions
             return true;
         }
 
-        value = points[first].Value;
-        for (int i = first + 1; i < end; i++)
+        Aggregation operation = function switch
         {
-            double sample = points[i].Value;
-            value = function switch
-            {
-                SampleFunction.Max => Math.Max(value, sample),
-                SampleFunction.Min => Math.Min(value, sample),
-                _ => value + sample
-            };
-        }
-        if (function == SampleFunction.Average) value /= count;
+            SampleFunction.Min => Aggregation.Min,
+            SampleFunction.Max => Aggregation.Max,
+            SampleFunction.Average => Aggregation.Average,
+            _ => Aggregation.Sum
+        };
+        var accumulator = new PromQlAccumulator();
+        for (int i = first; i < end; i++) accumulator.Add(operation, points[i].Value);
+        value = accumulator.Result(operation);
         return true;
     }
 

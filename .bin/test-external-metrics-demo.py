@@ -57,9 +57,15 @@ def main():
     control("/pending?value=73")
     wait_for("External 0 -> 8 wake verified without calling the worker", lambda: replicas(8))
     port = leader_port()
-    value = json.loads(request(f"http://127.0.0.1:{port}/debug/promql/eval", "POST",
-        json.dumps({"deployment": "worker", "source": "jobs", "query": 'sum(jobs_pending{queue="emails"})'}).encode()))
-    assert value.get("value", value.get("Value")) == 73, value
+
+    def evaluate(query):
+        payload = json.dumps({"deployment": "worker", "source": "jobs", "query": query}).encode()
+        result = json.loads(request(f"http://127.0.0.1:{port}/debug/promql/eval", "POST", payload))
+        return result.get("value", result.get("Value"))
+
+    assert evaluate('sum(jobs_pending{queue="emails"})') == 73
+    presence = "sum(present_over_time(jobs_pending[30s]))"
+    assert evaluate(presence) == 1
     assert request(args.slimfaas + "/function/worker/hello/local").strip() == "Hello local!"
     print("Source-scoped debug query and function routing verified", flush=True)
 
@@ -67,8 +73,7 @@ def main():
 
     def invalid():
         try:
-            request(f"http://127.0.0.1:{port}/debug/promql/eval", "POST",
-                b'{"deployment":"worker","source":"jobs","query":"jobs_pending"}')
+            evaluate(presence)
             return False
         except HTTPError as error:
             return error.code == 400
@@ -83,6 +88,8 @@ def main():
     print("Capacity held throughout exporter failure", flush=True)
     control("/available?value=true")
     wait_for("Recovered empty queue: 8 -> 0 verified after stabilization", lambda: replicas(0))
+    assert evaluate("sum(jobs_pending)") == 0
+    assert evaluate(presence) == 1
 
 
 if __name__ == "__main__":

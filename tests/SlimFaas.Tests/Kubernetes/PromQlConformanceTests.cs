@@ -71,6 +71,35 @@ public class PromQlConformanceTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RejectsAmbiguousMatchesEvenForFilteredComparisons(bool snapshot)
+    {
+        var registry = new RequestedMetricsRegistry();
+        registry.RegisterFromQuery("jobs + capacity");
+        var store = new InMemoryMetricsStore(registry);
+        foreach (string pod in new[] { "a", "b" })
+            store.Add(10, "worker", pod, new Dictionary<string, double> { ["""jobs{queue="x"}"""] = 1 });
+        store.Add(10, "worker", "c", new Dictionary<string, double> { ["""capacity{queue="x"}"""] = 3 });
+        var evaluator = snapshot ? new PromQlMiniEvaluator(store.Snapshot) : new PromQlMiniEvaluator(store);
+        Assert.Throws<FormatException>(() => evaluator.Evaluate("jobs > on(queue) capacity", 10));
+        Assert.Throws<FormatException>(() => evaluator.Evaluate("capacity / ignoring() jobs", 10));
+        Assert.Equal(2.0 / 3, evaluator.Evaluate("sum by(queue) (jobs) / on(queue) capacity", 10));
+    }
+
+    [Theory]
+    [InlineData("count(0)")]
+    [InlineData("sum by (job) (1)")]
+    [InlineData("histogram_quantile(0.95, 1)")]
+    [InlineData("histogram_quantile(queue, queue)")]
+    [InlineData("clamp_min(1, queue)")]
+    [InlineData("clamp_min(queue, queue)")]
+    [InlineData("queue + on(job) 1")]
+    [InlineData("1 > bool ignoring(pod) queue")]
+    [InlineData("queue / on(job,job) queue")]
+    [InlineData("queue / on(__name__) queue")]
+    [InlineData("sum without(pod) (queue) by (job)")]
+    [InlineData("queue{code=~\"[[:unknown:]]\"}")]
     [InlineData("1 < 2")]
     [InlineData("rate(m[0s])")]
     [InlineData("m{job=~\"[\"}")]

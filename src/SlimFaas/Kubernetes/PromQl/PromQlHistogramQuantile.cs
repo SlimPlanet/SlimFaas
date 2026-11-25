@@ -2,12 +2,12 @@ using System.Globalization;
 
 namespace SlimFaas.Kubernetes;
 
-internal sealed class HistogramQuantileNode(double phi, ValueNode expression) : ValueNode
+internal sealed class HistogramQuantileNode(ValueNode quantile, ValueNode expression) : ValueNode
 {
     public override EvalValue Eval(EvalContext ctx)
     {
-        var buckets = expression.Eval(ctx).Vector;
-        if (buckets is null) return EvalValue.FromScalar(double.NaN);
+        double phi = quantile.Eval(ctx).Scalar;
+        var buckets = expression.Eval(ctx).Vector!;
         var histograms = new Dictionary<SeriesKey, SortedList<double, double>>();
         foreach (var (key, count) in buckets)
         {
@@ -22,29 +22,20 @@ internal sealed class HistogramQuantileNode(double phi, ValueNode expression) : 
             points[bound] = points.GetValueOrDefault(bound) + count;
         }
         var values = new Dictionary<SeriesKey, double>();
-        foreach (var (key, points) in histograms) values[key] = Quantile(points);
+        foreach (var (key, points) in histograms) values[key] = Quantile(phi, points);
         return EvalValue.FromVector(values);
     }
 
-    private double Quantile(SortedList<double, double> buckets)
+    private static double Quantile(double phi, SortedList<double, double> buckets)
     {
+        if (double.IsNaN(phi)) return double.NaN;
         if (phi < 0) return double.NegativeInfinity;
         if (phi > 1) return double.PositiveInfinity;
         if (buckets.Count < 2 || !double.IsPositiveInfinity(buckets.Keys[^1])) return double.NaN;
 
-        // Classic histogram buckets are cumulative. Small floating point differences
-        // between bucket rates and decreases in malformed input must not reverse ranks.
-        double previous = buckets.Values[0];
-        for (int i = 1; i < buckets.Count; i++)
-        {
-            double count = buckets.Values[i];
-            if (count < previous || Math.Abs(count - previous) <= 1e-12 * Math.Abs(count + previous))
-                buckets.SetValueAtIndex(i, previous);
-            else previous = count;
-        }
-
-        if (previous == 0) return double.NaN;
-        double rank = phi * previous;
+        double total = NormalizeCounts(buckets);
+        if (total == 0) return double.NaN;
+        double rank = phi * total;
         for (int i = 0; i < buckets.Count - 1; i++)
         {
             double count = buckets.Values[i];
@@ -58,5 +49,25 @@ internal sealed class HistogramQuantileNode(double phi, ValueNode expression) : 
         return buckets.Keys[^2];
     }
 
-    public override void CollectMetricNames(HashSet<string> names) => expression.CollectMetricNames(names);
+    private static double NormalizeCounts(SortedList<double, double> buckets)
+    {
+        // Classic histogram buckets are cumulative. Small floating point differences
+        // between bucket rates and decreases in malformed input must not reverse ranks.
+        double previous = buckets.Values[0];
+        for (int i = 1; i < buckets.Count; i++)
+        {
+            double count = buckets.Values[i];
+            if (count < previous || Math.Abs(count - previous) <= 1e-12 * Math.Abs(count + previous))
+                buckets.SetValueAtIndex(i, previous);
+            else previous = count;
+        }
+
+        return previous;
+    }
+
+    public override void CollectMetricNames(HashSet<string> names)
+    {
+        quantile.CollectMetricNames(names);
+        expression.CollectMetricNames(names);
+    }
 }

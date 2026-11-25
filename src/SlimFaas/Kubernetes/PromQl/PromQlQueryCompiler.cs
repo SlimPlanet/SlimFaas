@@ -117,10 +117,11 @@ internal sealed class PromQlParser
             }
             if (op is null) return left;
             bool returnBool = AcceptKeyword("bool");
+            LabelSelection? matching = ParseLabelSelection("on", "ignoring");
             var right = ParseAdd();
             if (!returnBool && left.IsScalar && right.IsScalar)
                 throw new FormatException("Scalar comparisons require bool");
-            left = new BinaryNode(left, op, right, returnBool);
+            left = MakeBinary(left, op, right, matching, returnBool);
         }
     }
 
@@ -132,20 +133,24 @@ internal sealed class PromQlParser
         return Accept(keyword);
     }
 
+    private static BinaryNode MakeBinary(ValueNode left, string op, ValueNode right,
+        LabelSelection? matching, bool returnBool = false)
+    {
+        if (matching is not null && (left.IsScalar || right.IsScalar))
+            throw new FormatException("Vector matching requires two instant vectors");
+        return new BinaryNode(left, op, right, returnBool, matching);
+    }
+
     private ValueNode ParseAdd()
     {
         var left = ParseMul();
         while (true)
         {
-            SkipWs();
-            if (Accept("+"))
-                left = new BinaryNode(left, "+", ParseMul());
-            else if (Accept("-"))
-                left = new BinaryNode(left, "-", ParseMul());
-            else
-                break;
+            string? op = Accept("+") ? "+" : Accept("-") ? "-" : null;
+            if (op is null) return left;
+            LabelSelection? matching = ParseLabelSelection("on", "ignoring");
+            left = MakeBinary(left, op, ParseMul(), matching);
         }
-        return left;
     }
 
     private ValueNode ParseMul()
@@ -153,15 +158,11 @@ internal sealed class PromQlParser
         var left = ParseUnary();
         while (true)
         {
-            SkipWs();
-            if (Accept("*"))
-                left = new BinaryNode(left, "*", ParseUnary());
-            else if (Accept("/"))
-                left = new BinaryNode(left, "/", ParseUnary());
-            else
-                break;
+            string? op = Accept("*") ? "*" : Accept("/") ? "/" : null;
+            if (op is null) return left;
+            LabelSelection? matching = ParseLabelSelection("on", "ignoring");
+            left = MakeBinary(left, op, ParseUnary(), matching);
         }
-        return left;
     }
 
     private ValueNode ParseUnary()
@@ -179,38 +180,13 @@ internal sealed class PromQlParser
         if (char.IsDigit(Cur) || Cur == '.')
             return new NumberNode(ParseNumber());
 
-        var ident = ParseIdent();
+        return ParseNamedExpression(ParseIdent());
+    }
 
-        if (string.Equals(ident, "histogram_quantile", StringComparison.OrdinalIgnoreCase) && Accept("("))
-        {
-            var phi = ParseNumber();
-            Expect(",");
-            var inner = ParseExpr();
-            Expect(")");
-            return new HistogramQuantileNode(phi, inner);
-        }
-
-        var function = ident.ToLowerInvariant() switch
-        {
-            "rate" => SampleFunction.Rate,
-            "increase" => SampleFunction.Increase,
-            "irate" => SampleFunction.InstantRate,
-            "max_over_time" => SampleFunction.Max,
-            "min_over_time" => SampleFunction.Min,
-            "avg_over_time" => SampleFunction.Average,
-            "sum_over_time" => SampleFunction.Sum,
-            "count_over_time" => SampleFunction.Count,
-            "last_over_time" => SampleFunction.Last,
-            _ => SampleFunction.Instant
-        };
-        if (function != SampleFunction.Instant && Accept("("))
-        {
-            var (selector, window) = ParseSelectorWithRange();
-            Expect(")");
-            return new SelectorNode(selector, function, window);
-        }
-
-        Aggregation? aggregation = ident.ToLowerInvariant() switch
+    private ValueNode ParseNamedExpression(string ident)
+    {
+        string name = ident.ToLowerInvariant();
+        Aggregation? aggregation = name switch
         {
             "sum" => Aggregation.Sum,
             "min" => Aggregation.Min,
@@ -221,31 +197,83 @@ internal sealed class PromQlParser
         };
         if (aggregation.HasValue)
         {
-            var by = ParseGrouping();
-            if (by is not null || Cur == '(')
-            {
-                Expect("(");
-                var args = ParseArgList();
-                Expect(")");
-                by ??= ParseGrouping();
-                if (args.Count == 1) return new AggregateNode(args[0], aggregation.Value, by ?? []);
-                if (by is null && aggregation is Aggregation.Min or Aggregation.Max)
-                    return new VariadicExtremaNode(args, aggregation == Aggregation.Min);
-                throw new FormatException("Aggregation requires one argument");
-            }
+            LabelSelection? grouping = ParseLabelSelection("by", "without");
+            if (grouping is not null || Cur == '(') return ParseAggregate(aggregation.Value, grouping);
         }
-        return new SelectorNode(ParseOptionalSelectorAfterKnownName(ident), SampleFunction.Instant, 0);
+        if (!Accept("("))
+            return new SelectorNode(ParseOptionalSelectorAfterKnownName(ident), SampleFunction.Instant, 0);
+
+        if (name is "histogram_quantile" or "clamp_min")
+        {
+            ValueNode first = ParseExpr();
+            Expect(",");
+            ValueNode second = ParseExpr();
+            Expect(")");
+            return name switch
+            {
+                "clamp_min" when !first.IsScalar && second.IsScalar => new ClampMinNode(first, second),
+                "histogram_quantile" when first.IsScalar && !second.IsScalar => new HistogramQuantileNode(first, second),
+                "clamp_min" => throw new FormatException("clamp_min requires an instant vector and a scalar minimum"),
+                _ => throw new FormatException("histogram_quantile requires a scalar quantile and an instant vector")
+            };
+        }
+
+        SampleFunction function = name switch
+        {
+            "rate" => SampleFunction.Rate,
+            "increase" => SampleFunction.Increase,
+            "irate" => SampleFunction.InstantRate,
+            "max_over_time" => SampleFunction.Max,
+            "min_over_time" => SampleFunction.Min,
+            "avg_over_time" => SampleFunction.Average,
+            "sum_over_time" => SampleFunction.Sum,
+            "count_over_time" => SampleFunction.Count,
+            "last_over_time" => SampleFunction.Last,
+            "present_over_time" => SampleFunction.Present,
+            _ => throw new FormatException($"Unsupported function '{ident}'")
+        };
+        var (selector, window) = ParseSelectorWithRange();
+        Expect(")");
+        return new SelectorNode(selector, function, window);
     }
 
-    private string[]? ParseGrouping()
+    private ValueNode ParseAggregate(Aggregation operation, LabelSelection? grouping)
     {
-        if (!AcceptKeyword("by")) return null;
         Expect("(");
-        if (Accept(")")) return [];
-        var labels = new List<string>();
-        do { labels.Add(ParseIdent()); } while (Accept(","));
+        List<ValueNode> args = ParseArgList();
         Expect(")");
-        return labels.ToArray();
+        grouping ??= ParseLabelSelection("by", "without");
+        if (args.Count == 1)
+        {
+            if (args[0].IsScalar && (operation == Aggregation.Count || grouping is not null))
+                throw new FormatException("count and grouped aggregations require an instant vector");
+            return new AggregateNode(args[0], operation, grouping);
+        }
+        if (grouping is null && operation is Aggregation.Min or Aggregation.Max)
+            return new VariadicExtremaNode(args, operation == Aggregation.Min);
+        throw new FormatException("Aggregation requires one argument");
+    }
+
+    private LabelSelection? ParseLabelSelection(string includeKeyword, string excludeKeyword)
+    {
+        bool include = AcceptKeyword(includeKeyword);
+        if (!include && !AcceptKeyword(excludeKeyword)) return null;
+        Expect("(");
+        var names = new List<string>();
+        while (!Accept(")"))
+        {
+            string label = ParseIdent();
+            if (label == "__name__" && include)
+                throw new FormatException("Grouping or matching on the metric name is unsupported");
+            if (names.Contains(label)) throw new FormatException($"Duplicate label '{label}'");
+            names.Add(label);
+            if (!Accept(","))
+            {
+                Expect(")");
+                break;
+            }
+        }
+        return new LabelSelection(names.ToArray(), include);
     }
 
     // Parses a comma-separated argument list, stopping before the closing ')'.
@@ -316,19 +344,7 @@ internal sealed class PromQlParser
                 throw new FormatException("Invalid quoted label value");
             _pos += length;
 
-            Regex? pattern = null;
-            if (op is "=~" or "!~")
-            {
-                try
-                {
-                    pattern = new Regex($@"\A(?:{value})\z", RegexOptions.CultureInvariant | RegexOptions.Singleline |
-                        RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(50));
-                }
-                catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
-                {
-                    throw new FormatException("Invalid or unsupported label regular expression", ex);
-                }
-            }
+            Regex? pattern = op is "=~" or "!~" ? PromQlLabelRegex.Compile(value) : null;
             sel.Matchers.Add((label, value, pattern, op is "!=" or "!~"));
 
             SkipWs();

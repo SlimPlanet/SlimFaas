@@ -479,12 +479,36 @@ query to a **single scalar** that can be used by the AutoScaler.
   label value. A missing label compares as the empty string. For example,
   `jobs_pending{queue!="emails"}` includes series without a `queue` label.
   Double-quoted values can contain commas and escaped quotes or backslashes.
+  POSIX classes such as `[[:digit:]]` and Perl classes such as `\d`, `\w`
+  and `\s` use RE2's ASCII ranges. In PromQL text, write
+  `code=~"\\d{3}"` or `code=~"[[:digit:]]{3}"` to match three ASCII digits.
+  Use `[^[:digit:]]` to complement a POSIX class. The compiler reports an
+  unsupported class name or inner negation such as `[[:^digit:]]`.
 
 #### 2. Arithmetic and comparisons
 
 Arithmetic operators `+`, `-`, `*` and `/` work on scalars and per-series values.
-Two vectors match on their labels and scrape target. Aggregating with `by` drops
-the target identity so groups can match across targets. Unmatched series drop out.
+By default, two vectors match on their labels and scrape target. An explicit
+`on(queue)` matches on the listed exported labels. `ignoring(zone, source)`
+matches on the remaining exported labels. Both forms return those matching
+labels and drop the implicit scrape-target identity. Unmatched series drop
+out. Aggregate to one series per matching key on each side first. An ambiguous
+match produces a query error. Function and external-source scoping still apply.
+
+For example, if an exporter provides queue backlog and total worker slots,
+this query returns backlog per slot for each queue. The explicit outer
+`max` selects the busiest queue for the scaler. A floor of one slot allows
+a measured zero-capacity queue to signal demand. A missing capacity series
+leaves that queue unmatched.
+
+```promql
+max(
+  sum by (queue) (jobs_pending)
+  / on (queue)
+  clamp_min(max by (queue) (worker_slots), 1)
+)
+```
+
 A comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) filters samples.
 Add `bool` to return 1 or 0 for each match. Scalar-to-scalar comparisons require `bool`.
 
@@ -511,13 +535,24 @@ scrapes. Apply `rate` before summing counters so resets remain visible.
 `sum`, `min`, `max`, `avg` and `count` aggregate per-series results. Use
 `by (label, ...)` before or after the argument to retain grouping labels.
 For example, `max(sum by (queue) (jobs_pending))` returns the backlog of the
-busiest queue. Empty input produces no observation, including for `sum`.
+busiest queue. Use `without (instance, pod)` to keep every other exported
+label. For example, `max without (instance, pod) (jobs_pending)` takes one
+backlog reading per queue when several replicas report the same queue.
+Empty input produces no observation, including for `sum`.
+
+`min` and `max` keep the numeric samples in a group that also contains
+`NaN`. A group containing only `NaN` returns `NaN`. Sums and averages use
+compensated addition. Averages switch to an incremental calculation when a
+finite mean would overflow an intermediate sum.
 
 The autoscaler and debug API return one number. For compatibility, a final
 vector normally sums its elements and a bare `max_over_time` takes the
 largest series maximum. Write an explicit outer aggregation when combining
-series. Existing SlimFaas scalar `min(a, b)` and `max(a, b)` expressions
-remain available as extensions.
+series. Ungrouped `sum`, `avg`, `min` and `max` accept a
+single scalar for compatibility, and the variadic SlimFaas `min(a, b)` and
+`max(a, b)` extensions remain available. `count` and grouped aggregations
+require an instant vector. The compiler also checks function argument types
+before registering metrics for collection.
 
 #### 5. Histograms and `histogram_quantile()`
 
@@ -642,13 +677,17 @@ Interpretation:
 - The API evaluates one instant and returns a single number. The supported
   range functions for gauges are `avg_over_time`, `min_over_time`,
   `max_over_time`, `sum_over_time`, `count_over_time` and `last_over_time`.
-  Each sample in a time average has equal weight.
+  Each sample in a time average has equal weight. For diagnostics,
+  `present_over_time(jobs_pending[30s])` returns 1 per series with any
+  sample, including a measured zero. An empty window returns no series.
+  External metrics still require a healthy source and the latest scrape.
+  Use the backlog gauge itself to scale on work.
 - Histograms use classic cumulative float buckets with a numeric `le` label
   and a final `+Inf` bucket. A histogram needs at least two buckets and a
   nonzero observation count. Native histograms are outside this subset.
 - Label selectors require a metric name. Regexes use the .NET non-backtracking
   engine. The supported grammar excludes set operators (`and`, `or`, `unless`),
-  vector matching modifiers (`on`, `ignoring`, `group_left`, `group_right`),
+  many-to-one modifiers (`group_left`, `group_right`), grouping or matching on `__name__`,
   subqueries, `offset`, `@`, and functions such as `predict_linear`.
 - The autoscaler supplies its evaluation time. The debug API defaults to the
   latest stored timestamp and accepts `NowUnixSeconds` for a historical instant.

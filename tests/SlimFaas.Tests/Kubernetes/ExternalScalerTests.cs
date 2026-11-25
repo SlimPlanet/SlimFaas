@@ -61,6 +61,36 @@ public class ExternalScalerTests
             Provider.GetAsync(new("default", "worker", config, config.Triggers[0], now), default);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitMatchingAndPresenceRespectSourceScopeAndFreshness(bool snapshot)
+    {
+        var fixture = new Fixture(snapshot);
+        var config = Config();
+        fixture.Scrape(config, 0);
+        fixture.Scrape(config, 73, function: "other");
+
+        async Task<ScalerResult> Eval(string query, long time = Now)
+        {
+            config.Triggers[0] = config.Triggers[0] with { Query = query };
+            return await fixture.Evaluate(config, time);
+        }
+
+        const string joined = "jobs_pending / on(queue) clamp_min(jobs_pending, 1)";
+        Assert.Equal(new ScalerResult(ScalerState.Valid, 0, false), await Eval(joined));
+        const string presence = "sum(present_over_time(jobs_pending[1m]))";
+        Assert.Equal(1, (await Eval(presence)).Value);
+        Assert.Equal(ScalerState.Stale, (await Eval(presence, Now + 16)).State);
+        Assert.Equal(ScalerState.InvalidMetric, (await Eval("clamp_min(missing, 1)")).State);
+        Assert.Equal(ScalerState.Misconfigured, (await Eval("count(0)")).State);
+
+        fixture.Registry.RegisterFromQuery("capacity");
+        fixture.Store.Add(Now, ExternalMetricsSource.Resolve("default", "other", config, "jobs")!.Identity, "exporter",
+            new Dictionary<string, double> { ["""capacity{queue="emails"}"""] = 5 });
+        Assert.Equal(ScalerState.InvalidMetric, (await Eval("jobs_pending / on(queue) capacity")).State);
+    }
+
     [Fact]
     public void ExistingConfigurationKeepsDefaultsAndNewFieldsRoundTripWithGeneratedJson()
     {

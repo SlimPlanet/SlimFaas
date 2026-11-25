@@ -28,14 +28,22 @@ internal readonly record struct SeriesKey(
         return "";
     }
 
-    public SeriesKey Group(string[] names)
-    {
-        if (names.Length == 0 || Labels is null) return default;
-        return new(null, null, Labels.AsValueEnumerable().Where(p => names.Contains(p.Key)).ToArray());
-    }
-
     public SeriesKey WithoutBucket() =>
         new(Deployment, Pod, Labels?.AsValueEnumerable().Where(static p => p.Key != "le").ToArray());
+}
+
+// Both aggregation and explicit one-to-one matching project exported labels.
+internal sealed record LabelSelection(string[] Names, bool Include)
+{
+    public bool SelectsNoLabels => Include && Names.Length == 0;
+
+    public SeriesKey Project(SeriesKey key)
+    {
+        if (key.Labels is null || SelectsNoLabels) return default;
+        if (Names.Length == 0) return new(null, null, key.Labels);
+        return new(null, null, key.Labels.AsValueEnumerable()
+            .Where(label => Names.Contains(label.Key) == Include).ToArray());
+    }
 }
 
 internal sealed class MetricSelector(string name)
