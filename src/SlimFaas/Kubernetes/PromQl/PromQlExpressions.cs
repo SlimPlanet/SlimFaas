@@ -132,17 +132,24 @@ internal sealed class BinaryNode(ValueNode left, string op, ValueNode right, boo
         "-" => a - b,
         "*" => a * b,
         "/" => a / b,
-        "==" => EqualSamples(a, b) ? 1 : 0,
-        "!=" => EqualSamples(a, b) ? 0 : 1,
-        "<" => a < b ? 1 : 0,
-        "<=" => a <= b ? 1 : 0,
-        ">" => a > b ? 1 : 0,
-        ">=" => a >= b ? 1 : 0,
-        _ => throw new InvalidOperationException($"Unknown operator {op}")
+        _ => CompareSamples(a, b) ? 1 : 0
     };
 
-    // PromQL comparisons use exact IEEE 754 equality, including NaN != NaN.
-    private static bool EqualSamples(double a, double b) => !double.IsNaN(a) && a.Equals(b);
+    private bool CompareSamples(double a, double b)
+    {
+        // PromQL uses exact ordering. A NaN on either side is unordered and only satisfies !=.
+        int? order = double.IsNaN(a) || double.IsNaN(b) ? null : a.CompareTo(b);
+        return op switch
+        {
+            "==" => order is 0,
+            "!=" => order is not 0,
+            "<" => order is < 0,
+            "<=" => order is <= 0,
+            ">" => order is > 0,
+            ">=" => order is >= 0,
+            _ => throw new InvalidOperationException($"Unknown operator {op}")
+        };
+    }
 
     public override void CollectMetricNames(HashSet<string> names)
     {
