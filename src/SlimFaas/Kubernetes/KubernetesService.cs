@@ -74,6 +74,7 @@ public partial class KubernetesService : IKubernetesService, IDisposable
         }
     }
     internal k8s.Kubernetes LogClient => _client;
+    private readonly ReplicaAnnotationWarnings _annotationWarnings;
     private readonly ILogger<KubernetesService> _logger;
     private bool _serviceListForbidden;
 
@@ -85,6 +86,7 @@ public partial class KubernetesService : IKubernetesService, IDisposable
         string? baseSlimDataUrl = null)
     {
         _logger = logger;
+        _annotationWarnings = new(logger);
         _baseSlimDataUrl = baseSlimDataUrl;
         // In-cluster: the CA projected into the pod is loaded and verified.
         // Kubeconfig: the file's own CA (or insecure-skip-tls-verify) applies.

@@ -96,7 +96,7 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
             environment.HttpTicks.Values.DefaultIfEmpty(0).Max(), ReplicasService.GetExternalDependencyDemand(deployments, evaluations, environment.StreamDemand),
             environment.TurnOnByDefault) with { StreamDemand = environment.StreamDemand?.GetValueOrDefault(function.Deployment) ?? 0 };
         evaluations.TryGetValue(function.Deployment, out var evaluation);
-        var combined = StreamScaling.Include(function, evaluation, environment.StreamDemand);
+        var combined = StreamScaling.Include(context.Function, evaluation, environment.StreamDemand);
         function = combined.Function;
         context = context with { Function = function };
         evaluation = combined.Evaluation;

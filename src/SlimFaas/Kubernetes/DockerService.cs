@@ -41,6 +41,7 @@ namespace SlimFaas.Kubernetes
         private readonly string _apiPrefix; // e.g. "/v1.43" negotiated at startup
         private readonly HttpClient _http;
 
+        private readonly ReplicaAnnotationWarnings _annotationWarnings;
         private readonly ILogger<DockerService> _logger;
         private readonly string? _networkName;
 
@@ -50,6 +51,7 @@ namespace SlimFaas.Kubernetes
             string? dockerHost = null)
         {
             _logger = logger;
+            _annotationWarnings = new(logger);
 
             // Resolve DOCKER_HOST or provided override
             _http = httpClientFactory.CreateClient(HttpClientName);
@@ -500,7 +502,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 
         Dictionary<string, string> labels = first.Labels ?? new Dictionary<string, string>();
 
-        FunctionMetadata metadata = FunctionMetadataParser.Parse(labels, deploymentName);
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(labels, deploymentName, _annotationWarnings);
 
         // 5) Nombre de replicas = nombre de RUNNING NON-template
         int replicas = runningNonTemplate.Count;

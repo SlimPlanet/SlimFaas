@@ -103,7 +103,7 @@ processing capacity. Three settings explain the subsequent descent:
 
 These windows control different stages; the first reduction also depends on
 metric collection, reconciliation timing, and the observed workload. The HTTP
-inactivity timeout of 10 seconds releases the `ReplicasAtStart` activity floor;
+inactivity timeout of 10 seconds releases the `MinActiveReplicas` activity floor;
 it does not bypass the scaling policies. The graph shows requested replica
 counts and final targets; process shutdown and readiness can lag those decisions.
 
@@ -237,11 +237,10 @@ Structural YAML keys are case-insensitive, so both `environment` and
 `Environment` work. Documentation uses camel case.
 
 `SlimFaas/Scale.ReplicaMax` limits scale-out. Without that annotation, the
-maximum is `max(ReplicasMin, ReplicasAtStart)`.
+maximum is the largest active or idle minimum across the function annotations and all schedule entries. An explicit maximum must accommodate every configured minimum.
 
-At local cluster startup, managed functions begin at `ReplicasMin`.
-`ReplicasAtStart` remains the target used when an HTTP request, an event, or
-`/wake-function/{name}` wakes a function from zero.
+At local cluster startup, managed functions begin at `MinIdleReplicas`.
+The scaling loop applies the current schedule. An HTTP request, event or explicit wake can raise a running function to its active minimum.
 
 ## Route a function to an IDE debugger
 

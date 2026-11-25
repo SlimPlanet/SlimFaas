@@ -18,8 +18,8 @@ functions:
     command: [python3, demo/external-autoscaling/exporter.py, --worker, --port, "{port}"]
     annotations:
       SlimFaas/Function: "true"
-      SlimFaas/ReplicasMin: "0"
-      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/MinIdleReplicas: "0"
+      SlimFaas/MinActiveReplicas: "1"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
       SlimFaas/Scale: |
         {

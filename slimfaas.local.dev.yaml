@@ -15,7 +15,7 @@ functions:
       - Fibonacci.csproj
       - --no-launch-profile
     annotations:
-      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/MinActiveReplicas: "1"
       SlimFaas/Scale: '{"ReplicaMax": 3, "Triggers": [], "Behavior": {}}'
     environment:
       ASPNETCORE_ENVIRONMENT: Development

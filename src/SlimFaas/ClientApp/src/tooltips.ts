@@ -25,13 +25,13 @@ export const FN = {
     'Current ready pods / requested pods for this function.',
 
   replicasMin:
-    'Minimum replicas allowed after inactivity timeout (SlimFaas/ReplicasMin). Set to 0 for scale-to-zero.',
+    'Minimum replicas allowed after inactivity timeout (SlimFaas/MinIdleReplicas). Set to 0 for scale-to-zero.',
 
   replicasAtStart:
-    'Number of replicas to start when the function wakes up from zero (SlimFaas/ReplicasAtStart).',
+    'Minimum replicas while the function is active (SlimFaas/MinActiveReplicas).',
 
   scaleDown:
-    'Inactivity timeout in seconds before scaling down to ReplicasMin (SlimFaas/TimeoutSecondBeforeSetReplicasMin).',
+    'Inactivity timeout in seconds before returning to the idle minimum (SlimFaas/TimeoutSecondBeforeSetReplicasMin).',
 
   parallelReq:
     'Maximum concurrent requests across all replicas (SlimFaas/NumberParallelRequest). Extra requests are queued.',
@@ -40,7 +40,7 @@ export const FN = {
     'Maximum concurrent requests per individual pod (SlimFaas/NumberParallelRequestPerPod).',
 
   schedule:
-    'Scheduled wake-up times (SlimFaas/Schedule). The function is automatically woken at these times each day.',
+    'Daily wake-up times, inactivity timeouts and replica minimums (SlimFaas/Schedule).',
 
   dependsOn:
     'Functions or services that must be ready before this function can scale up (SlimFaas/DependsOn).',
