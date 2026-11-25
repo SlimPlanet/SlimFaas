@@ -59,7 +59,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (160L, "dep-a", "10.0.0.2", "http_server_requests_seconds_count{job=\"myapp\"}", 45.0)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""avg(rate(http_server_requests_seconds_count{job="myapp"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""avg(rate(http_server_requests_seconds_count{job="myapp"}[61s]))""", nowUnixSeconds: 160);
             Assert.Equal(0.175, res, 6);
         }
 
@@ -79,7 +79,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (160, "d", "p3", "req_total{job=\"a\"}", 38)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""avg(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""avg(rate(req_total{job="a"}[61s]))""", nowUnixSeconds: 160);
             Assert.Equal(14.0 / 60.0, res, 6);
         }
 
@@ -98,7 +98,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (60, "d", "p", "h_bkt{job=\"a\",le=\"+Inf\"}", 120)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""avg( sum by (le) ( rate(h_bkt{job="a"}[1m]) ) )""", nowUnixSeconds: 60);
+            var res = eval.Evaluate("""avg( sum by (le) ( rate(h_bkt{job="a"}[61s]) ) )""", nowUnixSeconds: 60);
             Assert.Equal(1.0, res, 6);
         }
 
@@ -116,7 +116,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (60, "d", "p", "h_bkt{le=\"+Inf\"}", 120)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""avg by (le) ( rate(h_bkt[1m]) )""", nowUnixSeconds: 60);
+            var res = eval.Evaluate("""avg by (le) ( rate(h_bkt[61s]) )""", nowUnixSeconds: 60);
             // somme des rates: 0.5 + 1.0 + 1.5 = 3.0 (AsScalar)
             Assert.Equal(3.0, res, 6);
         }

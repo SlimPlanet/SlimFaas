@@ -1,0 +1,47 @@
+{
+  "fuzzy_compare": true,
+  "evaluation_interval": "10s",
+  "tests": [{
+    "name": "SlimFaas autoscaling expressions",
+    "interval": "10s",
+    "input_series": [
+      {"series": "queue{job=\"kafka\",topic=\"api,v1\"}", "values": "500 0 6 3 9 999"},
+      {"series": "queue{job=\"kafka\",topic=\"events\"}", "values": "90 2 2 2 2 999"},
+      {"series": "queue{topic=\"events\"}", "values": "100 5 5 5 5 999"},
+      {"series": "limit{topic=\"events\",job=\"kafka\"}", "values": "4 4 4 4 4"},
+      {"series": "requests_total", "values": "900 3 13 2 12 999"},
+      {"series": "sparse_total", "values": "_ _ 20 30 _ _"},
+      {"series": "recent_total", "values": "_ _ 0 10 20 _"},
+      {"series": "latency_bucket{le=\"0.5\"}", "values": "10 20 30 40 50"},
+      {"series": "latency_bucket{le=\"1\"}", "values": "20 40 60 80 100"},
+      {"series": "latency_bucket{le=\"+Inf\"}", "values": "30 60 90 120 150"}
+    ],
+    "promql_expr_test": [
+      {"expr": "sum(queue)", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 16}]},
+      {"expr": "sum(max_over_time(queue[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 16}]},
+      {"expr": "sum(avg_over_time(queue[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 11.5}]},
+      {"expr": "sum(min_over_time(queue[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 7}]},
+      {"expr": "sum(sum_over_time(queue[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 46}]},
+      {"expr": "sum(count_over_time(queue[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 12}]},
+      {"expr": "sum(last_over_time(queue[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 16}]},
+      {"expr": "max(avg(queue) by (job))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 5.5}]},
+      {"expr": "count(sum by (job, topic) (queue))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 3}]},
+      {"expr": "sum(queue{job!=\"kafka\"})", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 5}]},
+      {"expr": "sum(queue{job=\"\"})", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 5}]},
+      {"expr": "sum(queue{topic!~\"events|api\"})", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 9}]},
+      {"expr": "sum(queue{topic=~\"api|vents\"})", "eval_time": "40s", "exp_samples": []},
+      {"expr": "sum(queue{topic=\"api,v1\"})", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 9}]},
+      {"expr": "sum(queue / limit)", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 0.5}]},
+      {"expr": "sum(2 + queue)", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 22}]},
+      {"expr": "sum(queue >= 5)", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 14}]},
+      {"expr": "sum(queue >= bool 5)", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 2}]},
+      {"expr": "sum(rate(requests_total[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 0.625}]},
+      {"expr": "sum(increase(requests_total[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 25}]},
+      {"expr": "sum(irate(requests_total[40s]))", "eval_time": "30s", "exp_samples": [{"labels": "{}", "value": 0.2}]},
+      {"expr": "sum(rate(sparse_total[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 0.625}]},
+      {"expr": "sum(rate(recent_total[40s]))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 0.5}]},
+      {"expr": "sum(rate(recent_total[10s]))", "eval_time": "40s", "exp_samples": []},
+      {"expr": "histogram_quantile(0.5, sum by (le) (rate(latency_bucket[40s])))", "eval_time": "40s", "exp_samples": [{"labels": "{}", "value": 0.75}]}
+    ]
+  }]
+}

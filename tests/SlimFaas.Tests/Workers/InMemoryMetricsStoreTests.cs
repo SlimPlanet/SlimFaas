@@ -156,7 +156,7 @@ public sealed class InMemoryMetricsStoreTests
             ]);
         var evaluator = new PromQlMiniEvaluator(store);
 
-        var result = evaluator.Evaluate("sum(rate(requests_total[1m]))", 160);
+        var result = evaluator.Evaluate("sum(rate(requests_total[61s]))", 160);
 
         Assert.Equal(1, result, 6);
         Assert.Equal(1, store.VisitCount);

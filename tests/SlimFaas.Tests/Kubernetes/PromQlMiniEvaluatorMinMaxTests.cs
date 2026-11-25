@@ -64,8 +64,8 @@ namespace SlimFaas.Tests.Kubernetes
             var eval = NewEval(snap);
 
             // sum by (le) (rate(...)) -> renvoie ByLe; min(...) / max(...) sans "by" doivent agréger en scalaire
-            var qMin = """min( sum by (le) ( rate(h_bkt{job="a"}[1m]) ) )""";
-            var qMax = """max( sum by (le) ( rate(h_bkt{job="a"}[1m]) ) )""";
+            var qMin = """min( sum by (le) ( rate(h_bkt{job="a"}[61s]) ) )""";
+            var qMax = """max( sum by (le) ( rate(h_bkt{job="a"}[61s]) ) )""";
 
             var rMin = eval.Evaluate(qMin, nowUnixSeconds: 160);
             var rMax = eval.Evaluate(qMax, nowUnixSeconds: 160);
@@ -89,9 +89,9 @@ namespace SlimFaas.Tests.Kubernetes
             );
             var eval = NewEval(snap);
 
-            var qSum = """sum by (le) ( rate(h_bkt[1m]) )""";
-            var qMin = """min by (le) ( rate(h_bkt[1m]) )""";
-            var qMax = """max by (le) ( rate(h_bkt[1m]) )""";
+            var qSum = """sum by (le) ( rate(h_bkt[61s]) )""";
+            var qMin = """min by (le) ( rate(h_bkt[61s]) )""";
+            var qMax = """max by (le) ( rate(h_bkt[61s]) )""";
 
             var sSum = eval.Evaluate(qSum, nowUnixSeconds: 60); // 0.5 + 1.0 + 1.5 = 3.0
             var sMin = eval.Evaluate(qMin, nowUnixSeconds: 60); // conserve ByLe -> AsScalar() somme aussi
@@ -123,19 +123,19 @@ namespace SlimFaas.Tests.Kubernetes
             var eval = NewEval(snap);
 
             // On compare min/max entre deux agrégations scalaires
-            var rAll = eval.Evaluate("""sum(rate(req_total{job="svc"}[1m]))""", nowUnixSeconds: 60);            // 1.5 + 0.05 = 1.55
-            var r5xx = eval.Evaluate("""sum(rate(req_total{job="svc",status=~"5.."}[1m]))""", nowUnixSeconds: 60); // 0.05
+            var rAll = eval.Evaluate("""sum(rate(req_total{job="svc"}[61s]))""", nowUnixSeconds: 60);            // 1.5 + 0.05 = 1.55
+            var r5xx = eval.Evaluate("""sum(rate(req_total{job="svc",status=~"5.."}[61s]))""", nowUnixSeconds: 60); // 0.05
 
             var rMin = eval.Evaluate("""
                                       min(
-                                        sum(rate(req_total{job="svc"}[1m])),
-                                        sum(rate(req_total{job="svc",status=~"5.."}[1m]))
+                                        sum(rate(req_total{job="svc"}[61s])),
+                                        sum(rate(req_total{job="svc",status=~"5.."}[61s]))
                                       )
                                       """, nowUnixSeconds: 60);
             var rMax = eval.Evaluate("""
                                       max(
-                                        sum(rate(req_total{job="svc"}[1m])),
-                                        sum(rate(req_total{job="svc",status=~"5.."}[1m]))
+                                        sum(rate(req_total{job="svc"}[61s])),
+                                        sum(rate(req_total{job="svc",status=~"5.."}[61s]))
                                       )
                                       """, nowUnixSeconds: 60);
 

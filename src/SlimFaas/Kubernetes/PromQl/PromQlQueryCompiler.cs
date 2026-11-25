@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace SlimFaas.Kubernetes;
@@ -102,7 +101,36 @@ internal sealed class PromQlParser
         if (!Accept(tok)) throw new FormatException($"Expected '{tok}'");
     }
 
-    private ValueNode ParseExpr() => ParseAdd();
+    private static readonly string[] ComparisonOperators = ["==", "!=", ">=", "<=", ">", "<"];
+
+    private ValueNode ParseExpr()
+    {
+        var left = ParseAdd();
+        while (true)
+        {
+            string? op = null;
+            foreach (string candidate in ComparisonOperators)
+            {
+                if (!Accept(candidate)) continue;
+                op = candidate;
+                break;
+            }
+            if (op is null) return left;
+            bool returnBool = AcceptKeyword("bool");
+            var right = ParseAdd();
+            if (!returnBool && left.IsScalar && right.IsScalar)
+                throw new FormatException("Scalar comparisons require bool");
+            left = new BinaryNode(left, op, right, returnBool);
+        }
+    }
+
+    private bool AcceptKeyword(string keyword)
+    {
+        SkipWs();
+        int end = _pos + keyword.Length;
+        if (end < _s.Length && (char.IsLetterOrDigit(_s[end]) || _s[end] is '_' or ':')) return false;
+        return Accept(keyword);
+    }
 
     private ValueNode ParseAdd()
     {
@@ -139,6 +167,8 @@ internal sealed class PromQlParser
     private ValueNode ParseUnary()
     {
         SkipWs();
+        if (Accept("-")) return new BinaryNode(new NumberNode(-1), "*", ParseUnary());
+        if (Accept("+")) return ParseUnary();
         if (Accept("("))
         {
             var e = ParseExpr();
@@ -151,9 +181,8 @@ internal sealed class PromQlParser
 
         var ident = ParseIdent();
 
-        if (string.Equals(ident, "histogram_quantile", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(ident, "histogram_quantile", StringComparison.OrdinalIgnoreCase) && Accept("("))
         {
-            Expect("(");
             var phi = ParseNumber();
             Expect(",");
             var inner = ParseExpr();
@@ -161,153 +190,62 @@ internal sealed class PromQlParser
             return new HistogramQuantileNode(phi, inner);
         }
 
-        if (string.Equals(ident, "max_over_time", StringComparison.OrdinalIgnoreCase))
+        var function = ident.ToLowerInvariant() switch
         {
-            Expect("(");
-            var (sel, win) = ParseSelectorWithRange();
+            "rate" => SampleFunction.Rate,
+            "increase" => SampleFunction.Increase,
+            "irate" => SampleFunction.InstantRate,
+            "max_over_time" => SampleFunction.Max,
+            "min_over_time" => SampleFunction.Min,
+            "avg_over_time" => SampleFunction.Average,
+            "sum_over_time" => SampleFunction.Sum,
+            "count_over_time" => SampleFunction.Count,
+            "last_over_time" => SampleFunction.Last,
+            _ => SampleFunction.Instant
+        };
+        if (function != SampleFunction.Instant && Accept("("))
+        {
+            var (selector, window) = ParseSelectorWithRange();
             Expect(")");
-            return new MaxOverTimeNode(sel, win);
+            return new SelectorNode(selector, function, window);
         }
 
-        if (string.Equals(ident, "sum", StringComparison.OrdinalIgnoreCase))
+        Aggregation? aggregation = ident.ToLowerInvariant() switch
         {
-            SkipWs();
-            string? byLabel = null;
-            if (Accept("by"))
-            {
-                SkipWs();
-                Expect("(");
-                byLabel = ParseIdent();
-                Expect(")");
-            }
-            SkipWs();
-            Expect("(");
-            SkipWs();
-
-            // Special: sum by (le) (rate(...)) → RatePerBucketNode grouped by that label.
-            if (byLabel is not null && _s.AsSpan(_pos).StartsWith("rate", StringComparison.Ordinal))
-            {
-                Accept("rate");
-                Expect("(");
-                var (sel, win) = ParseSelectorWithRange();
-                Expect(")");
-                Expect(")"); // close sum(
-                return new SumNode(new RatePerBucketNode(sel, win, byLabel), byLabel);
-            }
-
-            var inner = ParseExpr();
-            Expect(")");
-            return new SumNode(inner, byLabel);
-        }
-
-        if (string.Equals(ident, "rate", StringComparison.OrdinalIgnoreCase))
+            "sum" => Aggregation.Sum,
+            "min" => Aggregation.Min,
+            "max" => Aggregation.Max,
+            "avg" => Aggregation.Average,
+            "count" => Aggregation.Count,
+            _ => null
+        };
+        if (aggregation.HasValue)
         {
-            Expect("(");
-            var (sel, win) = ParseSelectorWithRange();
-            Expect(")");
-            // Histogram bucket metric: group by "le" automatically.
-            if (sel.MetricName.EndsWith("_bucket", StringComparison.Ordinal))
-                return new RatePerBucketNode(sel, win, "le");
-            return new RateNode(sel, win);
+            var by = ParseGrouping();
+            if (by is not null || Cur == '(')
+            {
+                Expect("(");
+                var args = ParseArgList();
+                Expect(")");
+                by ??= ParseGrouping();
+                if (args.Count == 1) return new AggregateNode(args[0], aggregation.Value, by ?? []);
+                if (by is null && aggregation is Aggregation.Min or Aggregation.Max)
+                    return new VariadicExtremaNode(args, aggregation == Aggregation.Min);
+                throw new FormatException("Aggregation requires one argument");
+            }
         }
+        return new SelectorNode(ParseOptionalSelectorAfterKnownName(ident), SampleFunction.Instant, 0);
+    }
 
-        if (string.Equals(ident, "min", StringComparison.OrdinalIgnoreCase))
-        {
-            SkipWs();
-            string? byLabel = null;
-            if (Accept("by"))
-            {
-                SkipWs();
-                Expect("(");
-                byLabel = ParseIdent();
-                Expect(")");
-            }
-            SkipWs();
-            Expect("(");
-            var args = ParseArgList();
-            Expect(")");
-
-            if (args.Count > 1)
-            {
-                if (byLabel is not null)
-                    throw new FormatException("min by (...) with multiple arguments is not supported");
-                return new VariadicMinNode(args);
-            }
-
-            return new MinNode(args[0], byLabel);
-        }
-
-        if (string.Equals(ident, "max", StringComparison.OrdinalIgnoreCase))
-        {
-            SkipWs();
-            string? byLabel = null;
-            if (Accept("by"))
-            {
-                SkipWs();
-                Expect("(");
-                byLabel = ParseIdent();
-                Expect(")");
-            }
-            SkipWs();
-            Expect("(");
-            var args = ParseArgList();
-            Expect(")");
-
-            if (args.Count > 1)
-            {
-                if (byLabel is not null)
-                    throw new FormatException("max by (...) with multiple arguments is not supported");
-                return new VariadicMaxNode(args);
-            }
-
-            return new MaxNode(args[0], byLabel);
-        }
-
-        if (string.Equals(ident, "avg", StringComparison.OrdinalIgnoreCase))
-        {
-            SkipWs();
-            string? byLabel = null;
-            if (Accept("by"))
-            {
-                SkipWs();
-                Expect("(");
-                byLabel = ParseIdent();
-                Expect(")");
-            }
-            SkipWs();
-            Expect("(");
-            SkipWs();
-
-            // Special: avg by (le) (rate(...)) → preserves bucket dict for histogram_quantile.
-            if (byLabel is not null && _s.AsSpan(_pos).StartsWith("rate", StringComparison.Ordinal))
-            {
-                Accept("rate");
-                Expect("(");
-                var (sel, win) = ParseSelectorWithRange();
-                Expect(")");
-                Expect(")"); // close avg(
-                return new AvgNode(new RatePerBucketNode(sel, win, byLabel), byLabel);
-            }
-
-            // Special: avg(rate(...)) without "by" → mean of per-series rates.
-            if (byLabel is null && _s.AsSpan(_pos).StartsWith("rate", StringComparison.Ordinal))
-            {
-                Accept("rate");
-                Expect("(");
-                var (sel, win) = ParseSelectorWithRange();
-                Expect(")");
-                Expect(")"); // close avg(
-                return new AvgRateNode(sel, win);
-            }
-
-            var inner = ParseExpr();
-            Expect(")");
-            return new AvgNode(inner, byLabel);
-        }
-
-        // Bare metric name (possibly with label selector) used as an instant vector.
-        var selector = ParseOptionalSelectorAfterKnownName(ident);
-        return new SelectorSumNode(selector, window: null);
+    private string[]? ParseGrouping()
+    {
+        if (!AcceptKeyword("by")) return null;
+        Expect("(");
+        if (Accept(")")) return [];
+        var labels = new List<string>();
+        do { labels.Add(ParseIdent()); } while (Accept(","));
+        Expect(")");
+        return labels.ToArray();
     }
 
     // Parses a comma-separated argument list, stopping before the closing ')'.
@@ -334,6 +272,12 @@ internal sealed class PromQlParser
             if (char.IsDigit(Cur)) { _pos++; continue; }
             if (Cur == '.' && !dot) { dot = true; _pos++; continue; }
             break;
+        }
+        if (!Eof && Cur is 'e' or 'E')
+        {
+            _pos++;
+            if (!Eof && Cur is '+' or '-') _pos++;
+            while (!Eof && char.IsDigit(Cur)) _pos++;
         }
         var s = _s[start.._pos];
         if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
@@ -365,17 +309,27 @@ internal sealed class PromQlParser
 
             var label = ParseIdent();
             SkipWs();
-            string op = "=";
-            if (Accept("=~")) op = "=~";
-            else Expect("=");
-
+            string op = Accept("=~") ? "=~" : Accept("!~") ? "!~" : Accept("!=") ? "!=" : "=";
+            if (op == "=") Expect("=");
             SkipWs();
-            var value = ParseQuoted();
+            if (!MetricSelector.TryReadQuoted(_s.AsSpan(_pos), out var value, out int length))
+                throw new FormatException("Invalid quoted label value");
+            _pos += length;
 
-            if (op == "=~")
-                sel.Matchers.Add((label, null, new Regex($"^{value}$", RegexOptions.Compiled, TimeSpan.FromMilliseconds(50))));
-            else
-                sel.Matchers.Add((label, value, null));
+            Regex? pattern = null;
+            if (op is "=~" or "!~")
+            {
+                try
+                {
+                    pattern = new Regex($@"\A(?:{value})\z", RegexOptions.CultureInvariant | RegexOptions.Singleline |
+                        RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(50));
+                }
+                catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+                {
+                    throw new FormatException("Invalid or unsupported label regular expression", ex);
+                }
+            }
+            sel.Matchers.Add((label, value, pattern, op is "!=" or "!~"));
 
             SkipWs();
             if (Accept(",")) continue;
@@ -386,7 +340,7 @@ internal sealed class PromQlParser
         return sel;
     }
 
-    private (MetricSelector selector, TimeSpan window) ParseSelectorWithRange()
+    private (MetricSelector selector, long window) ParseSelectorWithRange()
     {
         var metricName = ParseIdent();
         var sel = ParseOptionalSelectorAfterKnownName(metricName);
@@ -397,31 +351,14 @@ internal sealed class PromQlParser
         return (sel, win);
     }
 
-    private string ParseQuoted()
-    {
-        SkipWs();
-        if (!Accept("\"")) throw new FormatException("Expected '\"'");
-        var sb = new StringBuilder();
-        var closed = false;
-        while (!Eof)
-        {
-            var c = Cur; _pos++;
-            if (c == '"') { closed = true; break; }
-            if (c == '\\' && !Eof) { sb.Append(Cur); _pos++; }
-            else sb.Append(c);
-        }
-        if (!closed) throw new FormatException("Unterminated quoted string");
-        return sb.ToString();
-    }
-
-    private TimeSpan ParseDuration()
+    private long ParseDuration()
     {
         SkipWs();
         int start = _pos;
         while (!Eof && char.IsDigit(Cur)) _pos++;
         if (start == _pos) throw new FormatException("Duration number expected");
         var numStr = _s[start.._pos];
-        if (!int.TryParse(numStr, out var n)) throw new FormatException("Invalid duration");
+        if (!int.TryParse(numStr, out var n) || n == 0) throw new FormatException("Invalid duration");
 
         SkipWs();
         if (Eof) throw new FormatException("Duration unit expected");
@@ -429,9 +366,9 @@ internal sealed class PromQlParser
 
         return unit switch
         {
-            's' => TimeSpan.FromSeconds(n),
-            'm' => TimeSpan.FromMinutes(n),
-            'h' => TimeSpan.FromHours(n),
+            's' => n,
+            'm' => 60L * n,
+            'h' => 3600L * n,
             _ => throw new FormatException("Unsupported duration unit (use s|m|h)")
         };
     }
