@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -42,6 +43,13 @@ public static class WebSocketEndpoints
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
                 return;
             }
+        }
+        if (!IsClientAuthorized(context.Request.Headers.Authorization.ToString(), slimFaasOptions.Value.WebSocketSecret))
+        {
+            logger.LogWebSocketClientAuthenticationRejected(context.Connection.RemoteIpAddress?.ToString());
+            context.Response.Headers.WWWAuthenticate = "Bearer";
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
         }
         if (!context.WebSockets.IsWebSocketRequest)
         {
@@ -92,6 +100,30 @@ public static class WebSocketEndpoints
             }
             connection.PendingSyncStreams.Clear();
         }
+    }
+
+    /// <summary>
+    /// Checks the <c>Authorization: Bearer</c> header of a client handshake against the
+    /// configured <see cref="SlimFaasOptions.WebSocketSecret"/>. Every client is accepted
+    /// when no secret is configured.
+    /// </summary>
+    internal static bool IsClientAuthorized(string? authorization, string? configuredSecret)
+    {
+        // HTTP strips leading and trailing whitespace from header values, so a secret
+        // read from a file with a trailing newline must be compared without it.
+        string secret = configuredSecret?.Trim() ?? "";
+        if (secret.Length == 0)
+            return true;
+
+        const string scheme = "Bearer ";
+        if (string.IsNullOrEmpty(authorization) ||
+            !authorization.StartsWith(scheme, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Hashing both values keeps the comparison constant-time regardless of their lengths.
+        return CryptographicOperations.FixedTimeEquals(
+            SHA256.HashData(Encoding.UTF8.GetBytes(authorization[scheme.Length..].Trim())),
+            SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
     }
 
     private static async Task ReceiveLoopAsync(

@@ -9,6 +9,7 @@ import base64
 import gc
 import hashlib
 import json
+import logging
 import weakref
 from unittest.mock import AsyncMock, MagicMock
 
@@ -105,6 +106,38 @@ class TestAsyncRequest:
             with pytest.raises(ConnectionClosed, match="1009"):
                 await receiving
         assert close_codes == [1009]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("secret,expected", [("s3cret", "Bearer s3cret"), ("s3cret\n", "Bearer s3cret"),
+                                                (None, None), ("", None), (" \n", None)])
+    async def test_secret_is_sent_as_a_bearer_token(self, secret, expected):
+        received = []
+        async def server(ws):
+            received.append(ws.request.headers.get("Authorization"))
+            await ws.recv()
+            await ws.send(make_envelope(MessageType.REGISTER_RESPONSE, {"success": True, "connectionId": "auth"}))
+        async with serve(server, "127.0.0.1", 0) as listener:
+            port = listener.sockets[0].getsockname()[1]
+            client = SlimFaasClient(f"ws://127.0.0.1:{port}", make_config(), secret=secret)
+            await asyncio.wait_for(client._connect_and_loop(), timeout=15)
+        assert received == [expected]
+
+    @pytest.mark.asyncio
+    async def test_secret_is_not_written_to_debug_logs(self, caplog):
+        received = []
+        async def server(ws):
+            received.append(ws.request.headers.get("Authorization"))
+            await ws.recv()
+            await ws.send(make_envelope(MessageType.REGISTER_RESPONSE, {"success": True, "connectionId": "auth"}))
+        caplog.set_level(logging.DEBUG)
+        async with serve(server, "127.0.0.1", 0) as listener:
+            port = listener.sockets[0].getsockname()[1]
+            client = SlimFaasClient(f"ws://127.0.0.1:{port}", make_config(), secret="s3cret-token")
+            await asyncio.wait_for(client._connect_and_loop(), timeout=15)
+        assert received == ["Bearer s3cret-token"]
+        client_logs = "\n".join(r.getMessage() for r in caplog.records if r.name == "websockets.client")
+        assert "Authorization: [redacted]" in client_logs
+        assert "s3cret-token" not in client_logs
 
     @pytest.mark.parametrize("option", ["max_message_size", "max_queue"])
     @pytest.mark.parametrize("value", [0, -1, None, True])

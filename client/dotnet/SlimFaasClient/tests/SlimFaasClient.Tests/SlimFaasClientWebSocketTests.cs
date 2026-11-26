@@ -21,13 +21,17 @@ internal sealed class ServerConnection
 {
     private readonly WebSocket _socket;
 
-    public ServerConnection(WebSocket socket, SlimFaasEnvelope register)
+    public ServerConnection(WebSocket socket, SlimFaasEnvelope register, string? authorization)
     {
         _socket = socket;
         Register = register;
+        Authorization = authorization;
     }
 
     public SlimFaasEnvelope Register { get; }
+
+    /// <summary>The <c>Authorization</c> header of the WebSocket handshake, if any.</summary>
+    public string? Authorization { get; }
 
     public Channel<(WebSocketMessageType Type, byte[] Data)> Received { get; } =
         Channel.CreateUnbounded<(WebSocketMessageType, byte[])>();
@@ -101,8 +105,11 @@ internal sealed class FakeSlimFaasServer : IAsyncDisposable
                 return;
             }
 
+            string? authorization = context.Request.Headers.Authorization.Count > 0
+                ? context.Request.Headers.Authorization.ToString()
+                : null;
             using var socket = await context.WebSockets.AcceptWebSocketAsync();
-            await server.HandleAsync(socket, context.RequestAborted);
+            await server.HandleAsync(socket, authorization, context.RequestAborted);
         });
 
         await app.StartAsync();
@@ -117,13 +124,13 @@ internal sealed class FakeSlimFaasServer : IAsyncDisposable
         return await Connections.Reader.ReadAsync(cts.Token);
     }
 
-    private async Task HandleAsync(WebSocket socket, CancellationToken ct)
+    private async Task HandleAsync(WebSocket socket, string? authorization, CancellationToken ct)
     {
         var first = await ReadMessageAsync(socket, ct);
         if (first is null) return;
 
         var register = JsonSerializer.Deserialize(first.Value.Data, SlimFaasClientJsonContext.Default.SlimFaasEnvelope)!;
-        var connection = new ServerConnection(socket, register);
+        var connection = new ServerConnection(socket, register, authorization);
         var number = Interlocked.Increment(ref _connectionCount);
 
         var response = RegistrationSucceeds
@@ -280,6 +287,34 @@ public sealed class SlimFaasClientWebSocketTests
 
         await running.DisposeAsync();
         Assert.False(client.IsConnected);
+    }
+
+    [Theory]
+    [InlineData("s3cret")]
+    [InlineData("s3cret\n")]
+    public async Task RunForeverAsync_SendsTheConfiguredSecretAsABearerToken(string secret)
+    {
+        await using var server = await FakeSlimFaasServer.StartAsync();
+        var options = FastOptions();
+        options.Secret = secret;
+        await using var running = new RunningClient(server.Uri, new SlimFaasClientConfig { FunctionName = "ws-job" }, options);
+
+        running.Start();
+        var connection = await server.NextConnectionAsync();
+
+        Assert.Equal("Bearer s3cret", connection.Authorization);
+    }
+
+    [Fact]
+    public async Task RunForeverAsync_SendsNoAuthorizationHeaderWithoutASecret()
+    {
+        await using var server = await FakeSlimFaasServer.StartAsync();
+        await using var running = new RunningClient(server.Uri, new SlimFaasClientConfig { FunctionName = "ws-job" }, FastOptions());
+
+        running.Start();
+        var connection = await server.NextConnectionAsync();
+
+        Assert.Null(connection.Authorization);
     }
 
     [Fact]

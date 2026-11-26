@@ -93,6 +93,12 @@ public class SlimFaasOptions
     public int WebSocketPort { get; set; } = 5003;
 
     /// <summary>
+    /// Shared secret that WebSocket clients must send as <c>Authorization: Bearer &lt;secret&gt;</c>
+    /// when they open <c>/ws</c>. Empty (default) accepts every client that can reach the port.
+    /// </summary>
+    public string WebSocketSecret { get; set; } = "";
+
+    /// <summary>
     /// Enables the SlimFaas dashboard/network front features.
     /// </summary>
     public bool EnableFront { get; set; } = true;

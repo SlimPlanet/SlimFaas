@@ -163,6 +163,68 @@ SlimFaas__WebSocketPort=5003
 
 SlimFaas only accepts `/ws` on the configured WebSocket port. If a request reaches `/ws` on another port, SlimFaas returns `404`.
 
+### Client authentication
+
+By default, any process that can reach the WebSocket port can register a virtual function and receive its requests and events. To require a shared secret, set `SlimFaas__WebSocketSecret` on every SlimFaas replica:
+
+```json
+{
+  "SlimFaas": {
+    "WebSocketSecret": "<secret>"
+  }
+}
+```
+
+Clients then send the secret in the handshake:
+
+```http
+GET /ws HTTP/1.1
+Authorization: Bearer <secret>
+```
+
+SlimFaas compares it in constant time and answers `401` with `WWW-Authenticate: Bearer` to a handshake with a missing or different secret, before upgrading the connection or reading any registration. SlimFaas and both clients ignore leading and trailing whitespace in the secret, so a secret file ending with a newline still matches. Leave the value empty to accept every client.
+
+Set the secret in both official clients:
+
+```csharp
+var options = new SlimFaasClientOptions { Secret = Environment.GetEnvironmentVariable("SLIMFAAS_WS_SECRET") };
+await using var client = new SlimFaasClient(new Uri("ws://slimfaas:5003/ws"), config, options);
+```
+
+```python
+import os
+
+client = SlimFaasClient("ws://slimfaas:5003/ws", config, secret=os.environ["SLIMFAAS_WS_SECRET"])
+```
+
+The shipped `FibonacciBatch --ws-mode` worker reads the secret from `SLIMFAAS_WS_SECRET` and sends it to every URL listed in `SLIMFAAS_WS_URL`, so set that variable on the worker only for destinations you trust.
+
+On Kubernetes, keep the value in a Secret and reference it from the SlimFaas container and from each client workload. The client variable name is up to the application; these examples use `SLIMFAAS_WS_SECRET`:
+
+```yaml
+# SlimFaas container
+env:
+  - name: SlimFaas__WebSocketSecret
+    valueFrom:
+      secretKeyRef:
+        name: slimfaas-websocket
+        key: secret
+---
+# Client container
+env:
+  - name: SLIMFAAS_WS_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: slimfaas-websocket
+        key: secret
+```
+
+Jobs declared through a CronJob job configuration can reference the Secret in the same way; see [CronJob job configurations](jobs.md#23-defining-jobs-from-kubernetes-cronjob-resources).
+
+The secret is only checked when a connection opens: established connections stay registered until they reconnect. A rejected client logs the failure and retries after its reconnect delay, so it registers as soon as its secret matches the replica it reaches. Runtimes without this option ignore the header, so clients can receive the secret before SlimFaas does. To change the secret, update it on every SlimFaas replica and on the clients, then restart them.
+
+The secret travels in clear text over `ws://`. Use `wss://` through a TLS-terminating proxy, or a service mesh, when the network between clients and SlimFaas is not trusted, and keep restricting who can reach the port with a `NetworkPolicy`.
+
 ---
 
 ## 2. Registration Flow

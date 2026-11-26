@@ -46,6 +46,9 @@ static void RunFibonacciMode(string[] args)
 //                           (défaut : env SLIMFAAS_FUNCTION_NAME ou "fibonacci-batch")
 //   --subscribe <event>     Évènement(s) à écouter (répétable)
 //                           (défaut : env SLIMFAAS_SUBSCRIBE_EVENTS, séparés par virgule)
+//
+// Secret partagé : si SlimFaas__WebSocketSecret est défini côté SlimFaas, fournir la même
+// valeur via l'env SLIMFAAS_WS_SECRET (jamais en argument, pour ne pas l'exposer).
 // ─────────────────────────────────────────────────────────────────────────────
 
 static async Task RunWebSocketModeAsync(string[] remainingArgs)
@@ -55,6 +58,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
                    ?? Environment.GetEnvironmentVariable("SLIMFAAS_WS_URL")
                    ?? "ws://slimfaas:5003/ws";
     string? registrationKey = null;
+    string? wsSecret = Environment.GetEnvironmentVariable("SLIMFAAS_WS_SECRET");
     string functionName = Environment.GetEnvironmentVariable("SLIMFAAS_FUNCTION_NAME")
                           ?? "fibonacci-batch";
     var subscribeEvents = new List<SubscribeEventConfig>();
@@ -138,7 +142,8 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
 
     if (registrationKey is not null && registrationKey != functionName + "-ready")
         throw new ArgumentException("--registration-key must equal <function-name>-ready.", nameof(remainingArgs));
-    var clients = WebSocketTour.ParseUrls(wsUrl).Select(uri => new SlimFaasClient.SlimFaasClient(uri, config)).ToArray();
+    var clientOptions = new SlimFaasClientOptions { Secret = wsSecret };
+    var clients = WebSocketTour.ParseUrls(wsUrl).Select(uri => new SlimFaasClient.SlimFaasClient(uri, config, clientOptions)).ToArray();
     using var http = new HttpClient
     {
         BaseAddress = new Uri((Environment.GetEnvironmentVariable("SlimFaas__BaseUrl") ?? "http://slimfaas:5000").TrimEnd('/') + "/"),

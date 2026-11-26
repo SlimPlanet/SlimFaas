@@ -155,7 +155,7 @@ See [tour diagnostics](guided-tour.md#8-inspect-metrics-and-live-updates) and [A
 
 ## WebSocket transport
 
-`GET /ws` upgrades an HTTP connection to WebSocket. A non-upgrade request returns `400`; on the wrong configured port it returns `404`. Native local mode shares the entrypoint; Kubernetes exposes service port `5003`. The basic Compose tour does not publish that dedicated port.
+`GET /ws` upgrades an HTTP connection to WebSocket. On the wrong configured port it returns `404`. When `SlimFaas__WebSocketSecret` is set, a missing or invalid `Authorization: Bearer` credential returns `401` with a `WWW-Authenticate: Bearer` challenge before the upgrade check, and a valid credential on a non-upgrade request returns `400`. Without a configured secret, a non-upgrade request returns `400`. See [Client authentication](clients.md#client-authentication). Native local mode shares the entrypoint; Kubernetes exposes service port `5003`. The basic Compose tour does not publish that dedicated port.
 
 Clients register function configuration, receive sync/async/event messages, and send response frames or acknowledgments. HTTP requests to virtual functions still use the normal function routes. Use the official [.NET and Python clients](clients.md), which implement registration and streaming. This protocol is kept in the collection's **Manual** reference rather than treated as a finite HTTP test.
 

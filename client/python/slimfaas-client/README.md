@@ -262,6 +262,26 @@ client = SlimFaasClient(
 )
 ```
 
+## Authentication
+
+When SlimFaas requires a WebSocket secret (`SlimFaas__WebSocketSecret`), pass
+the same value with `secret`. The client sends it as
+`Authorization: Bearer <secret>` in the handshake:
+
+```python
+import os
+
+client = SlimFaasClient(
+    "ws://slimfaas:5003/ws",
+    config,
+    secret=os.environ["SLIMFAAS_WS_SECRET"],
+)
+```
+
+A missing or wrong secret makes SlimFaas reject the handshake with `401`; the
+client logs the failure and retries after `reconnect_delay`. See
+[client authentication](../../../docs/clients.md#client-authentication).
+
 ## Important rules
 
 1. **`function_name` must not match an existing Kubernetes Deployment name.**
