@@ -187,7 +187,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet tool install --global dotnet-coverage --version 18.12.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
+          dotnet build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Keep the WAL and Raft test projects from competing for the same runner during coverage.
+          dotnet-coverage collect "dotnet test --no-build -m:1" -f xml -o "coverage.xml"
           $testExitCode = $LASTEXITCODE
           python .bin/check-sonar-benchmark-boundary.py --project-directory .sonarqube/out --report artifacts/sonar-boundary/submitted-projects.json
           $metadataExitCode = $LASTEXITCODE

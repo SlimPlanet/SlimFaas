@@ -6,6 +6,8 @@ namespace SlimFaas.Kubernetes;
 public static class FunctionAnnotationNames
 {
     public const string Function = "SlimFaas/Function";
+    public const string MinActiveReplicas = "SlimFaas/MinActiveReplicas";
+    public const string MinIdleReplicas = "SlimFaas/MinIdleReplicas";
     public const string ReplicasMin = "SlimFaas/ReplicasMin";
     public const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
     public const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
@@ -43,7 +45,16 @@ public sealed record FunctionMetadata(
     int NumberParallelRequestPerPod,
     IList<SubscribeStream>? SubscribeStreams = null,
     int StreamMaxAgeSeconds = 86400,
-    int StreamMaxLength = 100000);
+    int StreamMaxLength = 100000)
+{
+    internal int LargestReplicaMinimum()
+    {
+        int maximum = Math.Max(ReplicasAtStart, ReplicasMin);
+        foreach (var window in Schedule?.Default?.ScaleDownTimeout ?? [])
+            maximum = Math.Max(maximum, Math.Max(window.MinActiveReplicas ?? 0, window.MinIdleReplicas ?? 0));
+        return maximum;
+    }
+}
 
 public sealed record SubscribeStream(string Name, FunctionVisibility Visibility);
 
@@ -55,7 +66,36 @@ public static class FunctionMetadataParser
            enabled;
 
     public static FunctionMetadata Parse(IReadOnlyDictionary<string, string> annotations, string functionName)
+        => Parse(annotations, functionName, null);
+
+    internal static FunctionMetadata Parse(IReadOnlyDictionary<string, string> annotations, string functionName,
+        ReplicaAnnotationWarnings? warnings)
     {
+        var schedule = ParseOptionalJson(annotations, FunctionAnnotationNames.Schedule,
+            ScheduleConfigSerializerContext.Default.ScheduleConfig) ?? new ScheduleConfig();
+        bool oldActive = annotations.ContainsKey(FunctionAnnotationNames.ReplicasAtStart);
+        bool oldIdle = annotations.ContainsKey(FunctionAnnotationNames.ReplicasMin);
+        if (schedule.Default?.ScaleDownTimeout is { } windows)
+        {
+            for (int i = 0; i < windows.Count; i++)
+            {
+                var window = windows[i] ?? throw new FormatException("SlimFaas/Schedule contains a null time slot.");
+                oldActive |= window.ReplicasAtStart.HasValue;
+                oldIdle |= window.ReplicasMin.HasValue;
+                var active = window.MinActiveReplicas ?? window.ReplicasAtStart;
+                var idle = window.MinIdleReplicas ?? window.ReplicasMin;
+                if (active < 0 || idle < 0)
+                    throw new FormatException("SlimFaas/Schedule replica minimums must be non-negative integers.");
+                if (window.ReplicasAtStart.HasValue || window.ReplicasMin.HasValue)
+                    windows[i] = window with { MinActiveReplicas = active, MinIdleReplicas = idle,
+                        ReplicasAtStart = null, ReplicasMin = null };
+            }
+        }
+        if (oldActive)
+            warnings?.Report(functionName, FunctionAnnotationNames.ReplicasAtStart, FunctionAnnotationNames.MinActiveReplicas);
+        if (oldIdle)
+            warnings?.Report(functionName, FunctionAnnotationNames.ReplicasMin, FunctionAnnotationNames.MinIdleReplicas);
+
         FunctionVisibility visibility = ParseEnum(
             annotations,
             FunctionAnnotationNames.DefaultVisibility,
@@ -63,16 +103,15 @@ public static class FunctionMetadataParser
 
         return new FunctionMetadata(
             ParseConfiguration(annotations),
-            ParseInt(annotations, FunctionAnnotationNames.ReplicasAtStart, 1, minimum: 0),
-            ParseInt(annotations, FunctionAnnotationNames.ReplicasMin, 0, minimum: 0),
+            ParseInt(annotations, annotations.ContainsKey(FunctionAnnotationNames.MinActiveReplicas)
+                ? FunctionAnnotationNames.MinActiveReplicas : FunctionAnnotationNames.ReplicasAtStart, 1, minimum: 0),
+            ParseInt(annotations, annotations.ContainsKey(FunctionAnnotationNames.MinIdleReplicas)
+                ? FunctionAnnotationNames.MinIdleReplicas : FunctionAnnotationNames.ReplicasMin, 0, minimum: 0),
             ParseInt(annotations, FunctionAnnotationNames.TimeoutSecondBeforeSetReplicasMin, 300, minimum: 0),
             ParseInt(annotations, FunctionAnnotationNames.NumberParallelRequest, 10, minimum: 1),
             ParseBool(annotations, FunctionAnnotationNames.ReplicasStartAsSoonAsOneFunctionRetrieveARequest, false),
             ParseCsv(annotations, FunctionAnnotationNames.DependsOn),
-            ParseOptionalJson(
-                annotations,
-                FunctionAnnotationNames.Schedule,
-                ScheduleConfigSerializerContext.Default.ScheduleConfig) ?? new ScheduleConfig(),
+            schedule,
             ParseVisibilityList<SubscribeEvent>(
                 annotations,
                 FunctionAnnotationNames.SubscribeEvents,

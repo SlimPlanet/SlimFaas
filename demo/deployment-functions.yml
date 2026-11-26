@@ -24,8 +24,8 @@ spec:
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
         SlimFaas/NumberParallelRequest: "10"
         SlimFaas/NumberParallelRequestPerPod: "1"
-        SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/ReplicasMin: "0"                            # autorise le scale-to-zero
+        SlimFaas/MinActiveReplicas: "1"
+        SlimFaas/MinIdleReplicas: "0"                            # autorise le scale-to-zero
 
         # Scraping metrics par Prometheus / SlimFaas
         prometheus.io/path: /metrics
@@ -117,7 +117,7 @@ spec:
         SlimFaas/StreamMaxLength: "100000"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
         SlimFaas/NumberParallelRequest: "2"
-        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/MinActiveReplicas: "1"
         SlimFaas/DependsOn: "fibonacci1,mysql"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
@@ -177,7 +177,7 @@ spec:
         SlimFaas/NumberParallelRequest: "40"
         SlimFaas/NumberParallelRequestPerPod: "10"
         SlimFaas/SubscribeEvents: "fibo-public"
-        SlimFaas/ReplicasAtStart: "2"
+        SlimFaas/MinActiveReplicas: "2"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
         prometheus.io/scrape: 'true'
@@ -234,7 +234,7 @@ spec:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
         SlimFaas/DefaultVisibility: "Private"
-        SlimFaas/ReplicasAtStart: "2"
+        SlimFaas/MinActiveReplicas: "2"
         SlimFaas/SubscribeEvents: "Public:fibo-public"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'

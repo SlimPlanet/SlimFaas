@@ -17,7 +17,13 @@ public record DefaultSchedule
 public record ScaleDownTimeout
 {
     public string Time { get; init; } = "00:00";
-    public int Value { get; init; }
+    public int? Value { get; init; }
+    public int? MinActiveReplicas { get; init; }
+    public int? MinIdleReplicas { get; init; }
+
+    // Read the original annotation names when used inside a schedule.
+    public int? ReplicasAtStart { get; init; }
+    public int? ReplicasMin { get; init; }
 }
 
 [JsonSerializable(typeof(ScheduleConfig))]

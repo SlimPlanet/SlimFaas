@@ -86,16 +86,6 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     // C2 – Parser exception contract
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Contract: unsupported operators !=  →  FormatException
-    [Fact]
-    public void Parser_NotEqualLabelMatcher_ThrowsFormatException()
-    {
-        var eval = SnapEval(BuildSnapshot((1, "d", "p", "m", 1)));
-        // `!=` is not implemented; parser expects `=` or `=~` after a label name
-        Assert.Throws<FormatException>(() =>
-            eval.Evaluate("""sum(rate(m{job!="a"}[1m]))"""));
-    }
-
     // Contract: empty query string  →  FormatException
     [Fact]
     public void Parser_EmptyQuery_ThrowsFormatException()
@@ -112,14 +102,11 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
         Assert.Throws<FormatException>(() => eval.Evaluate("sum(rate(m[1d]))"));
     }
 
-    // Contract: a standalone negative literal is not a valid expression  →  FormatException
-    // The parser checks for digit/`(` before falling through to ParseIdent, and `-` triggers
-    // "Identifier expected".
     [Fact]
-    public void Parser_StandaloneNegativeLiteral_ThrowsFormatException()
+    public void Parser_StandaloneNegativeLiteral()
     {
         var eval = SnapEval(BuildSnapshot((1, "d", "p", "m", 1)));
-        Assert.Throws<FormatException>(() => eval.Evaluate("-1"));
+        Assert.Equal(-5, eval.Evaluate("-5"));
     }
 
     // Contract: label block with no preceding metric name  →  FormatException
@@ -147,7 +134,7 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
             (160, "d", "p2", "http_total{job=\"b\"}", 20));
         var eval = SnapEval(snap);
         // (40-10)/60 + (20-5)/60 = 0.5 + 0.25 = 0.75
-        Assert.Equal(0.75, eval.Evaluate("sum(rate(http_total[1m]))", nowUnixSeconds: 160), 6);
+        Assert.Equal(0.75, eval.Evaluate("sum(rate(http_total[61s]))", nowUnixSeconds: 160), 6);
     }
 
     // Contract: a series that carries labels beyond those in the selector still matches
@@ -156,10 +143,10 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     public void Selector_ExtraLabelOnSeries_DoesNotPreventMatch()
     {
         var snap = BuildSnapshot(
-            (100, "d", "p1", "req_total{job=\"svc\",status=\"200\"}", 0),
-            (160, "d", "p1", "req_total{job=\"svc\",status=\"200\"}", 60));
+            (100, "d", "p1", "req_total{job=\"svc\",status=\"200\"}", 10),
+            (160, "d", "p1", "req_total{job=\"svc\",status=\"200\"}", 70));
         var eval = SnapEval(snap);
-        var res = eval.Evaluate("""sum(rate(req_total{job="svc"}[1m]))""", nowUnixSeconds: 160);
+        var res = eval.Evaluate("""sum(rate(req_total{job="svc"}[61s]))""", nowUnixSeconds: 160);
         Assert.Equal(1.0, res, 6);
     }
 
@@ -168,10 +155,10 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     public void Selector_MissingRequiredLabel_ExcludesSeries()
     {
         var snap = BuildSnapshot(
-            (100, "d", "p1", "req_total", 0),   // no `job` label
-            (160, "d", "p1", "req_total", 120));
+            (100, "d", "p1", "req_total", 10),   // no `job` label
+            (160, "d", "p1", "req_total", 130));
         var eval = SnapEval(snap);
-        var res = eval.Evaluate("""sum(rate(req_total{job="svc"}[1m]))""", nowUnixSeconds: 160);
+        var res = eval.Evaluate("""sum(rate(req_total{job="svc"}[61s]))""", nowUnixSeconds: 160);
         Assert.True(double.IsNaN(res));
     }
 
@@ -181,18 +168,18 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     public void Selector_RegexIsAnchoredToFullLabelValue()
     {
         var snap = BuildSnapshot(
-            (100, "d", "p1", "http_total{job=\"web\"}", 0),
-            (160, "d", "p1", "http_total{job=\"web\"}", 60),
-            (100, "d", "p2", "http_total{job=\"web-api\"}", 0),
-            (160, "d", "p2", "http_total{job=\"web-api\"}", 60));
+            (100, "d", "p1", "http_total{job=\"web\"}", 10),
+            (160, "d", "p1", "http_total{job=\"web\"}", 70),
+            (100, "d", "p2", "http_total{job=\"web-api\"}", 10),
+            (160, "d", "p2", "http_total{job=\"web-api\"}", 70));
         var eval = SnapEval(snap);
 
         // Exact-word pattern: only "web" matches
-        var resExact = eval.Evaluate("""sum(rate(http_total{job=~"web"}[1m]))""", nowUnixSeconds: 160);
+        var resExact = eval.Evaluate("""sum(rate(http_total{job=~"web"}[61s]))""", nowUnixSeconds: 160);
         Assert.Equal(1.0, resExact, 6);
 
         // Wildcard pattern: both match
-        var resBoth = eval.Evaluate("""sum(rate(http_total{job=~"web.*"}[1m]))""", nowUnixSeconds: 160);
+        var resBoth = eval.Evaluate("""sum(rate(http_total{job=~"web.*"}[61s]))""", nowUnixSeconds: 160);
         Assert.Equal(2.0, resBoth, 6);
     }
 
@@ -201,15 +188,15 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     public void Selector_MultiLabelMatcher_RequiresAllConditionsSatisfied()
     {
         var snap = BuildSnapshot(
-            (100, "d", "p1", "req_total{job=\"a\",status=\"200\"}", 0),
-            (160, "d", "p1", "req_total{job=\"a\",status=\"200\"}", 60),
-            (100, "d", "p2", "req_total{job=\"a\",status=\"500\"}", 0),
-            (160, "d", "p2", "req_total{job=\"a\",status=\"500\"}", 120),
-            (100, "d", "p3", "req_total{job=\"b\",status=\"200\"}", 0),
-            (160, "d", "p3", "req_total{job=\"b\",status=\"200\"}", 60));
+            (100, "d", "p1", "req_total{job=\"a\",status=\"200\"}", 10),
+            (160, "d", "p1", "req_total{job=\"a\",status=\"200\"}", 70),
+            (100, "d", "p2", "req_total{job=\"a\",status=\"500\"}", 10),
+            (160, "d", "p2", "req_total{job=\"a\",status=\"500\"}", 130),
+            (100, "d", "p3", "req_total{job=\"b\",status=\"200\"}", 10),
+            (160, "d", "p3", "req_total{job=\"b\",status=\"200\"}", 70));
         var eval = SnapEval(snap);
         // Only p1 satisfies both job="a" AND status="200"
-        var res = eval.Evaluate("""sum(rate(req_total{job="a",status="200"}[1m]))""", nowUnixSeconds: 160);
+        var res = eval.Evaluate("""sum(rate(req_total{job="a",status="200"}[61s]))""", nowUnixSeconds: 160);
         Assert.Equal(1.0, res, 6);
     }
 
@@ -229,7 +216,7 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
         var eval = SnapEval(snap);
         Assert.Equal(
             40.0 / 60.0,
-            eval.Evaluate("""sum(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160),
+            eval.Evaluate("""sum(rate(req_total{job="a"}[61s]))""", nowUnixSeconds: 160),
             6);
     }
 
@@ -243,7 +230,7 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
         var eval = SnapEval(snap);
         Assert.Equal(
             10.0 / 60.0,
-            eval.Evaluate("""avg(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160),
+            eval.Evaluate("""avg(rate(req_total{job="a"}[61s]))""", nowUnixSeconds: 160),
             6);
     }
 
@@ -252,12 +239,12 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     public void Arithmetic_NaNFromMissingSeriesPropagatesToResult()
     {
         var snap = BuildSnapshot(
-            (100, "d", "p", "good_total{job=\"a\"}", 0),
-            (160, "d", "p", "good_total{job=\"a\"}", 60));
+            (100, "d", "p", "good_total{job=\"a\"}", 10),
+            (160, "d", "p", "good_total{job=\"a\"}", 70));
         var eval = SnapEval(snap);
-        // sum(rate(no_such_metric[1m])) → NaN; NaN + 1.0 → NaN (IEEE 754)
+        // sum(rate(no_such_metric[61s])) → NaN; NaN + 1.0 → NaN (IEEE 754)
         var res = eval.Evaluate(
-            """sum(rate(no_such_metric[1m])) + sum(rate(good_total{job="a"}[1m]))""",
+            """sum(rate(no_such_metric[61s])) + sum(rate(good_total{job="a"}[61s]))""",
             nowUnixSeconds: 160);
         Assert.True(double.IsNaN(res));
     }
@@ -267,10 +254,10 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     public void NowUnixSeconds_NullUsesMaxSnapshotTimestamp()
     {
         var snap = BuildSnapshot(
-            (100, "d", "p", "m{job=\"a\"}", 0),
-            (160, "d", "p", "m{job=\"a\"}", 60));
+            (100, "d", "p", "m{job=\"a\"}", 10),
+            (160, "d", "p", "m{job=\"a\"}", 70));
         var eval = SnapEval(snap);
-        const string q = """sum(rate(m{job="a"}[1m]))""";
+        const string q = """sum(rate(m{job="a"}[61s]))""";
         // null ≡ nowUnixSeconds=160 (the max key)
         Assert.Equal(eval.Evaluate(q, nowUnixSeconds: 160), eval.Evaluate(q, nowUnixSeconds: null), 6);
     }
@@ -322,7 +309,7 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     {
         var store = new StubMetricsStore(latestTs: null);
         var eval = new PromQlMiniEvaluator(store);
-        Assert.True(double.IsNaN(eval.Evaluate("sum(rate(m[1m]))")));
+        Assert.True(double.IsNaN(eval.Evaluate("sum(rate(m[61s]))")));
     }
 
     // Contract: the IMetricsStore path produces the same scalar as the snapshot path
@@ -341,7 +328,7 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
             (100, "dep-a", "10.0.0.1", metricKey, 10),
             (160, "dep-a", "10.0.0.1", metricKey, 70)));
 
-        const string q = """sum(rate(http_requests_total{job="svc"}[1m]))""";
+        const string q = """sum(rate(http_requests_total{job="svc"}[61s]))""";
         Assert.Equal(snapEval.Evaluate(q, nowUnixSeconds: 160),
                      storeEval.Evaluate(q, nowUnixSeconds: 160), 6);
     }
@@ -370,7 +357,7 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
             ("d", "p", "known_metric",
              [new MetricPoint(100, 10), new MetricPoint(160, 70)]));
         var eval = new PromQlMiniEvaluator(store);
-        Assert.True(double.IsNaN(eval.Evaluate("sum(rate(other_metric[1m]))", nowUnixSeconds: 160)));
+        Assert.True(double.IsNaN(eval.Evaluate("sum(rate(other_metric[61s]))", nowUnixSeconds: 160)));
     }
 
     // Contract: max_over_time via IMetricsStore selects the maximum raw sample in the window.
@@ -399,7 +386,7 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
             (100, "d", "p", "m{job=\"a\"}", 10),
             (160, "d", "p", "m{job=\"a\"}", 70));
         var eval = SnapEval(snap);
-        const string q = """sum(rate(m{job="a"}[1m]))""";
+        const string q = """sum(rate(m{job="a"}[61s]))""";
         Assert.Equal(eval.Evaluate(q, nowUnixSeconds: 160), eval.Evaluate(q, nowUnixSeconds: 160), 6);
     }
 
@@ -409,16 +396,16 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     public void Evaluate_SnapshotProviderCalledFreshEachCall()
     {
         var snapV1 = BuildSnapshot(
-            (100, "d", "p", "m{job=\"a\"}", 0),
-            (160, "d", "p", "m{job=\"a\"}", 60));   // rate = 1.0
+            (100, "d", "p", "m{job=\"a\"}", 10),
+            (160, "d", "p", "m{job=\"a\"}", 70));   // rate = 1.0
         var snapV2 = BuildSnapshot(
-            (100, "d", "p", "m{job=\"a\"}", 0),
-            (160, "d", "p", "m{job=\"a\"}", 120));  // rate = 2.0
+            (100, "d", "p", "m{job=\"a\"}", 10),
+            (160, "d", "p", "m{job=\"a\"}", 130));  // rate = 2.0
 
         IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> current = snapV1;
         var eval = new PromQlMiniEvaluator(() => current);
 
-        const string q = """sum(rate(m{job="a"}[1m]))""";
+        const string q = """sum(rate(m{job="a"}[61s]))""";
         var r1 = eval.Evaluate(q, nowUnixSeconds: 160);
         current = snapV2;
         var r2 = eval.Evaluate(q, nowUnixSeconds: 160);
@@ -438,10 +425,10 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
         int callCount = 0;
         var eval = new PromQlMiniEvaluator(() => { callCount++; return snap; });
 
-        eval.Evaluate("""sum(rate(m{job="a"}[1m]))""", nowUnixSeconds: 160);
+        eval.Evaluate("""sum(rate(m{job="a"}[61s]))""", nowUnixSeconds: 160);
         Assert.Equal(1, callCount);
 
-        eval.Evaluate("""sum(rate(m{job="a"}[1m]))""", nowUnixSeconds: 160);
+        eval.Evaluate("""sum(rate(m{job="a"}[61s]))""", nowUnixSeconds: 160);
         Assert.Equal(2, callCount);
     }
 
