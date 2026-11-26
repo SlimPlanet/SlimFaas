@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Caching.Memory;
@@ -17,6 +18,9 @@ public interface ISwaggerService
         IDictionary<string, string>? additionalHeaders = null,
         ushort? slidingExpiration = null);
     IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger);
+
+    // The URL the document was finally retrieved from, after any redirect, or null when it is unknown.
+    Uri? GetDocumentUri(JsonDocument swagger) => null;
 }
 
 public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache memoryCache)
@@ -29,6 +33,9 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
     // servers, $ref and x- extensions) apply to the whole path.
     private static readonly HashSet<string> s_operationFields =
         new(StringComparer.OrdinalIgnoreCase) { "get", "put", "post", "delete", "options", "head", "patch", "trace" };
+
+    // Where each document was finally retrieved from. It follows the document, so a cache hit keeps it.
+    private static readonly ConditionalWeakTable<JsonDocument, Uri> s_documentUris = new();
 
     // A referenced parameter can itself be a reference; the bound stops a reference cycle.
     private const int MaxParameterRefDepth = 8;
@@ -54,6 +61,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
         using var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
+        var documentUri = response.RequestMessage?.RequestUri;
         var swaggerStr = await response.Content.ReadAsStringAsync();
 
         JsonDocument doc;
@@ -73,6 +81,11 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
             doc = JsonDocument.Parse(node.ToJsonString());
         }
 
+        if (documentUri is not null)
+        {
+            s_documentUris.AddOrUpdate(doc, documentUri);
+        }
+
         var cacheExpiration = slidingExpiration == null ? s_slidingExpiration : TimeSpan.FromMinutes(slidingExpiration.Value);
 
         if (cacheExpiration.TotalMinutes > 0)
@@ -82,6 +95,9 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
         return doc;
     }
+
+    public Uri? GetDocumentUri(JsonDocument swagger) =>
+        s_documentUris.TryGetValue(swagger, out var documentUri) ? documentUri : null;
 
     public IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger)
     {
