@@ -63,7 +63,7 @@ python3 .bin/test-annotation-policy.py
 
 - Kubernetes 1.29 and earlier do not have the GA API. On those clusters, a validating admission webhook can enforce the same rule; this repository does not ship one.
 - Cluster administrators can still delete or edit the policy, the binding and the ConfigMap. The policy protects SlimFaas annotations from namespace editors, not from cluster-admin.
-- A CronJob's `spec.jobTemplate` is not read by SlimFaas, which takes a CronJob's configuration from its own `metadata.annotations`. Put `SlimFaas/*` annotations there, not in the job template: the Job the CronJob controller creates inherits template annotations and is refused, because the controller is not a listed identity.
+- SlimFaas reads `SlimFaas/*` annotations for a CronJob from its own `metadata.annotations`, not from `spec.jobTemplate`. Put them there: the Job the CronJob controller creates inherits template annotations and is refused, because the controller is not a listed identity. The policy covers these annotations only. SlimFaas also reads the template's container image, environment and resources, and adds the template image to the job image allowlist, so the choice of template image stays under ordinary workload permissions.
 - Only Deployments, StatefulSets, Jobs and CronJobs are checked. Pods created directly are not; SlimFaas does not read its policy from Pod annotations.
 - The policy decides who may write the annotations, not whether they are valid. SlimFaas still validates their values.
 - Docker Compose and native local mode read labels or local manifests; the policy does not apply there.
