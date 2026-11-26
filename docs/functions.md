@@ -163,6 +163,8 @@ env:
 
 Source addresses remain a weak identity: sidecars share the pod address, and a call that reaches a function pod without going through SlimFaas is not checked by SlimFaas. Use a NetworkPolicy to restrict the function ports to SlimFaas when that matters.
 
+These rules are only as trustworthy as the annotations that declare them: anyone allowed to patch the Deployment can change its visibility or trust. On Kubernetes 1.30 or later, the optional [annotation policy](annotation-policy.md) lets only chosen users and groups change `SlimFaas/*` annotations.
+
 ## 6. Function Configuration
 
 You can configure the synchronous HTTP timeout and the retry policies used by asynchronous and publish calls with `SlimFaas/Configuration`:

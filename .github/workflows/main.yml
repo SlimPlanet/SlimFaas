@@ -304,6 +304,19 @@ jobs:
           path: artifacts/native-local/*.log
           if-no-files-found: warn
 
+  annotation_policy:
+    name: Annotation admission policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Test the smoke test cleanup guards
+        run: python3 .bin/test-annotation-policy-cleanup.py
+
+      # The runner image provides kind and kubectl.
+      - name: Test demo/slimfaas-annotation-policy.yml on kind
+        run: python3 .bin/test-annotation-policy.py
+
   tags:
     permissions:
       contents: write
