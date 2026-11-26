@@ -1,39 +1,7 @@
-using System.Text;
-using System.Text.RegularExpressions;
 using SlimFaas.Workers;
+using ZLinq;
 
 namespace SlimFaas.Kubernetes;
-
-internal sealed class MetricSelector
-{
-    public string MetricName { get; }
-    public List<(string label, string? equal, Regex? regex)> Matchers { get; } = [];
-
-    public MetricSelector(string name) => MetricName = name;
-
-    public bool Match(string name, Dictionary<string, string> labels)
-    {
-        if (!string.Equals(name, MetricName, StringComparison.Ordinal))
-            return false;
-
-        foreach (var (label, equal, regex) in Matchers)
-        {
-            if (!labels.TryGetValue(label, out var v))
-                return false;
-
-            if (regex is not null)
-            {
-                if (!regex.IsMatch(v)) return false;
-            }
-            else if (equal is not null)
-            {
-                if (!string.Equals(v, equal, StringComparison.Ordinal)) return false;
-            }
-        }
-
-        return true;
-    }
-}
 
 internal sealed class EvalContext
 {
@@ -77,96 +45,105 @@ internal sealed class EvalContext
         _requiredTimestamp = requiredTimestamp;
     }
 
-    // Returns all series (seriesKey → SortedList<timestamp, value>) matching the selector.
-    public Dictionary<string, SortedList<long, double>> SelectSeries(MetricSelector selector, TimeSpan? window = null)
+    public Dictionary<SeriesKey, double> Select(MetricSelector selector, SampleFunction function, long window)
     {
-        var isInstantSelector = !window.HasValue;
-        var lookbackSeconds = isInstantSelector
-            ? _instantSelectorLookbackSeconds
-            : (long)Math.Ceiling(window!.Value.TotalSeconds);
-        var fromTs = Now - lookbackSeconds;
+        long seconds = function == SampleFunction.Instant ? _instantSelectorLookbackSeconds : window;
+        long start = Now < long.MinValue + seconds ? long.MinValue : Now - seconds;
+        var result = new Dictionary<SeriesKey, double>();
 
-        var series = new Dictionary<string, SortedList<long, double>>(StringComparer.Ordinal);
+        if (_requiredTimestamp is long required && (required <= start || required > Now)) return result;
 
-        if (_metricsStore is not null)
+        var merged = new Dictionary<SeriesKey, SortedList<long, MetricPoint>>();
+        if (_metricsStore is null)
         {
-            _metricsStore.VisitSeries((_, deployment, podIp, metricKey, points) =>
+            foreach (var (timestamp, deployments) in _snapshot!)
             {
-                if (!IsDeploymentInScope(deployment, selector.MetricName))
-                    return;
-
-                if (!TryParseMetricKey(metricKey, out var name, out var labels) ||
-                    !IsFunctionLabelInScope(deployment, labels) ||
-                    !selector.Match(name, labels))
+                if (timestamp <= start || timestamp > Now) continue;
+                foreach (var (deployment, pods) in deployments)
+                foreach (var (pod, metrics) in pods)
+                foreach (var (rawKey, value) in metrics)
                 {
-                    return;
-                }
-
-                if (_requiredTimestamp.HasValue && !points.Any(p => p.Timestamp == _requiredTimestamp.Value))
-                    return;
-
-                SortedList<long, double>? selectedPoints = null;
-                for (var index = 0; index < points.Count; index++)
-                {
-                    var point = points[index];
-                    if (IsOutsideSelection(point.Timestamp, fromTs, isInstantSelector))
-                        continue;
-
-                    selectedPoints ??= [with(capacity: points.Count - index)];
-                    selectedPoints[point.Timestamp] = point.Value;
-                }
-
-                if (selectedPoints is null)
-                    return;
-
-                var baseKey = BuildSeriesKey(name, labels);
-                series[$"{baseKey}|pod={podIp}"] = selectedPoints;
-            });
-            return series;
-        }
-
-        foreach (var (ts, depMap) in _snapshot!)
-        {
-            if (IsOutsideSelection(ts, fromTs, isInstantSelector)) continue;
-
-            foreach (var (deployment, podMap) in depMap)
-            {
-                if (!IsDeploymentInScope(deployment, selector.MetricName))
-                    continue;
-
-                foreach (var (podIp, metrics) in podMap)
-                {
-                    foreach (var (metricKey, value) in metrics)
-                    {
-                        if (!TryParseMetricKey(metricKey, out var name, out var labels))
-                            continue;
-
-                        if (!IsFunctionLabelInScope(deployment, labels) || !selector.Match(name, labels))
-                            continue;
-
-                        var baseKey = BuildSeriesKey(name, labels);
-                        var seriesKey = $"{baseKey}|pod={podIp}";
-
-                        if (!series.TryGetValue(seriesKey, out var list))
-                        {
-                            list = new SortedList<long, double>();
-                            series[seriesKey] = list;
-                        }
-
-                        // Keep last value when multiple entries share the same timestamp.
-                        if (!list.ContainsKey(ts))
-                            list.Add(ts, value);
-                        else
-                            list[ts] = value;
-                    }
+                    if (!TrySelect(selector, deployment, pod, rawKey, out var key)) continue;
+                    if (!merged.TryGetValue(key, out var points)) merged[key] = points = [];
+                    points[timestamp] = new(timestamp, value);
                 }
             }
         }
+        else
+        {
+            var seen = new HashSet<SeriesKey>();
+            _metricsStore.VisitSeries((_, deployment, pod, rawKey, points) =>
+            {
+                int end = UpperBound(points, Now);
+                if (end == 0 || points[end - 1].Timestamp <= start ||
+                    !TrySelect(selector, deployment, pod, rawKey, out var key)) return;
+                if (!seen.Add(key))
+                {
+                    // Exporters can change label order between scrapes. Merge just
+                    // those series' selected points before computing a rate or average.
+                    if (!merged.ContainsKey(key)) merged[key] = [];
+                    result.Remove(key);
+                    return;
+                }
 
-        if (_requiredTimestamp.HasValue)
-            foreach (var key in series.Where(s => !s.Value.ContainsKey(_requiredTimestamp.Value)).Select(s => s.Key).ToArray())
-                series.Remove(key);
-        return series;
+                if (_requiredTimestamp is long timestamp)
+                {
+                    int position = UpperBound(points, timestamp) - 1;
+                    if (position < 0 || points[position].Timestamp != timestamp) return;
+                }
+                int first = function == SampleFunction.Instant ? end - 1 : UpperBound(points, start);
+                EvaluatePoints(key, points, first, end);
+            });
+
+            if (merged.Count == 0) return result;
+            _metricsStore.VisitSeries((_, deployment, pod, rawKey, points) =>
+            {
+                if (!TrySelect(selector, deployment, pod, rawKey, out var key) ||
+                    !merged.TryGetValue(key, out var selected)) return;
+                int end = UpperBound(points, Now);
+                for (int i = UpperBound(points, start); i < end; i++)
+                {
+                    var point = points[i];
+                    selected[point.Timestamp] = point;
+                }
+            });
+        }
+
+        foreach (var (key, points) in merged)
+        {
+            if (points.Count == 0 || (_requiredTimestamp is long timestamp && !points.ContainsKey(timestamp))) continue;
+            EvaluatePoints(key, points.Values.AsValueEnumerable().ToArray(), 0, points.Count);
+        }
+        return result;
+
+        void EvaluatePoints(SeriesKey key, IReadOnlyList<MetricPoint> points, int first, int end)
+        {
+            if (PromQlRangeFunctions.TryEvaluate(function, points, first, end, Now, window, out var value))
+                result[key] = value;
+        }
+    }
+
+    private bool TrySelect(MetricSelector selector, string deployment, string pod, string rawKey, out SeriesKey key)
+    {
+        key = default;
+        return IsDeploymentInScope(deployment, selector.MetricName) &&
+            selector.TrySelect(rawKey, deployment, pod, out key) &&
+            (_externalSource is not null || _deployment is null || deployment == _deployment ||
+             key.Get("function") == _deployment);
+    }
+
+    // InMemoryMetricsStore maintains timestamp order even for late observations.
+    private static int UpperBound(IReadOnlyList<MetricPoint> points, long timestamp)
+    {
+        int low = 0;
+        int high = points.Count;
+        while (low < high)
+        {
+            int mid = low + (high - low) / 2;
+            if (points[mid].Timestamp <= timestamp) low = mid + 1;
+            else high = mid;
+        }
+        return low;
     }
 
     // Queue gauges are emitted by SlimFaas, not by the function's HTTP server.
@@ -183,80 +160,6 @@ internal sealed class EvalContext
                "slimfaas_function_queue_in_flight_items" or
                "slimfaas_function_queue_retry_pending_items"));
 
-    private bool IsFunctionLabelInScope(string source, Dictionary<string, string> labels)
-        => _externalSource is not null || _deployment is null ||
-           string.Equals(source, _deployment, StringComparison.Ordinal) ||
-           (labels.TryGetValue("function", out var function) &&
-            string.Equals(function, _deployment, StringComparison.Ordinal));
-
     private static long ToLookbackSeconds(TimeSpan lookback)
         => Math.Max(1L, (long)Math.Ceiling(lookback.TotalSeconds));
-
-    private static bool IsOutsideSelection(long timestamp, long fromTs, bool isInstantSelector)
-        => isInstantSelector ? timestamp <= fromTs : timestamp < fromTs;
-
-    internal static bool TryParseMetricKey(string key, out string name, out Dictionary<string, string> labels)
-    {
-        name = key;
-        labels = [with(StringComparer.Ordinal)];
-        var i = key.IndexOf('{', StringComparison.Ordinal);
-        if (i < 0) return true;
-
-        var j = key.LastIndexOf('}', StringComparison.Ordinal);
-        if (j < i) return false;
-
-        name = key[..i];
-        var content = key.Substring(i + 1, j - i - 1).Trim();
-        if (string.IsNullOrEmpty(content)) return true;
-
-        foreach (var pair in SplitLabels(content))
-        {
-            var eq = pair.IndexOf('=', StringComparison.Ordinal);
-            if (eq <= 0) continue;
-            var k = pair[..eq].Trim();
-            var v = pair[(eq + 1)..].Trim();
-            if (v.Length >= 2 && v[0] == '"' && v[^1] == '"')
-                v = v.Substring(1, v.Length - 2);
-            labels[k] = v;
-        }
-        return true;
-
-        static IEnumerable<string> SplitLabels(string s)
-        {
-            var sb = new StringBuilder();
-            foreach (var c in s)
-            {
-                if (c == ',')
-                {
-                    yield return sb.ToString().Trim();
-                    sb.Clear();
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-            if (sb.Length > 0) yield return sb.ToString().Trim();
-        }
-    }
-
-    internal static string BuildSeriesKey(string name, Dictionary<string, string> labels)
-    {
-        if (labels.Count == 0) return name;
-        var sb = new StringBuilder();
-        sb.Append(name);
-        sb.Append('{');
-        bool first = true;
-        foreach (var kv in labels.OrderBy(k => k.Key, StringComparer.Ordinal))
-        {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append(kv.Key);
-            sb.Append("=\"");
-            sb.Append(kv.Value.Replace("\"", "\\\"", StringComparison.Ordinal));
-            sb.Append('"');
-        }
-        sb.Append('}');
-        return sb.ToString();
-    }
 }
