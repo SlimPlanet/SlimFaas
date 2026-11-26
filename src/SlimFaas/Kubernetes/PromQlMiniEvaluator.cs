@@ -1,4 +1,5 @@
 using SlimFaas.Workers;
+using ZLinq;
 
 namespace SlimFaas.Kubernetes;
 
@@ -30,18 +31,8 @@ public sealed class PromQlMiniEvaluator
         _instantSelectorLookback = ValidateInstantSelectorLookback(instantSelectorLookback);
     }
 
-    // Evaluates a raw query string. Checks for data availability before parsing (preserves
-    // original NaN-on-no-data semantics when the store is empty).
-    public double Evaluate(
-        string query,
-        long? nowUnixSeconds = null,
-        string? deployment = null)
-    {
-        var ctx = BuildContext(nowUnixSeconds, deployment);
-        if (ctx is null) return double.NaN;
-        var compiled = PromQlQueryCompiler.Compile(query);
-        return compiled.Root.Eval(ctx).AsScalar();
-    }
+    public double Evaluate(string query, long? nowUnixSeconds = null, string? deployment = null) =>
+        Evaluate(PromQlQueryCompiler.Compile(query), nowUnixSeconds, deployment);
 
     // Evaluates a pre-compiled query plan, skipping parsing on every call.
     public double Evaluate(
@@ -51,7 +42,6 @@ public sealed class PromQlMiniEvaluator
     {
         ArgumentNullException.ThrowIfNull(compiled);
         var ctx = BuildContext(nowUnixSeconds, deployment);
-        if (ctx is null) return double.NaN;
         return compiled.Root.Eval(ctx).AsScalar();
     }
 
@@ -68,27 +58,21 @@ public sealed class PromQlMiniEvaluator
         return query.Root.Eval(context).AsScalar();
     }
 
-    private EvalContext? BuildContext(long? nowUnixSeconds, string? deployment)
+    private EvalContext BuildContext(long? nowUnixSeconds, string? deployment)
     {
         if (_metricsStore is not null)
         {
-            if (_metricsStore.LatestTimestamp is not { } latestTimestamp)
-                return null;
-
             return new EvalContext(
                 _metricsStore,
-                nowUnixSeconds ?? latestTimestamp,
+                nowUnixSeconds ?? _metricsStore.LatestTimestamp ?? 0,
                 _instantSelectorLookback,
                 deployment);
         }
 
         var snapshot = _snapshotProvider!();
-        if (snapshot.Count == 0)
-            return null;
-
         return new EvalContext(
             snapshot,
-            nowUnixSeconds ?? snapshot.Keys.Max(),
+            nowUnixSeconds ?? (snapshot.Count == 0 ? 0 : snapshot.Keys.AsValueEnumerable().Max()),
             _instantSelectorLookback,
             deployment);
     }
