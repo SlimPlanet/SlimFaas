@@ -8,8 +8,8 @@ namespace SlimFaas.Tests.MetricsQuery
     public class PromQlMiniEvaluatorTests
     {
             private const string AvgLatencyQuery =
-                "sum(rate(http_request_duration_seconds_sum{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[1m])) " +
-                "/ sum(rate(http_request_duration_seconds_count{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[1m]))";
+                "sum(rate(http_request_duration_seconds_sum{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[61s])) " +
+                "/ sum(rate(http_request_duration_seconds_count{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[61s]))";
 
             [Fact]
             public void Evaluate_ShouldReturnNaN_WhenNoSamples()
@@ -80,7 +80,7 @@ namespace SlimFaas.Tests.MetricsQuery
 
                 var evaluator = new PromQlMiniEvaluator(() => snapshot);
 
-                // Act : on place "now" à 160 pour inclure [100,160] dans la fenêtre [1m]
+                // Act : on place "now" à 160 pour inclure [100,160] dans la fenêtre (99,160]
                 double result = evaluator.Evaluate(AvgLatencyQuery, nowUnixSeconds: 160);
 
                 // Assert : denom = 0 => no data

@@ -243,10 +243,10 @@ annotations:
 
 ### 2. Scale based on average pending messages (smooth queue pressure)
 
-If you prefer a smoother signal, you can use `avg_over_time`-like behavior by combining `avg()` and `max_over_time()`.
-Because the current mini-evaluator does not support `avg_over_time`, a simple alternative is to evaluate the **current** pending messages and treat spikes implicitly through your scale-up policies:
+Use a 30-second mean for each binding, then add the means to measure
+the function's recent backlog:
 
-```json
+```yaml
 annotations:
   SlimFaas/Scale: >
     {
@@ -254,8 +254,8 @@ annotations:
       "Triggers": [
         {
           "MetricType": "Value",
-          "MetricName": "kafka_pending_messages_instant",
-          "Query": "sum(slimfaaskafka_pending_messages{function=\"${app}\"})",
+          "MetricName": "kafka_pending_messages_avg_30s",
+          "Query": "sum(avg_over_time(slimfaaskafka_pending_messages{function=\"${app}\"}[30s]))",
           "Threshold": 100
         }
       ]
@@ -264,10 +264,10 @@ annotations:
 
 **How it works**
 
-- PromQL: `sum(slimfaaskafka_pending_messages{function="${app}"})`
-    - Sums all pending messages across bindings for this function.
+- PromQL: `sum(avg_over_time(slimfaaskafka_pending_messages{function="${app}"}[30s]))`
+    - Sums the per-binding mean backlog over the last 30 seconds.
 - `Threshold = 100`:
-    - When the total pending messages grows above 100, the autoscaler increases the number of pods.
+    - When the smoothed backlog grows above 100, the autoscaler increases the number of pods.
 
 You can combine this with **scale-up policies** to react faster to sudden spikes:
 

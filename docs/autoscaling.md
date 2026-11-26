@@ -459,75 +459,90 @@ query to a **single scalar** that can be used by the AutoScaler.
   http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]
   ```
 
-  Supported duration units: `s`, `m`, `h` (e.g. `15s`, `1m`, `5m`, `1h`).
+  At evaluation time `t`, a range selects samples in `(t - window, t]`.
+  For example, at 12:01:00 a one-minute range excludes 12:00:00 and includes
+  12:01:00. Instant selectors use the latest sample within their lookback.
+  Neither selector reads future samples. Durations accept positive whole
+  seconds, minutes and hours, such as `15s`, `5m` and `1h`.
 
-- **Label matchers**
+- **Label matchers** support `=`, `!=`, `=~` and `!~`. Regexes match the entire
+  label value. A missing label compares as the empty string. For example,
+  `jobs_pending{queue!="emails"}` includes series without a `queue` label.
+  Double-quoted values can contain commas and escaped quotes or backslashes.
+  POSIX classes such as `[[:digit:]]` and Perl classes such as `\d`, `\w`
+  and `\s` use RE2's ASCII ranges. In PromQL text, write
+  `code=~"\\d{3}"` or `code=~"[[:digit:]]{3}"` to match three ASCII digits.
+  Use `[^[:digit:]]` to complement a POSIX class. The compiler reports an
+  unsupported class name or inner negation such as `[[:^digit:]]`.
 
-    - Exact match: `label="value"`
-    - Regex match: `label=~"value.*"`
+#### 2. Arithmetic and comparisons
 
-  (Negative operators `!=` / `!~` are **not** supported.)
+Arithmetic operators `+`, `-`, `*` and `/` work on scalars and per-series values.
+By default, two vectors match on their labels and scrape target. An explicit
+`on(queue)` matches on the listed exported labels. `ignoring(zone, source)`
+matches on the remaining exported labels. Both forms return those matching
+labels and drop the implicit scrape-target identity. Unmatched series drop
+out. Aggregate to one series per matching key on each side first. An ambiguous
+match produces a query error. Function and external-source scoping still apply.
 
-#### 2. Arithmetic on scalars
-
-Once a query has been reduced to a scalar, you can combine expressions with basic
-arithmetic:
+For example, if an exporter provides queue backlog and total worker slots,
+this query returns backlog per slot for each queue. The explicit outer
+`max` selects the busiest queue for the scaler. A floor of one slot allows
+a measured zero-capacity queue to signal demand. A missing capacity series
+leaves that queue unmatched.
 
 ```promql
-max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s]) / 100
+max(
+  sum by (queue) (jobs_pending)
+  / on (queue)
+  clamp_min(max by (queue) (worker_slots), 1)
+)
 ```
 
-Supported operators: `+`, `-`, `*`, `/` (no comparison or logical operators).
-
-#### 3. `rate()` on counters
+A comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) filters samples.
+Add `bool` to return 1 or 0 for each match. Scalar-to-scalar comparisons require `bool`.
 
 ```promql
-rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
+sum(slimfaas_function_queue_ready_items >= bool 10)
 ```
 
-- Computes the **per-series rate** from the counter increments available in the window.
-- The denominator is the elapsed time between those samples. Unlike Prometheus, SlimFaas does
-  not extrapolate the rate to the full range window.
-- Counter resets are supported: the post-reset value contributes to the increase.
-- The evaluator returns the **sum of the rates of all matching series**.
+#### 3. Counter rates and increases
 
-This is typically combined with `sum()` (or used directly) as a global RPS estimator.
+```promql
+sum(rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]))
+```
 
-#### 4. Aggregations: `sum`, `min`, `max`, `avg`
+`rate` computes a per-second increase per series, accounts for counter resets
+and extrapolates towards the range boundaries using the observed scrape
+spacing. Extrapolation stops at the estimated zero point of a counter.
+`increase` gives the corresponding increase over the window. `irate` uses
+only the last two samples. All three need at least two samples inside the
+range. Choose a window longer than the scrape interval, with room for missed
+scrapes. Apply `rate` before summing counters so resets remain visible.
 
-All aggregations operate on scalars or on the per-bucket maps used for histograms.
+#### 4. Aggregation and grouping
 
-Common patterns:
+`sum`, `min`, `max`, `avg` and `count` aggregate per-series results. Use
+`by (label, ...)` before or after the argument to retain grouping labels.
+For example, `max(sum by (queue) (jobs_pending))` returns the backlog of the
+busiest queue. Use `without (instance, pod)` to keep every other exported
+label. For example, `max without (instance, pod) (jobs_pending)` takes one
+backlog reading per queue when several replicas report the same queue.
+Empty input produces no observation, including for `sum`.
 
-- **Global sum**
+`min` and `max` keep the numeric samples in a group that also contains
+`NaN`. A group containing only `NaN` returns `NaN`. Sums and averages use
+compensated addition. Averages switch to an incremental calculation when a
+finite mean would overflow an intermediate sum.
 
-  ```promql
-  sum(rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]))
-  ```
-
-- **Global min / max / avg** of a scalar expression:
-
-  ```promql
-  max(
-    rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
-  )
-  ```
-
-- **Aggregations with `by (label)`**
-
-  ```promql
-  sum by (le) (
-    rate(http_server_requests_seconds_seconds_bucket{namespace="default", job="fibonacci"}[1m])
-  )
-  ```
-
-  This form is specifically supported for histogram use cases (see below).
-  For non-histogram use cases, the `by (...)` support is limited and mostly
-  intended as an internal building block for `histogram_quantile`.
-
-> For autoscaling, you should assume that the final result is always a single scalar.
-> Even when using `by (...)` aggregations, the evaluator eventually collapses the
-> data to a scalar to feed the scaling formula.
+The autoscaler and debug API return one number. For compatibility, a final
+vector normally sums its elements and a bare `max_over_time` takes the
+largest series maximum. Write an explicit outer aggregation when combining
+series. Ungrouped `sum`, `avg`, `min` and `max` accept a
+single scalar for compatibility, and the variadic SlimFaas `min(a, b)` and
+`max(a, b)` extensions remain available. `count` and grouped aggregations
+require an instant vector. The compiler also checks function argument types
+before registering metrics for collection.
 
 #### 5. Histograms and `histogram_quantile()`
 
@@ -649,55 +664,39 @@ Interpretation:
 
 ### Current limitations & gotchas
 
-The SlimFaas PromQL mini-evaluator is intentionally simple. Notable limitations:
+- The API evaluates one instant and returns a single number. The supported
+  range functions for gauges are `avg_over_time`, `min_over_time`,
+  `max_over_time`, `sum_over_time`, `count_over_time` and `last_over_time`.
+  Each sample in a time average has equal weight. For diagnostics,
+  `present_over_time(jobs_pending[30s])` returns 1 per series with any
+  sample, including a measured zero. An empty window returns no series.
+  External metrics still require a healthy source and the latest scrape.
+  Use the backlog gauge itself to scale on work.
+- Histograms use classic cumulative float buckets with a numeric `le` label
+  and a final `+Inf` bucket. A histogram needs at least two buckets and a
+  nonzero observation count. Native histograms are outside this subset.
+- Label selectors require a metric name. Regexes use the .NET non-backtracking
+  engine. The supported grammar excludes set operators (`and`, `or`, `unless`),
+  many-to-one modifiers (`group_left`, `group_right`), grouping or matching on `__name__`,
+  subqueries, `offset`, `@`, and functions such as `predict_linear`.
+- The autoscaler supplies its evaluation time. The debug API defaults to the
+  latest stored timestamp and accepts `NowUnixSeconds` for a historical instant.
+  A pure scalar expression can evaluate before the first scrape.
+- A parse failure, empty result, or non-finite value produces an invalid
+  trigger observation. A measured zero is valid. If all triggers are invalid,
+  the autoscaler keeps the current replica count within `MinIdleReplicas` and `ReplicaMax`.
 
-1. **Scalar only**
-    - All queries must reduce to a **single scalar**.
-    - There's no support for returning full time series or vectors.
-    - The scaler sums or aggregates all matching series internally.
+When upgrading, check triggers whose ranges previously included a sample
+exactly at the lower boundary, and thresholds tuned to the old rate between
+the first and last samples. Replay representative expressions through
+`/debug/promql/eval` with a fixed evaluation time.
 
-2. **Limited function set**
-    - Supported: `rate`, `sum`, `min`, `max`, `avg`, `histogram_quantile`, `max_over_time`,
-      plus basic arithmetic `+ - * /`.
-    - Not supported: `count`, `stddev`, `quantile_over_time`, `increase`, `irate`, `predict_linear`,
-      `clamp_*`, `label_replace`, etc.
+The same conformance fixture runs against the live-store and snapshot evaluators
+in the .NET tests and against Prometheus from the repository root:
 
-3. **No logical or comparison operators**
-    - Operators such as `>`, `<`, `==`, `and`, `or`, `unless` are not supported.
-    - Use these expressions only in dashboards, not in SlimFaas AutoScaler queries.
-
-4. **Simple label matchers only**
-    - Supported: `=` and `=~`.
-    - Not supported: `!=`, `!~`.
-    - Make sure your metric cardinality and label design fit this constraint.
-
-5. **Range selector constraints**
-    - Only simple durations with `s`, `m`, `h` are supported (e.g. `15s`, `1m`, `5m`).
-    - Nested subqueries like `rate(sum(...)[5m:1m])` are **not** supported.
-
-6. **Histogram assumptions**
-    - Histogram support assumes standard Prometheus conventions:
-        - cumulative `_bucket` metrics,
-        - a `le` label with numeric bounds or `+Inf`.
-    - The recommended pattern is exactly:
-      `histogram_quantile(phi, sum by (le) ( rate(<metric>_bucket[win]) ))`.
-
-7. **Evaluation time**
-    - By default, the evaluator uses the **latest timestamp** found in the metrics store
-      as the “now” for range selections.
-    - You can override it in code (`Evaluate(query, nowUnixSeconds)`), but the SlimFaas
-      AutoScaler uses the default.
-
-8. **Error handling**
-    - A parse error or unsupported construct results in a `FormatException`
-      which is caught by the AutoScaler and logged as a warning.
-    - Any resulting `NaN` / `Infinity` is treated as “no data” and the current replica
-      count is preserved (within `MinIdleReplicas` / `ReplicaMax`).
-    - A real scalar `0` remains a valid value and may trigger scale-down.
-
-In short: **keep queries simple and scalar-oriented**. If a query would be hard to express
-without advanced PromQL features, it is probably better suited for dashboards than for
-direct autoscaling decisions.
+```sh
+promtool test rules tests/SlimFaas.Tests/Kubernetes/Fixtures/promql-conformance.json
+```
 
 ---
 
