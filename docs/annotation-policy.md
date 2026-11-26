@@ -8,7 +8,7 @@ SlimFaas reads its security policy from workload annotations: `SlimFaas/DefaultV
 
 - **Resources**: creation and update of Deployments, StatefulSets, Jobs and CronJobs in the `slimfaas-demo` namespace.
 - **Annotations**: every key that starts with `SlimFaas/`, both in `metadata.annotations` (read for CronJob job configurations and Jobs) and in `spec.template.metadata.annotations` (read for functions). Adding, removing or changing the value of such a key is a change; keeping them identical is not.
-- **Decision**: a change is accepted only when the requesting user is listed in `users`, or belongs to a group listed in `groups`, of the `slimfaas-annotation-editors` ConfigMap. Otherwise the API server refuses the request:
+- **Decision**: a change is accepted only when the requesting user is listed in `users`, or belongs to a group listed in `groups`, of the `slimfaas-annotation-editors` ConfigMap. The identities in `runtimeUsers` (the SlimFaas service account) are narrower: they may only create a Job whose sole `SlimFaas/` annotation is `SlimFaas/DependsOn` on the Job metadata. Otherwise the API server refuses the request:
 
   ```text
   deployments.apps "payments" is forbidden: ValidatingAdmissionPolicy 'slimfaas-annotations' with binding 'slimfaas-annotations' denied request: only the users and groups listed in ConfigMap slimfaas-admission/slimfaas-annotation-editors may change SlimFaas/* annotations; alice is not one of them
@@ -21,7 +21,7 @@ Updates that leave the `SlimFaas/*` annotations untouched are not affected: imag
 Requirements: Kubernetes 1.30 or later, where ValidatingAdmissionPolicy is generally available, and cluster-admin rights to install it.
 
 1. Edit the `slimfaas-annotation-editors` ConfigMap in the manifest. Both values are comma-separated lists.
-   - Keep `system:serviceaccount:slimfaas-demo:slimfaas`: SlimFaas creates Jobs that carry `SlimFaas/DependsOn`.
+   - Keep `system:serviceaccount:slimfaas-demo:slimfaas` in `runtimeUsers`, not in `users`: SlimFaas creates Jobs that carry `SlimFaas/DependsOn` and needs nothing more, so it cannot edit a function's annotations.
    - Add the identity that deploys your functions: a user, the group of your operators, or the service account of your pipeline or GitOps controller (for example `system:serviceaccount:argocd:argocd-application-controller`).
    - `kubectl auth whoami` prints your own user name and groups.
 2. Apply the manifest:
@@ -31,6 +31,8 @@ Requirements: Kubernetes 1.30 or later, where ValidatingAdmissionPolicy is gener
    ```
 
 The ConfigMap lives in its own `slimfaas-admission` namespace: anyone who can edit ConfigMaps in a namespace, which the built-in `edit` role allows, could otherwise add themselves to the list. Grant write access to `slimfaas-admission` only to the people who manage the policy.
+
+The `runtimeUsers` limit only helps if the SlimFaas service account stays out of reach. The built-in `edit` role can run pods as any service account of the namespace, and the demo RBAC lets the SlimFaas account patch Deployments and StatefulSets. Do not let namespace editors create pods or workloads that run as the `slimfaas` service account, and trim its Role to what your installation uses.
 
 For another namespace, replace `slimfaas-demo` in the binding's `namespaceSelector` and in the SlimFaas service account name. Several namespaces can share one binding with a `matchExpressions` selector.
 
@@ -49,7 +51,7 @@ spec:
 
 ## Test the policy
 
-[`.bin/test-annotation-policy.py`](../.bin/test-annotation-policy.py) creates a disposable [kind](https://kind.sigs.k8s.io/) cluster, applies the demo service account and the policy, and checks with server-side dry runs that unlisted users cannot change, add or remove `SlimFaas/*` annotations, while restarts, other annotations, scaling, listed groups and the SlimFaas service account still work:
+[`.bin/test-annotation-policy.py`](../.bin/test-annotation-policy.py) creates a disposable [kind](https://kind.sigs.k8s.io/) cluster, applies the demo service account and the policy, and checks with server-side dry runs that unlisted users cannot change, add or remove `SlimFaas/*` annotations, while restarts, other annotations, scaling, listed groups and Job creation by the SlimFaas service account still work. It also checks that the service account cannot edit annotations and that the CronJob controller cannot create Jobs with `SlimFaas/` annotations:
 
 ```bash
 python3 .bin/test-annotation-policy.py
@@ -61,6 +63,7 @@ python3 .bin/test-annotation-policy.py
 
 - Kubernetes 1.29 and earlier do not have the GA API. On those clusters, a validating admission webhook can enforce the same rule; this repository does not ship one.
 - Cluster administrators can still delete or edit the policy, the binding and the ConfigMap. The policy protects SlimFaas annotations from namespace editors, not from cluster-admin.
+- A CronJob's `spec.jobTemplate` is not read by SlimFaas, which takes a CronJob's configuration from its own `metadata.annotations`. Put `SlimFaas/*` annotations there, not in the job template: the Job the CronJob controller creates inherits template annotations and is refused, because the controller is not a listed identity.
 - Only Deployments, StatefulSets, Jobs and CronJobs are checked. Pods created directly are not; SlimFaas does not read its policy from Pod annotations.
 - The policy decides who may write the annotations, not whether they are valid. SlimFaas still validates their values.
 - Docker Compose and native local mode read labels or local manifests; the policy does not apply there.

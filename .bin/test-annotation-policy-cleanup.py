@@ -50,10 +50,11 @@ class CleanupTests(unittest.TestCase):
         self.assertEqual([], fake.deleted())
         self.assertFalse([c for c in fake.calls if c[:3] == ["kind", "create", "cluster"]])
 
-    def test_partial_cluster_is_deleted_when_creation_fails(self):
+    def test_cluster_is_kept_when_creation_fails(self):
+        # Another run can create the same name between the preflight and the create.
         fake = FakeSubprocess(clusters="other\n", create_fails=True)
         self.run_main(fake)
-        self.assertEqual([["kind", "delete", "cluster", "--name", "slimfaas-annotation-policy"]], fake.deleted())
+        self.assertEqual([], fake.deleted())
 
     def test_created_cluster_is_deleted_after_a_failure(self):
         fake = FakeSubprocess()

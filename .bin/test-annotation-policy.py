@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 NAMESPACE = "slimfaas-demo"
 CONTEXT = None
 SLIMFAAS = f"system:serviceaccount:{NAMESPACE}:slimfaas"
+CRONJOB_CONTROLLER = "system:serviceaccount:kube-system:cronjob-controller"
 
 FUNCTION = {
     "apiVersion": "apps/v1",
@@ -103,9 +104,10 @@ def main():
         create_cluster = ["kind", "create", "cluster", "--name", args.cluster, "--wait", "120s"]
         if args.image:
             create_cluster += ["--image", args.image]
-        # Set before running: a failed creation can leave a partial cluster that this run owns.
-        created = True
+        # kind removes a cluster whose creation fails, and a failure here may mean that another run
+        # created the same name after the check above: only a successful creation makes it ours.
         subprocess.run(create_cluster, check=True)
+        created = True
         kubectl("apply", "-f", str(ROOT / "demo/service-account-slimfaas.yml"))
         kubectl("apply", "-f", "-", stdin=json.dumps(EDITOR_ROLE))
         kubectl("-n", NAMESPACE, "create", "rolebinding", "workload-editors", "--role=workload-editor",
@@ -143,6 +145,17 @@ def main():
              patch({"SlimFaas/DefaultVisibility": "Public"}, user="carol", groups=["slimfaas-operators"])),
             ("the SlimFaas service account creates a Job with SlimFaas/DependsOn", True,
              create(job("Job", {"SlimFaas/DependsOn": "fibonacci1"}), user=SLIMFAAS)),
+            ("the SlimFaas service account changes a function annotation", False,
+             patch({"SlimFaas/DefaultVisibility": "Public"}, user=SLIMFAAS)),
+            ("the SlimFaas service account adds a SlimFaas/ annotation to the object metadata", False,
+             patch({"SlimFaas/DefaultTrust": "Trusted"}, path="metadata", user=SLIMFAAS)),
+            ("the SlimFaas service account creates a Job with another SlimFaas/ annotation", False,
+             create(job("Job", {"SlimFaas/DependsOn": "fibonacci1", "SlimFaas/Job": "true"}), user=SLIMFAAS)),
+            ("the SlimFaas service account creates a CronJob with SlimFaas/DependsOn", False,
+             create(job("CronJob", {"SlimFaas/DependsOn": "fibonacci1"}), user=SLIMFAAS)),
+            # Documented limitation: the Job a CronJob creates inherits its jobTemplate annotations.
+            ("the CronJob controller creates a Job that inherits SlimFaas/ annotations", False,
+             create(job("Job", {"SlimFaas/Job": "true"}), user=CRONJOB_CONTROLLER)),
         ]
         failures = 0
         for description, allowed, result in cases:

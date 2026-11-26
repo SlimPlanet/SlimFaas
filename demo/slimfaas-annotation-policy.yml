@@ -1,5 +1,6 @@
 # Optional: only the users and groups listed in the slimfaas-annotation-editors
 # ConfigMap may add, change or remove SlimFaas/* annotations in slimfaas-demo.
+# The SlimFaas runtime may only create Jobs carrying SlimFaas/DependsOn.
 # Requires Kubernetes 1.30 or later. See docs/annotation-policy.md.
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
@@ -52,8 +53,17 @@ spec:
       expression: >-
         request.userInfo.username in variables.editorUsers
         || request.userInfo.groups.exists(g, g in variables.editorGroups)
+    - name: runtimeUsers
+      expression: "params.data.?runtimeUsers.orValue('').split(',').map(u, u.trim()).filter(u, u != '')"
+    # The runtime identity creates Jobs and sets SlimFaas/DependsOn on the Job
+    # metadata, nothing else: it cannot edit a function or any other annotation.
+    - name: isRuntimeJobCreation
+      expression: >-
+        request.userInfo.username in variables.runtimeUsers
+        && request.operation == 'CREATE' && request.kind.kind == 'Job'
+        && variables.newEntries.all(e, e.startsWith('metadata/SlimFaas/DependsOn='))
   validations:
-    - expression: "!variables.changesSlimFaasAnnotations || variables.isEditor"
+    - expression: "!variables.changesSlimFaasAnnotations || variables.isEditor || variables.isRuntimeJobCreation"
       reason: Forbidden
       messageExpression: >-
         'only the users and groups listed in ConfigMap ' + params.metadata.namespace + '/' + params.metadata.name
@@ -72,11 +82,13 @@ metadata:
   name: slimfaas-annotation-editors
   namespace: slimfaas-admission
 data:
-  # Comma-separated user names. SlimFaas creates Jobs that carry
-  # SlimFaas/DependsOn, so its service account must stay in the list.
-  users: "system:serviceaccount:slimfaas-demo:slimfaas"
+  # Comma-separated user names allowed to change any SlimFaas/* annotation.
+  users: ""
   # Comma-separated group names, for example the group of your deployment pipeline.
   groups: "slimfaas-operators"
+  # Comma-separated identities that may only create Jobs carrying
+  # SlimFaas/DependsOn: the SlimFaas service account.
+  runtimeUsers: "system:serviceaccount:slimfaas-demo:slimfaas"
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
