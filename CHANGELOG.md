@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.89.2
+
+- [104eaabc](https://github.com/SlimPlanet/SlimFaas/commit/104eaabcbddaa98ef3dbc725355960ba133248cc) - Restore the active replica floor and support scheduled replica minimums (#559) (release), 2026-11-26 by *Guillaume Chervet*
+- [c75b2355](https://github.com/SlimPlanet/SlimFaas/commit/c75b23553def01b97329b0dcbfde6576409cebb0) - fix: Align autoscaling PromQL with Prometheus and reduce evaluation allocations (#557), 2026-11-26 by *Guillaume Chervet*
+
+
+## 0.89.1
+
+
+
 ## v0.89.1
 
 - [6a3c38ac](https://github.com/SlimPlanet/SlimFaas/commit/6a3c38ac5e79c7c7bf41f9c23e5061521eca4336) - chore(deps): refresh packages, container images, and CI tools (#551) (release), 2026-11-18 by *Guillaume Chervet*
@@ -267,15 +277,6 @@
 
 
 ## 0.84.1
-
-
-
-## v0.84.1
-
-- [a7116414](https://github.com/SlimPlanet/SlimFaas/commit/a711641435dbaac74f3ec6140f2ab956f6c030d7) - perf: event-driven Kubernetes sync via watch streams and jobs N+1 fix (#340) (release), 2026-09-10 by *Guillaume Delahaye*
-
-
-## 0.84.0
 
 
 
