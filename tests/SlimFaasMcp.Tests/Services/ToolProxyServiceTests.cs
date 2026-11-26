@@ -259,6 +259,69 @@ public class ToolProxyServiceTests
         Assert.Equal(1, requestedUrls.Count(u => u == inputUrl));
     }
 
+    // A base path that starts with "//" stays a path of the document host, it is not read as another authority.
+    [Theory]
+    [InlineData("""{ "swagger": "2.0", "basePath": "//evil.example.net/api", """ + PetsOperation + "}",
+        "https://api.example.com/evil.example.net/api/pets")]
+    [InlineData("""{ "swagger": "2.0", "basePath": "//evil.example.net", "schemes": ["https"], """ + PetsOperation + "}",
+        "https://api.example.com/evil.example.net/pets")]
+    [InlineData("""{ "swagger": "2.0", "basePath": "/api", """ + PetsOperation + "}",
+        "https://api.example.com/api/pets")]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Keeps_The_Swagger2_Base_Path_On_The_Document_Host(string swaggerJson, string expectedUrl)
+    {
+        var (svc, requestedUrls) = CreateWithDocument(swaggerJson);
+        using var argsDoc = JsonDocument.Parse("{}");
+
+        var result = await svc.ExecuteToolAsync(DocumentUrl, "get_pets", argsDoc.RootElement);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal(expectedUrl, requestedUrls[^1]);
+    }
+
+    // The forwarded headers are not sent to an origin that a redirect of the document led to, but they are kept for the
+    // origin the caller gave, and for an explicit base_url.
+    [Theory]
+    [InlineData("https://api.example.com/latest", "https://api.example.com/releases/openapi.json", null, true)]
+    [InlineData("https://api.example.com/latest", "https://cdn.example.net/openapi.json", null, false)]
+    [InlineData("https://api.example.com/latest", "http://api.example.com/openapi.json", null, false)]
+    [InlineData("https://api.example.com/latest", "https://api.example.com:8443/openapi.json", null, false)]
+    [InlineData("https://api.example.com/latest", "https://cdn.example.net/openapi.json", "https://trusted.example.com", true)]
+    public async Task ExecuteToolAsync_Without_BaseUrl_Withholds_The_Headers_From_The_Origin_Of_A_Redirected_Document(
+        string inputUrl, string finalUrl, string? baseUrl, bool expectForwarded)
+    {
+        var authorizations = new List<string?>();
+        var stub = new StubHttpMessageHandler(req =>
+        {
+            if (req.RequestUri!.AbsoluteUri == inputUrl)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{ "openapi": "3.0.0", "servers": [ { "url": "v1" } ], """ + PetsOperation + "}",
+                        Encoding.UTF8, "application/json"),
+                    RequestMessage = new HttpRequestMessage(HttpMethod.Get, finalUrl)
+                };
+            }
+
+            authorizations.Add(req.Headers.Authorization?.ToString());
+            return new HttpResponseMessage(HttpStatusCode.OK)
+                   { Content = new StringContent("""{ "pets": [] }""", Encoding.UTF8, "application/json") };
+        });
+        var factory = new FakeHttpClientFactory(stub);
+        var swagger = new SwaggerService(factory, new MemoryCache(new MemoryCacheOptions()));
+        var svc = new ToolProxyService(swagger, factory, NullLogger<ToolProxyService>.Instance);
+        using var argsDoc = JsonDocument.Parse("{}");
+        var headers = new Dictionary<string, string> { ["Authorization"] = "Bearer secret" };
+
+        // The second call reads the document from the cache.
+        for (var i = 0; i < 2; i++)
+        {
+            var result = await svc.ExecuteToolAsync(inputUrl, "get_pets", argsDoc.RootElement, baseUrl, headers);
+
+            Assert.Equal(200, result.StatusCode);
+            Assert.Equal(expectForwarded ? "Bearer secret" : null, authorizations[^1]);
+        }
+    }
+
     private const string DocumentUrl = "https://api.example.com/docs/openapi.json";
 
     private static (ToolProxyService svc, List<string> requestedUrls) CreateWithDocument(string swaggerJson,

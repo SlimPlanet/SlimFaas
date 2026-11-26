@@ -163,6 +163,13 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             string documentUrl = swaggerService.GetDocumentUri(swagger)?.AbsoluteUri ?? swaggerUrl;
             baseUrl = ExtractBaseUrl(swagger, documentUrl, endpoint.Url, endpoint.Verb)
                       ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+
+            // The caller never chose the origin that a redirect of the document led to, so the headers it forwards,
+            // credentials included, are not sent there.
+            if (IsOtherOrigin(documentUrl, swaggerUrl) && IsOtherOrigin(baseUrl, swaggerUrl))
+            {
+                additionalHeaders = null;
+            }
         }
 
         baseUrl = baseUrl.TrimEnd('/');
@@ -613,11 +620,13 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             {
                 url = $"{scheme ?? documentUri?.Scheme ?? Uri.UriSchemeHttps}://{hostProp.GetString()}{basePath}";
             }
-            else if (scheme is not null && documentUri is not null)
+            else if (documentUri is not null)
             {
-                // Without host, the API is served from the host of the document, with the scheme the document declares.
+                // Without host, the API is served from the authority of the document, with the scheme the document
+                // declares. The base path stays a path, so a leading "//" cannot be read as another authority.
                 string port = documentUri.IsDefaultPort ? string.Empty : $":{documentUri.Port}";
-                url = $"{scheme}://{documentUri.Host}{port}{basePath}";
+                string apiPath = string.IsNullOrEmpty(basePath) ? string.Empty : "/" + basePath.TrimStart('/');
+                url = $"{scheme ?? documentUri.Scheme}://{documentUri.Host}{port}{apiPath}";
             }
             else if (!string.IsNullOrEmpty(basePath))
             {
@@ -642,6 +651,13 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             ? resolvedUri.AbsoluteUri
             : null;
     }
+
+    private static bool IsOtherOrigin(string url, string reference) =>
+        Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) &&
+        Uri.TryCreate(reference, UriKind.Absolute, out Uri? referenceUri) &&
+        (!string.Equals(uri.Scheme, referenceUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
+         !string.Equals(uri.Host, referenceUri.Host, StringComparison.OrdinalIgnoreCase) ||
+         uri.Port != referenceUri.Port);
 
     // The transport scheme of a Swagger 2.0 operation: the first scheme of the operation, else the first of the document.
     private static string? FindScheme(JsonElement root, string? path, string? verb)
