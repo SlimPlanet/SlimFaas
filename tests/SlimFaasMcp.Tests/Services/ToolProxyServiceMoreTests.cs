@@ -627,6 +627,66 @@ public class ToolProxyServiceMoreTests
         Assert.Equal("https://api.example/pets?limit=10", _handler.LastRequest?.RequestUri!.AbsoluteUri);
     }
 
+    [Fact]
+    public async Task ExecuteToolAsync_RejectsObjectForScalarQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new()
+                    {
+                        Name = "name", In = "query", Style = "form", Explode = true, SchemaType = "string",
+                        Schema = new Dictionary<string, object> { ["type"] = "string" }
+                    }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"name\":{\"admin\":\"true\"}}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("name", result.Text);
+        Assert.Null(_handler.LastRequest);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SendsObjectForDeclaredObjectQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new()
+                    {
+                        Name = "filter", In = "query", Style = "form", Explode = true, SchemaType = "object",
+                        Schema = new Dictionary<string, object> { ["type"] = "object" }
+                    }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"filter\":{\"role\":\"admin\"}}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?role=admin", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
     [Theory]
     [InlineData("GET")]
     [InlineData("DELETE")]

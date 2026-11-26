@@ -226,6 +226,11 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             if (inputDict.TryGetValue(parameter.Name!, out JsonElement value))
             {
+                if (IsObjectForScalarParameter(parameter, value))
+                {
+                    return ParameterError($"Query parameter {parameter.Name} must be a scalar value, not an object");
+                }
+
                 AddQueryPairs(queryPairs, parameter, value);
             }
         }
@@ -250,7 +255,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             string headerValue = SerializeHeaderValue(parameter, value);
             if (headerValue.AsSpan().ContainsAny(s_invalidHeaderValueChars))
             {
-                return HeaderParameterError($"Header parameter {parameter.Name} cannot contain CR, LF or NUL characters");
+                return ParameterError($"Header parameter {parameter.Name} cannot contain CR, LF or NUL characters");
             }
 
             headerArguments.Add(new KeyValuePair<string, string>(parameter.Name!, headerValue));
@@ -291,7 +296,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             string? rejectedGetHeader = AddHeaderArguments(reqGet, headerArguments);
             if (rejectedGetHeader is not null)
             {
-                return UnsupportedHeaderParameterError(rejectedGetHeader);
+                return UnsupportedParameterError(rejectedGetHeader);
             }
 
             LogOutgoingRequest(HttpMethod.Get, fullUrl, additionalHeaders, null);
@@ -464,7 +469,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             string? rejectedHeader = AddHeaderArguments(reqMsg, headerArguments);
             if (rejectedHeader is not null)
             {
-                return UnsupportedHeaderParameterError(rejectedHeader);
+                return UnsupportedParameterError(rejectedHeader);
             }
 
             resp = await _httpClient.SendAsync(reqMsg);
@@ -507,6 +512,26 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         }
 
         return null;
+    }
+
+    // An object for a parameter declared as a string, number, integer or boolean would be expanded into query keys
+    // chosen by the caller, so it is rejected. Parameters with a JSON content, no declared type or a composed schema
+    // are left alone.
+    private static bool IsObjectForScalarParameter(Parameter parameter, JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Object || parameter.IsJsonContent)
+        {
+            return false;
+        }
+
+        string? type = parameter.Schema switch
+        {
+            null => parameter.SchemaType,
+            Dictionary<string, object> schema when schema.TryGetValue("type", out object? declared) => declared as string,
+            _ => null
+        };
+
+        return type is "string" or "number" or "integer" or "boolean";
     }
 
     // OpenAPI serializes query parameters with the "form" style by default: an array [1,2] becomes "ids=1&ids=2", or
@@ -612,10 +637,10 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         };
     }
 
-    private static ProxyCallResult UnsupportedHeaderParameterError(string name) =>
-        HeaderParameterError($"Header parameter {name} cannot be sent with this request");
+    private static ProxyCallResult UnsupportedParameterError(string name) =>
+        ParameterError($"Header parameter {name} cannot be sent with this request");
 
-    private static ProxyCallResult HeaderParameterError(string message) =>
+    private static ProxyCallResult ParameterError(string message) =>
         new()
         {
             IsBinary = false,

@@ -117,7 +117,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 var isJsonContent = false;
 
                 if (param.TryGetProperty("schema", out var sch))
-                    schemaEl = sch;
+                    schemaEl = NormalizeSchema(sch);
                 else if (param.TryGetProperty("content", out var cnt) && cnt.ValueKind == JsonValueKind.Object)
                 {
                     // OpenAPI autorise content/application/json (ou un type en +json) pour query params
@@ -129,7 +129,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                         isJsonContent = true;
                         if (media.Value.ValueKind == JsonValueKind.Object &&
                             media.Value.TryGetProperty("schema", out var sch2))
-                            schemaEl = sch2;
+                            schemaEl = NormalizeSchema(sch2);
                         break;
                     }
                 }
@@ -383,6 +383,17 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
     // application/json, or a structured syntax suffix such as application/geo+json. Media type parameters
     // (charset) are ignored.
+    // OpenAPI 3.1 allows the boolean schemas true (anything) and false (nothing). They are kept as the equivalent
+    // object schemas, so that the property lookups below and the schema expansion work on an object.
+    private static JsonElement NormalizeSchema(JsonElement schema)
+    {
+        if (schema.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            return schema;
+
+        using var doc = JsonDocument.Parse(schema.ValueKind == JsonValueKind.True ? "{}" : "{\"not\":{}}");
+        return doc.RootElement.Clone();
+    }
+
     private static bool IsJsonMediaType(string mediaType)
     {
         int separator = mediaType.IndexOf(';', StringComparison.Ordinal);
