@@ -51,7 +51,7 @@ SlimFaas combines **two complementary autoscaling systems**:
 
    Existing triggers run when `replicas > 0`. Triggers referencing an external source can also run at zero when `ScaleFromZero: true`.
 
-When the Prometheus-based AutoScaler is enabled for a function (`SlimFaas/Scale` has at least one trigger), **scale-to-zero is allowed only if both systems agree**: the HTTP/schedule logic must decide that the function can go down to `ReplicasMin = 0`, *and* the metrics-based AutoScaler must also compute a desired replica count of `0`. If metrics still indicate that capacity is needed (`desired > 0`), SlimFaas keeps at least one replica running even if HTTP activity is idle. An empty `Triggers` list disables this metric veto.
+When the Prometheus-based AutoScaler is enabled for a function (`SlimFaas/Scale` has at least one trigger), **scale-to-zero is allowed only if both systems agree**: the HTTP/schedule logic must decide that the function can go down to `MinIdleReplicas = 0`, *and* the metrics-based AutoScaler must also compute a desired replica count of `0`. If metrics still indicate that capacity is needed (`desired > 0`), SlimFaas keeps at least one replica running even if HTTP activity is idle. An empty `Triggers` list disables this metric veto.
 
 Both systems are orchestrated by:
 
@@ -71,14 +71,16 @@ For each function (deployment):
 - **Current replicas**
   The current number of pods, as seen by SlimFaas.
 
-- **`ReplicasMin`**
+- **`MinIdleReplicas`**
   Minimal number of pods allowed after scale-down. This can be `0` if you want **scale-to-zero**, or a positive value if you want to avoid full cold starts.
 
-- **`ReplicasAtStart`**
-  Number of pods to start when waking up a function from `0` (or from below minimum) via the `0 → N` system.
+- **`MinActiveReplicas`**
+  Minimum number of replicas while active, including when waking from a positive idle count. The default is `1`.
+
+  Older manifests can use `ReplicasAtStart` for the active minimum and `ReplicasMin` for the idle minimum. The new names take precedence.
 
 - **`TimeoutSecondBeforeSetReplicasMin`**
-  Inactivity duration (based on HTTP history and schedule) before SlimFaas scales down the function to `ReplicasMin`.
+  Inactivity duration (based on HTTP history and schedule) before SlimFaas scales down the function to `MinIdleReplicas`.
 
 - **`DependsOn`**
   List of other functions that this function depends on. SlimFaas can ensure dependencies are ready before waking up a function.
@@ -102,8 +104,8 @@ metadata:
   name: fibonacci
   namespace: default
   annotations:
-    SlimFaas/ReplicasMin: "0"
-    SlimFaas/ReplicasAtStart: "1"
+    SlimFaas/MinIdleReplicas: "0"
+    SlimFaas/MinActiveReplicas: "1"
     SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
     SlimFaas/DependsOn: '["another-func-a","another-func-b"]'
     SlimFaas/Schedule: >
@@ -164,7 +166,7 @@ flowchart LR
 - `ScaleReplicasWorker` periodically calls `CheckScaleAsync` if the node is the master.
 - `ReplicasService.CheckScaleAsync`:
     1. Computes a **desired replica count** using the **HTTP/schedule based system** (`0 → N` / `N → 0`).
-    2. If the function already has `replicas > 0` and at least one `SlimFaas/Scale` trigger, it invokes the **Prometheus AutoScaler** to adjust `N → M` and, when `ReplicasMin = 0`, to confirm whether scale-to-zero is actually allowed.
+    2. If the function already has `replicas > 0` and at least one `SlimFaas/Scale` trigger, it invokes the **Prometheus AutoScaler** to adjust `N → M` and, when `MinIdleReplicas = 0`, to confirm whether scale-to-zero is actually allowed.
 
 ---
 
@@ -172,13 +174,13 @@ flowchart LR
 
 The `0 → N` system is responsible for:
 
-- **Scaling down** to `ReplicasMin` after inactivity,
-- **Waking up** functions to `ReplicasAtStart` based on:
+- **Scaling down** to `MinIdleReplicas` after inactivity,
+- **Waking up** functions to `MinActiveReplicas` based on:
     - HTTP activity,
     - schedule,
     - dependencies.
 
-### Inactivity timeout → scale down to `ReplicasMin`
+### Inactivity timeout → scale down to `MinIdleReplicas`
 
 SlimFaas measures the time since the last HTTP activity (or synthetic activity from schedule/dependencies).
 
@@ -187,8 +189,8 @@ Key annotations:
 ```yaml
 metadata:
   annotations:
-    SlimFaas/ReplicasMin: "0"                         # minimum replicas after scale-down (can be 0)
-    SlimFaas/ReplicasAtStart: "1"                     # replicas after wake-up from zero
+    SlimFaas/MinIdleReplicas: "0"                         # minimum replicas after scale-down (can be 0)
+    SlimFaas/MinActiveReplicas: "1"                     # replicas after wake-up from zero
     SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300" # seconds of inactivity before scale-down
 ```
 
@@ -204,30 +206,18 @@ Behavior (simplified):
   lastActivity + TimeoutSecondBeforeSetReplicasMin < now
   ```
 
-  then SlimFaas **proposes** scaling the function down to **`ReplicasMin`**.
+  then SlimFaas **proposes** scaling the function down to **`MinIdleReplicas`**.
 
-If `ReplicasMin` is `"0"`, this gives you **scale-to-zero** when the Prometheus AutoScaler is disabled.
-If `ReplicasMin` is `"0"` **and** `SlimFaas/Scale` contains at least one trigger, SlimFaas will actually scale to zero **only if the metrics-based AutoScaler also agrees that `desiredReplicas` is `0`**. If the metrics say that some capacity is still needed (`desired > 0`), SlimFaas keeps at least one replica running (or more, according to the metrics). A `SlimFaas/Scale` configuration with `Triggers: []` leaves scale-to-zero under HTTP/schedule control.
+If `MinIdleReplicas` is `"0"`, this gives you **scale-to-zero** when the Prometheus AutoScaler is disabled.
+If `MinIdleReplicas` is `"0"` **and** `SlimFaas/Scale` contains at least one trigger, SlimFaas will actually scale to zero **only if the metrics-based AutoScaler also agrees that `desiredReplicas` is `0`**. If the metrics say that some capacity is still needed (`desired > 0`), SlimFaas keeps at least one replica running (or more, according to the metrics). A `SlimFaas/Scale` configuration with `Triggers: []` leaves scale-to-zero under HTTP/schedule control.
 
 ### Wake-up `0 → N` (from zero or below minimum)
 
-There are two main situations where SlimFaas wakes a function up:
-
-1. **From `0` to `ReplicasAtStart`**:
-    - The function currently has `replicas == 0`.
-    - There is recent activity (HTTP or schedule) for this function.
-    - All `DependsOn` functions are ready enough (as determined by SlimFaas).
-    - ⇒ SlimFaas scales the function **to `ReplicasAtStart`**.
-
-2. **From below min to `ReplicasAtStart`**:
-    - The function currently has `replicas < ReplicasMin`.
-    - Dependencies are ready.
-    - ⇒ SlimFaas scales the function up to `ReplicasAtStart`.
-
-This ensures:
-
-- **Existing configurations keep HTTP/schedule wake-up**; external wake-up requires explicit opt-in,
-- The function will start with a known initial capacity before the Prometheus AutoScaler adjusts it.
+A request through SlimFaas or a scheduled wake-up restores the active minimum
+once dependencies are ready. For example, a function with an idle minimum of
+one and an active minimum of two scales from one to two. A higher metric
+recommendation can request more replicas. Without a metrics rule, SlimFaas
+keeps an active deployment at its current count when it already meets the minimum.
 
 ### Time-based schedule (wake-up & scale-down timeout)
 
@@ -258,7 +248,7 @@ metadata:
 
 - `TimeZoneID`: IANA time zone ID.
 - `WakeUp`: list of `HH:mm` times when the function is considered active (even without HTTP calls).
-- `ScaleDownTimeout`: list of time-based overrides for the inactivity timeout (`Value` is in seconds).
+- `ScaleDownTimeout`: list of local-time windows. Each can override `Value` (inactivity seconds), `MinActiveReplicas` and `MinIdleReplicas`. Omitted fields use the deployment defaults. See the [worked example](functions.md#8-scheduling-function-wake-up-and-scale-down).
 
 This allows you, for example:
 
@@ -351,17 +341,17 @@ Then:
     - The AutoScaler takes the **maximum** of all `desiredReplicasTrigger`.
 
 - The result is then constrained by:
-    - `ReplicasMin` and `ReplicaMax`,
+    - `MinIdleReplicas` and `ReplicaMax`,
     - scale-up / scale-down policies,
     - stabilization windows.
 
-If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the AutoScaler **keeps the current replica count**, only clamping it between `ReplicasMin` and `ReplicaMax`. With multiple triggers, a valid trigger may still scale up while any invalid trigger blocks scale-down. This prevents incomplete telemetry from removing capacity.
+If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the AutoScaler **keeps the current replica count**, only clamping it between `MinIdleReplicas` and `ReplicaMax`. With multiple triggers, a valid trigger may still scale up while any invalid trigger blocks scale-down. This prevents incomplete telemetry from removing capacity.
 
 #### Interaction with scale-to-zero
 
-When `ReplicasMin` is `0` and a `SlimFaas/Scale` configuration has at least one trigger:
+When `MinIdleReplicas` is `0` and a `SlimFaas/Scale` configuration has at least one trigger:
 
-- The HTTP/schedule system may **propose** going down to `ReplicasMin = 0` after inactivity.
+- The HTTP/schedule system may **propose** going down to `MinIdleReplicas = 0` after inactivity.
 - The metrics-based AutoScaler then decides whether this is actually allowed:
     - If it computes `desiredReplicas <= 0`, SlimFaas scales the function **to 0**.
     - If it computes `desiredReplicas > 0`, SlimFaas keeps **at least one replica** running (or more, according to `desiredReplicas`), even if HTTP activity is idle.
@@ -396,7 +386,7 @@ Conceptually:
     - Each policy defines a **maximum allowed increase** (either percentage or absolute pod count).
     - SlimFaas picks the **most aggressive** policy (maximum allowed increase).
     - `PeriodSeconds` is a budget consumed by the previous **steps produced by the policies**
-      within the window. A wake-up to `ReplicasAtStart` triggered by HTTP activity, a
+      within the window. A wake-up to `MinActiveReplicas` triggered by HTTP activity, a
       schedule or dependency demand is not such a step (the policies did not produce that
       count): the first metric-driven scale-out after a scale-from-zero is evaluated as soon
       as the metrics exceed the threshold, without waiting for the period to elapse. A
@@ -448,7 +438,7 @@ query to a **single scalar** that can be used by the AutoScaler.
 
 > If a query cannot be parsed, or ultimately evaluates to `NaN` / `Infinity`,
 > the AutoScaler treats it as “no data” and keeps the current replica count
-> (subject to `ReplicasMin` / `ReplicaMax`).
+> (subject to `MinIdleReplicas` / `ReplicaMax`).
 
 ### Supported query patterns
 
@@ -469,75 +459,90 @@ query to a **single scalar** that can be used by the AutoScaler.
   http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]
   ```
 
-  Supported duration units: `s`, `m`, `h` (e.g. `15s`, `1m`, `5m`, `1h`).
+  At evaluation time `t`, a range selects samples in `(t - window, t]`.
+  For example, at 12:01:00 a one-minute range excludes 12:00:00 and includes
+  12:01:00. Instant selectors use the latest sample within their lookback.
+  Neither selector reads future samples. Durations accept positive whole
+  seconds, minutes and hours, such as `15s`, `5m` and `1h`.
 
-- **Label matchers**
+- **Label matchers** support `=`, `!=`, `=~` and `!~`. Regexes match the entire
+  label value. A missing label compares as the empty string. For example,
+  `jobs_pending{queue!="emails"}` includes series without a `queue` label.
+  Double-quoted values can contain commas and escaped quotes or backslashes.
+  POSIX classes such as `[[:digit:]]` and Perl classes such as `\d`, `\w`
+  and `\s` use RE2's ASCII ranges. In PromQL text, write
+  `code=~"\\d{3}"` or `code=~"[[:digit:]]{3}"` to match three ASCII digits.
+  Use `[^[:digit:]]` to complement a POSIX class. The compiler reports an
+  unsupported class name or inner negation such as `[[:^digit:]]`.
 
-    - Exact match: `label="value"`
-    - Regex match: `label=~"value.*"`
+#### 2. Arithmetic and comparisons
 
-  (Negative operators `!=` / `!~` are **not** supported.)
+Arithmetic operators `+`, `-`, `*` and `/` work on scalars and per-series values.
+By default, two vectors match on their labels and scrape target. An explicit
+`on(queue)` matches on the listed exported labels. `ignoring(zone, source)`
+matches on the remaining exported labels. Both forms return those matching
+labels and drop the implicit scrape-target identity. Unmatched series drop
+out. Aggregate to one series per matching key on each side first. An ambiguous
+match produces a query error. Function and external-source scoping still apply.
 
-#### 2. Arithmetic on scalars
-
-Once a query has been reduced to a scalar, you can combine expressions with basic
-arithmetic:
+For example, if an exporter provides queue backlog and total worker slots,
+this query returns backlog per slot for each queue. The explicit outer
+`max` selects the busiest queue for the scaler. A floor of one slot allows
+a measured zero-capacity queue to signal demand. A missing capacity series
+leaves that queue unmatched.
 
 ```promql
-max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s]) / 100
+max(
+  sum by (queue) (jobs_pending)
+  / on (queue)
+  clamp_min(max by (queue) (worker_slots), 1)
+)
 ```
 
-Supported operators: `+`, `-`, `*`, `/` (no comparison or logical operators).
-
-#### 3. `rate()` on counters
+A comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) filters samples.
+Add `bool` to return 1 or 0 for each match. Scalar-to-scalar comparisons require `bool`.
 
 ```promql
-rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
+sum(slimfaas_function_queue_ready_items >= bool 10)
 ```
 
-- Computes the **per-series rate** from the counter increments available in the window.
-- The denominator is the elapsed time between those samples. Unlike Prometheus, SlimFaas does
-  not extrapolate the rate to the full range window.
-- Counter resets are supported: the post-reset value contributes to the increase.
-- The evaluator returns the **sum of the rates of all matching series**.
+#### 3. Counter rates and increases
 
-This is typically combined with `sum()` (or used directly) as a global RPS estimator.
+```promql
+sum(rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]))
+```
 
-#### 4. Aggregations: `sum`, `min`, `max`, `avg`
+`rate` computes a per-second increase per series, accounts for counter resets
+and extrapolates towards the range boundaries using the observed scrape
+spacing. Extrapolation stops at the estimated zero point of a counter.
+`increase` gives the corresponding increase over the window. `irate` uses
+only the last two samples. All three need at least two samples inside the
+range. Choose a window longer than the scrape interval, with room for missed
+scrapes. Apply `rate` before summing counters so resets remain visible.
 
-All aggregations operate on scalars or on the per-bucket maps used for histograms.
+#### 4. Aggregation and grouping
 
-Common patterns:
+`sum`, `min`, `max`, `avg` and `count` aggregate per-series results. Use
+`by (label, ...)` before or after the argument to retain grouping labels.
+For example, `max(sum by (queue) (jobs_pending))` returns the backlog of the
+busiest queue. Use `without (instance, pod)` to keep every other exported
+label. For example, `max without (instance, pod) (jobs_pending)` takes one
+backlog reading per queue when several replicas report the same queue.
+Empty input produces no observation, including for `sum`.
 
-- **Global sum**
+`min` and `max` keep the numeric samples in a group that also contains
+`NaN`. A group containing only `NaN` returns `NaN`. Sums and averages use
+compensated addition. Averages switch to an incremental calculation when a
+finite mean would overflow an intermediate sum.
 
-  ```promql
-  sum(rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]))
-  ```
-
-- **Global min / max / avg** of a scalar expression:
-
-  ```promql
-  max(
-    rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
-  )
-  ```
-
-- **Aggregations with `by (label)`**
-
-  ```promql
-  sum by (le) (
-    rate(http_server_requests_seconds_seconds_bucket{namespace="default", job="fibonacci"}[1m])
-  )
-  ```
-
-  This form is specifically supported for histogram use cases (see below).
-  For non-histogram use cases, the `by (...)` support is limited and mostly
-  intended as an internal building block for `histogram_quantile`.
-
-> For autoscaling, you should assume that the final result is always a single scalar.
-> Even when using `by (...)` aggregations, the evaluator eventually collapses the
-> data to a scalar to feed the scaling formula.
+The autoscaler and debug API return one number. For compatibility, a final
+vector normally sums its elements and a bare `max_over_time` takes the
+largest series maximum. Write an explicit outer aggregation when combining
+series. Ungrouped `sum`, `avg`, `min` and `max` accept a
+single scalar for compatibility, and the variadic SlimFaas `min(a, b)` and
+`max(a, b)` extensions remain available. `count` and grouped aggregations
+require an instant vector. The compiler also checks function argument types
+before registering metrics for collection.
 
 #### 5. Histograms and `histogram_quantile()`
 
@@ -659,55 +664,39 @@ Interpretation:
 
 ### Current limitations & gotchas
 
-The SlimFaas PromQL mini-evaluator is intentionally simple. Notable limitations:
+- The API evaluates one instant and returns a single number. The supported
+  range functions for gauges are `avg_over_time`, `min_over_time`,
+  `max_over_time`, `sum_over_time`, `count_over_time` and `last_over_time`.
+  Each sample in a time average has equal weight. For diagnostics,
+  `present_over_time(jobs_pending[30s])` returns 1 per series with any
+  sample, including a measured zero. An empty window returns no series.
+  External metrics still require a healthy source and the latest scrape.
+  Use the backlog gauge itself to scale on work.
+- Histograms use classic cumulative float buckets with a numeric `le` label
+  and a final `+Inf` bucket. A histogram needs at least two buckets and a
+  nonzero observation count. Native histograms are outside this subset.
+- Label selectors require a metric name. Regexes use the .NET non-backtracking
+  engine. The supported grammar excludes set operators (`and`, `or`, `unless`),
+  many-to-one modifiers (`group_left`, `group_right`), grouping or matching on `__name__`,
+  subqueries, `offset`, `@`, and functions such as `predict_linear`.
+- The autoscaler supplies its evaluation time. The debug API defaults to the
+  latest stored timestamp and accepts `NowUnixSeconds` for a historical instant.
+  A pure scalar expression can evaluate before the first scrape.
+- A parse failure, empty result, or non-finite value produces an invalid
+  trigger observation. A measured zero is valid. If all triggers are invalid,
+  the autoscaler keeps the current replica count within `MinIdleReplicas` and `ReplicaMax`.
 
-1. **Scalar only**
-    - All queries must reduce to a **single scalar**.
-    - There's no support for returning full time series or vectors.
-    - The scaler sums or aggregates all matching series internally.
+When upgrading, check triggers whose ranges previously included a sample
+exactly at the lower boundary, and thresholds tuned to the old rate between
+the first and last samples. Replay representative expressions through
+`/debug/promql/eval` with a fixed evaluation time.
 
-2. **Limited function set**
-    - Supported: `rate`, `sum`, `min`, `max`, `avg`, `histogram_quantile`, `max_over_time`,
-      plus basic arithmetic `+ - * /`.
-    - Not supported: `count`, `stddev`, `quantile_over_time`, `increase`, `irate`, `predict_linear`,
-      `clamp_*`, `label_replace`, etc.
+The same conformance fixture runs against the live-store and snapshot evaluators
+in the .NET tests and against Prometheus from the repository root:
 
-3. **No logical or comparison operators**
-    - Operators such as `>`, `<`, `==`, `and`, `or`, `unless` are not supported.
-    - Use these expressions only in dashboards, not in SlimFaas AutoScaler queries.
-
-4. **Simple label matchers only**
-    - Supported: `=` and `=~`.
-    - Not supported: `!=`, `!~`.
-    - Make sure your metric cardinality and label design fit this constraint.
-
-5. **Range selector constraints**
-    - Only simple durations with `s`, `m`, `h` are supported (e.g. `15s`, `1m`, `5m`).
-    - Nested subqueries like `rate(sum(...)[5m:1m])` are **not** supported.
-
-6. **Histogram assumptions**
-    - Histogram support assumes standard Prometheus conventions:
-        - cumulative `_bucket` metrics,
-        - a `le` label with numeric bounds or `+Inf`.
-    - The recommended pattern is exactly:
-      `histogram_quantile(phi, sum by (le) ( rate(<metric>_bucket[win]) ))`.
-
-7. **Evaluation time**
-    - By default, the evaluator uses the **latest timestamp** found in the metrics store
-      as the “now” for range selections.
-    - You can override it in code (`Evaluate(query, nowUnixSeconds)`), but the SlimFaas
-      AutoScaler uses the default.
-
-8. **Error handling**
-    - A parse error or unsupported construct results in a `FormatException`
-      which is caught by the AutoScaler and logged as a warning.
-    - Any resulting `NaN` / `Infinity` is treated as “no data” and the current replica
-      count is preserved (within `ReplicasMin` / `ReplicaMax`).
-    - A real scalar `0` remains a valid value and may trigger scale-down.
-
-In short: **keep queries simple and scalar-oriented**. If a query would be hard to express
-without advanced PromQL features, it is probably better suited for dashboards than for
-direct autoscaling decisions.
+```sh
+promtool test rules tests/SlimFaas.Tests/Kubernetes/Fixtures/promql-conformance.json
+```
 
 ---
 
@@ -1132,10 +1121,10 @@ for each function:
   3. HTTP/schedule-based 0→N / N→0 system:
 
      - If inactivity is longer than the current timeout:
-         proposedReplicas = ReplicasMin
+         proposedReplicas = MinIdleReplicas
 
-     - Else if (replicas == 0 or replicas < ReplicasMin) and dependencies are ready:
-         proposedReplicas = ReplicasAtStart
+     - Else if replicas < MinActiveReplicas and dependencies are ready:
+         proposedReplicas = MinActiveReplicas
 
      - Else:
          proposedReplicas = currentReplicas
@@ -1147,7 +1136,7 @@ for each function:
 
          desiredFromMetrics = AutoScaler(proposedReplicas, metrics...)
 
-         - If ReplicasMin == 0 AND proposedReplicas == 0:
+         - If MinIdleReplicas == 0 AND proposedReplicas == 0:
              - If desiredFromMetrics <= 0:
                  desiredReplicas = 0   (both systems agree on scale-to-zero)
              - Else:
@@ -1166,7 +1155,7 @@ Key points:
 
 - HTTP/schedule wake-up is preserved. External signals are evaluated before dependency ordering so dependencies can start first.
 - Existing configurations evaluate metrics only if `currentReplicas > 0`; `ScaleFromZero: true` additionally evaluates external triggers at zero.
-- When `ReplicasMin = 0` and a `SlimFaas/Scale` configuration has at least one trigger, **scale-to-zero requires both subsystems to agree**:
+- When `MinIdleReplicas = 0` and a `SlimFaas/Scale` configuration has at least one trigger, **scale-to-zero requires both subsystems to agree**:
     - HTTP/schedule must declare the function idle enough to go down to 0,
     - metrics must also say that `desiredReplicas <= 0`.
       If metrics still require capacity (`desiredReplicas > 0`), SlimFaas keeps at least one replica alive (`max(1, desiredFromMetrics)`).
@@ -1191,8 +1180,8 @@ metadata:
   name: fibonacci
   namespace: default
   annotations:
-    SlimFaas/ReplicasMin: "0"
-    SlimFaas/ReplicasAtStart: "1"
+    SlimFaas/MinIdleReplicas: "0"
+    SlimFaas/MinActiveReplicas: "1"
     SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
     SlimFaas/Scale: >
       {
@@ -1240,8 +1229,8 @@ metadata:
   name: my-queue-driven-func
   namespace: default
   annotations:
-    SlimFaas/ReplicasMin: "1"
-    SlimFaas/ReplicasAtStart: "2"
+    SlimFaas/MinIdleReplicas: "1"
+    SlimFaas/MinActiveReplicas: "2"
     SlimFaas/TimeoutSecondBeforeSetReplicasMin: "600"
     SlimFaas/Scale: >
       {
@@ -1290,39 +1279,9 @@ Behavior:
 
 ### 3. Business-hours warmup via Schedule
 
-Keep pods warm during business hours, aggressive scale-down at night:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: business-func
-  namespace: default
-  annotations:
-    SlimFaas/ReplicasMin: "1"
-    SlimFaas/ReplicasAtStart: "2"
-    SlimFaas/Schedule: >
-      {
-        "TimeZoneID": "Europe/Paris",
-        "Default": {
-          "WakeUp": [
-            "08:30"
-          ],
-          "ScaleDownTimeout": [
-            { "Time": "08:30", "Value": 3600 },
-            { "Time": "18:30", "Value": 300 }
-          ]
-        }
-      }
-spec:
-  # ...
-```
-
-- At 08:30 local time:
-    - The function is “virtually called” and can be scaled up to `ReplicasAtStart`.
-    - Inactivity timeout is 3600 seconds (1 hour).
-- After 18:30:
-    - Timeout is only 300 seconds (5 minutes), so pods can scale down quickly.
+The [business-hours manifest](functions.md#8-scheduling-function-wake-up-and-scale-down)
+wakes the function at 08:00 Paris time, raises its active minimum to three at
+09:00, and allows it to scale to zero after an hour of evening inactivity.
 
 ---
 
@@ -1331,7 +1290,7 @@ spec:
 1. **Always set a meaningful `ReplicaMax`**
    Avoid unbounded scaling in case of incorrect thresholds or noisy metrics.
 
-2. **Choose `ReplicasMin` carefully**
+2. **Choose `MinIdleReplicas` carefully**
     - Use `0` only when you accept cold start latency.
     - Use `1` or more for critical, low-latency functions.
 
@@ -1353,7 +1312,7 @@ spec:
     - Keep the PromQL queries in team documentation or dashboards.
 
 7. **Align replica bounds with any HorizontalPodAutoscaler**
-    - Keep `ReplicasAtStart` lower than or equal to the HPA `minReplicas`, and set `ReplicasMin` to `0` or to `minReplicas`.
+    - Keep `MinActiveReplicas` lower than or equal to the HPA `minReplicas`, and set `MinIdleReplicas` to `0` or to `minReplicas`.
     - Do not add `SlimFaas/Scale` triggers to a Deployment targeted by an HPA.
     - See [Using SlimFaas with a Kubernetes HorizontalPodAutoscaler](#using-slimfaas-with-a-kubernetes-horizontalpodautoscaler).
 
@@ -1411,7 +1370,7 @@ If all triggers in `SlimFaas/Scale` produce invalid values (NaN, Inf, negative, 
 
 - The AutoScaler ignores them.
 - The replica count is left unchanged, except for:
-    - enforcing `ReplicasMin`,
+    - enforcing `MinIdleReplicas`,
     - enforcing `ReplicaMax`.
 
 ---
@@ -1422,7 +1381,7 @@ Set:
 
 ```yaml
 annotations:
-  SlimFaas/ReplicasMin: "0"
+  SlimFaas/MinIdleReplicas: "0"
   SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
 ```
 
@@ -1470,8 +1429,8 @@ Add these annotations under **`spec.template.metadata.annotations`** in Kubernet
 or `functions.<name>.annotations` in native local mode:
 
 ```yaml
-SlimFaas/ReplicasMin: "0"
-SlimFaas/ReplicasAtStart: "1"
+SlimFaas/MinIdleReplicas: "0"
+SlimFaas/MinActiveReplicas: "1"
 SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
 SlimFaas/Scale: |
   {
@@ -1533,7 +1492,7 @@ Value:        ceil(max(currentReplicas, 1) * metricValue / Threshold)
 
 The engine takes the maximum valid recommendation, then applies limits, policies and
 stabilization. At zero, only external triggers participate in metric wake-up; missing
-local metrics are expected and do not prevent it. `ReplicasAtStart` continues to govern
+local metrics are expected and do not prevent it. `MinActiveReplicas` continues to govern
 HTTP/schedule wake-up and is not an intermediate step for a metric-only wake-up. If both
 request capacity, the HTTP request remains respected, within `ReplicaMax` for the new
 wake-up path. Dependencies wake first, without synthesizing HTTP requests or consuming
@@ -1610,34 +1569,31 @@ otherwise one of them undoes the other's changes at every cycle.
 For a function without `SlimFaas/Scale` triggers:
 
 - **While the function is active**, SlimFaas keeps the replica count chosen by the HPA,
-  except when it drops below `ReplicasMin`: SlimFaas then scales it back to `ReplicasAtStart`.
+  as long as it meets the current `MinActiveReplicas`. When it falls below that minimum and dependencies are ready, SlimFaas restores it.
 - **After `TimeoutSecondBeforeSetReplicasMin` seconds of inactivity**, SlimFaas sets the
-  replicas to `ReplicasMin`, whatever the HPA chose. Inactivity is measured from the
+  replicas to `MinIdleReplicas`, whatever the HPA chose. Inactivity is measured from the
   requests that go through SlimFaas, the schedule and the activity of the functions that
   depend on it, not from CPU usage.
 - **At zero replicas**, the HPA stops scaling its target as long as its `minReplicas` is
   greater than `0`. This is standard Kubernetes behavior, so SlimFaas scale-to-zero keeps working.
-- **On wake-up**, SlimFaas scales the function to `ReplicasAtStart`. The HPA resumes and
+- **On wake-up**, SlimFaas scales the function to `MinActiveReplicas`. The HPA resumes and
   brings the count within `[minReplicas, maxReplicas]`.
 
 ### Configuration rules
 
-- **Keep `ReplicasAtStart` lower than or equal to the HPA `minReplicas`.** After a
-  wake-up, the HPA raises a lower count to `minReplicas` and scales it from there. A larger
-  `ReplicasAtStart` is reduced to the HPA recommendation once the HPA scale-down
-  stabilization window (5 minutes by default) has elapsed.
-- **Set `ReplicasMin` to `0` or to the HPA `minReplicas`.**
+- **Keep `MinActiveReplicas` lower than or equal to the HPA `minReplicas`.** After a
+  wake-up, the HPA raises a lower count to `minReplicas` and scales it from there. A scheduled active minimum above the HPA minimum can cause the two controllers to repeatedly reverse each other’s changes.
+- **Set `MinIdleReplicas` to `0` or to the HPA `minReplicas`.**
     - With `0`, SlimFaas scales the idle function to zero and the HPA pauses.
     - A positive value lower than `minReplicas` makes SlimFaas scale an idle function down
-      to `ReplicasMin` at every cycle while the HPA scales it back up to `minReplicas`.
-    - A value greater than `minReplicas` lets the HPA scale an active function below
-      `ReplicasMin`, which SlimFaas treats as a wake-up to `ReplicasAtStart`.
+      to `MinIdleReplicas` at every cycle while the HPA scales it back up to `minReplicas`.
+    - An idle minimum above the HPA minimum can likewise cause conflicting writes during inactivity.
 - **Do not configure `SlimFaas/Scale` triggers on a function targeted by an HPA.** Both are
   `N → M` autoscalers and would compete for the replica count. Use either the HPA or the
   [SlimFaas Prometheus AutoScaler](#configuring-n--m-scale-prometheus-autoscaler) for a given function.
 - **Route the function's traffic through SlimFaas**, or declare a `SlimFaas/Schedule`. Traffic
   that reaches the pods directly does not count as activity: SlimFaas scales the function
-  down to `ReplicasMin` after the timeout even if the HPA has scaled it up under this load.
+  down to `MinIdleReplicas` after the timeout even if the HPA has scaled it up under this load.
 
 ### HPA example
 
@@ -1660,8 +1616,8 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/NumberParallelRequest: "2"
-        SlimFaas/ReplicasMin: "0"                         # 0 or the HPA minReplicas
-        SlimFaas/ReplicasAtStart: "2"                     # <= the HPA minReplicas
+        SlimFaas/MinIdleReplicas: "0"                         # 0 or the HPA minReplicas
+        SlimFaas/MinActiveReplicas: "2"                     # <= the HPA minReplicas
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
     spec:
       containers:
@@ -1680,7 +1636,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: receiver
-  minReplicas: 2                                          # >= SlimFaas/ReplicasAtStart
+  minReplicas: 2                                          # >= SlimFaas/MinActiveReplicas
   maxReplicas: 8
   metrics:
     - type: Resource

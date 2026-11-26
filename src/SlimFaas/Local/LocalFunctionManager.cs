@@ -25,20 +25,16 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         _ports = ports;
         _state = state;
         _token = token;
+        var warnings = new ReplicaAnnotationWarnings(LocalProcessOutputLog.ConsoleLogger);
         _functions = loaded.Manifest.Functions.ToDictionary(
             item => item.Key,
             item =>
             {
-                FunctionMetadata metadata = FunctionMetadataParser.Parse(item.Value.Annotations, item.Key);
+                FunctionMetadata metadata = FunctionMetadataParser.Parse(item.Value.Annotations, item.Key, warnings);
                 Uri? debugUri = item.Value.DebugUrl is null
                     ? null
                     : LocalManifestLoader.GetDebugUri(item.Value.DebugUrl);
-                int maximum = debugUri is null
-                    ? metadata.Scale?.ReplicaMax ??
-                      Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin)
-                    : 1;
-                if (debugUri is null)
-                    maximum = Math.Max(maximum, Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin));
+                int maximum = debugUri is null ? metadata.Scale?.ReplicaMax ?? metadata.LargestReplicaMinimum() : 1;
                 return new FunctionRuntime(item.Key, item.Value, metadata, maximum, debugUri)
                 {
                     Desired = debugUri is null
@@ -114,7 +110,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                     function.Metadata.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
                     PodType: PodType.Deployment,
                     DependsOn: function.Metadata.DependsOn,
-                    Schedule: function.Metadata.Schedule,
+                    Schedule: function.DebugUri is null ? function.Metadata.Schedule : null,
                     SubscribeEvents: function.Metadata.SubscribeEvents,
                     Visibility: function.Metadata.Visibility,
                     PathsStartWithVisibility: function.Metadata.PathsStartWithVisibility,

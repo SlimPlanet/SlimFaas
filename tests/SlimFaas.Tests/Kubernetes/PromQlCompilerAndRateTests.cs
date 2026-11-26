@@ -143,7 +143,7 @@ public sealed class PromQlCompilerAndRateTests
             (100, "d", "p", "m{job=\"a\"}", 0),
             (160, "d", "p", "m{job=\"a\"}", 60));
         var eval = SnapEval(snap);
-        var compiled = PromQlQueryCompiler.Compile("""sum(rate(m{job="a"}[1m]))""");
+        var compiled = PromQlQueryCompiler.Compile("""sum(rate(m{job="a"}[61s]))""");
 
         var r1 = eval.Evaluate(compiled, nowUnixSeconds: 160);
         var r2 = eval.Evaluate(compiled, nowUnixSeconds: 160);
@@ -157,14 +157,14 @@ public sealed class PromQlCompilerAndRateTests
     public void CompiledQuery_ReusedAcrossDifferentData_ReflectsEachDataset()
     {
         var snapA = BuildSnapshot(
-            (100, "d", "p", "m{job=\"a\"}", 0),
-            (160, "d", "p", "m{job=\"a\"}", 60));   // rate = 1.0
+            (100, "d", "p", "m{job=\"a\"}", 10),
+            (160, "d", "p", "m{job=\"a\"}", 70));   // rate = 1.0
 
         var snapB = BuildSnapshot(
-            (100, "d", "p", "m{job=\"a\"}", 0),
-            (160, "d", "p", "m{job=\"a\"}", 120));  // rate = 2.0
+            (100, "d", "p", "m{job=\"a\"}", 10),
+            (160, "d", "p", "m{job=\"a\"}", 130));  // rate = 2.0
 
-        var compiled = PromQlQueryCompiler.Compile("""sum(rate(m{job="a"}[1m]))""");
+        var compiled = PromQlQueryCompiler.Compile("""sum(rate(m{job="a"}[61s]))""");
 
         var evalA = SnapEval(snapA);
         var evalB = SnapEval(snapB);
@@ -182,7 +182,7 @@ public sealed class PromQlCompilerAndRateTests
             (100, "d", "p", "m{job=\"a\"}", 0),
             (160, "d", "p", "m{job=\"a\"}", 90));
         var eval = SnapEval(snap);
-        const string q = """sum(rate(m{job="a"}[1m]))""";
+        const string q = """sum(rate(m{job="a"}[61s]))""";
 
         var fromString = eval.Evaluate(q, nowUnixSeconds: 160);
         var fromCompiled = eval.Evaluate(PromQlQueryCompiler.Compile(q), nowUnixSeconds: 160);
@@ -194,7 +194,7 @@ public sealed class PromQlCompilerAndRateTests
     [Fact]
     public void CompiledQuery_ReferencedMetricNames_IsReadOnly()
     {
-        var compiled = PromQlQueryCompiler.Compile("sum(rate(m[1m]))");
+        var compiled = PromQlQueryCompiler.Compile("sum(rate(m[61s]))");
         Assert.IsAssignableFrom<IReadOnlySet<string>>(compiled.ReferencedMetricNames);
     }
 
@@ -210,40 +210,6 @@ public sealed class PromQlCompilerAndRateTests
     // CR3 – Shared rate behaviour (counter-reset handling is consistent)
     // ─────────────────────────────────────────────────────────────────────────
 
-    // PromQlRateCalculator.TryComputeRate: normal two-point series.
-    [Fact]
-    public void RateCalculator_TwoPoints_ComputesCorrectRate()
-    {
-        var sl = new SortedList<long, double> { { 0, 10 }, { 60, 70 } };
-        Assert.True(PromQlRateCalculator.TryComputeRate(sl, out var rate));
-        Assert.Equal(1.0, rate, 6);
-    }
-
-    // PromQlRateCalculator.TryComputeRate: single point → false.
-    [Fact]
-    public void RateCalculator_SinglePoint_ReturnsFalse()
-    {
-        var sl = new SortedList<long, double> { { 0, 5 } };
-        Assert.False(PromQlRateCalculator.TryComputeRate(sl, out _));
-    }
-
-    // PromQlRateCalculator.TryComputeRate: empty series → false.
-    [Fact]
-    public void RateCalculator_EmptySeries_ReturnsFalse()
-    {
-        var sl = new SortedList<long, double>();
-        Assert.False(PromQlRateCalculator.TryComputeRate(sl, out _));
-    }
-
-    // PromQlRateCalculator.TryComputeRate: counter reset contributes the post-reset value.
-    [Fact]
-    public void RateCalculator_CounterReset_UsesPostResetValue()
-    {
-        var sl = new SortedList<long, double> { { 0, 100 }, { 60, 10 } }; // reset
-        Assert.True(PromQlRateCalculator.TryComputeRate(sl, out var rate));
-        Assert.Equal(10.0 / 60.0, rate, 6);
-    }
-
     // rate() remains usable when all series reset.
     [Fact]
     public void Rate_AllSeriesReset_UsesPostResetValues()
@@ -254,7 +220,7 @@ public sealed class PromQlCompilerAndRateTests
         var eval = SnapEval(snap);
         Assert.Equal(
             10.0 / 60.0,
-            eval.Evaluate("""sum(rate(cnt{job="a"}[1m]))""", nowUnixSeconds: 60),
+            eval.Evaluate("""sum(rate(cnt{job="a"}[61s]))""", nowUnixSeconds: 60),
             6);
     }
 
@@ -268,7 +234,7 @@ public sealed class PromQlCompilerAndRateTests
         var eval = SnapEval(snap);
         Assert.Equal(
             10.0 / 60.0,
-            eval.Evaluate("""avg(rate(cnt{job="a"}[1m]))""", nowUnixSeconds: 60),
+            eval.Evaluate("""avg(rate(cnt{job="a"}[61s]))""", nowUnixSeconds: 60),
             6);
     }
 
@@ -282,15 +248,15 @@ public sealed class PromQlCompilerAndRateTests
             (60, "d", "p", "m{job=\"a\"}", 60));
         var eval = SnapEval(snap);
         const long now = 60;
-        var rateResult = eval.Evaluate("""sum(rate(m{job="a"}[1m]))""", nowUnixSeconds: now);
-        var avgRateResult = eval.Evaluate("""avg(rate(m{job="a"}[1m]))""", nowUnixSeconds: now);
+        var rateResult = eval.Evaluate("""sum(rate(m{job="a"}[61s]))""", nowUnixSeconds: now);
+        var avgRateResult = eval.Evaluate("""avg(rate(m{job="a"}[61s]))""", nowUnixSeconds: now);
 
         Assert.Equal(rateResult, avgRateResult, 6);
     }
 
-    // RatePerBucketNode (used by histogram_quantile) also handles reset buckets.
+    // Compute each bucket rate before merging histograms.
     [Fact]
-    public void RatePerBucket_ResetBucket_IsExcluded()
+    public void HistogramRate_IncludesCounterReset()
     {
         var snap = BuildSnapshot(
             (0, "d", "p", """http_req_bucket{le="0.1"}""", 100),
@@ -300,7 +266,7 @@ public sealed class PromQlCompilerAndRateTests
         var eval = SnapEval(snap);
 
         var res = eval.Evaluate(
-            """histogram_quantile(0.99, sum by (le)(rate(http_req_bucket[1m])))""",
+            """histogram_quantile(0.99, sum by (le)(rate(http_req_bucket[61s])))""",
             nowUnixSeconds: 60);
 
         Assert.False(double.IsNaN(res));

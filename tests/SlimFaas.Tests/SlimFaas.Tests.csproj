@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Kubernetes/Fixtures/promql-conformance.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="..\..\samples\Fibonacci\TourEndpoints.cs" Link="Samples\TourEndpoints.cs" />
     <Compile Include="..\..\samples\Fibonacci\TourEndpoints.Log.cs" Link="Samples\TourEndpoints.Log.cs" />
     <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />

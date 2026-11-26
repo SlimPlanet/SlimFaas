@@ -18,8 +18,8 @@ x-demo-function: &demo-function
   labels: &demo-labels
     SlimFaas/Function: "true"
     SlimFaas/Namespace: "default"
-    SlimFaas/ReplicasAtStart: "1"
-    SlimFaas/ReplicasMin: "0"
+    SlimFaas/MinActiveReplicas: "1"
+    SlimFaas/MinIdleReplicas: "0"
     SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
     SlimFaas/DefaultVisibility: "Public"
     SlimFaas/NumberParallelRequest: "10"
@@ -200,7 +200,7 @@ services:
       <<: *demo-labels
       app: fibonacci3
       SlimFaas/SubscribeEvents: fibo-public
-      SlimFaas/ReplicasAtStart: "2"
+      SlimFaas/MinActiveReplicas: "2"
 
   fibonacci4:
     <<: *demo-function
@@ -209,7 +209,7 @@ services:
       app: fibonacci4
       SlimFaas/DefaultVisibility: Private
       SlimFaas/SubscribeEvents: Public:fibo-public
-      SlimFaas/ReplicasAtStart: "2"
+      SlimFaas/MinActiveReplicas: "2"
 
   slimfaas-kafka:
     #image: slimkafka:dev
@@ -228,8 +228,8 @@ services:
       SlimFaas/Function: "true"
       app: "slimfaas-kafka"
       SlimFaas/Namespace: "default"
-      SlimFaas/ReplicasAtStart: "1"
-      SlimFaas/ReplicasMin: "1"
+      SlimFaas/MinActiveReplicas: "1"
+      SlimFaas/MinIdleReplicas: "1"
     environment:
       - Kafka__BootstrapServers=kafka:9092
       - Kafka__CheckIntervalSeconds=5

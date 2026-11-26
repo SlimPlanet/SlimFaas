@@ -106,7 +106,7 @@ public partial class KubernetesService
         );
     }
 
-    private static async Task AddDeployments(string kubeNamespace, V1DeploymentList deploymentList,
+    private async Task AddDeployments(string kubeNamespace, V1DeploymentList deploymentList,
         IEnumerable<PodInformation> podList,
         IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger,
         k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList,
@@ -139,7 +139,7 @@ public partial class KubernetesService
                 {
                     FunctionMetadata metadata = FunctionMetadataParser.Parse(
                         new Dictionary<string, string>(annotations, StringComparer.Ordinal),
-                        name);
+                        name, _annotationWarnings);
                     ResourcesConfiguration? resources = ExtractResources(deploymentListItem.Spec.Template?.Spec?.Containers);
 
                     DeploymentInformation deploymentInformation = new(
@@ -351,7 +351,7 @@ public partial class KubernetesService
         return new SlimFaasConfiguration();
     }
 
-    private static async Task AddStatefulSets(string kubeNamespace, V1StatefulSetList deploymentList,
+    private async Task AddStatefulSets(string kubeNamespace, V1StatefulSetList deploymentList,
         IEnumerable<PodInformation> podList,
         IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger,
         k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList,
@@ -384,7 +384,7 @@ public partial class KubernetesService
                 {
                     FunctionMetadata metadata = FunctionMetadataParser.Parse(
                         new Dictionary<string, string>(annotations, StringComparer.Ordinal),
-                        name);
+                        name, _annotationWarnings);
                     ResourcesConfiguration? resources = ExtractResources(deploymentListItem.Spec.Template?.Spec?.Containers);
                     DeploymentInformation deploymentInformation = new(
                         name,
