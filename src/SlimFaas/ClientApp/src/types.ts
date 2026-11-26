@@ -17,7 +17,9 @@ export interface ResourcesConfiguration {
 
 export interface ScaleDownTimeout {
   Time: string;
-  Value: number;
+  Value?: number;
+  MinActiveReplicas?: number;
+  MinIdleReplicas?: number;
 }
 
 export interface DefaultSchedule {

@@ -1,9 +1,59 @@
+using Microsoft.Extensions.Logging;
+using Moq;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests.Kubernetes;
 
 public sealed class FunctionMetadataParserTests
 {
+    [Fact]
+    public void ParsePrefersCanonicalMinimumsAndWarnsOncePerFunctionAndLegacyName()
+    {
+        var annotations = new Dictionary<string, string>
+        {
+            ["SlimFaas/MinActiveReplicas"] = "2", ["SlimFaas/ReplicasAtStart"] = "7",
+            ["SlimFaas/MinIdleReplicas"] = "1", ["SlimFaas/ReplicasMin"] = "5",
+            ["SlimFaas/Schedule"] = """
+                {"Default":{"ScaleDownTimeout":[
+                  {"Time":"09:00","MinActiveReplicas":3,"ReplicasAtStart":9,"ReplicasMin":0},
+                  {"Time":"19:00","ReplicasAtStart":4,"MinIdleReplicas":0,"ReplicasMin":8}]}}
+                """
+        };
+        var logger = new Mock<ILogger>();
+        logger.Setup(l => l.IsEnabled(LogLevel.Warning)).Returns(true);
+        var warnings = new ReplicaAnnotationWarnings(logger.Object);
+        var metadata = FunctionMetadataParser.Parse(annotations, "billing", warnings);
+        Assert.Equal(2, metadata.ReplicasAtStart);
+        Assert.Equal(1, metadata.ReplicasMin);
+        var windows = metadata.Schedule!.Default!.ScaleDownTimeout;
+        Assert.Equal(3, windows[0].MinActiveReplicas);
+        Assert.Equal(0, windows[0].MinIdleReplicas);
+        Assert.Equal(4, windows[1].MinActiveReplicas);
+        Assert.Equal(0, windows[1].MinIdleReplicas);
+        Assert.Equal(4, metadata.LargestReplicaMinimum());
+
+        FunctionMetadataParser.Parse(annotations, "billing", warnings);
+        FunctionMetadataParser.Parse(annotations, "catalog", warnings);
+        var messages = logger.Invocations.Where(i => i.Method.Name == nameof(ILogger.Log))
+            .Select(i => i.Arguments[2]?.ToString()).ToArray();
+        Assert.Equal(4, messages.Length);
+        Assert.Equal(4, messages.Distinct().Count());
+    }
+
+    [Theory]
+    [InlineData("MinActiveReplicas")]
+    [InlineData("MinIdleReplicas")]
+    [InlineData("ReplicasAtStart")]
+    [InlineData("ReplicasMin")]
+    public void RejectsNegativeReplicaMinimums(string name)
+    {
+        Assert.Throws<FormatException>(() => FunctionMetadataParser.Parse(
+            new Dictionary<string, string> { ["SlimFaas/" + name] = "-1" }, "billing"));
+        var schedule = $$$"""{"Default":{"ScaleDownTimeout":[{"Time":"12:00","{{{name}}}":-1}]}}""";
+        Assert.Throws<FormatException>(() => FunctionMetadataParser.Parse(
+            new Dictionary<string, string> { ["SlimFaas/Schedule"] = schedule }, "billing"));
+    }
+
     [Fact]
     public void Parse_Stream_subscriptions_inherit_visibility_and_parse_bounded_retention()
     {
