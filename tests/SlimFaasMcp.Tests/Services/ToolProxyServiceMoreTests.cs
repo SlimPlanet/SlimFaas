@@ -642,6 +642,7 @@ public class ToolProxyServiceMoreTests
                     new()
                     {
                         Name = "name", In = "query", Style = "form", Explode = true, SchemaType = "string",
+                        SchemaAllowsObject = false,
                         Schema = new Dictionary<string, object> { ["type"] = "string" }
                     }
                 }
@@ -655,6 +656,38 @@ public class ToolProxyServiceMoreTests
 
         Assert.Equal(400, result.StatusCode);
         Assert.Contains("name", result.Text);
+        Assert.Null(_handler.LastRequest);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_RejectsObjectForArrayQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new()
+                    {
+                        Name = "ids", In = "query", Style = "form", Explode = true, SchemaType = "array",
+                        SchemaAllowsObject = false,
+                        Schema = new Dictionary<string, object> { ["type"] = "array" }
+                    }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"ids\":{\"admin\":\"true\"}}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("ids", result.Text);
         Assert.Null(_handler.LastRequest);
     }
 

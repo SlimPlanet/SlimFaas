@@ -117,7 +117,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 var isJsonContent = false;
 
                 if (param.TryGetProperty("schema", out var sch))
-                    schemaEl = NormalizeSchema(sch);
+                    schemaEl = sch;
                 else if (param.TryGetProperty("content", out var cnt) && cnt.ValueKind == JsonValueKind.Object)
                 {
                     // OpenAPI autorise content/application/json (ou un type en +json) pour query params
@@ -129,7 +129,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                         isJsonContent = true;
                         if (media.Value.ValueKind == JsonValueKind.Object &&
                             media.Value.TryGetProperty("schema", out var sch2))
-                            schemaEl = NormalizeSchema(sch2);
+                            schemaEl = sch2;
                         break;
                     }
                 }
@@ -138,7 +138,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 JsonElement? enumArr = null;
                 if (param.TryGetProperty("enum", out var eArr))
                     enumArr = eArr;
-                else if (schemaEl is JsonElement sch0 && sch0.TryGetProperty("enum", out var e2))
+                else if (schemaEl is { ValueKind: JsonValueKind.Object } sch0 && sch0.TryGetProperty("enum", out var e2))
                     enumArr = e2;
 
                 var descr = param.TryGetProperty("description", out var d) ? d.GetString() : "";
@@ -146,7 +146,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
                 // "Simple" type (fallback; not used if Schema is provided)
                 string? schemaType =
-                    schemaEl is JsonElement sch1 && sch1.TryGetProperty("type", out var typEl)
+                    schemaEl is { ValueKind: JsonValueKind.Object } sch1 && sch1.TryGetProperty("type", out var typEl)
                         ? ScalarTypeName(typEl)
                         : (param.TryGetProperty("type", out var typLegacy) ? ScalarTypeName(typLegacy) : "string");
 
@@ -163,6 +163,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     Style       = style,
                     Explode     = explode,
                     IsJsonContent = isJsonContent,
+                    SchemaAllowsObject = schemaEl is JsonElement allowed ? expander.AllowsObject(allowed) : schemaType == "object",
                     // ✅ Here: we store the expanded schema; anyOf/oneOf/allOf are preserved
                     Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(ExpandAndSanitize(expander, se)!,param) : null
                 });
@@ -383,17 +384,6 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
     // application/json, or a structured syntax suffix such as application/geo+json. Media type parameters
     // (charset) are ignored.
-    // OpenAPI 3.1 allows the boolean schemas true (anything) and false (nothing). They are kept as the equivalent
-    // object schemas, so that the property lookups below and the schema expansion work on an object.
-    private static JsonElement NormalizeSchema(JsonElement schema)
-    {
-        if (schema.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-            return schema;
-
-        using var doc = JsonDocument.Parse(schema.ValueKind == JsonValueKind.True ? "{}" : "{\"not\":{}}");
-        return doc.RootElement.Clone();
-    }
-
     private static bool IsJsonMediaType(string mediaType)
     {
         int separator = mediaType.IndexOf(';', StringComparison.Ordinal);

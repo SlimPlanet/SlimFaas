@@ -82,6 +82,14 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
         if (depth > _maxDepth)
             return new Dictionary<string, object> { ["$ref"] = "#", ["truncated"] = true };
 
+        // ----- Boolean schemas (OpenAPI 3.1) -----------------------------
+        // true accepts anything and false accepts nothing: keep them as the empty schema and { "not": {} }
+        // instead of the generic object stub below.
+        if (schema.ValueKind == JsonValueKind.True)
+            return new Dictionary<string, object>();
+        if (schema.ValueKind == JsonValueKind.False)
+            return new Dictionary<string, object> { ["not"] = new Dictionary<string, object>() };
+
         // ----- $ref ------------------------------------------------------
         if (schema.TryGetProperty("$ref", out var refProp))
         {
@@ -330,6 +338,63 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
         // If really empty, return a generic stub
         MergeSiblingMetadata(schema, resultDict);
         return resultDict.Count > 0 ? resultDict : new Dictionary<string, object> { ["type"] = type ?? "object" };
+    }
+
+    /// <summary>
+    /// True when a JSON object is a valid value for the schema. Follows local $ref, anyOf/oneOf (any member) and
+    /// allOf (every member), and reads OpenAPI 3.1 type unions such as ["string", "object"]. A schema without a
+    /// type is unconstrained unless it has object keywords.
+    /// </summary>
+    public bool AllowsObject(JsonElement schema) => AllowsObject(schema, 0);
+
+    private bool AllowsObject(JsonElement schema, int depth)
+    {
+        if (schema.ValueKind == JsonValueKind.True) return true;
+        if (schema.ValueKind != JsonValueKind.Object) return false;
+        // Too deep or unresolvable: do not reject what we cannot prove invalid.
+        if (depth > _maxDepth) return true;
+
+        if (schema.TryGetProperty("$ref", out var refProp) && refProp.ValueKind == JsonValueKind.String)
+        {
+            try
+            {
+                return AllowsObject(ResolveRef(refProp.GetString()!), depth + 1);
+            }
+            catch (ArgumentException)
+            {
+                return true;
+            }
+        }
+
+        if (schema.TryGetProperty("type", out var type))
+        {
+            var allowed = type.ValueKind switch
+            {
+                JsonValueKind.String => type.GetString() == "object",
+                JsonValueKind.Array => type.EnumerateArray()
+                    .Any(t => t.ValueKind == JsonValueKind.String && t.GetString() == "object"),
+                _ => true
+            };
+            if (!allowed) return false;
+        }
+        else if (schema.TryGetProperty("enum", out var enumValues) && enumValues.ValueKind == JsonValueKind.Array)
+        {
+            if (!enumValues.EnumerateArray().Any(v => v.ValueKind == JsonValueKind.Object)) return false;
+        }
+
+        if (schema.TryGetProperty("anyOf", out var anyOf) && anyOf.ValueKind == JsonValueKind.Array &&
+            !anyOf.EnumerateArray().Any(item => AllowsObject(item, depth + 1)))
+            return false;
+
+        if (schema.TryGetProperty("oneOf", out var oneOf) && oneOf.ValueKind == JsonValueKind.Array &&
+            !oneOf.EnumerateArray().Any(item => AllowsObject(item, depth + 1)))
+            return false;
+
+        if (schema.TryGetProperty("allOf", out var allOf) && allOf.ValueKind == JsonValueKind.Array &&
+            !allOf.EnumerateArray().All(item => AllowsObject(item, depth + 1)))
+            return false;
+
+        return true;
     }
 
     private static string UnescapeJsonPointer(string token) =>

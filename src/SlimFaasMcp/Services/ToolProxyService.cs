@@ -226,9 +226,9 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             if (inputDict.TryGetValue(parameter.Name!, out JsonElement value))
             {
-                if (IsObjectForScalarParameter(parameter, value))
+                if (IsObjectNotAllowed(parameter, value))
                 {
-                    return ParameterError($"Query parameter {parameter.Name} must be a scalar value, not an object");
+                    return ParameterError($"Query parameter {parameter.Name} cannot be an object");
                 }
 
                 AddQueryPairs(queryPairs, parameter, value);
@@ -514,25 +514,10 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return null;
     }
 
-    // An object for a parameter declared as a string, number, integer or boolean would be expanded into query keys
-    // chosen by the caller, so it is rejected. Parameters with a JSON content, no declared type or a composed schema
-    // are left alone.
-    private static bool IsObjectForScalarParameter(Parameter parameter, JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.Object || parameter.IsJsonContent)
-        {
-            return false;
-        }
-
-        string? type = parameter.Schema switch
-        {
-            null => parameter.SchemaType,
-            Dictionary<string, object> schema when schema.TryGetValue("type", out object? declared) => declared as string,
-            _ => null
-        };
-
-        return type is "string" or "number" or "integer" or "boolean";
-    }
+    // An object for a parameter whose schema does not allow one (a string, number, integer, boolean or array) would be
+    // expanded into query keys chosen by the caller, so it is rejected. Parameters with a JSON content are left alone.
+    private static bool IsObjectNotAllowed(Parameter parameter, JsonElement value) =>
+        value.ValueKind == JsonValueKind.Object && !parameter.IsJsonContent && !parameter.SchemaAllowsObject;
 
     // OpenAPI serializes query parameters with the "form" style by default: an array [1,2] becomes "ids=1&ids=2", or
     // "ids=1,2" without explode, and an object {"role":"admin","id":5} becomes "role=admin&id=5", or

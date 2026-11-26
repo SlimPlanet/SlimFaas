@@ -344,6 +344,63 @@ paths:
         Assert.True(geometry.IsJsonContent);
         Assert.NotNull(geometry.Schema);
         Assert.NotNull(parameters.Single(p => p.Name == "filter").Schema);
+
+        // The boolean schema survives to the tool input schema: true is unrestricted, false matches nothing.
+        var properties = McpTool.GenerateInputSchema(parameters)["properties"]!.AsObject();
+        foreach (var name in new[] { "geometry", "filter" })
+        {
+            var property = properties[name]!.AsObject();
+            Assert.False(property.ContainsKey("type"));
+            if (schema == "true")
+            {
+                Assert.False(property.ContainsKey("not"));
+            }
+            else
+            {
+                Assert.Empty(property["not"]!.AsObject());
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("""{ "type": "string" }""", false)]
+    [InlineData("""{ "type": "array", "items": { "type": "string" } }""", false)]
+    [InlineData("""{ "type": "integer" }""", false)]
+    [InlineData("""{ "type": "object" }""", true)]
+    [InlineData("""{ "type": ["object", "null"] }""", true)]
+    [InlineData("""{ "type": ["string", "object"] }""", true)]
+    [InlineData("""{ "type": ["string", "null"] }""", false)]
+    [InlineData("""{ "type": ["array", "null"] }""", false)]
+    [InlineData("""{ "properties": { "a": { "type": "string" } } }""", true)]
+    [InlineData("""{ }""", true)]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData("""{ "$ref": "#/components/schemas/Filter" }""", true)]
+    [InlineData("""{ "$ref": "#/components/schemas/Names" }""", false)]
+    [InlineData("""{ "anyOf": [ { "type": "string" }, { "type": "object" } ] }""", true)]
+    [InlineData("""{ "oneOf": [ { "type": "string" }, { "type": "array" } ] }""", false)]
+    [InlineData("""{ "allOf": [ { "$ref": "#/components/schemas/Filter" }, { "type": "object" } ] }""", true)]
+    [InlineData("""{ "allOf": [ { "type": "object" }, { "type": "string" } ] }""", false)]
+    [InlineData("""{ "enum": ["a", "b"] }""", false)]
+    public void ParseEndpoints_Reads_Whether_Query_Schema_Allows_An_Object(string schema, bool expected)
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "openapi": "3.1.0",
+              "paths": { "/places": { "get": {
+                "parameters": [ { "name": "filter", "in": "query", "schema": {{schema}} } ]
+              } } },
+              "components": { "schemas": {
+                "Filter": { "type": "object", "properties": { "role": { "type": "string" } } },
+                "Names": { "type": "array", "items": { "type": "string" } }
+              } }
+            }
+            """);
+
+        var filter = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.Equal(expected, filter.SchemaAllowsObject);
     }
 
     [Fact]
