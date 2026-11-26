@@ -24,17 +24,20 @@ internal static class ScalingDecisionCalculator
             desired = metrics is not null ? Math.Max(function.ReplicasMin, metrics.Target) : function.ReplicasMin;
             reasons.Add(new("InactivityElapsed", "The HTTP/schedule inactivity timeout has elapsed."));
         }
-        else if ((current == 0 || current < function.ReplicasMin) && context.DependenciesReady)
+        else if (current < function.ReplicasAtStart && context.DependenciesReady)
         {
-            desired = function.ReplicasAtStart;
-            reasons.Add(new("ActivityWake", "HTTP, schedule or dependency demand requests ReplicasAtStart."));
+            desired = Math.Max(function.ReplicasAtStart, metrics?.Target ?? 0);
+            reasons.Add(new("ActivityWake", "HTTP, schedule or dependency demand requests the active replica minimum."));
         }
         else if (metrics is not null)
         {
-            desired = Math.Max(metrics.Target, function.ReplicasAtStart);
-            reasons.Add(new("ActivityFloor", "Active HTTP, schedule or dependency demand keeps the ReplicasAtStart floor."));
+            // A pending dependency holds the activity-driven increase. Metrics on an
+            // already-running workload retain their own recommendation.
+            int activityFloor = Math.Min(current, function.ReplicasAtStart);
+            desired = Math.Max(metrics.Target, activityFloor);
+            reasons.Add(new("ActivityFloor", "Active HTTP, schedule or dependency demand keeps the active replica minimum."));
         }
-        else if (!context.Inactive)
+        else
             reasons.Add(new("InactivityPending", "The inactivity timeout or dependency demand prevents sleep."));
 
         if (wake)

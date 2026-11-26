@@ -21,8 +21,8 @@ spec:
         app: kafka
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/ReplicasMin: "0"
+        SlimFaas/MinActiveReplicas: "1"
+        SlimFaas/MinIdleReplicas: "0"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
     spec:
       hostname: kafka
@@ -122,8 +122,8 @@ spec:
         app: slimfaas-kafka
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/ReplicasMin: "0"
+        SlimFaas/MinActiveReplicas: "1"
+        SlimFaas/MinIdleReplicas: "0"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
         SlimFaas/DependsOn: "kafka"
         prometheus.io/path: /metrics
@@ -201,8 +201,8 @@ spec:
         app: fibonacci-kafka-producer
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/ReplicasMin: "0"
+        SlimFaas/MinActiveReplicas: "1"
+        SlimFaas/MinIdleReplicas: "0"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
         SlimFaas/DependsOn: "kafka,slimfaas-kafka"
     spec:
@@ -243,8 +243,8 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
-        SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/ReplicasMin: "0"
+        SlimFaas/MinActiveReplicas: "1"
+        SlimFaas/MinIdleReplicas: "0"
         SlimFaas/DependsOn: "kafka"
     spec:
       serviceAccountName: default

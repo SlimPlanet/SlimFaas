@@ -258,15 +258,15 @@ public static partial class LocalManifestLoader
                     metadata.DependsOn,
                     manifest.Processes,
                     errors);
-                int maximum = metadata.Scale?.ReplicaMax ??
-                              Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin);
+                int largestMinimum = metadata.LargestReplicaMinimum();
+                int maximum = metadata.Scale?.ReplicaMax ?? largestMinimum;
                 if (debugUri is null &&
                     metadata.Scale?.ReplicaMax is int replicaMax &&
-                    replicaMax < Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin))
+                    replicaMax < largestMinimum)
                 {
                     errors.Add(
                         $"functions.{name}.annotations: SlimFaas/Scale.ReplicaMax must be greater than or " +
-                        "equal to ReplicasMin and ReplicasAtStart.");
+                        "equal to all configured and scheduled replica minimums.");
                 }
                 if (debugUri is null && maximum < 0)
                     errors.Add($"functions.{name}.annotations: ReplicaMax must not be negative.");

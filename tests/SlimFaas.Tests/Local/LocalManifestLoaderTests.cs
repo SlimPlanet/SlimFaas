@@ -6,6 +6,20 @@ namespace SlimFaas.Tests.Local;
 
 public sealed class LocalManifestLoaderTests
 {
+    [Theory]
+    [InlineData(true, "ReplicaMax")]
+    [InlineData(false, "processPorts contains 3 ports")]
+    public void RejectsInsufficientCapacityForScheduledMinimum(bool hasMaximum, string message)
+    {
+        using var directory = new TemporaryDirectory();
+        const string scale = """SlimFaas/Scale: '{"ReplicaMax": 2}'""";
+        const string schedule = """SlimFaas/Schedule: '{"Default":{"ScaleDownTimeout":[{"Time":"09:00","MinActiveReplicas":4}]}}'""";
+        string yaml = ValidYaml().Replace(scale, hasMaximum ? scale + "\n      " + schedule : schedule,
+            StringComparison.Ordinal);
+        string path = directory.Write("manifest.yaml", yaml);
+        Assert.Contains(message, Assert.Throws<LocalManifestException>(() => LocalManifestLoader.Load(path)).Message);
+    }
+
     [Fact]
     public void Load_MergesMappingsAndReplacesSequencesFromLeftToRight()
     {

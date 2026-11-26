@@ -1,6 +1,6 @@
 import { appendActivity } from '../lib/live.ts';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { PodRequests, DataSummary, FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import type { PodRequests, ScaleDownTimeout, DataSummary, FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
 import { jobQueues } from '../lib/topology.ts';
 import { isDeadLetterSummary, type DeadLetterSummary } from '../lib/deadLetters.ts';
 import { isStreamSummary, isStreamFunction, type StreamSummary, type StreamFunction } from '../lib/streams.ts';
@@ -38,10 +38,12 @@ function asArray<T = unknown>(value: unknown): T[] {
   return Array.isArray(value) ? value as T[] : [];
 }
 
-function normalizeScaleDownTimeout(raw: unknown): { Time: string; Value: number }[] {
+function normalizeScaleDownTimeout(raw: unknown): ScaleDownTimeout[] {
   return asArray(raw).map((item) => ({
     Time: asString(pick(item, 'Time', 'time')),
-    Value: asNumber(pick(item, 'Value', 'value')),
+    Value: asNullableNumber(pick(item, 'Value', 'value')) ?? undefined,
+    MinActiveReplicas: asNullableNumber(pick(item, 'MinActiveReplicas', 'minActiveReplicas')) ?? undefined,
+    MinIdleReplicas: asNullableNumber(pick(item, 'MinIdleReplicas', 'minIdleReplicas')) ?? undefined,
   }));
 }
 

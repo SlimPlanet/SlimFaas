@@ -1,6 +1,6 @@
 using SlimFaas.Kubernetes;
 using NodaTime;
-using NodaTime.TimeZones;
+using System.Globalization;
 using Microsoft.Extensions.Options;
 using SlimFaas.Options;
 using SlimFaas.Scaling;
@@ -113,7 +113,7 @@ public class ReplicasService(
                         + TimeSpan.FromSeconds(context.TimeoutSeconds) - TimeSpan.FromTicks(nowUtc.Ticks));
             int currentScale = deploymentInformation.Replicas;
             evaluations.TryGetValue(deploymentInformation.Deployment, out var evaluation);
-            var combined = StreamScaling.Include(deploymentInformation, evaluation, streamWork);
+            var combined = StreamScaling.Include(context.Function, evaluation, streamWork);
             context = context with { Function = combined.Function };
             evaluation = combined.Evaluation;
             MetricsScalingDecision? metrics = null;
@@ -224,9 +224,14 @@ public class ReplicasService(
         if (schedule > effective) effective = schedule.Value;
         foreach (var dependent in deployments.Functions.Where(f => f.DependsOn?.Contains(function.Deployment) == true))
             effective = Math.Max(effective, ticks.GetValueOrDefault(dependent.Deployment));
-        return new(function, nowUtc, http, schedule, effective,
-            GetTimeoutSecondBeforeSetReplicasMin(function, nowUtc), dependencyDemand.Contains(function.Deployment),
-            DependsOnReady(deployments, function), HasInfrastructurePodFailure(function)?.Reason);
+        var window = GetScheduleWindow(function, nowUtc);
+        var scheduled = window?.MinActiveReplicas is not null || window?.MinIdleReplicas is not null
+            ? function with { ReplicasAtStart = window.MinActiveReplicas ?? function.ReplicasAtStart,
+                ReplicasMin = window.MinIdleReplicas ?? function.ReplicasMin }
+            : function;
+        return new(scheduled, nowUtc, http, schedule, effective,
+            window?.Value ?? function.TimeoutSecondBeforeSetReplicasMin, dependencyDemand.Contains(function.Deployment),
+            DependsOnReady(deployments, function, nowUtc), HasInfrastructurePodFailure(function)?.Reason);
     }
 
     internal static HashSet<string> GetExternalDependencyDemand(DeploymentsInformations deployments,
@@ -250,125 +255,78 @@ public class ReplicasService(
         return demanded;
     }
 
-    record TimeToScaleDownTimeout(int Hours, int Minutes, int Value, DateTime DateTime);
+    private static ZonedDateTime LocalNow(DateTime nowUtc, string zoneId) =>
+        Instant.FromDateTimeUtc(DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc)).InZone(DateTimeZoneProviders.Tzdb[zoneId]);
 
-    // TZDB data is immutable for the lifetime of the process: cache the ForId
-    // resolution, otherwise called for every schedule entry on every tick.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeZone> TimeZoneCache =
-        new(StringComparer.Ordinal);
-
-    private static DateTime CreateDateTime(DateTime dateTime, int hours, int minutes, string timeZoneId)
+    private static bool TryLocalTime(string text, out LocalTime time)
     {
-        LocalDateTime local = new(dateTime.Year, dateTime.Month, dateTime.Day, hours, minutes);
-        DateTimeZone dateTimeZone = TimeZoneCache.GetOrAdd(
-            timeZoneId,
-            static id => TzdbDateTimeZoneSource.Default.ForId(id));
-        ZonedDateTime zonedDateTime = local.InZoneLeniently(dateTimeZone);
-        return zonedDateTime.ToDateTimeUtc();
+        time = default;
+        var span = text.AsSpan();
+        int separator = span.IndexOf(':');
+        if (separator < 0 ||
+            !int.TryParse(span[..separator], NumberStyles.Integer, CultureInfo.InvariantCulture, out int hour) ||
+            !int.TryParse(span[(separator + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int minute) ||
+            hour is < 0 or > 23 || minute is < 0 or > 59)
+            return false;
+        time = new LocalTime(hour, minute);
+        return true;
     }
+
+    private static Instant Occurrence(LocalDate date, LocalTime time, DateTimeZone zone) =>
+        date.At(time).InZoneLeniently(zone).ToInstant();
 
     public static long? GetLastTicksFromSchedule(DeploymentInformation deploymentInformation, DateTime nowUtc)
     {
-        if (deploymentInformation.Schedule is not { Default: not null })
+        var schedule = deploymentInformation.Schedule;
+        if (schedule?.Default?.WakeUp is not { Count: > 0 } times) return null;
+        var local = LocalNow(nowUtc, schedule.TimeZoneID);
+        Instant? latest = null;
+        foreach (var text in times)
         {
-            return null;
+            if (!TryLocalTime(text, out var time)) continue;
+            var occurrence = Occurrence(local.Date, time, local.Zone);
+            if (occurrence > local.ToInstant())
+                occurrence = Occurrence(local.Date.PlusDays(-1), time, local.Zone);
+            if (latest is null || occurrence > latest) latest = occurrence;
         }
+        return latest?.ToDateTimeUtc().Ticks;
+    }
 
-        var dateTime = DateTime.MinValue;
-        var dates = new List<DateTime>();
-
-        foreach (var defaultSchedule in deploymentInformation.Schedule.Default.WakeUp)
+    private static ScaleDownTimeout? GetScheduleWindow(DeploymentInformation function, DateTime nowUtc)
+    {
+        var schedule = function.Schedule;
+        if (schedule?.Default?.ScaleDownTimeout is not { Count: > 0 } windows) return null;
+        var local = LocalNow(nowUtc, schedule.TimeZoneID);
+        ScaleDownTimeout? active = null, previous = null;
+        Instant? latestToday = null, latestYesterday = null;
+        int valid = 0;
+        foreach (var window in windows)
         {
-            var splits = defaultSchedule.Split(':');
-            if (splits.Length != 2) continue;
-
-            if (!int.TryParse(splits[0], out int hours) || !int.TryParse(splits[1], out int minutes))
+            if (!TryLocalTime(window.Time, out var time)) continue;
+            valid++;
+            var occurrence = Occurrence(local.Date, time, local.Zone);
+            if (occurrence <= local.ToInstant())
             {
-                continue;
+                if (latestToday is null || occurrence > latestToday)
+                    (active, latestToday) = (window, occurrence);
             }
-
-            var date = CreateDateTime(nowUtc, hours, minutes, deploymentInformation.Schedule.TimeZoneID);
-            dates.Add(date);
-        }
-
-        foreach (var date in dates)
-        {
-            if (date <= nowUtc && date > dateTime)
+            else if (active is null && windows.Count > 1)
             {
-                dateTime = date;
+                occurrence = Occurrence(local.Date.PlusDays(-1), time, local.Zone);
+                if (latestYesterday is null || occurrence > latestYesterday)
+                    (previous, latestYesterday) = (window, occurrence);
             }
         }
-
-        if (dateTime > DateTime.MinValue)
-        {
-            return dateTime.Ticks;
-        }
-
-        if (dateTime == DateTime.MinValue && dates.Count > 0)
-        {
-            dateTime = dates.OrderBy(d => d).Last();
-            return dateTime.AddDays(-1).Ticks;
-        }
-
-        return null;
+        // A lone checkpoint uses deployment defaults before its start each day.
+        return active ?? (valid > 1 ? previous : null);
     }
 
     public static int GetTimeoutSecondBeforeSetReplicasMin(DeploymentInformation deploymentInformation, DateTime nowUtc)
-    {
-        if (deploymentInformation.Schedule is { Default: not null })
-        {
-            List<TimeToScaleDownTimeout> times = new();
-            foreach (var defaultSchedule in deploymentInformation.Schedule.Default.ScaleDownTimeout)
-            {
-                var splits = defaultSchedule.Time.Split(':');
-                if (splits.Length != 2) continue;
-                if (!int.TryParse(splits[0], out int hours) || !int.TryParse(splits[1], out int minutes)) continue;
-
-                var date = CreateDateTime(nowUtc, hours, minutes, deploymentInformation.Schedule.TimeZoneID);
-                times.Add(new TimeToScaleDownTimeout(date.Hour, date.Minute, defaultSchedule.Value, date));
-            }
-
-            if (times.Count >= 2)
-            {
-                TimeToScaleDownTimeout? latestPastTime = null;
-                foreach (var time in times)
-                {
-                    if (time.DateTime.Ticks < nowUtc.Ticks &&
-                        (latestPastTime is null || time.DateTime.Ticks > latestPastTime.DateTime.Ticks))
-                    {
-                        latestPastTime = time;
-                    }
-                }
-
-                if (latestPastTime is not null)
-                {
-                    return latestPastTime.Value;
-                }
-
-                TimeToScaleDownTimeout latestTime = times[0];
-                for (int index = 1; index < times.Count; index++)
-                {
-                    if (times[index].DateTime.Ticks > latestTime.DateTime.Ticks)
-                    {
-                        latestTime = times[index];
-                    }
-                }
-
-                return latestTime.Value;
-            }
-            else if (times.Count == 1)
-            {
-                var time = times.First();
-                return (time.DateTime.Ticks < nowUtc.Ticks) ? time.Value : deploymentInformation.TimeoutSecondBeforeSetReplicasMin;
-            }
-        }
-
-        return deploymentInformation.TimeoutSecondBeforeSetReplicasMin;
-    }
+        => GetScheduleWindow(deploymentInformation, nowUtc)?.Value ?? deploymentInformation.TimeoutSecondBeforeSetReplicasMin;
 
     private static bool DependsOnReady(
         DeploymentsInformations deployments,
-        DeploymentInformation deploymentInformation)
+        DeploymentInformation deploymentInformation, DateTime nowUtc)
     {
         if (deploymentInformation.DependsOn == null) return true;
 
@@ -383,7 +341,8 @@ public class ReplicasService(
 
             if (deployments.Functions
                 .Where(f => f.Deployment == dependOn)
-                .Any(f => f.Pods.Count(p => p.Ready.HasValue && p.Ready.Value) < f.ReplicasAtStart))
+                .Any(f => f.Pods.Count(p => p.Ready.HasValue && p.Ready.Value) <
+                    (GetScheduleWindow(f, nowUtc)?.MinActiveReplicas ?? f.ReplicasAtStart)))
             {
                 return false;
             }
