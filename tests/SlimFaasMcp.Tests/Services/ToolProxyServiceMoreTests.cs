@@ -506,6 +506,221 @@ public class ToolProxyServiceMoreTests
     }
 
     [Theory]
+    [InlineData("form", true, "[1,2]", "ids=1&ids=2")]
+    [InlineData("form", false, "[1,2]", "ids=1,2")]
+    [InlineData("spaceDelimited", false, "[1,2]", "ids=1%202")]
+    [InlineData("pipeDelimited", false, "[1,2]", "ids=1%7C2")]
+    [InlineData("tabDelimited", false, "[1,2]", "ids=1%092")]
+    [InlineData("form", true, "[\"a b\",\"c,d\"]", "ids=a%20b&ids=c%2Cd")]
+    [InlineData("form", false, "[\"a b\",\"c,d\"]", "ids=a%20b,c%2Cd")]
+    [InlineData("form", true, "{\"role\":\"admin\",\"id\":5}", "role=admin&id=5")]
+    [InlineData("form", false, "{\"role\":\"admin\",\"id\":5}", "ids=role,admin,id,5")]
+    [InlineData("deepObject", true, "{\"role\":\"admin\",\"id\":5}", "ids%5Brole%5D=admin&ids%5Bid%5D=5")]
+    [InlineData("form", true, "true", "ids=true")]
+    [InlineData("form", true, "[1,null,2]", "ids=1&ids=2")]
+    [InlineData("form", false, "[1,null,2]", "ids=1,2")]
+    [InlineData("form", true, "{\"role\":\"admin\",\"age\":null}", "role=admin")]
+    [InlineData("form", false, "{\"role\":\"admin\",\"age\":null}", "ids=role,admin")]
+    [InlineData("deepObject", true, "{\"role\":\"admin\",\"age\":null}", "ids%5Brole%5D=admin")]
+    public async Task ExecuteToolAsync_SerializesQueryParametersWithTheirStyle(string style, bool explode, string value,
+        string expectedQuery)
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "ids", In = "query", Style = style, Explode = explode }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>($"{{\"ids\":{value}}}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal($"https://api.example/pets?{expectedQuery}", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SendsJsonContentQueryParameterAsJson()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "filter", In = "query", Style = "form", Explode = true, IsJsonContent = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"filter\":{ \"tags\": [\"a\", \"b\"] }}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?filter=%7B%22tags%22%3A%5B%22a%22%2C%22b%22%5D%7D",
+            _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SendsExplicitNullForJsonContentQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "filter", In = "query", Style = "form", Explode = true, IsJsonContent = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"filter\":null}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?filter=null", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SkipsNullAndEmptyQueryParameters()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "type",   In = "query", Style = "form", Explode = true },
+                    new() { Name = "ids",    In = "query", Style = "form", Explode = true },
+                    new() { Name = "filter", In = "query", Style = "form", Explode = false },
+                    new() { Name = "limit",  In = "query", Style = "form", Explode = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>(
+            "{\"type\":null,\"ids\":[null],\"filter\":{\"age\":null},\"limit\":10}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?limit=10", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_RejectsObjectForScalarQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new()
+                    {
+                        Name = "name", In = "query", Style = "form", Explode = true, SchemaType = "string",
+                        SchemaAllowsObject = false,
+                        Schema = new Dictionary<string, object> { ["type"] = "string" }
+                    }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"name\":{\"admin\":\"true\"}}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("name", result.Text);
+        Assert.Null(_handler.LastRequest);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_RejectsObjectForArrayQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new()
+                    {
+                        Name = "ids", In = "query", Style = "form", Explode = true, SchemaType = "array",
+                        SchemaAllowsObject = false,
+                        Schema = new Dictionary<string, object> { ["type"] = "array" }
+                    }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"ids\":{\"admin\":\"true\"}}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Contains("ids", result.Text);
+        Assert.Null(_handler.LastRequest);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SendsObjectForDeclaredObjectQueryParameter()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new()
+                    {
+                        Name = "filter", In = "query", Style = "form", Explode = true, SchemaType = "object",
+                        Schema = new Dictionary<string, object> { ["type"] = "object" }
+                    }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"filter\":{\"role\":\"admin\"}}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal("https://api.example/pets?role=admin", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Theory]
     [InlineData("GET")]
     [InlineData("DELETE")]
     public async Task ExecuteToolAsync_RejectsContentHeaderParameterWithoutBody(string verb)

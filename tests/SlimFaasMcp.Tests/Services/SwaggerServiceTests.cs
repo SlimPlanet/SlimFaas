@@ -267,4 +267,220 @@ paths:
         Assert.True(json.IsJsonContent);
         Assert.Equal("object", json.SchemaType);
     }
+
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/geo+json")]
+    [InlineData("application/vnd.api+json; charset=utf-8")]
+    public void ParseEndpoints_Detects_Json_Content_Query_Parameter(string mediaType)
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/places": { "get": {
+                "parameters": [
+                  { "name": "geometry", "in": "query", "required": true,
+                    "content": { "{{mediaType}}": { "schema": { "type": "object" } } } }
+                ]
+              } } }
+            }
+            """);
+
+        var geometry = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.True(geometry.IsJsonContent);
+        Assert.Equal("object", geometry.SchemaType);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Handles_Nullable_Union_Type_In_Json_Content_Query_Parameter()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.1.0",
+              "paths": { "/places": { "get": {
+                "parameters": [
+                  { "name": "geometry", "in": "query",
+                    "content": { "application/geo+json": { "schema": { "type": ["object", "null"] } } } },
+                  { "name": "filter", "in": "query", "schema": { "type": ["null", "string"] } }
+                ]
+              } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        var geometry = parameters.Single(p => p.Name == "geometry");
+        Assert.True(geometry.IsJsonContent);
+        Assert.Equal("object", geometry.SchemaType);
+        Assert.NotNull(geometry.Schema);
+        Assert.Equal("string", parameters.Single(p => p.Name == "filter").SchemaType);
+    }
+
+    [Theory]
+    [InlineData("true")]
+    [InlineData("false")]
+    public void ParseEndpoints_Handles_Boolean_Schema_In_Query_Parameters(string schema)
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "openapi": "3.1.0",
+              "paths": { "/places": { "get": {
+                "parameters": [
+                  { "name": "geometry", "in": "query",
+                    "content": { "application/geo+json": { "schema": {{schema}} } } },
+                  { "name": "filter", "in": "query", "schema": {{schema}} }
+                ]
+              } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        var geometry = parameters.Single(p => p.Name == "geometry");
+        Assert.True(geometry.IsJsonContent);
+        Assert.NotNull(geometry.Schema);
+        Assert.NotNull(parameters.Single(p => p.Name == "filter").Schema);
+
+        // The boolean schema survives to the tool input schema: true is unrestricted, false matches nothing.
+        var properties = McpTool.GenerateInputSchema(parameters)["properties"]!.AsObject();
+        foreach (var name in new[] { "geometry", "filter" })
+        {
+            var property = properties[name]!.AsObject();
+            Assert.False(property.ContainsKey("type"));
+            if (schema == "true")
+            {
+                Assert.False(property.ContainsKey("not"));
+            }
+            else
+            {
+                Assert.Empty(property["not"]!.AsObject());
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("""{ "type": "string" }""", false)]
+    [InlineData("""{ "type": "array", "items": { "type": "string" } }""", false)]
+    [InlineData("""{ "type": "integer" }""", false)]
+    [InlineData("""{ "type": "object" }""", true)]
+    [InlineData("""{ "type": ["object", "null"] }""", true)]
+    [InlineData("""{ "type": ["string", "object"] }""", true)]
+    [InlineData("""{ "type": ["string", "null"] }""", false)]
+    [InlineData("""{ "type": ["array", "null"] }""", false)]
+    [InlineData("""{ "properties": { "a": { "type": "string" } } }""", true)]
+    [InlineData("""{ }""", true)]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData("""{ "$ref": "#/components/schemas/Filter" }""", true)]
+    [InlineData("""{ "$ref": "#/components/schemas/Names" }""", false)]
+    [InlineData("""{ "anyOf": [ { "type": "string" }, { "type": "object" } ] }""", true)]
+    [InlineData("""{ "oneOf": [ { "type": "string" }, { "type": "array" } ] }""", false)]
+    [InlineData("""{ "allOf": [ { "$ref": "#/components/schemas/Filter" }, { "type": "object" } ] }""", true)]
+    [InlineData("""{ "allOf": [ { "type": "object" }, { "type": "string" } ] }""", false)]
+    [InlineData("""{ "enum": ["a", "b"] }""", false)]
+    public void ParseEndpoints_Reads_Whether_Query_Schema_Allows_An_Object(string schema, bool expected)
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "openapi": "3.1.0",
+              "paths": { "/places": { "get": {
+                "parameters": [ { "name": "filter", "in": "query", "schema": {{schema}} } ]
+              } } },
+              "components": { "schemas": {
+                "Filter": { "type": "object", "properties": { "role": { "type": "string" } } },
+                "Names": { "type": "array", "items": { "type": "string" } }
+              } }
+            }
+            """);
+
+        var filter = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.Equal(expected, filter.SchemaAllowsObject);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Ignores_NonJson_Content_Query_Parameter()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/places": { "get": {
+                "parameters": [
+                  { "name": "q", "in": "query", "content": { "text/plain": { "schema": { "type": "string" } } } }
+                ]
+              } } }
+            }
+            """);
+
+        Assert.False(svc.ParseEndpoints(doc).Single().Parameters!.Single().IsJsonContent);
+    }
+
+    [Fact]
+    public void ParseEndpoints_Keeps_Query_Parameter_Serialization()
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse("""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/pets": { "get": {
+                "parameters": [
+                  { "name": "ids", "in": "query", "schema": { "type": "array", "items": { "type": "integer" } } },
+                  { "name": "tags", "in": "query", "explode": false, "schema": { "type": "array", "items": { "type": "string" } } },
+                  { "name": "colors", "in": "query", "style": "pipeDelimited", "schema": { "type": "array", "items": { "type": "string" } } },
+                  { "name": "filter", "in": "query", "style": "deepObject", "explode": true, "schema": { "type": "object" } }
+                ]
+              } } }
+            }
+            """);
+
+        var parameters = svc.ParseEndpoints(doc).Single().Parameters!;
+
+        var ids = parameters.Single(p => p.Name == "ids");
+        Assert.Equal("form", ids.Style);
+        Assert.True(ids.Explode);
+        var tags = parameters.Single(p => p.Name == "tags");
+        Assert.Equal("form", tags.Style);
+        Assert.False(tags.Explode);
+        var colors = parameters.Single(p => p.Name == "colors");
+        Assert.Equal("pipeDelimited", colors.Style);
+        Assert.False(colors.Explode);
+        var filter = parameters.Single(p => p.Name == "filter");
+        Assert.Equal("deepObject", filter.Style);
+        Assert.True(filter.Explode);
+    }
+
+    [Theory]
+    [InlineData(null, "form", false)]
+    [InlineData("csv", "form", false)]
+    [InlineData("multi", "form", true)]
+    [InlineData("ssv", "spaceDelimited", false)]
+    [InlineData("pipes", "pipeDelimited", false)]
+    [InlineData("tsv", "tabDelimited", false)]
+    public void ParseEndpoints_Maps_Swagger2_CollectionFormat(string? collectionFormat, string expectedStyle,
+        bool expectedExplode)
+    {
+        var (svc, _) = Create();
+        var format = collectionFormat is null ? "" : $", \"collectionFormat\": \"{collectionFormat}\"";
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "swagger": "2.0",
+              "paths": { "/pets": { "get": {
+                "parameters": [
+                  { "name": "ids", "in": "query", "type": "array", "items": { "type": "integer" }{{format}} }
+                ]
+              } } }
+            }
+            """);
+
+        var ids = svc.ParseEndpoints(doc).Single().Parameters!.Single();
+
+        Assert.Equal(expectedStyle, ids.Style);
+        Assert.Equal(expectedExplode, ids.Explode);
+    }
 }
