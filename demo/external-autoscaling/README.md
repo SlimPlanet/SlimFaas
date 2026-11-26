@@ -47,6 +47,21 @@ For `/debug/promql/eval` with `source`, query the leader's direct HTTP port: ext
 health belongs to the collector on the leader. Followers report `Unavailable` until
 they become leader and complete a scrape.
 
+To check whether the exporter is still reporting the queue while workers are
+at zero, run this against the current leader. Set `LEADER_PORT` to its direct
+HTTP port (one of 30021–30023 in the default manifest).
+
+```bash
+curl --fail-with-body -X POST "http://127.0.0.1:$LEADER_PORT/debug/promql/eval" \
+  -H 'Content-Type: application/json' \
+  -d '{"deployment":"worker","source":"jobs","query":"sum(present_over_time(jobs_pending[30s]))"}'
+```
+
+With the demo exporter healthy, the response value is 1 even when the queue
+is empty. During the simulated exporter failure the route returns HTTP 400.
+For backlog-to-capacity ratios and label matching, see the
+[PromQL examples](../../docs/autoscaling.md#2-arithmetic-and-comparisons).
+
 ## Kubernetes
 
 Install the newly built SlimFaas image in `slimfaas-demo`, then:

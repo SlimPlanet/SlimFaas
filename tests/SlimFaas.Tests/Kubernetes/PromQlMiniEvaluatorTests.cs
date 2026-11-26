@@ -53,7 +53,7 @@ namespace SlimFaas.Tests.Kubernetes
             );
 
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(http_server_requests_seconds_count{job="myapp"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""sum(rate(http_server_requests_seconds_count{job="myapp"}[61s]))""", nowUnixSeconds: 160);
 
             Assert.Equal(0.35, res, 6);
         }
@@ -73,13 +73,8 @@ namespace SlimFaas.Tests.Kubernetes
             // le=0.5: (60+60)/120=1.0
             // le=1.0: (60+30)/120=0.75
             // +Inf:   (60+30)/120=0.75
-            // total cumulatif final = +Inf = 0.75
-            // φ=0.95 -> rank= 0.7125. Buckets cumulés:
-            //   0.1: 1.0
-            //   0.5: 2.0
-            //   1.0: 2.75
-            // => déjà >= rank dès 0.1 -> interpolation entre (0.0..0.1) (avec prevLe=0)
-            // On retourne une valeur entre 0 et 0.1 ; notre implémentation renverra ~0.07125
+            // The decreasing cumulative rates (1, 1, .75, .75) are repaired
+            // to (1, 1, 1, 1). Rank .95 falls in the first (0, .1] bucket.
             var snap = BuildSnapshot(
                 (100L, "dep-a", "10.0.0.1", "http_server_request_duration_seconds_bucket{job=\"myapp\",le=\"0.1\"}", 100.0),
                 (100L, "dep-a", "10.0.0.1", "http_server_request_duration_seconds_bucket{job=\"myapp\",le=\"0.5\"}", 200.0),
@@ -106,12 +101,12 @@ namespace SlimFaas.Tests.Kubernetes
             var q = """
                     histogram_quantile(
                       0.95,
-                      sum by (le) (rate(http_server_request_duration_seconds_bucket{job="myapp"}[2m]))
+                      sum by (le) (rate(http_server_request_duration_seconds_bucket{job="myapp"}[121s]))
                     )
                     """;
             var res = eval.Evaluate(q, nowUnixSeconds: 220);
 
-            Assert.InRange(res, 0.06, 0.11); // ~0.071… selon l’interpolation réalisée
+            Assert.Equal(0.095, res, 6);
         }
 
         [Fact]
@@ -140,9 +135,9 @@ namespace SlimFaas.Tests.Kubernetes
 
             var query = """
                         100 * (
-                          sum(rate(http_server_requests_seconds_count{job="myapp",status=~"5.."}[2m]))
+                          sum(rate(http_server_requests_seconds_count{job="myapp",status=~"5.."}[121s]))
                           /
-                          sum(rate(http_server_requests_seconds_count{job="myapp"}[2m]))
+                          sum(rate(http_server_requests_seconds_count{job="myapp"}[121s]))
                         )
                         """;
 

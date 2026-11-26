@@ -158,7 +158,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (160, "d", "p2", "req_total{job=\"a\"}", 38)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""sum(rate(req_total{job="a"}[61s]))""", nowUnixSeconds: 160);
             Assert.Equal(28.0 / 60.0, res, 6);
         }
 
@@ -171,7 +171,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (100, "d", "p", "req_total{job=\"a\"}", 20)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 100);
+            var res = eval.Evaluate("""sum(rate(req_total{job="a"}[61s]))""", nowUnixSeconds: 100);
             Assert.True(double.IsNaN(res));
         }
 
@@ -187,7 +187,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (160, "d", "p2", "http_total{job=\"other\",status=\"200\"}", 25)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(http_total{job="myapp"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""sum(rate(http_total{job="myapp"}[61s]))""", nowUnixSeconds: 160);
             // diff = 30 / 60 = 0.5 (seulement myapp)
             Assert.Equal(0.5, res, 6);
         }
@@ -204,7 +204,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (160, "d", "p3", "http_total{job=\"db\",status=\"200\"}", 12)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(http_total{job=~"web.*"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""sum(rate(http_total{job=~"web.*"}[61s]))""", nowUnixSeconds: 160);
             // (30 + 30) / 60 = 1.0
             Assert.Equal(1.0, res, 6);
         }
@@ -235,7 +235,7 @@ namespace SlimFaas.Tests.Kubernetes
                 () => snap,
                 TimeSpan.FromSeconds(10));
 
-            var result = eval.Evaluate("sum(rate(requests_total[1m]))", nowUnixSeconds: 160);
+            var result = eval.Evaluate("sum(rate(requests_total[61s]))", nowUnixSeconds: 160);
 
             Assert.Equal(1, result, 6);
         }
@@ -243,22 +243,19 @@ namespace SlimFaas.Tests.Kubernetes
         // --- sum by (le) + histogram_quantile : cas bord & cohérence ------------------------
 
         [Fact]
-        public void HistogramQuantile_OnlyPlusInfBucket_ReturnsPrevLe_OrZero()
+        public void HistogramQuantile_OnlyPlusInfBucket_ReturnsNaN()
         {
-            // Si seul +Inf est présent à t=100->160 :
-            // Δ = 60 ; rate = 60/60 = 1 ; cumul = 1 à +Inf ; rank=phi*1.
-            // Le 1er bucket rencontré est +Inf : implémentation retourne prevLe (=0.0).
             var snap = BuildSnapshot(
                 (100, "d", "p", "dur_bucket{job=\"a\",le=\"+Inf\"}", 100),
                 (160, "d", "p", "dur_bucket{job=\"a\",le=\"+Inf\"}", 160)
             );
             var eval = NewEval(snap);
-            var q = """histogram_quantile(0.95, sum by (le) (rate(dur_bucket{job="a"}[1m])))""";
+            var q = """histogram_quantile(0.95, sum by (le) (rate(dur_bucket{job="a"}[61s])))""";
             var res = eval.Evaluate(q, nowUnixSeconds: 160);
-            Assert.Equal(0.0, res, 6);
+            Assert.True(double.IsNaN(res));
         }
 
-       /* [Fact]
+        [Fact]
         public void HistogramQuantile_Unordered_Le_Labels()
         {
             // Labels 'le' non triés : l'algo trie par bornes numériques, +Inf à la fin.
@@ -273,12 +270,12 @@ namespace SlimFaas.Tests.Kubernetes
                 (160, "d", "p", "bkt{job=\"a\",le=\"+Inf\"}", 220)
             );
             var eval = NewEval(snap);
-            var q = """histogram_quantile(0.9, sum by (le) (rate(bkt{job="a"}[1m])))""";
+            var q = """histogram_quantile(0.9, sum by (le) (rate(bkt{job="a"}[61s])))""";
             var res = eval.Evaluate(q, nowUnixSeconds: 160);
             Assert.InRange(res, 0.0, 1.0);
-        }*/
+        }
 
-        /*[Fact]
+        [Fact]
         public void HistogramQuantile_Missing_Some_Buckets_StillWorks()
         {
             // Manque le bucket le="1". L'algorithme reste robuste.
@@ -290,11 +287,11 @@ namespace SlimFaas.Tests.Kubernetes
                 (220, "d", "p", "h{le=\"+Inf\",job=\"a\"}", 90)
             );
             var eval = NewEval(snap);
-            var q = """histogram_quantile(0.5, sum by (le) (rate(h{job="a"}[2m])))""";
+            var q = """histogram_quantile(0.5, sum by (le) (rate(h{job="a"}[121s])))""";
             var res = eval.Evaluate(q, nowUnixSeconds: 220);
             // borne: [0, +Inf] -> résultat dans [0, 0.5] car premier bucket num est 0.5
             Assert.InRange(res, 0.0, 0.5);
-        }*/
+        }
 
         // --- sum() & sum by (le) (rate(...)) en direct --------------------------------------
 
@@ -309,7 +306,7 @@ namespace SlimFaas.Tests.Kubernetes
                 (160, "d", "B", "m{job=\"a\"}", 10)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(m{job="a"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""sum(rate(m{job="a"}[61s]))""", nowUnixSeconds: 160);
             Assert.Equal(0.6, res, 6);
         }
 
@@ -330,20 +327,18 @@ namespace SlimFaas.Tests.Kubernetes
             );
             // Δ : 30,60,60 => rate = 0.5, 1.0, 1.0 ; somme = 2.5
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum by (le) (rate(h_bkt{job="a"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""sum by (le) (rate(h_bkt{job="a"}[61s]))""", nowUnixSeconds: 160);
             Assert.Equal(2.5, res, 6);
         }
 
         // --- Combinaisons arithmétiques avec rate/sum ---------------------------------------
 
-       /* [Fact]
+        [Fact]
         public void Percentage_5xx_Over_All_WithRegex_Filter()
         {
             // 100 * sum(rate(5xx)) / sum(rate(all))
             // t=0->60
-            // all: (40-10)+(90-30)=30+60=90 => /60 = 1.5
-            // 5xx: (11-10)+(32-30)=1+2=3 => /60 = 0.05
-            // => 100 * 0.05 / 1.5 = 3.333...
+            // 90 successful requests and 3 server errors give 3 errors out of 93 requests.
             var snap = BuildSnapshot(
                 (0,  "d", "A", "req_total{job=\"svc\",status=\"200\"}", 10),
                 (0,  "d", "A", "req_total{job=\"svc\",status=\"500\"}", 10),
@@ -358,14 +353,14 @@ namespace SlimFaas.Tests.Kubernetes
             var eval = NewEval(snap);
             var q = """
                     100 * (
-                      sum(rate(req_total{job="svc",status=~"5.."}[1m]))
+                      sum(rate(req_total{job="svc",status=~"5.."}[61s]))
                       /
-                      sum(rate(req_total{job="svc"}[1m]))
+                      sum(rate(req_total{job="svc"}[61s]))
                     )
                     """;
             var res = eval.Evaluate(q, nowUnixSeconds: 60);
-            Assert.InRange(res, 3.33, 3.34);
-        }*/
+            Assert.Equal(100.0 * 3 / 93, res, 6);
+        }
 
         // --- Fenêtres : s, m, h -------------------------------------------------------------
 
@@ -373,7 +368,7 @@ namespace SlimFaas.Tests.Kubernetes
         public void WindowUnits_s_m_h_AreParsed()
         {
             var snap = BuildSnapshot(
-                (0,   "d", "p", "m{job=\"w\"}", 0),
+                (1,   "d", "p", "m{job=\"w\"}", 1),
                 (3600,"d", "p", "m{job=\"w\"}", 3600)
             );
             var eval = NewEval(snap);
@@ -404,14 +399,14 @@ namespace SlimFaas.Tests.Kubernetes
             );
 
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(x_total{job="a"}[1m]))""", nowUnixSeconds: 160);
+            var res = eval.Evaluate("""sum(rate(x_total{job="a"}[61s]))""", nowUnixSeconds: 160);
             // (6 + 15) / 60 = 0.35
             Assert.Equal(0.35, res, 6);
         }
 
         // --- Robustesse diverses ------------------------------------------------------------
 
-        /*[Fact]
+        [Fact]
         public void Labels_With_Quotes_And_Commas_AreHandled()
         {
             // label value with quotes/commas is stored quoted in metric key; selector parses quoted value.
@@ -420,16 +415,15 @@ namespace SlimFaas.Tests.Kubernetes
                 (60, "d", "p", "m{job=\"a\",route=\"/api,v1\"}", 20)
             );
             var eval = NewEval(snap);
-            var res = eval.Evaluate("""sum(rate(m{job="a",route="/api,v1"}[1m]))""", nowUnixSeconds: 60);
+            var res = eval.Evaluate("""sum(rate(m{job="a",route="/api,v1"}[61s]))""", nowUnixSeconds: 60);
             Assert.Equal((20 - 5) / 60.0, res, 6);
-        }*/
+        }
 
         [Fact]
-        public void NoData_ReturnsNaN()
+        public void ScalarExpression_EvaluatesWithoutSamples()
         {
             var eval = NewEval(new Dictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>>());
-            var res = eval.Evaluate("1 + 1"); // pas de timestamp dans le store -> NaN
-            Assert.True(double.IsNaN(res));
+            Assert.Equal(2, eval.Evaluate("1 + 1"));
         }
 
         [Fact]
@@ -442,8 +436,6 @@ namespace SlimFaas.Tests.Kubernetes
                 (20, "d", "p2", "foo", 6.0)  // last p2
             );
             var eval = NewEval(snap);
-            // Dans notre parser, "sum(foo)" => SumNode(inner=SelectorSumNode(foo, window:null))
-            // SelectorSumNode(window:null) somme des dernières valeurs
             var res = eval.Evaluate("sum(foo)");
             Assert.Equal(3.0 + 6.0, res, 6);
         }
@@ -452,13 +444,13 @@ namespace SlimFaas.Tests.Kubernetes
         public void Mixed_Arithmetic_WithFunctions()
         {
             var snap = BuildSnapshot(
-                (0,  "d", "p", "a_total{job=\"x\"}", 0),
-                (60, "d", "p", "a_total{job=\"x\"}", 30),
-                (0,  "d", "p", "b_total{job=\"x\"}", 0),
-                (60, "d", "p", "b_total{job=\"x\"}", 60)
+                (0,  "d", "p", "a_total{job=\"x\"}", 10),
+                (60, "d", "p", "a_total{job=\"x\"}", 40),
+                (0,  "d", "p", "b_total{job=\"x\"}", 10),
+                (60, "d", "p", "b_total{job=\"x\"}", 70)
             );
             var eval = NewEval(snap);
-            var q = """(sum(rate(a_total{job="x"}[1m])) + 2) * (sum(rate(b_total{job="x"}[1m])) - 1)""";
+            var q = """(sum(rate(a_total{job="x"}[61s])) + 2) * (sum(rate(b_total{job="x"}[61s])) - 1)""";
             // rate(a)=30/60=0.5 ; rate(b)=60/60=1.0 ; (0.5+2)*(1-1)=2.5*0 = 0
             var res = eval.Evaluate(q, nowUnixSeconds: 60);
             Assert.Equal(0.0, res, 6);
