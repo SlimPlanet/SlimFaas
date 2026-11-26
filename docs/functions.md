@@ -229,8 +229,8 @@ You can also add a `DependsOn` annotation to specify that your function should w
 metadata:
     annotations:
         SlimFaas/Function: "true"
-        SlimFaas/ReplicasMin: "0"
-        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/MinIdleReplicas: "0"
+        SlimFaas/MinActiveReplicas: "1"
         # ...
         SlimFaas/DependsOn: "mysql,fibonacci2"
 ```
@@ -240,52 +240,41 @@ metadata:
 This is useful in scenarios where your function must not start until a database or another dependent function is confirmed running.
 
 ## 8. Scheduling Function Wake-Up and Scale-Down
-If you want your function to automatically wake at a specific time or change its scale-down timeout based on the time of day, use the SlimFaas/Schedule annotation with a JSON configuration. This feature is especially useful for workloads with predictable peak/off-peak hours.
+Put `SlimFaas/Schedule` on the pod template of a Deployment or StatefulSet. Each
+`WakeUp` time counts as activity. Each `ScaleDownTimeout` entry selects the inactivity
+timeout in seconds (`Value`) and optional replica minimums for that part of the day.
 
-Example Annotation
 ```yaml
-metadata:
-  annotations:
-    SlimFaas/Schedule: >
-      {
-        "TimeZoneID": "Europe/Paris",
-        "Default": {
-          "WakeUp": ["07:00"],
-          "ScaleDownTimeout": [
-            { "Time": "07:00", "Value": 20 },
-            { "Time": "21:00", "Value": 10 }
-          ]
-        }
-      }
+spec:
+  template:
+    metadata:
+      annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/MinActiveReplicas: "2"
+        SlimFaas/MinIdleReplicas: "1"
+        SlimFaas/Schedule: |
+          {
+            "TimeZoneID": "Europe/Paris",
+            "Default": {
+              "WakeUp": ["08:00"],
+              "ScaleDownTimeout": [
+                { "Time": "09:00", "Value": 43200, "MinActiveReplicas": 3 },
+                { "Time": "19:00", "Value": 3600, "MinIdleReplicas": 0 }
+              ]
+            }
+          }
 ```
 
-### Configuration Details
-- `TimeZoneID`
-Defines which IANA time zone to use (e.g., `"Europe/Paris"`).
-You can see the full list of valid time zone IDs here: https://nodatime.org/TimeZones
+| Paris time | Minimum while active | Minimum after inactivity | Inactivity timeout |
+| --- | ---: | ---: | ---: |
+| 09:00–19:00 | 3 | 1 | 12 hours |
+| 19:00–09:00 | 2 | 0 | 1 hour |
 
-- `WakeUp`
-An array of times (`HH:mm`) at which the function should be woken up automatically.
-For example, `"07:00"` means that each day at 07:00 local time, the function will scale to its `ReplicasAtStart` value (rather than remain at zero).
-
-- `ScaleDownTimeout`
-An array of objects containing:
-    - `Time`: A local time string (e.g., `"07:00"`).
-    - `Value`: The inactivity timeout (in seconds) that applies after this time.
-      - For instance, `{"Time":"07:00","Value":20}` sets a 20-second inactivity timeout from 07:00 until another time checkpoint is reached.
-      - `{"Time":"21:00","Value":10}` sets a 10-second inactivity timeout from 21:00 onward.
-
-### How It Works
-1. **At each specified time**, SlimFaas updates the function’s wake-up behavior or scale-down timeout in accordance with the schedule.
-2. **Waking up** a function ensures at least one replica is running at that time.
-3. **ScaleDownTimeout** adjusts how quickly the function is allowed to scale back to zero if there is no traffic.
-
-### Example Use Case
-- **07:00**: Wake up the function to be immediately available for peak morning traffic. The inactivity timeout becomes 20 seconds. If no traffic arrives for 20 seconds, the function could scale back to zero.
-- **21:00**: Reduce the inactivity timeout to 10 seconds, allowing a quicker scale-down in the evening/off-peak period.
-
-This scheduling feature helps you maintain availability during predictable high-demand periods while efficiently saving resources during low-demand times.
-
+A window starts at its specified local time. Omitted fields use the deployment
+annotations or their defaults. With multiple entries, the last window continues
+past midnight. A single entry applies from its start until local midnight.
+A window change updates the minimums. `WakeUp` or a request through SlimFaas
+supplies activity. At 19:00, three busy replicas can continue serving traffic.
 
 ## 9. Key Annotations for Functions
 
@@ -294,14 +283,16 @@ Before you start calling functions, ensure you add the necessary annotations to 
 - **`SlimFaas/Function: "true"`**
   Activates SlimFaas auto-scaling and routing for this pod. Without this annotation, SlimFaas will ignore the pod.
 
-- **`SlimFaas/ReplicasMin: "0"`**
+- **`SlimFaas/MinIdleReplicas: "0"`**
   The minimum number of replicas to maintain for the function. Setting `0` allows the function to scale down to zero after inactivity.
 
-- **`SlimFaas/ReplicasAtStart: "1"`**
-  The number of replicas to initially wake up to when traffic arrives or when manually woken. Typically set to `1`.
+- **`SlimFaas/MinActiveReplicas: "1"`**
+  The minimum number of replicas while active (default `1`). A request through SlimFaas can raise a function from one running replica to two.
+
+The legacy names `SlimFaas/ReplicasAtStart` and `SlimFaas/ReplicasMin` map to the active and idle minimums respectively. SlimFaas logs a migration warning per function and old name. The new names take precedence, including inside schedule entries.
 
 - **`SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"`**
-  The number of **inactivity seconds** after which the function will scale down to `ReplicasMin`. (Default is often `300` seconds.)
+  The number of **inactivity seconds** after which the function will scale down to `MinIdleReplicas`. (Default is often `300` seconds.)
 
 - **`SlimFaas/NumberParallelRequest: "10"`**
   The maximum number of concurrent requests allowed for all replicas. Additional requests will queue until a slot frees up.
@@ -315,8 +306,8 @@ Before you start calling functions, ensure you add the necessary annotations to 
 metadata:
     annotations:
         SlimFaas/Function: "true"
-        SlimFaas/ReplicasMin: "0"
-        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/MinIdleReplicas: "0"
+        SlimFaas/MinActiveReplicas: "1"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
         SlimFaas/NumberParallelRequest: "10"
         SlimFaas/NumberParallelRequestPerPod: "10"

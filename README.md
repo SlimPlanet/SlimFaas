@@ -71,7 +71,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
     - Scale down to `0` after inactivity with configurable timeouts.
     - Wake up from `0 → N` based on real HTTP traffic and/or cron-like schedules.
     - Wake up from `0 → N` based on **Kafka topic activity**, using **SlimFaas Kafka** to monitor consumer lag and call the SlimFaas wake-up API.
-    - Control initial capacity with `ReplicasAtStart` to reduce cold-start impact.
+    - Set `MinActiveReplicas` and `MinIdleReplicas` to control capacity during traffic and after inactivity.
 
 - **Two-phase scaling model**
     - **`0 → N`**: driven by HTTP history, schedules, **and Kafka lag (SlimFaas Kafka)** to bring functions online only when they’re needed.
