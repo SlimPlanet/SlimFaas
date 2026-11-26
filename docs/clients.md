@@ -197,6 +197,8 @@ import os
 client = SlimFaasClient("ws://slimfaas:5003/ws", config, secret=os.environ["SLIMFAAS_WS_SECRET"])
 ```
 
+The shipped `FibonacciBatch --ws-mode` worker reads the secret from `SLIMFAAS_WS_SECRET` and sends it to every URL listed in `SLIMFAAS_WS_URL`, so set that variable on the worker only for destinations you trust.
+
 On Kubernetes, keep the value in a Secret and reference it from the SlimFaas container and from each client workload. The client variable name is up to the application; these examples use `SLIMFAAS_WS_SECRET`:
 
 ```yaml

@@ -40,6 +40,15 @@ class SlimFaasRegistrationError(Exception):
     """Raised when SlimFaas rejects the client registration."""
 
 
+class _HandshakeLogger(logging.LoggerAdapter):
+    """Keeps the Authorization header out of the websockets DEBUG handshake trace."""
+
+    def log(self, level: int, msg: Any, *args: Any, **kwargs: Any) -> None:
+        if msg == "> %s: %s" and len(args) == 2 and str(args[0]).lower() == "authorization":
+            args = (args[0], "[redacted]")
+        super().log(level, msg, *args, **kwargs)
+
+
 class SlimFaasClient:
     """
     SlimFaas WebSocket client.
@@ -242,6 +251,7 @@ class SlimFaasClient:
         headers = {"Authorization": f"Bearer {secret}"} if secret else None
         async with websockets.connect(  # type: ignore[attr-defined]
             self._url, additional_headers=headers,
+            logger=_HandshakeLogger(logging.getLogger("websockets.client"), {}),
             max_size=self._max_message_size, max_queue=self._max_queue,
         ) as ws:
             self._ws = ws
