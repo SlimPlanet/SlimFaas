@@ -1,0 +1,200 @@
+[
+  {
+    "key": "promise",
+    "visual": "opening",
+    "headline": "Quickly and easily reduce your infrastructure costs by at least 60%",
+    "voice": "Quickly and easily reduce your infrastructure costs by at least sixty percent.",
+    "voiceSamples": 92929,
+    "cueSamples": [
+      92929
+    ],
+    "speaker": "af_sky"
+  },
+  {
+    "key": "evening",
+    "headline": "Stop wasting energy!",
+    "voice": "Stop wasting energy! Upstairs and downstairs, all eight lights are on.",
+    "voiceSamples": 111690,
+    "cueSamples": [
+      38950,
+      72740
+    ],
+    "visual": "house",
+    "speaker": "af_heart"
+  },
+  {
+    "key": "leave",
+    "headline": "The last ones out.",
+    "voice": "The family leaves. Every window stays bright.",
+    "voiceSamples": 69677,
+    "cueSamples": [
+      37159,
+      32518
+    ],
+    "visual": "house",
+    "speaker": "af_heart"
+  },
+  {
+    "key": "bill",
+    "headline": "An empty house. A running bill.",
+    "voice": "Eight lamps burn for eight empty hours. That's ninety-six cents to light an empty house.",
+    "voiceSamples": 124476,
+    "cueSamples": [
+      58940,
+      65536
+    ],
+    "visual": "house",
+    "speaker": "af_heart"
+  },
+  {
+    "key": "switch",
+    "headline": "Put good habits into practice.",
+    "voice": "Put good habits into practice. The last person switches off the lights. Same eight hours, zero cents.",
+    "voiceSamples": 163588,
+    "cueSamples": [
+      50816,
+      53557,
+      59215
+    ],
+    "visual": "house",
+    "speaker": "af_heart"
+  },
+  {
+    "key": "return",
+    "headline": "Light the room you need.",
+    "voice": "Someone comes home. Only their room lights up.",
+    "voiceSamples": 63232,
+    "cueSamples": [
+      31768,
+      31464
+    ],
+    "visual": "house",
+    "speaker": "af_heart"
+  },
+  {
+    "key": "mapping",
+    "visual": "architecture",
+    "headline": "SlimFaas automates your best practices.",
+    "voice": "SlimFaas automates your best practices and switches idle pods off for you! Each window is a pod. SlimFaas is the front door for requests.",
+    "voiceSamples": 209254,
+    "cueSamples": [
+      110839,
+      40064,
+      58351
+    ],
+    "speaker": "af_heart"
+  },
+  {
+    "key": "podbill",
+    "visual": "architecture",
+    "headline": "Idle pods run up a bill.",
+    "voice": "At ten euros per pod-hour, eight idle pods cost eighty euros in one hour.",
+    "voiceSamples": 128327,
+    "cueSamples": [
+      128327
+    ],
+    "speaker": "af_heart"
+  },
+  {
+    "key": "sleeping",
+    "visual": "architecture",
+    "headline": "Let idle pods sleep.",
+    "voice": "After the idle timeout, SlimFaas scales the app to zero. Another quiet hour adds zero euros.",
+    "voiceSamples": 149285,
+    "cueSamples": [
+      94386,
+      54899
+    ],
+    "speaker": "af_heart"
+  },
+  {
+    "key": "arrival",
+    "visual": "architecture",
+    "headline": "One request wakes the app.",
+    "voice": "One request wakes a pod. More requests light up the house.",
+    "voiceSamples": 91968,
+    "cueSamples": [
+      50778,
+      41190
+    ],
+    "speaker": "af_heart"
+  },
+  {
+    "key": "tower",
+    "visual": "architecture",
+    "headline": "From house to high-rise.",
+    "voice": "Demand keeps climbing. Eight windows become thirty-two.",
+    "voiceSamples": 90875,
+    "cueSamples": [
+      43394,
+      47481
+    ],
+    "speaker": "af_heart"
+  },
+  {
+    "key": "palace",
+    "visual": "architecture",
+    "headline": "Room for a royal crowd.",
+    "voice": "Now picture Versailles. Thousands of messages come through the same front door. Ninety-six windows light up.",
+    "voiceSamples": 163799,
+    "cueSamples": [
+      44762,
+      81819,
+      37218
+    ],
+    "speaker": "af_heart"
+  },
+  {
+    "key": "trial",
+    "visual": "penguin",
+    "headline": "Try it in five minutes.",
+    "voice": "Try SlimFaas in five minutes with your existing HTTP app. Keep your language and your handler.",
+    "speaker": "af_bella",
+    "voiceSamples": 118804,
+    "cueSamples": [
+      83183,
+      35621
+    ]
+  },
+  {
+    "key": "toolbox",
+    "visual": "penguin",
+    "headline": "Perfect for your agentic apps.",
+    "voice": "Perfect for your agentic apps! Stream files, cache results, and publish events. Replay streams, queue jobs, and trace requests. All over HTTP, without an SDK.",
+    "speaker": "af_bella",
+    "voiceSamples": 287130,
+    "cueSamples": [
+      51867,
+      88157,
+      79655,
+      67451
+    ]
+  },
+  {
+    "key": "savings",
+    "visual": "penguin",
+    "headline": "Save €6,000 a month.",
+    "voice": "Take this example. At sixty percent, a ten-thousand-euro monthly bill drops to four thousand. That's six thousand euros saved each month.",
+    "speaker": "af_bella",
+    "voiceSamples": 199135,
+    "cueSamples": [
+      27432,
+      115812,
+      55891
+    ]
+  },
+  {
+    "key": "year",
+    "visual": "penguin",
+    "headline": "Incredible!",
+    "voice": "Incredible, over twelve months you save seventy-two thousand euros! Give SlimFaas a try. Help keep my home on the ice! This isn’t Versailles, you know!",
+    "speaker": "af_bella",
+    "cueSamples": [
+      104628,
+      36703,
+      66131,
+      43972
+    ],
+    "voiceSamples": 251434
+  }
+]

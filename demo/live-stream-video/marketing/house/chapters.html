@@ -1,0 +1,116 @@
+<style>
+.house-film__opening { position: absolute; inset: 0 0 auto; height: 984px; overflow: hidden; padding: 45px 63px; color: var(--ink); background: white; }
+.house-film__promise { margin: 0; font-size: 75px; font-weight: 740; line-height: 1.02; letter-spacing: -4px; }
+.house-film__promise span, .house-film__promise strong { display: block; }
+.house-film__promise strong { font-size: 174px; line-height: 1; letter-spacing: -10px; color: var(--color-primary); }
+.house-film__opening-art { position: absolute; bottom: 72px; left: 0; width: 100%; height: 480px; }
+.house-film__scenario { position: absolute; bottom: 13px; left: 63px; margin: 0; color: var(--muted); font-size: 29px; }
+.house-film__diagram { position: absolute; inset: 0; display: block; width: 100%; height: 730px; }
+.house-film__architecture-ledger { font-variant-numeric: tabular-nums; }
+.house-film__polar { height: 990px; background: white; }
+.house-film__ice { display: block; width: 100%; height: 565px; }
+.house-film__pitch { padding: 28px 63px 0; }
+.house-film__pitch h1 { margin: 0 0 17px; font-size: 70px; line-height: 1.02; letter-spacing: -3.5px; }
+.house-film__pitch p { margin: 0; max-width: 940px; color: var(--muted); font-size: 37px; line-height: 1.27; }
+.house-film__pitch strong { color: var(--color-primary); }
+.house-film__pitch ul { margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; list-style: none; font-size: 32px; line-height: 1.24; }
+.house-film__pitch li { border-bottom: 2px solid var(--line); padding: 4px 0 9px; }
+.house-film__pitch-address { display: block; margin-top: 20px; font-size: 36px; font-weight: 680; color: var(--color-primary); }
+.house-film__savings-bar { margin-top: 22px; height: 16px; border-radius: 8px; overflow: hidden; background: var(--color-primary); }
+.house-film__savings-bar div { height: 100%; background: #aebcd1; }
+.house-film__savings-labels { display: flex; justify-content: space-between; margin-top: 7px; font-size: 25px; font-variant-numeric: tabular-nums; }
+.house-film__savings-labels b:last-child { color: var(--color-primary); }
+.house-film__annual-figure { display: flex; align-items: baseline; gap: 20px; font-size: 32px; font-weight: 640; }
+.house-film__annual-total { display: block; font-size: 100px; line-height: 1; letter-spacing: -5px; font-variant-numeric: tabular-nums; }
+.house-film__months { display: flex; gap: 7px; margin: 12px 0; }
+.house-film__month { flex: 1; height: 12px; border-radius: 3px; background: var(--line); }
+.house-film__month--saved { background: var(--color-primary); }
+.film--year .house-film__pitch h1 { font-size: 52px; margin-bottom: 10px; }
+.film--year .house-film__pitch p { font-size: 30px; }
+.film--year .house-film__pitch-address { margin-top: 12px; }
+:lang(fr) .house-film__promise { font-size: 70px; }
+</style>
+<template id="openingChapter">
+  <div class="house-film__opening" hidden>
+    <h1 class="house-film__promise"><span data-fr="Réduisez ultra rapidement">Quickly and easily reduce</span> <span data-fr="et simplement vos coûts">your infrastructure costs</span> <span data-fr="d’infrastructure d’au moins">by at least</span> <strong data-fr="60 %">60%</strong></h1>
+    <svg class="house-film__opening-art" viewBox="0 0 1080 480" role="img" aria-label="Three penguin chicks play catch with dollar-shaped fish" data-fr-label="Trois petits manchots sautent et jouent avec des poissons en forme de dollars">
+      <defs>
+        <linearGradient id="coverSea" x2=".15" y2="1"><stop stop-color="#f4faff"/><stop offset="1" stop-color="#add4e2"/></linearGradient>
+        <linearGradient id="coverHood" x2=".8" y2="1"><stop stop-color="#344b68"/><stop offset="1" stop-color="#172841"/></linearGradient>
+        <linearGradient id="fishNote" x2="1" y2="1"><stop stop-color="#e2f3ae"/><stop offset="1" stop-color="#80c794"/></linearGradient>
+        <g id="jumpingChick" stroke-linejoin="round">
+          <g fill="#e9ad68" stroke="#956b50" stroke-width="2.7"><path d="M-11-7q-19-5-29 3-4 5 2 5l5-1 4 2 5-1 14-2z"/><path d="M13-7q20-4 30 4 2 5-3 5l-5-1-5 1-4-2-12-1z"/></g>
+          <path d="M-35-87q-23 1-45-31-5-8-7-2-5 25 15 46 14 14 34 14m73-28q25-2 42-32 6-8 8-3 8 23-12 46-11 14-34 19" fill="#8092a8" stroke="#526883" stroke-width="3"/>
+          <path d="M-37-98q35-34 73 0 22 26 19 59-1 35-44 39-47 5-62-22-16-35 14-76z" fill="#a9bacb" stroke="#687e97" stroke-width="3"/>
+          <ellipse cx="2" cy="-43" rx="33" ry="39" fill="#dce6e9"/>
+          <path d="M-54-110q-5-40 29-56l-6-8q13 1 18 8 2-11 9-16l2 13q10-9 17-9l-5 9q42 4 49 44 7 50-40 62-46 11-68-23z" fill="url(#coverHood)" stroke="#27384c" stroke-width="3"/>
+          <path d="M-43-113q-1-28 20-30 14-2 24 12 12-16 28-12 21 4 19 28-1 32-31 42-31 9-49-10-11-12-11-30z" fill="#fffcf0"/>
+          <path d="M-31-111q8-14 18-2m23 0q9-13 19 0" fill="none" stroke="#26364c" stroke-width="5.5" stroke-linecap="round"/>
+          <g fill="#edb1a3"><ellipse cx="-30" cy="-99" rx="8" ry="4"/><ellipse cx="30" cy="-99" rx="8" ry="4"/></g>
+          <path d="M-10-101q12-8 23 0-6 15-13 12-7-2-10-12z" fill="#efb36c" stroke="#9a684d" stroke-width="2"/>
+        </g>
+        <g id="dollarFish" stroke-linejoin="round">
+          <path d="m14-6 17-10-3 14 3 13L14 6" fill="#82c598" stroke="#326b59" stroke-width="2.3"/>
+          <path d="M-29-2q3-9 12-12 10-2 21-1l12 1q6 0 7 6v11q-1 7-8 8l-29 1q-12-1-15-14z" fill="url(#fishNote)" stroke="#326b59" stroke-width="2.5"/>
+          <path d="M-12-10q5 10 0 18M-4-11h16m-16 18h16" fill="none" stroke="#72a975" stroke-width="1.3"/>
+          <circle cx="-20" cy="-5" r="2" fill="#1a4d49"/>
+          <text x="4" y="5" text-anchor="middle" font-size="19" font-weight="800" fill="#205e49">$</text>
+        </g>
+      </defs>
+      <rect x="0" y="72" width="1080" height="408" rx="32" fill="url(#coverSea)"/>
+      <circle cx="875" cy="162" r="55" fill="#fff0bd"/>
+      <path d="m0 281 104-49 45 13 91-81 64 58 54-17 86 58 97-72 69 46 99-78 94 77 61-26 94 37 122-31v141H0z" fill="#bdd4e2"/>
+      <path d="m178 220 62-56 42 39-39-17-27 29-1-12zm471-13 60-48 47 37-49-15-23 24-1-12z" fill="#edf5f7"/>
+      <path d="M0 294q176-19 327-6 201 17 348-1 184-20 405 1v192H0z" fill="#82acbf"/>
+      <path d="m32 362 84-31 205-13 230 7 196-6 196 14 103 28-44 38-206 19-191-2-180 13-188-8-162-23z" fill="#96bdc9" stroke="#709eae" stroke-width="2"/>
+      <path d="m32 362 84-31 205-13 230 7 196-6 196 14 103 28-166 18-203 1-232 14-208-3z" fill="#ecf6f3"/>
+      <g id="fishSchool"></g><g id="chickShadows" fill="#83a9bb" opacity=".55"></g><g id="playingChicks"></g><g id="fishGame"></g>
+    </svg>
+    <p class="house-film__scenario" data-fr="Scénario illustratif · facture de 10 000 € par mois">Illustrative scenario · €10,000 monthly bill</p>
+  </div>
+</template>
+<template id="architectureChapter">
+  <svg class="house-film__diagram" viewBox="0 0 1080 730" role="img" data-fr-label="Les fenêtres deviennent des pods, la porte SlimFaas reçoit les requêtes" aria-label="The house windows become application pods, served through the SlimFaas front door">
+    <defs>
+      <linearGradient id="blueprintSky" x2=".15" y2="1"><stop stop-color="#101c42"/><stop offset=".7" stop-color="#202f59"/><stop offset="1" stop-color="#12243e"/></linearGradient>
+      <pattern id="draftGrid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0v36" fill="none" stroke="#8495d0" stroke-opacity=".22"/><circle r="1.8" fill="#a0b3e2" opacity=".48"/></pattern>
+      <linearGradient id="gilt" x2="0" y2="1"><stop stop-color="#fff0c0"/><stop offset=".62" stop-color="#e2b476"/><stop offset="1" stop-color="#a98463"/></linearGradient>
+      <linearGradient id="palaceWall" x2="0" y2="1"><stop stop-color="#bed0d3"/><stop offset=".52" stop-color="#abacac"/><stop offset="1" stop-color="#838a90"/></linearGradient>
+      <linearGradient id="podPane" x2=".3" y2="1"><stop stop-color="#fff0ae"/><stop offset="1" stop-color="#ffba68"/></linearGradient>
+      <g id="topiary"><path d="M0 0v-20" stroke="#a9a387" stroke-width="3"/><path d="M0-58q-15 31-15 39 15 9 30 0 0-8-15-39z" fill="#4f8a7a" stroke="#9fb4a2"/></g>
+    </defs>
+    <path fill="url(#blueprintSky)" d="M0 0h1080v730H0z"/><path fill="url(#draftGrid)" d="M0 0h1080v730H0z"/>
+    <g id="blueprintHouse" stroke="#9aafdf" fill="#213256" stroke-width="3"><path d="M203 276h631v289H203z"/><path d="M184 280l82-107h483l103 107z" fill="#32466b"/><path d="M204 412h629m-641 155h646"/><path d="M430 279l86-81 87 81z"/><circle cx="516" cy="252" r="13" fill="none"/></g>
+    <g id="towerShell"><path d="M301 575V212h31v-34h42v-29h278v29h43v34h29v363z" fill="#344a72" stroke="#bacce8" stroke-width="4"/><path d="M374 149h278v28H374z" fill="#546d91"/><path d="M516 146V108" stroke="#e2bd87" stroke-width="4"/><g id="towerFloors" stroke="#899dbe" stroke-width="3"/></g>
+    <g id="versaillesShell">
+      <path d="M0 561q240-36 532-16t548 5v180H0z" fill="#23424d"/>
+      <g id="parterre" fill="none" stroke="#7d9e81" stroke-width="4">
+        <path d="m45 624 310-39 83 2-120 56zM1035 624l-310-39-83 2 120 56zM18 671l268 21 75-31-213-16zm1044 0-268 21-75-31 213-16z"/>
+      </g>
+      <g id="palaceBuildings"/>
+      <g id="palaceGardens"/>
+      <path d="M465 605h100l151 125H320z" fill="#a1a79f" opacity=".5"/>
+      <ellipse cx="516" cy="675" rx="90" ry="16" fill="#c8be99"/><ellipse cx="516" cy="671" rx="79" ry="11" fill="#7cb0bc"/>
+      <path d="M516 672q-17-58-42-8m42 8q18-58 43-9m-43 9q-2-68 0-66" fill="none" stroke="#d7efed" stroke-width="4" opacity=".82"/>
+    </g>
+    <g id="podConnections" fill="none" stroke="#94ade2" stroke-width="2.5"/>
+    <g id="podWindows"/>
+    <g id="podDoor">
+      <path d="M482 558v-82a33 33 0 0 1 66 0v82z" fill="#0000ff" stroke="#e3e6ff" stroke-width="4"/>
+      <path d="M500 509h29m-11-11 12 11-12 11" fill="none" stroke="white" stroke-width="4"/>
+    </g>
+    <foreignObject x="0" y="0" width="1080" height="730" pointer-events="none"><canvas id="rocketTraffic" width="1080" height="730" aria-hidden="true"></canvas></foreignObject>
+    <g id="gateLabel"><path d="M515 559v32" stroke="white" stroke-width="2"/><rect x="434" y="591" width="162" height="44" rx="8" fill="#0000ff" stroke="#e2e7ff" stroke-width="2"/><text x="515" y="622" text-anchor="middle" fill="white" font-size="27" font-weight="650">SlimFaas</text></g>
+
+  </svg>
+</template>
+<template id="podLedger">
+ <div class="house-film__ledger house-film__architecture-ledger">
+  <div class="house-film__ledger-head"><strong data-fr="Coût simulé des pods">Illustrative application pod costs</strong><span class="house-film__tariff" data-fr="10 € par pod-heure">€10 / pod-hour</span></div>
+  <dl class="house-film__readings">
+    <div><dt data-fr="Pods actifs">Active pods</dt><dd data-pod="active"></dd></div><div><dt data-fr="Tarif horaire">Hourly rate</dt><dd data-pod="rate"></dd></div>
+    <div><dt data-fr="Durée">Elapsed</dt><dd data-pod="elapsed"></dd></div><div><dt data-fr="Coût cumulé">Pod charges</dt><dd class="house-film__charge" data-pod="bill"></dd></div>
+  </dl>
+  <p class="house-film__comparison" data-pod="note"></p>
+ </div>
+</template>

@@ -1,0 +1,90 @@
+<style>
+.film__house { position: absolute; inset: 116px 0 auto; }
+.house-film__stage { position: relative; background: #13243f; }
+.house-film__skyline { width: 100%; height: 730px; display: block; }
+.house-film__title { position: absolute; left: 63px; top: 39px; margin: 0; max-width: 805px; color: #fff; font-size: 66px; line-height: 1.04; letter-spacing: -3px; font-weight: 740; text-wrap: balance; }
+.house-film__ledger { position: relative; margin: 22px 62px 0; padding: 16px 22px 18px; height: 220px; background: var(--surface); border: 2px solid var(--line); border-radius: 13px; }
+.house-film__ledger-head { display: flex; align-items: baseline; justify-content: space-between; gap: 22px; border-bottom: 2px dashed #c5cfdd; padding-bottom: 10px; }
+.house-film__ledger-head strong { color: var(--ink); font-size: 27px; }
+.house-film__tariff { color: var(--muted); font-size: 25px; }
+.house-film__readings { display: grid; grid-template-columns: .85fr 1.04fr 1.08fr 1.18fr; margin: 13px 0 0; }
+.house-film__readings dt { color: var(--muted); font-size: 23px; }
+.house-film__readings dd { font-size: 47px; line-height: 1.16; letter-spacing: -2px; font-weight: 720; font-variant-numeric: tabular-nums; margin: 5px 0 0; }
+.house-film__charge { color: var(--color-primary); }
+.house-film__comparison { margin: 6px 0 0; color: var(--color-primary); font-size: 24px; font-weight: 650; }
+</style>
+<section class="film__house house-film" hidden>
+  <div class="house-film__stage">
+    <svg class="house-film__skyline" viewBox="0 0 1080 730" role="img" data-fr-label="Maison à deux étages et jardin fleuri, de nuit" aria-label="Cutaway of a two-storey house and its flower garden at night">
+      <defs>
+        <linearGradient id="nightSky" x2=".38" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#0b1737"/><stop offset=".5" stop-color="#253667"/><stop offset="1" stop-color="#606389"/></linearGradient>
+        <linearGradient id="moonLight" x2=".7" y2="1"><stop stop-color="#fff9ce"/><stop offset="1" stop-color="#d7d7bc"/></linearGradient>
+        <linearGradient id="houseWall" x2=".4" y2="1"><stop stop-color="#7090a0"/><stop offset=".5" stop-color="#536d82"/><stop offset="1" stop-color="#394b67"/></linearGradient>
+        <linearGradient id="slates" x2=".3" y2="1"><stop stop-color="#526880"/><stop offset="1" stop-color="#25374d"/></linearGradient>
+        <linearGradient id="roomLight" x2=".2" y2="1"><stop stop-color="#f4b351"/><stop offset=".5" stop-color="#ffe4a2"/><stop offset="1" stop-color="#d9a05f"/></linearGradient>
+        <linearGradient id="coldGlass" x2="1" y2="1"><stop stop-color="#19314c"/><stop offset="1" stop-color="#425875"/></linearGradient>
+        <linearGradient id="lawn" x2="0" y2="1"><stop stop-color="#30495d"/><stop offset="1" stop-color="#172b3d"/></linearGradient>
+        <radialGradient id="aureole"><stop stop-color="#ffe0a8" stop-opacity=".28"/><stop offset="1" stop-color="#ffe0a8" stop-opacity="0"/></radialGradient>
+        <radialGradient id="moonHalo"><stop stop-color="#e8e6c3" stop-opacity=".18"/><stop offset="1" stop-color="#e8e6c3" stop-opacity="0"/></radialGradient>
+        <pattern id="brick" width="54" height="22" patternUnits="userSpaceOnUse"><path d="M0 0h54M0 11h54m-27 0v11M0 0v11" fill="none" stroke="#b1b9bd" opacity=".12" stroke-width="1.7"/></pattern>
+        <pattern id="shingles" width="32" height="17" patternUnits="userSpaceOnUse" patternTransform="skewX(-18)"><path d="M0 0h32v8H0m16 0v9" fill="none" stroke="#a1b2bf" opacity=".21" stroke-width="1.4"/></pattern>
+        <pattern id="paper" width="7" height="9" patternUnits="userSpaceOnUse"><circle cx="1" cy="2" r=".7" fill="white" opacity=".065"/><circle cx="4" cy="7" r=".55" fill="#050d24" opacity=".12"/></pattern>
+        <g id="pine" fill="currentColor"><path d="M-3 0v-91h6V0zM0-130l-27 47h15l-25 34h16l-26 27h93L21-49h15L12-83h14z"/></g>
+        <path id="treeLeaf" d="M-12 2Q-8-9 2-9q9-1 14 3Q12 7 2 9q-8 1-14-7z" stroke="#263f45" stroke-width="1"/>
+        <g id="treeWood" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M-13 0q12-22 11-57l-4-36 8-38 6 42-3 43Q5-14 16 0z" fill="currentColor"/>
+          <path d="M0-67q-24-9-37-34l-13-26m15 30-24-13m16-2 2-21M1-86q24-6 37-32l12-14m-17 24 21-5m-18 0 2-24M0-107q-17-15-23-40m22 33 14-20 5-20" stroke-width="6"/>
+          <path d="m-52-121-13-9m25 3-7-11m23-3-12-9m50 15 12-6m12 7 9-9m8 10 6-13" stroke-width="3"/>
+        </g>
+        <g id="flowerHead"><g fill="#ffd2ac" stroke="#e69084" stroke-width="1.4"><ellipse cy="-8" rx="4.3" ry="8"/><ellipse cy="-8" rx="4.3" ry="8" transform="rotate(60)"/><ellipse cy="-8" rx="4.3" ry="8" transform="rotate(120)"/><ellipse cy="-8" rx="4.3" ry="8" transform="rotate(180)"/><ellipse cy="-8" rx="4.3" ry="8" transform="rotate(240)"/><ellipse cy="-8" rx="4.3" ry="8" transform="rotate(300)"/></g><circle r="5.4" fill="#f5b652"/></g>
+        <clipPath id="roomOpenings"></clipPath>
+      </defs>
+      <path fill="url(#nightSky)" d="M0 0h1080v730H0z"/>
+      <g id="stars" fill="#e3e8ec"></g>
+      <circle cx="940" cy="99" r="112" fill="url(#moonHalo)"/><circle cx="940" cy="99" r="35" fill="url(#moonLight)"/>
+      <path d="M920 91q6-10 14-7m12 31q5 2 10-4m-31-12q3 3 7 2" fill="none" stroke="#c1c3b1" stroke-width="3" opacity=".65"/>
+      <g fill="none" stroke="#9dacca" stroke-width="2.5" opacity=".29"><path d="M0 219h105q22-17 48 0h62m555-42h76q19-11 29 0h42m14 45h87m-891-66h68"/></g>
+      <path d="M0 448q145-82 275-42t265-20q110-60 234-5t306-29v282H0z" fill="#3e526f"/>
+      <path d="M0 463q161-43 305-5t286-20q162-53 260-19t229 4v245H0z" fill="#2e435c"/>
+      <g style="color:#354b61"><use href="#pine" transform="translate(104 536) scale(.88)"/><use href="#pine" transform="translate(913 540) scale(1.06)"/></g>
+      <path d="M0 525q220-34 400-4t680-6v215H0z" fill="url(#lawn)"/>
+      <g id="gardenTrees"></g>
+      <path d="M513 573q16 28 100 41 150 22 467 17v54q-342-2-516-48-84-25-93-59z" fill="#576271"/>
+      <path d="M541 602q104 53 539 53" fill="none" stroke="#8d9194" stroke-width="2" stroke-dasharray="8 24" opacity=".62"/>
+      <ellipse cx="513" cy="572" rx="356" ry="29" fill="#142638" opacity=".52"/>
+      <!-- The cutaway keeps the landing and the staircase visible between the eight rooms. -->
+      <path d="M203 276h631v289H203z" fill="url(#houseWall)" stroke="#23364b" stroke-width="6"/>
+      <path d="M203 276h631v289H203z" fill="url(#brick)"/>
+      <path d="M203 276h631v15H203z" fill="#2b4356"/><path d="M204 407h631v9H204z" fill="#b0ad9b"/><path d="M204 416h631v5H204z" fill="#354b60"/>
+      <path d="M244 198v-54h39v48" fill="#897f80" stroke="#30435b" stroke-width="4"/><path d="M238 143h51v10h-51z" fill="#9d9691"/>
+      <path d="M184 280l82-107h483l103 107z" fill="url(#slates)" stroke="#25364b" stroke-width="5"/><path d="M184 280l82-107h483l103 107z" fill="url(#shingles)"/>
+      <path d="M183 279h669v10H183z" fill="#c2bdac"/><path d="M179 276h678" stroke="#364963" stroke-width="5"/>
+      <path d="M433 278l83-76 84 76z" fill="#738698" stroke="#31445d" stroke-width="5"/><path d="M426 279l90-84 91 84" fill="none" stroke="#bcc1b7" stroke-width="7"/>
+      <circle cx="516" cy="252" r="15" fill="#24394e" stroke="#b6b7a5" stroke-width="5"/><path d="M504 250h24m-22 5h20" stroke="#65798b" stroke-width="2"/>
+      <g id="rooms"></g>
+      <path d="M475 552V314a40 40 0 0 1 80 0v238z" fill="#182d43" stroke="#b3b1a0" stroke-width="7"/>
+      <path d="M478 348l68 48-65 55 63 47-49 46" fill="none" stroke="#617489" stroke-width="6"/>
+      <path d="M480 335l67 47-66 55 63 47" fill="none" stroke="#9b9c9b" stroke-width="2"/>
+      <g id="peopleInside" clip-path="url(#roomOpenings)"></g>
+      <g id="windowTrim"></g>
+      <path d="M478 557v-79a37 37 0 0 1 74 0v79" fill="none" stroke="#d0c1a5" stroke-width="7"/>
+      <g id="door"><path d="M483 557v-79a32 32 0 0 1 64 0v79z" fill="#304d69" stroke="#22384d" stroke-width="3"/><path d="M491 479a24 24 0 0 1 48 0v14h-48z" fill="#748c9e"/><path d="M493 508h44v36h-44z" fill="none" stroke="#648093" stroke-width="2"/><circle cx="538" cy="501" r="3.3" fill="#ffce82"/></g>
+      <path d="M199 557h279v10H199zm354 0h285v10H553z" fill="#a09c93"/><path d="M473 557h83v8h-83zm-7 9h100v7H466zm-8 8h116v8H458z" fill="#ada99d" stroke="#53616a" stroke-width="1.4"/>
+      <g id="peopleOutside"></g>
+      <g id="garden"></g>
+      <path d="M0 678q58-25 125-16t128 9q-84-1-138 7-69 9-115 22z" fill="#203a48"/>
+      <path d="M0 0h1080v730H0z" fill="url(#paper)" pointer-events="none"/>
+    </svg>
+    <h1 class="house-film__title"></h1>
+  </div>
+  <div class="house-film__ledger">
+    <div class="house-film__ledger-head"><strong data-fr="Coût simulé de l’éclairage">Illustrative lighting bill</strong><span class="house-film__tariff" data-fr="8 × 60 W · 0,25 €/kWh">8 × 60 W · €0.25/kWh</span></div>
+    <dl class="house-film__readings">
+      <div><dt data-fr="Lampes allumées">Lamps on</dt><dd data-reading="lamps"></dd></div>
+      <div><dt data-fr="Heures d’absence">Hours empty</dt><dd data-reading="hours"></dd></div>
+      <div><dt data-fr="Énergie (kWh)">Energy (kWh)</dt><dd data-reading="energy"></dd></div>
+      <div><dt data-fr="Éclairage">Lighting cost</dt><dd class="house-film__charge" data-reading="charge"></dd></div>
+    </dl>
+    <p class="house-film__comparison" hidden data-fr="Sur 8 h · lampes allumées 0,96 € · éteintes 0,00 €">Same 8 hours · lights on €0.96 · lights off €0.00</p>
+  </div>
+</section>

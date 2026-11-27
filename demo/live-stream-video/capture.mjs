@@ -6,10 +6,9 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { chromium } from '../../src/SlimFaas/ClientApp/node_modules/playwright/index.mjs';
+import { chromium } from 'playwright-core';
 
-const root = fileURLToPath(new URL('../../', import.meta.url));
-const work = root + 'artifacts/live-stream-video';
+const work = fileURLToPath(new URL('./artifacts', import.meta.url));
 const stage = process.argv[2];
 assert(['sync', 'async', 'subscriptions'].includes(stage));
 const dir = work + '/' + stage;
